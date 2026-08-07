@@ -1,0 +1,80 @@
+"""Profile model — a composed set of collections with artifact toggles."""
+
+import uuid
+from datetime import datetime, timezone
+from typing import Optional
+from sqlmodel import SQLModel, Field, Column, String, DateTime, Boolean, Integer
+from sqlalchemy import Uuid,  ForeignKey, Text
+
+
+class Profile(SQLModel, table=True):
+    """A user-defined profile combining a base collection with additional collections."""
+
+    __tablename__ = "profiles"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner_id: uuid.UUID = Field(
+        sa_column=Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
+    )
+    name: str = Field(sa_column=Column("name", String(255), nullable=False))
+    description: Optional[str] = Field(default=None, sa_column=Column("description", Text))
+    base_collection_id: uuid.UUID = Field(
+        sa_column=Column("base_collection_id", Uuid, ForeignKey("collections.id"), nullable=False),
+    )
+    additional_collection_ids: str = Field(
+        default="[]",
+        sa_column=Column("additional_collection_ids", Text, default="[]"),
+    )
+    disabled_artifact_ids: str = Field(
+        default="[]",
+        sa_column=Column("disabled_artifact_ids", Text, default="[]"),
+    )
+    target_framework: Optional[str] = Field(
+        default=None,
+        sa_column=Column("target_framework", String(64)),
+    )
+    is_public: bool = Field(default=False, sa_column=Column("is_public", Boolean, default=False))
+    version: int = Field(default=1, sa_column=Column("version", Integer, default=1))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column("created_at", DateTime(timezone=True), nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column("updated_at", DateTime(timezone=True), nullable=False, onupdate=lambda: datetime.now(timezone.utc)),
+        
+    )
+
+
+class ProfileCreate(SQLModel):
+    """Schema for creating a profile."""
+    name: str
+    description: Optional[str] = None
+    base_collection_id: uuid.UUID
+    additional_collection_ids: list[uuid.UUID] = []
+    disabled_artifact_ids: list[uuid.UUID] = []
+    target_framework: Optional[str] = None
+    is_public: bool = False
+
+
+class ProfileRead(SQLModel):
+    """Schema for reading a profile."""
+    id: uuid.UUID
+    owner_id: uuid.UUID
+    name: str
+    description: Optional[str] = None
+    base_collection_id: uuid.UUID
+    additional_collection_ids: list[uuid.UUID]
+    disabled_artifact_ids: list[uuid.UUID]
+    target_framework: Optional[str] = None
+    is_public: bool
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ProfileCompileRequest(SQLModel):
+    """Request schema for compiling a profile into target-specific files."""
+    profile_id: uuid.UUID
+    target: str  # e.g., "claude-code", "opencode", "cursor"
+    include_disabled: bool = False

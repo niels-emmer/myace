@@ -1,0 +1,28 @@
+# Development — hot reload, direct backend access, CORS for Vite.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Access:
+#   Frontend (nginx SPA):  http://localhost:80
+#   Backend API (direct):  http://localhost:8000
+#   API docs:              http://localhost:8000/docs
+#
+# For Vite dev server with HMR, run separately:
+#   cd frontend && npm run dev   (starts on :5173, proxies /api to :8000)
+
+services:
+  frontend:
+    ports:
+      - "80:80"
+
+  backend:
+    ports:
+      - "8000:8000"
+    environment:
+      - CORS_ORIGINS=http://localhost:80,http://localhost:5173,http://localhost:8000
+    volumes:
+      # Mount home directory so the scanner can read local configs
+      - ~/:/host-home:ro
+    # Hot reload is already enabled via the Dockerfile's --reload flag
+    # and the volume mount in the base compose file
