@@ -1,18 +1,25 @@
 """Alembic migrations environment."""
 
 import sys
-from pathlib import Path
 from logging.config import fileConfig
+from pathlib import Path
+
 from sqlalchemy import engine_from_config, pool
-from alembic import context
 from sqlmodel import SQLModel
+
+from alembic import context
 
 # Ensure the backend package is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Import all models so they are registered
 from app.models import (  # noqa: F401
-    user, collection, artifact, profile, token, doc_cache,
+    artifact,
+    collection,
+    doc_cache,
+    profile,
+    token,
+    user,
 )
 
 config = context.config

@@ -1,13 +1,11 @@
 """Tests for SQLModel schemas."""
 
 import uuid
-from datetime import datetime, timezone
-from app.models.user import User, UserCreate, UserRead
-from app.models.collection import Collection, CollectionCreate, CollectionRead
-from app.models.artifact import Artifact, ArtifactCreate, ArtifactRead, CanonicalArtifact
-from app.models.profile import Profile, ProfileCreate, ProfileRead, ProfileCompileRequest
-from app.models.token import ApiToken, ApiTokenCreate, ApiTokenRead
-from app.models.doc_cache import DocCacheEntry, DocCacheCreate
+from datetime import UTC, datetime
+
+from app.models.artifact import CanonicalArtifact
+from app.models.profile import ProfileCompileRequest
+from app.models.user import UserCreate, UserRead
 
 
 class TestUserModel:
@@ -26,16 +24,18 @@ class TestUserModel:
 
     def test_user_read_schema(self):
         """UserRead should include id and timestamps."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         data = UserRead(
             id=uuid.uuid4(),
             email="test@example.com",
             display_name="Test",
             is_active=True,
+            is_admin=False,
             created_at=now,
         )
         assert isinstance(data.id, uuid.UUID)
         assert data.is_active is True
+        assert data.is_admin is False
 
 
 class TestCanonicalArtifact:

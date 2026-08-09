@@ -1,13 +1,13 @@
 """OIDC/OAuth2 authentication and API key security."""
 
 import secrets
+from datetime import UTC, datetime, timedelta
+
 import bcrypt
-from datetime import datetime, timezone, timedelta
-from typing import Optional
 from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config as StarletteConfig
-from app.core.config import settings
 
+from app.core.config import settings
 
 # ─── OAuth / OIDC ─────────────────────────────────────────────
 
@@ -75,6 +75,22 @@ def verify_api_key(api_key: str, hashed: str) -> bool:
     )
 
 
+def hash_password(password: str) -> str:
+    """Hash a user password using bcrypt for storage."""
+    return bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt(),
+    ).decode("utf-8")
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify a user password against its stored hash."""
+    return bcrypt.checkpw(
+        password.encode("utf-8"),
+        hashed.encode("utf-8"),
+    )
+
+
 def generate_oidc_state() -> str:
     """Generate a cryptographically random state parameter for OIDC."""
     return secrets.token_urlsafe(32)
@@ -84,4 +100,4 @@ def generate_oidc_state() -> str:
 
 def default_token_expiry() -> datetime:
     """Default API key expiry: 365 days from now."""
-    return datetime.now(timezone.utc) + timedelta(days=365)
+    return datetime.now(UTC) + timedelta(days=365)

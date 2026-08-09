@@ -1,36 +1,57 @@
 """Profile management and compilation routes."""
 
-import uuid
 import json
-from typing import Optional
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+
+from app.core.authz import authorize_access, owner_or_public_clause
 from app.core.database import get_session
-from app.models.profile import Profile, ProfileCreate, ProfileRead, ProfileCompileRequest
+from app.core.deps import get_current_user
 from app.models.collection import Collection
-from app.models.artifact import Artifact, CanonicalArtifact
+from app.models.profile import Profile, ProfileCompileRequest, ProfileCreate, ProfileRead
+from app.models.user import User
 from app.services.compiler import compile_profile
 
 router = APIRouter()
 
 
+async def _get_profile_or_404(session: AsyncSession, profile_id: uuid.UUID) -> Profile:
+    result = await session.execute(select(Profile).where(Profile.id == profile_id))
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return profile
+
+
+async def _assert_readable_collection(
+    session: AsyncSession, collection_id: uuid.UUID, current_user: User
+) -> None:
+    result = await session.execute(select(Collection).where(Collection.id == collection_id))
+    collection = result.scalar_one_or_none()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Base collection not found")
+    authorize_access(
+        owner_id=collection.owner_id, current_user=current_user,
+        is_public=collection.visibility == "public", resource_name="Collection",
+    )
+
+
 @router.post("", response_model=ProfileRead, status_code=status.HTTP_201_CREATED)
 async def create_profile(
     profile_data: ProfileCreate,
-    owner_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Create a new profile combining collections."""
-    # Verify base collection exists
-    result = await session.execute(
-        select(Collection).where(Collection.id == profile_data.base_collection_id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Base collection not found")
+    await _assert_readable_collection(session, profile_data.base_collection_id, current_user)
+    for cid in profile_data.additional_collection_ids:
+        await _assert_readable_collection(session, cid, current_user)
 
     db_profile = Profile(
-        owner_id=owner_id,
+        owner_id=current_user.id,
         name=profile_data.name,
         description=profile_data.description,
         base_collection_id=profile_data.base_collection_id,
@@ -51,13 +72,18 @@ async def create_profile(
 
 @router.get("", response_model=list[ProfileRead])
 async def list_profiles(
-    owner_id: Optional[uuid.UUID] = None,
-    is_public: Optional[bool] = None,
+    owner_id: uuid.UUID | None = None,
+    is_public: bool | None = None,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """List profiles with optional filters."""
+    """List profiles visible to the caller: their own + public, or everything for admins."""
     query = select(Profile)
-    if owner_id:
+
+    clause = owner_or_public_clause(Profile.owner_id, Profile.is_public == True, current_user)
+    if clause is not None:
+        query = query.where(clause)
+    if owner_id and current_user.is_admin:
         query = query.where(Profile.owner_id == owner_id)
     if is_public is not None:
         query = query.where(Profile.is_public == is_public)
@@ -70,21 +96,22 @@ async def list_profiles(
 @router.get("/{profile_id}", response_model=ProfileRead)
 async def get_profile(
     profile_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Get a single profile by ID."""
-    result = await session.execute(
-        select(Profile).where(Profile.id == profile_id)
+    profile = await _get_profile_or_404(session, profile_id)
+    authorize_access(
+        owner_id=profile.owner_id, current_user=current_user,
+        is_public=profile.is_public, resource_name="Profile",
     )
-    profile = result.scalar_one_or_none()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
     return _profile_to_read(profile)
 
 
 @router.post("/compile")
 async def compile_profile_endpoint(
     request: ProfileCompileRequest,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """
@@ -92,12 +119,11 @@ async def compile_profile_endpoint(
     Resolves base + additive collections, merges artifacts without duplicates,
     and returns target-formatted files.
     """
-    result = await session.execute(
-        select(Profile).where(Profile.id == request.profile_id)
+    profile = await _get_profile_or_404(session, request.profile_id)
+    authorize_access(
+        owner_id=profile.owner_id, current_user=current_user,
+        is_public=profile.is_public, resource_name="Profile",
     )
-    profile = result.scalar_one_or_none()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
 
     compiled = await compile_profile(
         session=session,
@@ -112,19 +138,19 @@ async def compile_profile_endpoint(
 async def update_profile(
     profile_id: uuid.UUID,
     profile_data: ProfileCreate,
-    owner_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Update an existing profile."""
-    result = await session.execute(
-        select(Profile).where(
-            Profile.id == profile_id,
-            Profile.owner_id == owner_id,
-        )
+    profile = await _get_profile_or_404(session, profile_id)
+    authorize_access(
+        owner_id=profile.owner_id, current_user=current_user,
+        write=True, resource_name="Profile",
     )
-    profile = result.scalar_one_or_none()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+
+    await _assert_readable_collection(session, profile_data.base_collection_id, current_user)
+    for cid in profile_data.additional_collection_ids:
+        await _assert_readable_collection(session, cid, current_user)
 
     profile.name = profile_data.name
     profile.description = profile_data.description
@@ -147,19 +173,15 @@ async def update_profile(
 @router.delete("/{profile_id}")
 async def delete_profile(
     profile_id: uuid.UUID,
-    owner_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Delete a profile."""
-    result = await session.execute(
-        select(Profile).where(
-            Profile.id == profile_id,
-            Profile.owner_id == owner_id,
-        )
+    profile = await _get_profile_or_404(session, profile_id)
+    authorize_access(
+        owner_id=profile.owner_id, current_user=current_user,
+        write=True, resource_name="Profile",
     )
-    profile = result.scalar_one_or_none()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
 
     await session.delete(profile)
     await session.commit()

@@ -1,8 +1,7 @@
 """Application configuration via pydantic-settings."""
 
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
-import os
 
 
 class Settings(BaseSettings):
@@ -40,6 +39,9 @@ class Settings(BaseSettings):
     api_key_salt: str = "change-me-to-a-random-salt"
     api_key_length: int = 48
 
+    # Admin bootstrap
+    admin_emails: str = ""
+
     # CORS
     cors_origins: str = "https://myace.localhost"
 
@@ -48,12 +50,16 @@ class Settings(BaseSettings):
     doc_cache_refresh_interval_hours: int = 168
 
     @property
-    def cors_origin_list(self) -> List[str]:
+    def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     @property
-    def oidc_scope_list(self) -> List[str]:
+    def oidc_scope_list(self) -> list[str]:
         return [s.strip() for s in self.oidc_scopes.split(" ") if s.strip()]
+
+    @property
+    def admin_email_list(self) -> list[str]:
+        return [e.strip().lower() for e in self.admin_emails.split(",") if e.strip()]
 
 
 settings = Settings()

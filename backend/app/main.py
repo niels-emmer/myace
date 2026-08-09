@@ -1,11 +1,19 @@
 """MyACE Backend — FastAPI application entrypoint."""
 
+import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+
+from app.api import adapters, auth, collections, doc_cache, profiles
 from app.core.config import settings
 from app.core.database import init_db
-from app.api import auth, collections, profiles, adapters, doc_cache
+
+logger = logging.getLogger("myace")
+
+DEFAULT_SECRET_KEY = "change-me-to-a-random-64-char-string"
 
 
 @asynccontextmanager
@@ -13,6 +21,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan: initialize DB on startup."""
     if settings.app_env == "development":
         await init_db()
+    if settings.app_secret_key == DEFAULT_SECRET_KEY and settings.app_env != "development":
+        logger.warning(
+            "APP_SECRET_KEY is still the default placeholder value. Session cookies can be "
+            "forged by anyone who knows this value — set a real random secret before exposing "
+            "this deployment beyond localhost."
+        )
     yield
 
 
@@ -31,6 +45,17 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Session middleware — backs both the OIDC login handshake (state/nonce) and
+# the web UI's authenticated session cookie.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.app_secret_key,
+    session_cookie="myace_session",
+    same_site="lax",
+    https_only=not settings.debug,
+    max_age=14 * 24 * 3600,
 )
 
 # Register routers

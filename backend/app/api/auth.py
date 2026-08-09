@@ -1,20 +1,115 @@
-"""Authentication routes — OIDC login, callback, token management."""
+"""Authentication routes — email/password, OIDC login, callback, token management."""
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlmodel import select
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import func, select
+
+from app.core.authz import authorize_access
+from app.core.config import settings
 from app.core.database import get_session
+from app.core.deps import get_current_user
 from app.core.security import (
-    oauth, generate_api_key, hash_api_key, verify_api_key,
-    generate_oidc_state, default_token_expiry,
+    default_token_expiry,
+    generate_api_key,
+    generate_oidc_state,
+    hash_api_key,
+    hash_password,
+    oauth,
+    verify_password,
 )
-from app.models.user import User
-from app.models.token import ApiToken, ApiTokenCreate, ApiTokenRead
+from app.models.token import ApiToken, ApiTokenCreate, ApiTokenCreateResponse, ApiTokenRead
+from app.models.user import User, UserLogin, UserRead, UserRegister
 
 router = APIRouter()
+
+
+async def _is_bootstrap_admin(session: AsyncSession, email: str) -> bool:
+    """First-ever user becomes admin; emails in ADMIN_EMAILS are promoted too."""
+    if email.lower() in settings.admin_email_list:
+        return True
+    count = (await session.execute(select(func.count()).select_from(User))).scalar_one()
+    return count == 0
+
+
+# ─── Email + Password Auth ─────────────────────────────────────
+
+@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+async def register(
+    request: Request,
+    data: UserRegister,
+    session: AsyncSession = Depends(get_session),
+):
+    """Register a new account with email + password."""
+    if len(data.password) < 8:
+        raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
+
+    result = await session.execute(select(User).where(User.email == data.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+
+    is_admin = await _is_bootstrap_admin(session, data.email)
+    user = User(
+        email=data.email,
+        display_name=data.display_name,
+        password_hash=hash_password(data.password),
+        is_admin=is_admin,
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    request.session["user_id"] = str(user.id)
+    return user
+
+
+@router.post("/login", response_model=UserRead)
+async def login_with_password(
+    request: Request,
+    data: UserLogin,
+    session: AsyncSession = Depends(get_session),
+):
+    """Log in with email + password."""
+    result = await session.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+
+    if (
+        not user
+        or not user.password_hash
+        or not verify_password(data.password, user.password_hash)
+        or not user.is_active
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
+        )
+
+    request.session["user_id"] = str(user.id)
+    return user
+
+
+@router.post("/logout")
+async def logout(request: Request):
+    """Clear the current session."""
+    request.session.clear()
+    return {"message": "Logged out"}
+
+
+@router.get("/me", response_model=UserRead)
+async def get_me(current_user: User = Depends(get_current_user)):
+    """Return the currently authenticated user."""
+    return current_user
+
+
+@router.get("/providers")
+async def get_providers():
+    """Report which SSO providers are actually configured server-side."""
+    return {
+        "oidc": oauth.create_client("oidc") is not None,
+        "github": oauth.create_client("github") is not None,
+        "google": oauth.create_client("google") is not None,
+    }
 
 
 # ─── OIDC Login ───────────────────────────────────────────────
@@ -40,7 +135,7 @@ async def auth_callback(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    """OIDC/OAuth2 callback — create or authenticate user."""
+    """OIDC/OAuth2 callback — create or authenticate user, establish a session."""
     client = oauth.create_client(provider)
     if not client:
         raise HTTPException(status_code=400, detail=f"Provider not configured: {provider}")
@@ -76,26 +171,26 @@ async def auth_callback(
                 oidc_sub=oidc_sub,
                 oidc_provider=provider,
                 avatar_url=avatar_url,
+                is_admin=await _is_bootstrap_admin(session, email),
             )
             session.add(user)
 
         await session.commit()
         await session.refresh(user)
 
-    return {
-        "user_id": str(user.id),
-        "email": user.email,
-        "display_name": user.display_name,
-        "message": "Authentication successful",
-    }
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is disabled")
+
+    request.session["user_id"] = str(user.id)
+    return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
 
 # ─── API Token Management ─────────────────────────────────────
 
-@router.post("/tokens", response_model=ApiTokenRead)
+@router.post("/tokens", response_model=ApiTokenCreateResponse)
 async def create_token(
     token_data: ApiTokenCreate,
-    user_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Create a new API token for CLI authentication."""
@@ -103,7 +198,7 @@ async def create_token(
     token_prefix = api_key[:8]
 
     db_token = ApiToken(
-        user_id=user_id,
+        user_id=current_user.id,
         name=token_data.name,
         token_prefix=token_prefix,
         token_hash=hash_api_key(api_key),
@@ -121,13 +216,20 @@ async def create_token(
 
 @router.get("/tokens", response_model=list[ApiTokenRead])
 async def list_tokens(
-    user_id: uuid.UUID,
+    user_id: uuid.UUID | None = None,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """List all active tokens for a user."""
+    """List active tokens — your own, or (admin only) another user's."""
+    target_id = current_user.id
+    if user_id is not None and user_id != current_user.id:
+        if not current_user.is_admin:
+            raise HTTPException(status_code=403, detail="Admin privileges required")
+        target_id = user_id
+
     result = await session.execute(
         select(ApiToken).where(
-            ApiToken.user_id == user_id,
+            ApiToken.user_id == target_id,
             ApiToken.is_active == True,
         )
     )
@@ -137,19 +239,18 @@ async def list_tokens(
 @router.delete("/tokens/{token_id}")
 async def revoke_token(
     token_id: uuid.UUID,
-    user_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Revoke an API token."""
-    result = await session.execute(
-        select(ApiToken).where(
-            ApiToken.id == token_id,
-            ApiToken.user_id == user_id,
-        )
-    )
+    """Revoke an API token (owner or admin)."""
+    result = await session.execute(select(ApiToken).where(ApiToken.id == token_id))
     token = result.scalar_one_or_none()
     if not token:
         raise HTTPException(status_code=404, detail="Token not found")
+
+    authorize_access(
+        owner_id=token.user_id, current_user=current_user, write=True, resource_name="Token"
+    )
 
     token.is_active = False
     await session.commit()

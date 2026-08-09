@@ -1,10 +1,10 @@
 """Collection model — a Git repository of canonical artifacts."""
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
-from sqlmodel import SQLModel, Field, Column, String, DateTime, Boolean, Integer
-from sqlalchemy import Uuid,  ForeignKey, Text
+from datetime import UTC, datetime
+
+from sqlalchemy import ForeignKey, Text, Uuid
+from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String
 
 
 class Collection(SQLModel, table=True):
@@ -17,9 +17,11 @@ class Collection(SQLModel, table=True):
         sa_column=Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
     )
     name: str = Field(sa_column=Column("name", String(255), nullable=False))
-    description: Optional[str] = Field(default=None, sa_column=Column("description", Text))
+    description: str | None = Field(default=None, sa_column=Column("description", Text))
     git_url: str = Field(sa_column=Column("git_url", Text, nullable=False))
-    git_branch: str = Field(default="main", sa_column=Column("git_branch", String(255), default="main"))
+    git_branch: str = Field(
+        default="main", sa_column=Column("git_branch", String(255), default="main")
+    )
     collection_type: str = Field(
         default="base",
         sa_column=Column("collection_type", String(64), nullable=False),
@@ -30,29 +32,38 @@ class Collection(SQLModel, table=True):
     )
     is_active: bool = Field(default=True, sa_column=Column("is_active", Boolean, default=True))
     artifact_count: int = Field(default=0, sa_column=Column("artifact_count", Integer, default=0))
-    last_synced_at: Optional[datetime] = Field(
+    last_synced_at: datetime | None = Field(
         default=None,
         sa_column=Column("last_synced_at", DateTime(timezone=True)),
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         sa_column=Column("created_at", DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column("updated_at", DateTime(timezone=True), nullable=False, onupdate=lambda: datetime.now(timezone.utc)),
-        
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=Column(
+            "updated_at", DateTime(timezone=True), nullable=False,
+            onupdate=lambda: datetime.now(UTC),
+        ),
     )
 
 
 class CollectionCreate(SQLModel):
     """Schema for creating a collection."""
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     git_url: str
     git_branch: str = "main"
     collection_type: str = "base"
     visibility: str = "private"
+
+
+class CollectionUpdate(SQLModel):
+    """Schema for updating a collection (all fields optional)."""
+    name: str | None = None
+    description: str | None = None
+    collection_type: str | None = None
 
 
 class CollectionRead(SQLModel):
@@ -60,13 +71,13 @@ class CollectionRead(SQLModel):
     id: uuid.UUID
     owner_id: uuid.UUID
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     git_url: str
     git_branch: str
     collection_type: str
     visibility: str
     is_active: bool
     artifact_count: int
-    last_synced_at: Optional[datetime] = None
+    last_synced_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
