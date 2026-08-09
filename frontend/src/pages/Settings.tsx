@@ -12,6 +12,7 @@ export default function Settings() {
   const [tokenName, setTokenName] = useState('');
   const [newToken, setNewToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const { data: providers } = useQuery({
     queryKey: ['auth-providers'],
@@ -52,6 +53,17 @@ export default function Settings() {
       setTimeout(() => setCopied(false), 3000);
     }
   };
+
+  const copyCommand = async (text: string, key: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const backendOrigin = window.location.origin;
+  const installCommand = 'pip install "git+https://github.com/niels-emmer/myace.git#subdirectory=cli"';
+  const loginCommand = `myace login --server ${backendOrigin} --token ${newToken ?? '<your-token>'}`;
+  const pullCommand = 'myace pull --profile my-defaults --target opencode --path ~/.opencode/';
 
   return (
     <div className="space-y-8">
@@ -221,18 +233,52 @@ export default function Settings() {
           <h2 className="text-lg font-semibold text-card-foreground">CLI Setup</h2>
         </div>
         <div className="space-y-3 text-sm text-muted-foreground">
-          <p>Install the CLI and authenticate with your API token:</p>
-          <div className="bg-foreground text-background p-3 rounded-lg font-mono text-xs space-y-1">
-            <p># Install the CLI</p>
-            <p className="text-green-400">pip install myace-cli</p>
-            <p></p>
-            <p># Authenticate with your API token</p>
-            <p className="text-green-400">myace login --server https://api.myace.localhost --token &lt;your-token&gt;</p>
-            <p></p>
-            <p># Pull a compiled profile</p>
-            <p className="text-green-400">myace pull --profile my-defaults --target opencode --path ~/.opencode/</p>
-          </div>
+          <p>
+            Install the CLI and authenticate against{' '}
+            <span className="font-mono text-foreground">{backendOrigin}</span>:
+          </p>
+          {!newToken && (
+            <p className="text-amber-700">
+              Create a token above first, then this login command will fill in for you automatically.
+            </p>
+          )}
+          <CommandLine label="# Install the CLI" command={installCommand} copyKey="install" copiedKey={copiedKey} onCopy={copyCommand} />
+          <CommandLine label="# Authenticate with your API token" command={loginCommand} copyKey="login" copiedKey={copiedKey} onCopy={copyCommand} />
+          <CommandLine label="# Pull a compiled profile" command={pullCommand} copyKey="pull" copiedKey={copiedKey} onCopy={copyCommand} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CommandLine({
+  label,
+  command,
+  copyKey,
+  copiedKey,
+  onCopy,
+}: {
+  label: string;
+  command: string;
+  copyKey: string;
+  copiedKey: string | null;
+  onCopy: (text: string, key: string) => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <div className="flex items-center justify-between gap-2 bg-foreground text-background p-3 rounded-lg font-mono text-xs">
+        <code className="break-all">{command}</code>
+        <button
+          onClick={() => onCopy(command, copyKey)}
+          className="shrink-0 p-1 hover:bg-background/10 rounded transition-colors"
+        >
+          {copiedKey === copyKey ? (
+            <Check className="h-4 w-4 text-green-400" />
+          ) : (
+            <Copy className="h-4 w-4 text-background/70" />
+          )}
+        </button>
       </div>
     </div>
   );

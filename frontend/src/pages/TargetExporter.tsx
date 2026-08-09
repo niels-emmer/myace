@@ -21,6 +21,9 @@ export default function TargetExporter() {
     queryFn: () => adaptersApi.list(),
   });
 
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
   const handleCompile = async () => {
     if (!selectedProfile) return;
     setLoading(true);
@@ -34,6 +37,36 @@ export default function TargetExporter() {
       console.error('Compilation failed:', err);
     }
     setLoading(false);
+  };
+
+  const handleDownloadZip = async () => {
+    if (!selectedProfile || !result) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const res = await fetch('/api/v1/profiles/compile/zip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ profile_id: selectedProfile, target: selectedTarget }),
+      });
+      if (!res.ok) {
+        throw new Error(`Download failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${result.profile_name}-${result.target}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Zip download failed:', err);
+      setDownloadError('Could not download the zip. Try again.');
+    }
+    setDownloading(false);
   };
 
   const copyToClipboard = async (text: string, key: string) => {
@@ -103,7 +136,7 @@ export default function TargetExporter() {
 
         {/* CLI Command */}
         {cliCommand && (
-          <div className="bg-muted rounded-lg p-3 flex items-center justify-between">
+          <div className="bg-muted rounded-lg p-3 flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Terminal className="h-4 w-4 text-muted-foreground" />
               <code className="text-sm text-foreground">{cliCommand}</code>
@@ -118,6 +151,23 @@ export default function TargetExporter() {
                 <Copy className="h-4 w-4 text-muted-foreground" />
               )}
             </button>
+          </div>
+        )}
+
+        {/* Browser-only download, no CLI required */}
+        {result && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleDownloadZip}
+              disabled={downloading}
+              className="flex items-center gap-2 px-3 py-1.5 border border-border rounded-lg hover:bg-accent disabled:opacity-50 text-sm font-medium text-foreground"
+            >
+              <Download className="h-4 w-4" />
+              {downloading ? 'Preparing zip...' : 'Download as .zip'}
+            </button>
+            {downloadError && (
+              <span className="text-sm text-destructive">{downloadError}</span>
+            )}
           </div>
         )}
       </div>
