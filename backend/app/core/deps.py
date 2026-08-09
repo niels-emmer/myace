@@ -51,9 +51,9 @@ async def _user_from_bearer_token(request: Request, session: AsyncSession) -> Us
 
     # Bound the bcrypt verification loop to prevent DoS via crafted tokens
     # that share an 8-char prefix with many active tokens.
-    MAX_CANDIDATES = 10
-    if len(candidates) > MAX_CANDIDATES:
-        candidates = candidates[:MAX_CANDIDATES]
+    max_candidates = 10
+    if len(candidates) > max_candidates:
+        candidates = candidates[:max_candidates]
 
     for token in candidates:
         if token.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):

@@ -52,7 +52,7 @@ select = ["E", "F", "I", "N", "W", "UP"]
 # Python booleans — they build a SQL comparison via operator overloading, and
 # `is True`/bare-column truthiness (ruff's suggested fix) would silently break
 # every query using this pattern. Keep `== True`/`== False` in SQLAlchemy .where().
-ignore = ["E712"]
+ignore = ["E711", "E712"]
 
 [tool.mypy]
 python_version = "3.12"
