@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     # your real domain(s) once DNS is live for a public deployment.
     trusted_hosts: str = ""
 
+    # Scan root — confine local directory scanning to this directory.
+    # In Docker (docker-compose.dev.yml), the host home is mounted at /host-home.
+    # Set this to the intended scan root for your deployment.
+    scan_root: str = "/host-home"
+
     # Doc Cache
     doc_cache_ttl_days: int = 7
     doc_cache_refresh_interval_hours: int = 168

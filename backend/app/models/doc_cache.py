@@ -23,6 +23,9 @@ class DocCacheEntry(SQLModel, table=True):
         default="schema",
         sa_column=Column("content_type", String(64), default="schema"),
     )
+    deleted_at: datetime | None = Field(
+        default=None, sa_column=Column("deleted_at", DateTime(timezone=True)),
+    )
     ttl_days: int = Field(default=7, sa_column=Column("ttl_days", Integer, default=7))
     fetched_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),

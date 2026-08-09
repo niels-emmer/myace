@@ -88,7 +88,7 @@ async def test_compile_zip_matches_json_files(
 
 
 @pytest.mark.asyncio
-async def test_compile_zip_unknown_target_returns_400(
+async def test_compile_zip_unknown_target_returns_422(
     async_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     await _register(async_client)
@@ -99,7 +99,8 @@ async def test_compile_zip_unknown_target_returns_400(
         "/api/v1/profiles/compile/zip",
         json={"profile_id": profile_id, "target": "nonexistent-target"},
     )
-    assert res.status_code == 400
+    # Literal type validation rejects invalid targets at the schema level
+    assert res.status_code == 422
 
 
 @pytest.mark.asyncio

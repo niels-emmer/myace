@@ -2,6 +2,8 @@
 
 import json
 import uuid
+from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -160,6 +162,7 @@ async def list_collection_artifacts(
 
     query = select(Artifact).where(
         Artifact.collection_id == collection_id,
+        Artifact.deleted_at == None,
     )
     if not include_disabled:
         query = query.where(Artifact.is_enabled == True)
@@ -188,6 +191,7 @@ async def get_artifact(
         select(Artifact).where(
             Artifact.id == artifact_id,
             Artifact.collection_id == collection_id,
+            Artifact.deleted_at == None,
         )
     )
     artifact = result.scalar_one_or_none()
@@ -215,6 +219,7 @@ async def update_artifact(
         select(Artifact).where(
             Artifact.id == artifact_id,
             Artifact.collection_id == collection_id,
+            Artifact.deleted_at == None,
         )
     )
     artifact = result.scalar_one_or_none()
@@ -260,12 +265,14 @@ async def bulk_delete_artifacts(
         select(Artifact).where(
             Artifact.collection_id == collection_id,
             Artifact.id.in_(request.artifact_ids),
+            Artifact.deleted_at == None,
         )
     )
     artifacts = result.scalars().all()
     deleted = len(artifacts)
+    now = datetime.now(UTC)
     for artifact in artifacts:
-        await session.delete(artifact)
+        artifact.deleted_at = now
     await session.commit()
 
     count_result = await session.execute(
@@ -304,6 +311,7 @@ async def bulk_export_artifacts(
         select(Artifact).where(
             Artifact.collection_id == collection_id,
             Artifact.id.in_(request.artifact_ids),
+            Artifact.deleted_at == None,
         )
     )
     source_artifacts = result.scalars().all()
@@ -422,6 +430,7 @@ async def export_collection_to_github(
         select(Artifact).where(
             Artifact.collection_id == collection_id,
             Artifact.is_enabled == True,
+            Artifact.deleted_at == None,
         )
     )
     db_artifacts = art_result.scalars().all()
@@ -466,7 +475,7 @@ async def export_collection_to_github(
 
 class ScanRequest(BaseModel):
     """Request to scan a local directory or a Git repository for artifacts."""
-    source_type: str = "local"  # "local" | "git"
+    source_type: Literal["local", "git"] = "local"
     path: str = ""
     git_url: str = ""
     git_branch: str = "main"
@@ -496,7 +505,7 @@ async def scan_local_directory(
     """Scan a local directory or Git repository and return discovered artifacts."""
     try:
         if request.source_type == "git":
-            from app.services.scanner import scan_git_repository
+            from app.services.scanner import _redact_credentials, scan_git_repository
             if not request.git_url:
                 raise ValueError("git_url is required when source_type is 'git'")
             artifacts = scan_git_repository(
@@ -504,7 +513,7 @@ async def scan_local_directory(
                 branch=request.git_branch or "main",
                 subdirectory=request.subdirectory,
             )
-            source_label = request.git_url
+            source_label = _redact_credentials(request.git_url)
         else:
             from app.services.scanner import scan_directory
             if not request.path:
@@ -518,17 +527,19 @@ async def scan_local_directory(
             "artifact_count": len(artifacts),
             "artifacts": artifacts,
         }
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Directory not found")
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Access denied")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Scan failed: {e}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Scan failed")
 
 
 class BulkImportItem(BaseModel):
     """A single artifact to import."""
-    artifact_type: str
+    artifact_type: Literal["rule", "skill", "agent", "workflow", "model_config"]
     name: str
     version: str = "1.0.0"
     priority: int = 50

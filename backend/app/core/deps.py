@@ -49,6 +49,12 @@ async def _user_from_bearer_token(request: Request, session: AsyncSession) -> Us
     )
     candidates = result.scalars().all()
 
+    # Bound the bcrypt verification loop to prevent DoS via crafted tokens
+    # that share an 8-char prefix with many active tokens.
+    max_candidates = 10
+    if len(candidates) > max_candidates:
+        candidates = candidates[:max_candidates]
+
     for token in candidates:
         if token.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
             continue

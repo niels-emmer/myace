@@ -9,17 +9,15 @@ from app.main import app, lifespan
 
 
 @pytest.mark.asyncio
-async def test_warns_on_default_secret_key_outside_dev(monkeypatch, caplog):
+async def test_raises_on_default_secret_key_outside_dev(monkeypatch):
     monkeypatch.setattr("app.main.settings.app_env", "production")
     monkeypatch.setattr("app.main.settings.app_secret_key", "change-me-to-a-random-64-char-string")
     monkeypatch.setattr("app.main.settings.debug", False)
     monkeypatch.setattr("app.main.settings.admin_bootstrap_enabled", False)
 
-    with caplog.at_level(logging.WARNING, logger="myace"):
+    with pytest.raises(RuntimeError, match="APP_SECRET_KEY"):
         async with lifespan(app):
             pass
-
-    assert any("APP_SECRET_KEY" in r.message for r in caplog.records)
 
 
 @pytest.mark.asyncio
