@@ -97,14 +97,24 @@ names where it's enforced so you can verify it hasn't regressed.
     ever add a hard-delete path for collections, you must delete or reassign
     their artifacts first, or the `DELETE` will fail on the FK constraint.
 
-15. **`Profile.additional_collection_ids` and `disabled_artifact_ids` are
+15. **Artifacts, profiles, and doc_cache entries use soft-delete, not hard
+    delete.** `session.delete()` is never called on these models — instead,
+    `deleted_at` is set to `datetime.now(UTC)`. Every list/get query filters
+    on `deleted_at == None` to exclude soft-deleted rows. This matches the
+    existing pattern for collections (`is_active = False`) and API tokens
+    (`is_active = False`). Enforced in `backend/app/api/collections.py`
+    (`bulk_delete_artifacts`), `backend/app/api/profiles.py`
+    (`delete_profile`), and `backend/app/api/doc_cache.py`
+    (`delete_cache_entry`).
+
+16. **`Profile.additional_collection_ids` and `disabled_artifact_ids` are
     JSON UUID lists, not real foreign keys.** The database will not stop you
     from storing a reference to a collection that's later deleted or made
     private. `compile_profile()` resolves these at request time and
     silently skips anything it can't find — it does not error. Don't assume
     referential integrity here that the schema doesn't actually provide.
 
-16. **`Collection.artifact_count` is a denormalized cache**, not a computed
+17. **`Collection.artifact_count` is a denormalized cache**, not a computed
     value. Every route that adds or removes artifacts from a collection
     (bulk import, bulk delete, bulk export's target) must update it, or it
     silently drifts from the true count.

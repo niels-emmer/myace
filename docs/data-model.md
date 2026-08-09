@@ -45,6 +45,7 @@ erDiagram
         int priority
         text body "markdown"
         bool is_enabled
+        datetime deleted_at "nullable — soft-delete timestamp"
     }
     PROFILE {
         uuid id PK
@@ -53,6 +54,7 @@ erDiagram
         string additional_collection_ids "JSON-encoded list[uuid]"
         string disabled_artifact_ids "JSON-encoded list[uuid]"
         bool is_public
+        datetime deleted_at "nullable — soft-delete timestamp"
         int version "incremented on every update"
     }
     API_TOKEN {
@@ -104,7 +106,8 @@ responding (see
 [debugging.md](debugging.md#response_model-silently-strips-fields-you-didnt-declare)).
 `is_enabled` is per-artifact and independent of the collection's
 `is_active` — a disabled artifact is skipped during compilation unless a
-profile explicitly asks to `include_disabled`.
+profile explicitly asks to `include_disabled`. `deleted_at` supports
+soft-delete — artifacts are never physically removed from the database.
 
 ### `profiles`
 
@@ -118,7 +121,9 @@ rather than erroring. `version` increments on every `PUT` — there's no
 history table, just the counter. `is_public` is the profile's own
 visibility flag, independent of the visibility of the collections it
 references (see the documented gap in
-[invariants.md](invariants.md#a-gap-thats-accepted-not-fixed)).
+[invariants.md](invariants.md#a-gap-thats-accepted-not-fixed)). `deleted_at`
+supports soft-delete — profiles are never physically removed from the
+database.
 
 ### `api_tokens`
 
@@ -133,7 +138,8 @@ job that revokes expired tokens, they just stop authenticating.
 
 Unrelated to the auth/ownership model above — a TTL-based cache of fetched
 framework documentation, used by adapter compatibility checks. Not
-owner-scoped; it's shared, read-only reference data.
+owner-scoped; it's shared, read-only reference data. `deleted_at` supports
+soft-delete — cache entries are never physically removed from the database.
 
 ## Why JSON-as-text instead of proper junction tables
 

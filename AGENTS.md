@@ -74,6 +74,9 @@ body: str (markdown)
 - Branch from `main`: `feat/description`, `fix/description`, `chore/description`.
 - Commits follow conventional commits: `feat:`, `fix:`, `chore:`, `docs:`.
 - PRs require at least one review before merging to `main`.
+- **`main` is protected** — CI must pass, at least one approving review is
+  required, and stale reviews are dismissed on new pushes. Never push
+  directly to `main`; always work from a feature/fix/chore branch.
 
 ### 8. Scanner Module (CLI + Backend)
 
@@ -116,8 +119,24 @@ Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d
 - All database IDs are UUIDs, not auto-increment integers.
 - API keys are hashed with bcrypt before storage.
 - OIDC state parameters use cryptographically random nonces.
+- OIDC authorization code flow uses PKCE (S256) — `code_verifier` is stored
+  in the session, `code_challenge` is sent with the authorize redirect. Never
+  skip PKCE when adding a new OIDC provider.
 - Every route (except `/health` and the auth entry points listed in rule 13) requires `Depends(get_current_user)` — never accept a client-supplied `owner_id`/`user_id` as the source of truth for who's making the request. Ownership on create always comes from `current_user.id`.
 - The GitHub PR export endpoint (`POST /collections/{id}/export/github`) takes a `github_token` in the request body, uses it for that single request only, and never persists or logs it — same rule as any other token, just worth calling out since it's user-supplied per-request rather than stored server-side.
+- **Registration must never authenticate without a password.** The
+  `/auth/register` endpoint returns a fake `UserRead` (with a random UUID)
+  when the email already exists, to prevent both user enumeration and
+  authentication bypass. Never set `request.session["user_id"]` or return
+  the real user row in the duplicate-email path.
+- **Bound bcrypt verification loops.** When matching a Bearer token against
+  stored hashes, cap the candidate list at 10 before iterating — prevents
+  DoS via crafted tokens that share a prefix with many active tokens.
+- **Use `Literal` types for constrained string fields.** `artifact_type`,
+  `source_type`, and `target` use `Literal` to reject invalid values at the
+  schema validation layer (422) rather than at the business logic layer
+  (400). Add `Literal` to any new field that has a fixed set of allowed
+  values.
 
 ### 11. Artifact Response Serialization
 
@@ -151,3 +170,12 @@ Concretely, before you consider a change done:
 - **Removing a feature or file** → grep for it across `README.md`, `AGENTS.md`, `CLAUDE.md`, and `docs/` before considering the removal complete; dangling references to deleted code are a common way this drifts.
 
 If you're an AI agent and you're not sure whether a change is "documentation-worthy," err toward writing the one or two sentences — it's cheap now and expensive to reconstruct later.
+
+### 15. Soft-Delete Rule
+
+- **Never hard-delete user data.** Artifacts, profiles, and doc cache entries
+  use soft-delete (`deleted_at = datetime.now(UTC)`) instead of
+  `session.delete()`. Collections use `is_active = False`. API tokens use
+  `is_active = False`. Every list/get query must filter out soft-deleted
+  rows (`deleted_at == None` or `is_active == True`). If you add a new
+  resource type, use soft-delete — never hard-delete.

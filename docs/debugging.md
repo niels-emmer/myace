@@ -113,11 +113,13 @@ SQLAlchemy operator overloads that build a SQL expression — the linter-
 suggested "fix" (`is True`, or treating the column as unsupported) would
 either silently break the query or is simply wrong.
 
-**Fix:** don't "fix" these. `E712` is disabled project-wide in
-`backend/pyproject.toml` for exactly this reason. The mypy `.in_()`-style
-errors are a known SQLModel/SQLAlchemy-vs-mypy limitation without native
-stub support in this project yet — they're currently informational only
-(mypy runs in CI as advisory, not blocking — see
+**Fix:** don't "fix" these. `E711` and `E712` are both disabled project-wide
+in `backend/pyproject.toml` for exactly this reason — `== None` and
+`== True`/`== False` are the correct way to build SQL `IS NULL`/boolean
+comparisons in SQLAlchemy `.where()` clauses. The mypy `.in_()`-style errors
+are a known SQLModel/SQLAlchemy-vs-mypy limitation without native stub
+support in this project yet — they're currently informational only (mypy
+runs in CI as advisory, not blocking — see
 [extending.md](extending.md#improving-type-coverage) if you want to help
 close this gap for real).
 
@@ -157,19 +159,20 @@ it knows about, including following broken symlinks through the mount.
 route. See [extending.md](extending.md) if you're changing how the dev
 mount works.
 
-## `APP_SECRET_KEY` warning at startup
+## Backend refuses to start: `RuntimeError: APP_SECRET_KEY is still the default`
 
-**Symptom:** the backend logs a warning on startup:
-`APP_SECRET_KEY is still the default placeholder value...`
+**Symptom:** the backend crashes on startup with:
+`RuntimeError: APP_SECRET_KEY is still the default placeholder value...`
 
 **Cause:** this key signs session cookies (`SessionMiddleware`). The
 default value is an intentionally obvious placeholder
-(`change-me-to-a-random-64-char-string`); the warning fires whenever it's
-still in use and `APP_ENV != development`.
+(`change-me-to-a-random-64-char-string`); the app now **refuses to start**
+in production if it's still in use (was a warning in earlier versions, now
+a `RuntimeError`). Anyone who knows the default value can forge a valid
+session cookie for any user.
 
 **Fix:** set a real random `APP_SECRET_KEY` in your `.env` before exposing a
-deployment beyond localhost. This isn't cosmetic — anyone who knows the
-default value can forge a valid session cookie for any user.
+deployment beyond localhost. Generate with `openssl rand -hex 32`.
 
 ## `DEBUG` or `ADMIN_BOOTSTRAP_ENABLED` warning at startup
 

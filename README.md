@@ -107,15 +107,17 @@ SaaS. After forking:
 
 1. Update `.env` before exposing it beyond localhost:
    - Set a real random `APP_SECRET_KEY` (it signs session cookies; the app
-     warns at startup if you forget). Generate with `openssl rand -hex 32`.
+     **refuses to start** in production if you leave the default — it's a
+     `RuntimeError`, not a warning). Generate with `openssl rand -hex 32`.
    - Set `DEBUG=false` (the default, `true`, exposes `/docs`/`/redoc`
      publicly and disables secure-only cookies).
    - Change `POSTGRES_PASSWORD` from the shipped default.
    - Register your own account, then set `ADMIN_BOOTSTRAP_ENABLED=false` and
      restart — otherwise the *next* person to register on a public
      deployment becomes an admin too, not just the first.
-   - Set `CORS_ORIGINS` to your real domain(s), and `TRUSTED_HOSTS` too if
-     you want the extra `Host`-header check.
+   - Set `CORS_ORIGINS` to your real domain(s), and **`TRUSTED_HOSTS`** too
+     (required in production — the app refuses to start without it, to
+     prevent Host-header injection attacks).
 2. Optionally configure OIDC/GitHub/Google SSO — see
    [`.env.example`](.env.example) and
    [`docs/extending.md#adding-an-sso-provider`](docs/extending.md#adding-an-sso-provider).
