@@ -69,7 +69,7 @@ if [ -z "$PYTHON" ]; then
     exit 1
 fi
 
-PY_VERSION=$("$PYTHON" --version 2>&1 | grep -oP '\d+\.\d+' | head -1)
+PY_VERSION=$("$PYTHON" --version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
 PY_MAJOR=$(echo "$PY_VERSION" | cut -d. -f1)
 PY_MINOR=$(echo "$PY_VERSION" | cut -d. -f2)
 
