@@ -7,7 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.database import get_session
+from app.core.deps import get_current_user
 from app.models.doc_cache import DocCacheEntry
+from app.models.user import User
 
 router = APIRouter()
 
@@ -16,6 +18,7 @@ router = APIRouter()
 async def list_cache_entries(
     framework: str | None = None,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     """List cached documentation entries."""
     query = select(DocCacheEntry)
@@ -41,6 +44,7 @@ async def list_cache_entries(
 async def delete_cache_entry(
     entry_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a cached documentation entry."""
     result = await session.execute(

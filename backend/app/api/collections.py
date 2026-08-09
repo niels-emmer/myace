@@ -496,7 +496,7 @@ async def scan_local_directory(
     """Scan a local directory or Git repository and return discovered artifacts."""
     try:
         if request.source_type == "git":
-            from app.services.scanner import scan_git_repository
+            from app.services.scanner import scan_git_repository, _redact_credentials
             if not request.git_url:
                 raise ValueError("git_url is required when source_type is 'git'")
             artifacts = scan_git_repository(
@@ -504,7 +504,7 @@ async def scan_local_directory(
                 branch=request.git_branch or "main",
                 subdirectory=request.subdirectory,
             )
-            source_label = request.git_url
+            source_label = _redact_credentials(request.git_url)
         else:
             from app.services.scanner import scan_directory
             if not request.path:
@@ -519,11 +519,13 @@ async def scan_local_directory(
             "artifacts": artifacts,
         }
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Directory not found")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Scan failed: {e}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Scan failed")
 
 
 class BulkImportItem(BaseModel):

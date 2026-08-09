@@ -5,21 +5,39 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 import git
 import yaml
 
+from app.core.config import settings
+
+
+def _redact_credentials(url: str) -> str:
+    """Remove embedded credentials from a URL for safe logging/error messages."""
+    parsed = urlparse(url)
+    if parsed.username or parsed.password:
+        # Reconstruct without credentials
+        netloc = parsed.hostname or ""
+        if parsed.port:
+            netloc = f"{netloc}:{parsed.port}"
+        return parsed._replace(netloc=netloc).geturl()
+    return url
+
 
 def _resolve_path(path: str) -> Path:
-    """Resolve a user-supplied path, handling Docker mount and broken symlinks."""
+    """Resolve a user-supplied path, handling Docker mount and broken symlinks.
+
+    The resolved path MUST be under the configured scan_root (settings.scan_root)
+    to prevent arbitrary file reads. In Docker, scan_root defaults to /host-home.
+    """
     base = Path(path).expanduser()
 
     # If it exists directly, use it
     if base.exists():
-        return base
-
+        resolved = base
     # If it's a broken symlink, try to resolve the target through Docker mounts
-    if base.is_symlink():
+    elif base.is_symlink():
         target = Path(base.readlink())
         if target.is_absolute():
             # Try rewriting the absolute target path through known mount points
@@ -29,28 +47,52 @@ def _resolve_path(path: str) -> Path:
                                         ("/mnt/host", "/Users")]:
                 alt = Path(str(target).replace(host_prefix, mount, 1))
                 if alt.exists():
-                    return alt
+                    resolved = alt
+                    break
+            else:
+                raise FileNotFoundError(f"Directory not found: {base}")
+        else:
+            raise FileNotFoundError(f"Directory not found: {base}")
+    else:
+        # Docker workaround: ~ expands to /root/ inside the container.
+        # Try rewriting common home prefixes to the mounted host home.
+        str_base = str(base)
+        for host_prefix, mount in [("/root", "/host-home"),
+                                    ("/home", "/host-home"),
+                                    ("/Users", "/host-home")]:
+            if str_base.startswith(host_prefix):
+                alt = Path(str_base.replace(host_prefix, mount, 1))
+                if alt.exists():
+                    resolved = alt
+                    break
+                # Also check if the alt is a broken symlink we can resolve
+                if alt.is_symlink():
+                    target = Path(alt.readlink())
+                    for m, hp in [("/host-home", "/Users/nemmer"),
+                                  ("/host-home", "/home")]:
+                        resolved_alt = Path(str(target).replace(hp, m, 1))
+                        if resolved_alt.exists():
+                            resolved = resolved_alt
+                            break
+                    else:
+                        continue
+                    break
+            else:
+                continue
+            break
+        else:
+            raise FileNotFoundError(f"Directory not found: {base}")
 
-    # Docker workaround: ~ expands to /root/ inside the container.
-    # Try rewriting common home prefixes to the mounted host home.
-    str_base = str(base)
-    for host_prefix, mount in [("/root", "/host-home"),
-                                ("/home", "/host-home"),
-                                ("/Users", "/host-home")]:
-        if str_base.startswith(host_prefix):
-            alt = Path(str_base.replace(host_prefix, mount, 1))
-            if alt.exists():
-                return alt
-            # Also check if the alt is a broken symlink we can resolve
-            if alt.is_symlink():
-                target = Path(alt.readlink())
-                for m, hp in [("/host-home", "/Users/nemmer"),
-                              ("/host-home", "/home")]:
-                    resolved = Path(str(target).replace(hp, m, 1))
-                    if resolved.exists():
-                        return resolved
+    # Confine the resolved path to the configured scan root.
+    scan_root = Path(settings.scan_root).resolve()
+    try:
+        resolved.relative_to(scan_root)
+    except ValueError:
+        raise PermissionError(
+            f"Path '{resolved}' is outside the allowed scan root '{scan_root}'"
+        )
 
-    raise FileNotFoundError(f"Directory not found: {base}")
+    return resolved
 
 
 def scan_directory(path: str | Path) -> list[dict]:
@@ -101,6 +143,23 @@ def scan_directory(path: str | Path) -> list[dict]:
     return artifacts
 
 
+def _validate_git_url(url: str) -> str:
+    """Validate a git URL and strip embedded credentials.
+
+    Only https:// and git:// schemes are allowed. Credentials are stripped
+    from the returned URL to prevent credential leakage in error messages.
+    Raises ValueError if the URL is invalid or uses a disallowed scheme.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in ("https", "git"):
+        raise ValueError(
+            f"Disallowed git URL scheme '{parsed.scheme}'. Only https:// and git:// are permitted."
+        )
+    # Strip credentials for safe use
+    safe_url = _redact_credentials(url)
+    return safe_url
+
+
 def scan_git_repository(
     repo_url: str,
     branch: str = "main",
@@ -108,15 +167,19 @@ def scan_git_repository(
 ) -> list[dict]:
     """Shallow-clone a Git repository into a temp dir and scan it for canonical artifacts.
 
-    Only public repositories work out of the box — for private repos, embed a
-    token in the URL (e.g. https://<token>@github.com/owner/repo.git).
+    Only public repositories work out of the box. For private repos, use a
+    deploy token or SSH key configured on the server — do not embed credentials
+    in the URL, as they may leak in error messages.
     """
+    # Validate and sanitize the URL before any operation
+    safe_url = _validate_git_url(repo_url)
+
     tmp_dir = tempfile.mkdtemp(prefix="myace-scan-")
     try:
         try:
             git.Repo.clone_from(repo_url, tmp_dir, branch=branch, depth=1, single_branch=True)
         except git.exc.GitCommandError as e:
-            raise ValueError(f"Failed to clone '{repo_url}' (branch '{branch}'): {e}") from e
+            raise ValueError(f"Failed to clone repository (branch '{branch}'): {e}") from e
 
         scan_root = Path(tmp_dir)
         if subdirectory:
