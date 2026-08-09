@@ -23,10 +23,10 @@ async def lifespan(app: FastAPI):
     if settings.app_env == "development":
         await init_db()
     if settings.app_secret_key == DEFAULT_SECRET_KEY and settings.app_env != "development":
-        logger.warning(
+        raise RuntimeError(
             "APP_SECRET_KEY is still the default placeholder value. Session cookies can be "
-            "forged by anyone who knows this value — set a real random secret before exposing "
-            "this deployment beyond localhost."
+            "forged by anyone who knows this value. Set a real random secret in .env before "
+            "running in production."
         )
     if settings.debug and settings.app_env != "development":
         logger.warning(
@@ -98,4 +98,4 @@ app.include_router(doc_cache.router, prefix="/api/v1/doc-cache", tags=["Document
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "app": settings.app_name, "version": "0.1.0"}
+    return {"status": "ok"}

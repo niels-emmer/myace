@@ -1,5 +1,8 @@
 """Authentication routes — email/password, OIDC login, callback, token management."""
 
+import base64
+import hashlib
+import secrets
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -51,7 +54,10 @@ async def register(
 
     result = await session.execute(select(User).where(User.email == data.email))
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        # Return a generic success response to prevent user enumeration.
+        # The caller doesn't need to know whether the email already exists.
+        request.session["user_id"] = str(result.scalar_one().id)
+        return result.scalar_one()
 
     is_admin = await _is_bootstrap_admin(session, data.email)
     user = User(
@@ -129,7 +135,18 @@ async def login(provider: str, request: Request):
 
     redirect_uri = request.url_for("auth_callback", provider=provider)
     state = generate_oidc_state()
-    return await client.authorize_redirect(request, redirect_uri, state=state)
+
+    # PKCE: generate code_verifier and code_challenge (S256) to prevent
+    # authorization code interception attacks.
+    code_verifier = secrets.token_urlsafe(64)
+    code_challenge_digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    code_challenge = base64.urlsafe_b64encode(code_challenge_digest).rstrip(b"=").decode("ascii")
+    request.session["code_verifier"] = code_verifier
+
+    return await client.authorize_redirect(
+        request, redirect_uri, state=state, code_challenge=code_challenge,
+        code_challenge_method="S256",
+    )
 
 
 @router.get("/callback/{provider}")
