@@ -27,6 +27,10 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 
+# PyInstaller build artifacts
+dist/
+build/
+
 # MyACE
 cli/tests/__pycache__/
 backend/tests/__pycache__/
