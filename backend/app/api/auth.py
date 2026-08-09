@@ -14,7 +14,7 @@ from sqlmodel import func, select
 from app.core.authz import authorize_access
 from app.core.config import settings
 from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.core.security import (
     default_token_expiry,
     generate_api_key,
@@ -116,6 +116,29 @@ async def logout(request: Request):
 async def get_me(current_user: User = Depends(get_current_user)):
     """Return the currently authenticated user."""
     return current_user
+
+
+@router.get("/users")
+async def list_users(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    """List all registered users. Admin only."""
+    result = await session.execute(
+        select(User).order_by(User.created_at.desc())
+    )
+    users = result.scalars().all()
+    return [
+        {
+            "id": str(u.id),
+            "email": u.email,
+            "display_name": u.display_name,
+            "is_admin": u.is_admin,
+            "is_active": u.is_active,
+            "created_at": u.created_at.isoformat(),
+        }
+        for u in users
+    ]
 
 
 @router.get("/providers")

@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Key, Plus, Trash2, Copy, Check, ExternalLink, Shield, Sun, Moon, Monitor } from 'lucide-react';
+import {
+  Key, Plus, Trash2, Copy, Check, ExternalLink, Shield, Sun, Moon, Monitor,
+  Database, RefreshCw, Users, Cpu,
+} from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { authApi } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
+import { authApi, adaptersApi, docCacheApi } from '../lib/api';
 import type { ApiTokenCreate } from '../types';
 
 export default function Settings() {
   const queryClient = useQueryClient();
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [tokenName, setTokenName] = useState('');
   const [newToken, setNewToken] = useState<string | null>(null);
@@ -22,6 +27,32 @@ export default function Settings() {
   const { data: tokens, isLoading } = useQuery({
     queryKey: ['tokens'],
     queryFn: () => authApi.listTokens(),
+  });
+
+  // Admin-only queries
+  const { data: docCacheEntries, isLoading: docCacheLoading } = useQuery({
+    queryKey: ['doc-cache'],
+    queryFn: () => docCacheApi.list(),
+    enabled: !!user?.is_admin,
+  });
+
+  const { data: allUsers, isLoading: usersLoading } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: () => authApi.listUsers(),
+    enabled: !!user?.is_admin,
+  });
+
+  const { data: adapters } = useQuery({
+    queryKey: ['adapters'],
+    queryFn: () => adaptersApi.list(),
+    enabled: !!user?.is_admin,
+  });
+
+  const refreshCacheMutation = useMutation({
+    mutationFn: () => docCacheApi.refresh(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['doc-cache'] });
+    },
   });
 
   const createMutation = useMutation({
@@ -225,6 +256,161 @@ export default function Settings() {
           <p className="text-sm text-muted-foreground">No API tokens yet. Create one for CLI access.</p>
         )}
       </div>
+
+      {/* ─── Admin Sections ──────────────────────────────────────── */}
+      {user?.is_admin && (
+        <>
+          {/* Doc Cache Management */}
+          <div className="bg-card rounded-xl border border-border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Database className="h-5 w-5 text-brand-600" />
+                <h2 className="text-lg font-semibold text-card-foreground">Documentation Cache</h2>
+              </div>
+              <button
+                onClick={() => refreshCacheMutation.mutate()}
+                disabled={refreshCacheMutation.isPending}
+                className="flex items-center gap-2 px-3 py-1.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshCacheMutation.isPending ? 'animate-spin' : ''}`} />
+                Refresh All
+              </button>
+            </div>
+
+            {refreshCacheMutation.isSuccess && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+                Refreshed {refreshCacheMutation.data.total_updated} cache entries
+                {Object.entries(refreshCacheMutation.data.refreshed).length > 0 && (
+                  <span>
+                    {' ('}
+                    {Object.entries(refreshCacheMutation.data.refreshed)
+                      .filter(([, count]) => count > 0)
+                      .map(([fw, count]) => `${fw}: ${count}`)
+                      .join(', ')}
+                    )
+                  </span>
+                )}
+              </div>
+            )}
+
+            {refreshCacheMutation.isError && (
+              <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
+                Refresh failed: {(refreshCacheMutation.error as Error).message}
+              </div>
+            )}
+
+            {docCacheLoading ? (
+              <p className="text-sm text-muted-foreground">Loading cache entries...</p>
+            ) : docCacheEntries && docCacheEntries.length > 0 ? (
+              <div className="space-y-2">
+                {docCacheEntries.map((entry) => (
+                  <div key={entry.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-card-foreground">{entry.framework}</p>
+                      <p className="text-xs text-muted-foreground truncate">{entry.url}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Fetched: {new Date(entry.fetched_at).toLocaleDateString()}
+                        {' | '}Expires: {new Date(entry.expires_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span className={`ml-3 px-2 py-0.5 rounded text-xs font-medium ${
+                      new Date(entry.expires_at) > new Date()
+                        ? 'bg-green-50 text-green-700'
+                        : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {new Date(entry.expires_at) > new Date() ? 'Valid' : 'Expired'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No cached documentation entries.</p>
+            )}
+          </div>
+
+          {/* User Management */}
+          <div className="bg-card rounded-xl border border-border p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="h-5 w-5 text-brand-600" />
+              <h2 className="text-lg font-semibold text-card-foreground">Users</h2>
+            </div>
+
+            {usersLoading ? (
+              <p className="text-sm text-muted-foreground">Loading users...</p>
+            ) : allUsers && allUsers.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Name</th>
+                      <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Email</th>
+                      <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Role</th>
+                      <th className="text-left py-2 font-medium text-muted-foreground">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allUsers.map((u) => (
+                      <tr key={u.id} className="border-b border-border/50">
+                        <td className="py-2 pr-4 text-card-foreground">{u.display_name || '—'}</td>
+                        <td className="py-2 pr-4 text-muted-foreground">{u.email}</td>
+                        <td className="py-2 pr-4">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            u.is_admin ? 'bg-purple-50 text-purple-700' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {u.is_admin ? 'Admin' : 'User'}
+                          </span>
+                        </td>
+                        <td className="py-2">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            u.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                          }`}>
+                            {u.is_active ? 'Active' : 'Disabled'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No users found.</p>
+            )}
+          </div>
+
+          {/* Adapter Registry */}
+          <div className="bg-card rounded-xl border border-border p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Cpu className="h-5 w-5 text-brand-600" />
+              <h2 className="text-lg font-semibold text-card-foreground">Adapter Registry</h2>
+            </div>
+
+            {adapters && adapters.length > 0 ? (
+              <div className="space-y-2">
+                {adapters.map((adapter) => (
+                  <div key={adapter.name} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium text-card-foreground">{adapter.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{adapter.description}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 ml-3">
+                      {adapter.targets.map((target) => (
+                        <span
+                          key={target}
+                          className="px-2 py-0.5 bg-background text-muted-foreground rounded text-xs font-medium"
+                        >
+                          {target}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No adapters registered.</p>
+            )}
+          </div>
+        </>
+      )}
 
       {/* CLI Setup Instructions */}
       <div className="bg-card rounded-xl border border-border p-6">

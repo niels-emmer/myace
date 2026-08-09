@@ -134,6 +134,23 @@ export const adaptersApi = {
     request<import('@/types').AdapterInfo>(`/adapters/${name}`),
 };
 
+// ─── Doc Cache ───────────────────────────────────────────────
+
+export const docCacheApi = {
+  list: (framework?: string) => {
+    const qs = framework ? `?framework=${encodeURIComponent(framework)}` : '';
+    return request<import('@/types').DocCacheEntry[]>(`/doc-cache${qs}`);
+  },
+
+  refresh: () =>
+    request<import('@/types').DocCacheRefreshResult>('/doc-cache/refresh', {
+      method: 'POST',
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/doc-cache/${id}`, { method: 'DELETE' }),
+};
+
 // ─── Auth ────────────────────────────────────────────────────
 
 export const authApi = {
@@ -173,4 +190,7 @@ export const authApi = {
 
   revokeToken: (tokenId: string) =>
     request<void>(`/auth/tokens/${tokenId}`, { method: 'DELETE' }),
+
+  listUsers: () =>
+    request<import('@/types').UserAdminInfo[]>('/auth/users'),
 };

@@ -8,11 +8,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.models.doc_cache import DocCacheEntry
 from app.models.user import User
+from app.services.doc_verifier import refresh_framework_docs
 
 router = APIRouter()
+
+
+@router.post("/refresh")
+async def refresh_cache(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_admin),
+):
+    """Refresh all expired framework documentation cache entries. Admin only."""
+    results = await refresh_framework_docs(session)
+    return {
+        "refreshed": results,
+        "total_updated": sum(results.values()),
+    }
 
 
 @router.get("")

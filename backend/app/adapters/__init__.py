@@ -1,4 +1,18 @@
-"""Target adapters — translate Canonical IR into framework-specific formats."""
+"""Target adapters — translate Canonical IR into framework-specific formats.
+
+Adapters are static Python classes registered at import time. Adding or
+updating an adapter requires a code change and deployment — there is no
+runtime plugin mechanism.
+
+KNOWN GAP: The doc_verifier service periodically fetches framework
+documentation from URLs (Claude Code docs, OpenCode GitHub, Cursor docs)
+and caches it in DocCacheEntry. This cached data is NOT currently consumed
+by the adapters themselves — the adapters' translation logic is hardcoded.
+A future enhancement could make adapters read from the doc cache to
+dynamically adjust their output based on the latest framework docs.
+
+The doc cache can be refreshed by admins via POST /api/v1/doc-cache/refresh.
+"""
 
 from app.adapters.base import BaseAdapter
 from app.adapters.claude_code import ClaudeCodeAdapter
