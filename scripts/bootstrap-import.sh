@@ -87,18 +87,17 @@ info "Found Python ${PY_VERSION} at ${PYTHON}"
 header "MyACE Server"
 
 if [ -z "$MYACE_SERVER" ]; then
+    error "MYACE_SERVER is not set."
     echo ""
-    echo "  Enter your MyACE server URL (e.g. https://myace.example.com):"
-    printf "  ${BOLD}Server URL:${NC} "
-    read -r MYACE_SERVER
+    echo "  This script needs your MyACE server URL to print the correct"
+    echo "  login instructions. Set it before running:"
     echo ""
-    if [ -z "$MYACE_SERVER" ]; then
-        error "No server URL provided."
-        echo ""
-        echo "  Re-run with:"
-        echo "    MYACE_SERVER=https://your-server.example.com curl -fsSL ${SCRIPT_URL} | bash"
-        exit 1
-    fi
+    echo "    export MYACE_SERVER=https://myace.macjuu.com"
+    echo "    curl -fsSL ${SCRIPT_URL} | bash"
+    echo ""
+    echo "  Or as a one-liner:"
+    echo "    export MYACE_SERVER=https://myace.macjuu.com; curl -fsSL ${SCRIPT_URL} | bash"
+    exit 1
 fi
 
 info "Using server: ${MYACE_SERVER}"
