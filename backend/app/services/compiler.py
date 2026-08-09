@@ -2,13 +2,14 @@
 
 import json
 import uuid
-from typing import Optional
-from sqlmodel import select
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.profile import Profile
-from app.models.collection import Collection
+from sqlmodel import select
+
+from app.adapters import get_adapter, list_adapters
 from app.models.artifact import Artifact, CanonicalArtifact
-from app.adapters import get_adapter
+from app.models.collection import Collection
+from app.models.profile import Profile
 
 
 async def compile_profile(
@@ -78,7 +79,7 @@ async def compile_profile(
     if not adapter:
         return {
             "error": f"No adapter found for target '{target}'",
-            "available_targets": [a.adapter_name() for a in __import__("app.adapters", fromlist=["list_adapters"]).list_adapters()],
+            "available_targets": [a.adapter_name() for a in list_adapters()],
         }
 
     files = adapter.translate(all_artifacts)

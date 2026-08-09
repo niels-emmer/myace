@@ -1,10 +1,10 @@
 """Documentation cache model for framework compatibility rules."""
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
-from sqlmodel import SQLModel, Field, Column, String, DateTime, Integer
-from sqlalchemy import Uuid,  Text
+from datetime import UTC, datetime
+
+from sqlalchemy import Text
+from sqlmodel import Column, DateTime, Field, Integer, SQLModel, String
 
 
 class DocCacheEntry(SQLModel, table=True):
@@ -25,7 +25,7 @@ class DocCacheEntry(SQLModel, table=True):
     )
     ttl_days: int = Field(default=7, sa_column=Column("ttl_days", Integer, default=7))
     fetched_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         sa_column=Column("fetched_at", DateTime(timezone=True), nullable=False),
     )
     expires_at: datetime = Field(

@@ -1,6 +1,7 @@
 """Base adapter interface for target framework translation."""
 
 from abc import ABC, abstractmethod
+
 from app.models.artifact import CanonicalArtifact
 
 

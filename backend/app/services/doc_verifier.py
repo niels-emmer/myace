@@ -2,12 +2,13 @@
 
 import hashlib
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Optional
-from sqlmodel import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime, timedelta
+
 import httpx
 from bs4 import BeautifulSoup
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+
 from app.core.config import settings
 from app.models.doc_cache import DocCacheEntry
 
@@ -69,7 +70,7 @@ async def _refresh_single_source(
     )
     existing = result.scalar_one_or_none()
 
-    if existing and existing.expires_at > datetime.now(timezone.utc):
+    if existing and existing.expires_at > datetime.now(UTC):
         return False  # Still valid
 
     # Fetch fresh content
@@ -82,10 +83,10 @@ async def _refresh_single_source(
 
     if existing and existing.content_hash == content_hash:
         # Content unchanged, just update expiry
-        existing.expires_at = datetime.now(timezone.utc) + timedelta(
+        existing.expires_at = datetime.now(UTC) + timedelta(
             days=settings.doc_cache_ttl_days
         )
-        existing.fetched_at = datetime.now(timezone.utc)
+        existing.fetched_at = datetime.now(UTC)
         await session.commit()
         return True
 
@@ -100,8 +101,8 @@ async def _refresh_single_source(
         # Update existing
         existing.content = clean_text
         existing.content_hash = content_hash
-        existing.fetched_at = datetime.now(timezone.utc)
-        existing.expires_at = datetime.now(timezone.utc) + timedelta(
+        existing.fetched_at = datetime.now(UTC)
+        existing.expires_at = datetime.now(UTC) + timedelta(
             days=settings.doc_cache_ttl_days
         )
     else:
@@ -113,8 +114,8 @@ async def _refresh_single_source(
             content=clean_text,
             content_type=content_type,
             ttl_days=settings.doc_cache_ttl_days,
-            fetched_at=datetime.now(timezone.utc),
-            expires_at=datetime.now(timezone.utc) + timedelta(
+            fetched_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC) + timedelta(
                 days=settings.doc_cache_ttl_days
             ),
         )
@@ -127,12 +128,12 @@ async def _refresh_single_source(
 async def get_cached_doc(
     session: AsyncSession,
     framework: str,
-    content_type: Optional[str] = None,
-) -> Optional[DocCacheEntry]:
+    content_type: str | None = None,
+) -> DocCacheEntry | None:
     """Get a cached documentation entry, returning None if expired."""
     query = select(DocCacheEntry).where(
         DocCacheEntry.framework == framework,
-        DocCacheEntry.expires_at > datetime.now(timezone.utc),
+        DocCacheEntry.expires_at > datetime.now(UTC),
     )
     if content_type:
         query = query.where(DocCacheEntry.content_type == content_type)

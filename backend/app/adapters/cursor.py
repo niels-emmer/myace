@@ -43,7 +43,10 @@ class CursorAdapter(BaseAdapter):
         return files
 
     def _format_cursor_rule(self, artifact: CanonicalArtifact) -> str:
-        return f"- **{artifact.name}** (priority {artifact.priority}): {artifact.description}\n  {artifact.body.strip()}\n"
+        return (
+            f"- **{artifact.name}** (priority {artifact.priority}): "
+            f"{artifact.description}\n  {artifact.body.strip()}\n"
+        )
 
     def _format_agent_skill(self, artifact: CanonicalArtifact) -> str:
         return (

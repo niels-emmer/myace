@@ -1,7 +1,13 @@
 """Database engine and session management."""
 
-from sqlmodel import SQLModel, create_engine
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlmodel import SQLModel
+
 from app.core.config import settings
 
 engine: AsyncEngine | None = None
@@ -49,12 +55,12 @@ async def get_session() -> AsyncSession:  # type: ignore[misc]
 async def init_db() -> None:
     """Create all tables on startup (development only)."""
     from app.models import (  # noqa: F401 — ensure models are registered
-        user,
-        collection,
         artifact,
+        collection,
+        doc_cache,
         profile,
         token,
-        doc_cache,
+        user,
     )
 
     async_engine = get_engine()

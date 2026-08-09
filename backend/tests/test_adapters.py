@@ -1,7 +1,7 @@
 """Tests for target adapters."""
 
+from app.adapters import get_adapter, list_adapters
 from app.models.artifact import CanonicalArtifact
-from app.adapters import list_adapters, get_adapter
 
 
 class TestAdapterRegistry:

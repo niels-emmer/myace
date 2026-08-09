@@ -1,9 +1,11 @@
 """Documentation cache routes — manage cached framework docs."""
 
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import select
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+
 from app.core.database import get_session
 from app.models.doc_cache import DocCacheEntry
 

@@ -1,10 +1,10 @@
 """Profile model — a composed set of collections with artifact toggles."""
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
-from sqlmodel import SQLModel, Field, Column, String, DateTime, Boolean, Integer
-from sqlalchemy import Uuid,  ForeignKey, Text
+from datetime import UTC, datetime
+
+from sqlalchemy import ForeignKey, Text, Uuid
+from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String
 
 
 class Profile(SQLModel, table=True):
@@ -17,7 +17,7 @@ class Profile(SQLModel, table=True):
         sa_column=Column("owner_id", Uuid, ForeignKey("users.id"), nullable=False),
     )
     name: str = Field(sa_column=Column("name", String(255), nullable=False))
-    description: Optional[str] = Field(default=None, sa_column=Column("description", Text))
+    description: str | None = Field(default=None, sa_column=Column("description", Text))
     base_collection_id: uuid.UUID = Field(
         sa_column=Column("base_collection_id", Uuid, ForeignKey("collections.id"), nullable=False),
     )
@@ -29,31 +29,33 @@ class Profile(SQLModel, table=True):
         default="[]",
         sa_column=Column("disabled_artifact_ids", Text, default="[]"),
     )
-    target_framework: Optional[str] = Field(
+    target_framework: str | None = Field(
         default=None,
         sa_column=Column("target_framework", String(64)),
     )
     is_public: bool = Field(default=False, sa_column=Column("is_public", Boolean, default=False))
     version: int = Field(default=1, sa_column=Column("version", Integer, default=1))
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         sa_column=Column("created_at", DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column("updated_at", DateTime(timezone=True), nullable=False, onupdate=lambda: datetime.now(timezone.utc)),
-        
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=Column(
+            "updated_at", DateTime(timezone=True), nullable=False,
+            onupdate=lambda: datetime.now(UTC),
+        ),
     )
 
 
 class ProfileCreate(SQLModel):
     """Schema for creating a profile."""
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     base_collection_id: uuid.UUID
     additional_collection_ids: list[uuid.UUID] = []
     disabled_artifact_ids: list[uuid.UUID] = []
-    target_framework: Optional[str] = None
+    target_framework: str | None = None
     is_public: bool = False
 
 
@@ -62,11 +64,11 @@ class ProfileRead(SQLModel):
     id: uuid.UUID
     owner_id: uuid.UUID
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     base_collection_id: uuid.UUID
     additional_collection_ids: list[uuid.UUID]
     disabled_artifact_ids: list[uuid.UUID]
-    target_framework: Optional[str] = None
+    target_framework: str | None = None
     is_public: bool
     version: int
     created_at: datetime

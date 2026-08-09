@@ -1,6 +1,7 @@
 """Adapter routes — list available adapters and preview translations."""
 
 from fastapi import APIRouter, HTTPException
+
 from app.adapters import get_adapter, list_adapters
 
 router = APIRouter()

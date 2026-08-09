@@ -1,6 +1,7 @@
 """OpenCode adapter — translates Canonical IR into OpenCode JSON modules."""
 
 import json
+
 from app.adapters.base import BaseAdapter
 from app.models.artifact import CanonicalArtifact
 

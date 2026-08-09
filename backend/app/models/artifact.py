@@ -1,10 +1,10 @@
 """Artifact model — a single canonical IR document with YAML frontmatter."""
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
-from sqlmodel import SQLModel, Field, Column, String, DateTime, Integer, Boolean
-from sqlalchemy import Uuid,  ForeignKey, Text
+from datetime import UTC, datetime
+
+from sqlalchemy import ForeignKey, Text, Uuid
+from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String
 
 
 class Artifact(SQLModel, table=True):
@@ -30,18 +30,20 @@ class Artifact(SQLModel, table=True):
         default="[]",
         sa_column=Column("tags", Text, default="[]"),
     )
-    description: Optional[str] = Field(default=None, sa_column=Column("description", Text))
+    description: str | None = Field(default=None, sa_column=Column("description", Text))
     body: str = Field(sa_column=Column("body", Text, nullable=False))
     file_path: str = Field(sa_column=Column("file_path", Text, nullable=False))
     is_enabled: bool = Field(default=True, sa_column=Column("is_enabled", Boolean, default=True))
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         sa_column=Column("created_at", DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column("updated_at", DateTime(timezone=True), nullable=False, onupdate=lambda: datetime.now(timezone.utc)),
-        
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=Column(
+            "updated_at", DateTime(timezone=True), nullable=False,
+            onupdate=lambda: datetime.now(UTC),
+        ),
     )
 
 
@@ -54,7 +56,7 @@ class ArtifactCreate(SQLModel):
     priority: int = 50
     target_compatibility: list[str] = []
     tags: list[str] = []
-    description: Optional[str] = None
+    description: str | None = None
     body: str
     file_path: str
 
@@ -69,12 +71,26 @@ class ArtifactRead(SQLModel):
     priority: int
     target_compatibility: list[str]
     tags: list[str]
-    description: Optional[str] = None
+    description: str | None = None
     body: str
     file_path: str
     is_enabled: bool
     created_at: datetime
     updated_at: datetime
+
+
+class ArtifactUpdate(SQLModel):
+    """Schema for updating an artifact (all fields optional)."""
+    name: str | None = None
+    artifact_type: str | None = None
+    version: str | None = None
+    priority: int | None = None
+    target_compatibility: list[str] | None = None
+    tags: list[str] | None = None
+    description: str | None = None
+    body: str | None = None
+    file_path: str | None = None
+    is_enabled: bool | None = None
 
 
 class CanonicalArtifact(SQLModel):
@@ -90,5 +106,5 @@ class CanonicalArtifact(SQLModel):
     tags: list[str]
     description: str
     body: str  # Markdown content
-    source_collection_id: Optional[uuid.UUID] = None
-    source_collection_name: Optional[str] = None
+    source_collection_id: uuid.UUID | None = None
+    source_collection_name: str | None = None

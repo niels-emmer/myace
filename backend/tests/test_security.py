@@ -1,6 +1,6 @@
 """Tests for security utilities."""
 
-from app.core.security import generate_api_key, hash_api_key, verify_api_key, generate_oidc_state
+from app.core.security import generate_api_key, generate_oidc_state, hash_api_key, verify_api_key
 
 
 class TestApiKey:

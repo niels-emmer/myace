@@ -1,11 +1,11 @@
 """Test fixtures and configuration."""
 
+from collections.abc import AsyncGenerator
+
 import pytest
-from typing import AsyncGenerator
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from httpx import ASGITransport, AsyncClient
+
 from app.main import app
-from app.core.database import get_session
 
 # Use SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
