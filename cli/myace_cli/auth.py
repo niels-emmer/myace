@@ -1,7 +1,9 @@
-"""CLI authentication — token storage and credential management."""
+"""CLI authentication — token storage, credential management, and validation."""
 
 import json
 from pathlib import Path
+
+import httpx
 
 
 class AuthManager:
@@ -45,3 +47,39 @@ class AuthManager:
         """Remove stored credentials."""
         if self.credentials_path.exists():
             self.credentials_path.unlink()
+
+    def validate_credentials(self, server: str, token: str) -> str | None:
+        """Validate credentials by calling the server's profiles endpoint.
+
+        Args:
+            server: MyACE server URL.
+            token: API token to validate.
+
+        Returns:
+            None if valid, or an error message string if validation failed.
+        """
+        url = f"{server.rstrip('/')}/api/v1/profiles"
+        headers = {"Authorization": f"Bearer {token}"}
+
+        try:
+            with httpx.Client(timeout=15.0) as client:
+                response = client.get(url, headers=headers)
+                if response.status_code == 200:
+                    return None
+                if response.status_code == 401:
+                    return "Token rejected by server (401 Unauthorized)."
+                return (
+                    f"Server returned unexpected status {response.status_code}."
+                )
+        except httpx.ConnectError:
+            return (
+                f"Could not connect to {server}.\n"
+                "  Check that the URL is correct and the server is running."
+            )
+        except httpx.TimeoutException:
+            return (
+                f"Connection to {server} timed out.\n"
+                "  Check your network connection and try again."
+            )
+        except Exception as e:
+            return f"Connection failed: {e}"
