@@ -3,12 +3,15 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
-.venv/
 *.egg
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
 # Node
 node_modules/
 frontend/dist/
+*.tsbuildinfo
 
 # Environment
 .env
@@ -27,5 +30,3 @@ Thumbs.db
 # MyACE
 cli/tests/__pycache__/
 backend/tests/__pycache__/
-backend/alembic/versions/*.py
-!backend/alembic/versions/.gitkeep
