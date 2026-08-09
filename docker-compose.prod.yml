@@ -1,6 +1,7 @@
 # VPS / multi-tenant production — behind an existing reverse proxy.
-# No host ports exposed. Connect your proxy (nginx, Caddy, Traefik, etc.)
-# to the external network defined below.
+# No host ports exposed. Only the frontend is reachable by the reverse proxy
+# (via the external proxy-net network); backend and postgres live on a
+# private `myace` network that only this stack can reach.
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
@@ -8,20 +9,20 @@
 # The proxy container should be attached to the same external network
 # and forward to:
 #   - http://frontend:80   (SPA)
-#   - http://backend:8000  (API)
 
 services:
   frontend:
     ports: []                          # no direct host access
+    networks:
+      - myace                          # private, to reach backend
+      - proxy-net                      # external, for the reverse proxy
 
   backend:
     environment:
-      - CORS_ORIGINS=https://your-domain.com
+      - CORS_ORIGINS=https://myace.macjuu.com
 
 networks:
   myace:
-    # Attach an existing proxy network so the reverse proxy can reach
-    # frontend:80 and backend:8000 by container name.
-    # Override via .env: PROXY_NETWORK=my_proxy_network
-    name: ${PROXY_NETWORK:-myace-proxy}
+    driver: bridge                     # private to this stack
+  proxy-net:
     external: true
