@@ -1,6 +1,6 @@
 """Profile sync engine — fetch, validate, and write compiled profiles."""
 
-from typing import Optional
+
 import httpx
 
 
@@ -16,7 +16,7 @@ class SyncEngine:
         token: str,
         profile_name: str,
         target: str,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Fetch a compiled profile from the server.
 
@@ -70,7 +70,7 @@ class SyncEngine:
         server: str,
         token: str,
         profile_name: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Resolve a profile name or ID to a UUID.
         If the input looks like a UUID, return it directly.

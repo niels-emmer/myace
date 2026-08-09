@@ -28,7 +28,8 @@ class CursorAdapter(BaseAdapter):
                 rules.append(f"- **{name}** (priority {priority}): {desc}\n  {body}\n")
             elif atype in ("skill", "agent"):
                 files[f".cursor/rules/rule_{idx:03d}.mdc"] = (
-                    f"---\ntitle: {name}\ndescription: {desc}\ntype: {atype}\npriority: {priority}\n---\n{body}\n"
+                    f"---\ntitle: {name}\ndescription: {desc}\ntype: {atype}\n"
+                    f"priority: {priority}\n---\n{body}\n"
                 )
                 idx += 1
             elif atype == "workflow":

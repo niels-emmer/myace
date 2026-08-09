@@ -1,7 +1,7 @@
 """Tests for CLI auth module."""
 
-import json
 from pathlib import Path
+
 from myace_cli.auth import AuthManager
 
 

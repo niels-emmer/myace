@@ -1,15 +1,16 @@
 """MyACE CLI entrypoint — Typer application with subcommands."""
 
 from pathlib import Path
-from typing import Optional
+
 import typer
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
 from rich import print as rprint
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
 from myace_cli.auth import AuthManager
+from myace_cli.scanner import export_to_collection, scan_directory
 from myace_cli.sync import SyncEngine
-from myace_cli.scanner import scan_directory, export_to_collection
 
 app = typer.Typer(
     name="myace",
@@ -24,7 +25,6 @@ sync_engine = SyncEngine()
 @app.callback()
 def callback():
     """MyACE CLI — Sync agentic coding profiles to your local machine."""
-    pass
 
 
 @app.command()
@@ -86,7 +86,7 @@ def pull(
         ..., "--target", "-t",
         help="Target framework (e.g., opencode, claude-code, cursor)",
     ),
-    path: Optional[Path] = typer.Option(
+    path: Path | None = typer.Option(
         None, "--path", "-o",
         help="Output directory (defaults to target-specific location)",
     ),
@@ -221,7 +221,7 @@ def import_cmd(
         "imported-config", "--name", "-n",
         help="Name for the imported collection",
     ),
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None, "--output", "-o",
         help="Output directory for the canonical collection (default: ./<name>)",
     ),
@@ -292,7 +292,10 @@ def import_cmd(
                 resp = client.post(url, json=payload, headers=headers)
                 resp.raise_for_status()
                 result = resp.json()
-                rprint(f"\n[green]✓[/green] Pushed to server: collection [bold]{result['collection_name']}[/bold]")
+                rprint(
+                    f"\n[green]✓[/green] Pushed to server: "
+                    f"collection [bold]{result['collection_name']}[/bold]"
+                )
                 rprint(f"   Collection ID: {result['collection_id']}")
                 rprint(f"   Artifacts imported: {result['artifacts_imported']}")
         except httpx.HTTPStatusError as e:

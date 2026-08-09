@@ -26,7 +26,9 @@ class ClaudeCodeAdapter(BaseAdapter):
             desc = artifact.get("description", "")
 
             if atype == "rule":
-                rules.append(f"## {name}\n> Priority: {priority} | Tags: {', '.join(tags)}\n\n{body}\n")
+                rules.append(
+                    f"## {name}\n> Priority: {priority} | Tags: {', '.join(tags)}\n\n{body}\n"
+                )
             elif atype == "skill":
                 skills.append(f"## {name}\n\n{desc}\n\n{body}\n")
             elif atype == "agent":

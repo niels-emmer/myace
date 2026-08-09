@@ -1,6 +1,7 @@
 """CLI-side OpenCode adapter."""
 
 import json
+
 from myace_cli.adapters.base import BaseAdapter
 
 
@@ -37,7 +38,9 @@ class OpenCodeAdapter(BaseAdapter):
                     "type": "agent", "instructions": body, "tags": tags,
                 }, indent=2)
             elif atype == "rule":
-                rules.append(f"## {name}\n> Priority: {priority} | Tags: {', '.join(tags)}\n\n{body}\n")
+                rules.append(
+                    f"## {name}\n> Priority: {priority} | Tags: {', '.join(tags)}\n\n{body}\n"
+                )
 
         if rules:
             files["AGENTS.md"] = "# OpenCode Rules\n\n" + "\n".join(rules)

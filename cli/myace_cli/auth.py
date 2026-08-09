@@ -2,7 +2,6 @@
 
 import json
 from pathlib import Path
-from typing import Optional
 
 
 class AuthManager:
@@ -28,7 +27,7 @@ class AuthManager:
         # Restrict permissions to owner only
         self.credentials_path.chmod(0o600)
 
-    def load_credentials(self) -> Optional[dict[str, str]]:
+    def load_credentials(self) -> dict[str, str] | None:
         """Load stored credentials from disk."""
         if not self.credentials_path.exists():
             return None

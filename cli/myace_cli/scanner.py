@@ -2,9 +2,9 @@
 
 import json
 import re
-import yaml
 from pathlib import Path
-from typing import Optional
+
+import yaml
 
 
 def scan_directory(path: str | Path) -> list[dict]:
@@ -87,7 +87,7 @@ def _parse_yaml_frontmatter(content: str) -> tuple[dict, str]:
     return {}, content.strip()
 
 
-def _parse_skill_file(path: Path) -> Optional[dict]:
+def _parse_skill_file(path: Path) -> dict | None:
     """Parse a SKILL.md file into a canonical artifact."""
     content = path.read_text(encoding="utf-8")
     frontmatter, body = _parse_yaml_frontmatter(content)
@@ -109,7 +109,7 @@ def _parse_skill_file(path: Path) -> Optional[dict]:
     }
 
 
-def _parse_agent_file(path: Path) -> Optional[dict]:
+def _parse_agent_file(path: Path) -> dict | None:
     """Parse an agent .md file into a canonical artifact."""
     content = path.read_text(encoding="utf-8")
     frontmatter, body = _parse_yaml_frontmatter(content)
@@ -134,7 +134,7 @@ def _parse_agent_file(path: Path) -> Optional[dict]:
     }
 
 
-def _parse_command_file(path: Path) -> Optional[dict]:
+def _parse_command_file(path: Path) -> dict | None:
     """Parse a command .md file into a workflow artifact."""
     content = path.read_text(encoding="utf-8")
     frontmatter, body = _parse_yaml_frontmatter(content)
@@ -272,7 +272,8 @@ def export_to_collection(
             "description": artifact.get("description", ""),
         }
 
-        file_content = f"---\n{yaml.dump(frontmatter, default_flow_style=False, sort_keys=False)}---\n\n{artifact['body']}\n"
+        frontmatter_yaml = yaml.dump(frontmatter, default_flow_style=False, sort_keys=False)
+        file_content = f"---\n{frontmatter_yaml}---\n\n{artifact['body']}\n"
         file_path.write_text(file_content, encoding="utf-8")
 
     # Write a README
