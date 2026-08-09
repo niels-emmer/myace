@@ -175,7 +175,50 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
    `backend/app/main.py` if you instead split the frontend and API onto
    different subdomains and called the API directly from browser JS.
 
-### CLI setup
+### Quick install (binary, no Python required)
+
+Download the binary for your platform from the
+[latest release](https://github.com/niels-emmer/myace/releases):
+
+```bash
+# Linux (x86_64)
+curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-linux-x86_64 -o myace
+chmod +x ./myace
+sudo mv ./myace /usr/local/bin/
+
+# macOS (Intel)
+curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-macos-x86_64 -o myace
+chmod +x ./myace
+sudo mv ./myace /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-macos-arm64 -o myace
+chmod +x ./myace
+sudo mv ./myace /usr/local/bin/
+```
+
+**Windows:** Download `myace-windows-x86_64.exe` from the
+[releases page](https://github.com/niels-emmer/myace/releases) and place it
+somewhere in your `PATH`.
+
+Then authenticate and start using it:
+
+```bash
+myace login --server <your-server-url> --token <your-api-token>
+myace --help
+```
+
+Create an API token from the web UI's Settings page.
+
+> **Note for macOS users:** The binary is not signed with an Apple Developer
+> certificate. The first time you run it, Gatekeeper may block it. To bypass:
+> open **System Settings → Privacy & Security**, scroll to the security
+> section, and click **Allow Anyway** next to the `myace` entry. Or remove the
+> quarantine attribute manually: `xattr -d com.apple.quarantine /usr/local/bin/myace`.
+
+### CLI setup (via pip)
+
+If you prefer to install via pip (requires Python 3.12+):
 
 ```bash
 cd cli
@@ -183,8 +226,6 @@ pip install -e .
 myace login --server http://localhost:8000 --token <your-api-token>
 myace --help
 ```
-
-Create an API token from the web UI's Settings page.
 
 ## Documentation
 
@@ -278,9 +319,14 @@ has no API to silently walk `~/.claude`, `~/.cursor`, etc. To scan your own
 machine from the browser (rather than running `myace import` by hand), run:
 
 ```bash
-pip install "myace-cli[serve]"
+# Binary users (serve is already included):
 myace login --server <your-myace-server-url> --token <token-from-Settings>
 myace serve
+
+# pip users (need the serve extras):
+# pip install "myace-cli[serve]"
+# myace login --server <your-myace-server-url> --token <token-from-Settings>
+# myace serve
 ```
 
 The Import page auto-detects it (polling `http://127.0.0.1:8765/health`)
@@ -404,6 +450,12 @@ MyACE is built on [FastAPI](https://fastapi.tiangolo.com/),
 [Vite](https://vitejs.dev/), [TanStack Query](https://tanstack.com/query),
 [Tailwind CSS](https://tailwindcss.com/), and [Typer](https://typer.tiangolo.com/).
 Thanks to the maintainers of all of them.
+
+This entire project — every line of code, every test, every doc, every
+infrastructure config — was written by AI coding agents:
+[Claude Code / Sonnet 5](https://docs.anthropic.com/en/docs/claude-code/overview)
+and [OpenCode / DeepSeek V4-Flash](https://github.com/niels-emmer/opencode).
+The human (Niels) reviewed, directed, and shipped it.
 
 ## License
 

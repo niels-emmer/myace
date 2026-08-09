@@ -1,6 +1,8 @@
 """MyACE CLI entrypoint — Typer application with subcommands."""
 
+import getpass
 from pathlib import Path
+from urllib.parse import urlparse
 
 import typer
 from rich import print as rprint
@@ -27,23 +29,99 @@ def callback():
     """MyACE CLI — Sync agentic coding profiles to your local machine."""
 
 
+def _mask_token(token: str) -> str:
+    """Return a masked version of a token showing only the last 4 chars."""
+    if len(token) <= 4:
+        return token
+    return "*" * (len(token) - 4) + token[-4:]
+
+
 @app.command()
 def login(
-    server: str = typer.Option(
-        ..., "--server", "-s",
+    server: str | None = typer.Option(
+        None, "--server", "-s",
         help="MyACE API server URL (e.g., https://api.myace.localhost)",
     ),
-    token: str = typer.Option(
-        ..., "--token", "-t",
+    token: str | None = typer.Option(
+        None, "--token", "-t",
         help="API token generated from the MyACE web UI",
     ),
 ):
-    """Authenticate with the MyACE server and store credentials locally."""
+    """Authenticate with the MyACE server and store credentials locally.
+
+    Run without arguments for an interactive prompt that pre-populates
+    existing credentials and validates them against the server.
+    """
+    # ── Interactive mode (no --server or --token flags) ──────────
+    if server is None or token is None:
+        existing = auth_manager.load_credentials()
+
+        rprint("[bold]MyACE Login[/bold]")
+        rprint("")
+
+        # Prompt for server URL with pre-populated default
+        default_server = existing["server"] if existing else ""
+        prompt_server = "Server URL"
+        if default_server:
+            prompt_server += f" [bold]{default_server}[/bold]"
+        prompt_server += ": "
+
+        entered_server = input(prompt_server).strip()
+        if not entered_server and default_server:
+            entered_server = default_server
+
+        # Prompt for token with masked pre-populated default
+        default_token = existing["token"] if existing else ""
+        if default_token:
+            rprint(
+                f"Token (press Enter to keep [dim]{_mask_token(default_token)}[/dim]):"
+            )
+        else:
+            rprint("Token (input is hidden):")
+
+        entered_token = getpass.getpass("").strip()
+        if not entered_token and default_token:
+            entered_token = default_token
+
+        if not entered_server or not entered_token:
+            rprint("[red]✗[/red] Server URL and token are required.")
+            raise typer.Exit(1)
+
+        server = entered_server
+        token = entered_token
+    # ── Non-interactive mode (both flags provided) ───────────────
+    else:
+        rprint("[dim]Validating credentials...[/dim]")
+
+    # ── Warn about HTTP (non-localhost) ──────────────────────────
+    parsed = urlparse(server)
+    if parsed.scheme == "http" and parsed.hostname not in (
+        "localhost", "127.0.0.1", "::1",
+    ):
+        rprint(
+            "[yellow]Warning:[/yellow] Token will be sent in plaintext "
+            "over HTTP!"
+        )
+
+    # ── Validate ─────────────────────────────────────────────────
+    rprint(f"   Server: [bold]{server}[/bold]")
+    rprint(f"   Token:  [dim]{_mask_token(token)}[/dim]")
+    rprint("   Validating... ", end="")
+
+    error = auth_manager.validate_credentials(server, token)
+    if error:
+        rprint("[red]✗[/red]")
+        rprint("[red]✗[/red] Validation failed:")
+        for line in error.split("\n"):
+            rprint(f"   {line}")
+        raise typer.Exit(1)
+
+    rprint("[green]✓[/green]")
+
+    # ── Save ─────────────────────────────────────────────────────
     try:
         auth_manager.store_credentials(server, token)
         rprint("[green]✓[/green] Credentials stored successfully.")
-        rprint(f"   Server: [bold]{server}[/bold]")
-        rprint(f"   Token:  [dim]{token[:12]}...[/dim]")
     except Exception as e:
         rprint(f"[red]✗[/red] Failed to store credentials: {e}")
         raise typer.Exit(1)
@@ -67,7 +145,7 @@ def status():
     if creds:
         rprint(Panel(
             f"[bold]Server:[/bold] {creds['server']}\n"
-            f"[bold]Token:[/bold]  [dim]{creds['token'][:12]}...[/dim]\n"
+            f"[bold]Token:[/bold]  [dim]{_mask_token(creds['token'])}[/dim]\n"
             f"[bold]Config:[/bold] {auth_manager.credentials_path}",
             title="Authenticated",
             border_style="green",
@@ -337,7 +415,10 @@ def import_cmd(
                 rprint(f"   Collection ID: {result['collection_id']}")
                 rprint(f"   Artifacts imported: {result['artifacts_imported']}")
         except httpx.HTTPStatusError as e:
-            rprint(f"[red]✗[/red] Failed to push: {e.response.status_code} {e.response.text}")
+            body = e.response.text[:500] if e.response.text else ""
+            rprint(f"[red]✗[/red] Failed to push: server returned {e.response.status_code}")
+            if body:
+                rprint(f"   [dim]{body}[/dim]")
         except httpx.ConnectError:
             rprint(f"[red]✗[/red] Could not connect to {creds['server']}")
 
