@@ -196,6 +196,7 @@ Found a security issue? Please don't open a public issue — see
 | `myace pull --profile <name> --target <fw> [--path <dir>]` | Fetch and write compiled profile |
 | `myace list-profiles` | List profiles from server |
 | `myace import --path <dir> --name <name> [--push]` | Scan local config dir and convert to canonical artifacts |
+| `myace serve [--port <port>]` | Run a local companion server so the web UI's Import page can scan this machine (needs `pip install "myace-cli[serve]"`) |
 
 ### Import command
 
@@ -224,6 +225,23 @@ myace import --path ~/.config/opencode --name "my-config" --push
 
 (The web UI's Import page additionally supports scanning a GitHub
 repository directly — see [`docs/architecture.md`](docs/architecture.md).)
+
+### Local companion server (`myace serve`)
+
+The web UI's Import page can't read your filesystem directly — a browser
+has no API to silently walk `~/.claude`, `~/.cursor`, etc. To scan your own
+machine from the browser (rather than running `myace import` by hand), run:
+
+```bash
+pip install "myace-cli[serve]"
+myace login --server <your-myace-server-url> --token <token-from-Settings>
+myace serve
+```
+
+The Import page auto-detects it (polling `http://127.0.0.1:8765/health`)
+and switches to a live scan-and-select flow once it's running. It binds to
+loopback only and only accepts requests from the exact origin you logged
+into — see `cli/myace_cli/local_server.py` for the full security model.
 
 ## Canonical Intermediate Representation (IR)
 

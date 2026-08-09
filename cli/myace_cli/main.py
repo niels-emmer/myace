@@ -174,6 +174,36 @@ def pull(
 
 
 @app.command()
+def serve(
+    port: int = typer.Option(
+        8765, "--port", "-p",
+        help="Local port to listen on (loopback-only)",
+    ),
+):
+    """Run a local companion server so the web UI can scan this machine.
+
+    Requires `myace login` first — only the server you're logged into is
+    ever allowed to talk to it, and it binds to 127.0.0.1 only.
+    """
+    creds = auth_manager.load_credentials()
+    if not creds:
+        rprint("[red]✗[/red] Not authenticated. Run [bold]myace login[/bold] first.")
+        raise typer.Exit(1)
+
+    try:
+        from myace_cli import local_server
+    except ImportError:
+        rprint("[red]✗[/red] Missing dependencies for the local server.")
+        rprint('   Install with: [bold]pip install "myace-cli[serve]"[/bold]')
+        raise typer.Exit(1)
+
+    rprint(f"[green]✓[/green] Starting local companion server on [bold]http://127.0.0.1:{port}[/bold]")
+    rprint(f"   Allowed origin: [bold]{creds['server']}[/bold]")
+    rprint("   Open the Import page in your browser to scan this machine. Ctrl+C to stop.\n")
+    local_server.run(allowed_origin=creds["server"], port=port)
+
+
+@app.command()
 def list_profiles():
     """List available profiles from the server."""
     creds = auth_manager.load_credentials()

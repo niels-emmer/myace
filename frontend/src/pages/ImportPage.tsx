@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import {
   Upload,
   FolderOpen,
@@ -21,6 +22,8 @@ const FRAMEWORKS = [
   { id: 'claude-code', label: 'Claude Code', globalPath: '~/.claude' },
   { id: 'cursor', label: 'Cursor', globalPath: '~/.cursor' },
 ];
+
+const COMPANION_URL = 'http://127.0.0.1:8765';
 
 type SourceType = 'local' | 'git';
 
@@ -52,7 +55,30 @@ export default function ImportPage() {
   const [copied, setCopied] = useState(false);
 
   const sourceLabel = sourceType === 'git' ? gitUrl : sourcePath;
-  const canScan = sourceType === 'git' ? !!gitUrl : !!sourcePath;
+
+  // The local companion server (`myace serve`) is what actually scans this
+  // machine — the browser has no filesystem access of its own, and the
+  // backend's local-scan path only ever sees whatever machine *it* runs on
+  // (the server, not a remote visitor's laptop). Poll while "Local Machine"
+  // is selected so starting `myace serve` mid-session is picked up live.
+  const companionQuery = useQuery({
+    queryKey: ['companion-health'],
+    queryFn: async () => {
+      const res = await fetch(`${COMPANION_URL}/health`, {
+        signal: AbortSignal.timeout(1200),
+      });
+      if (!res.ok) throw new Error('Companion unreachable');
+      return res.json() as Promise<{ status: string; server: string }>;
+    },
+    enabled: sourceType === 'local',
+    retry: false,
+    refetchInterval: 5000,
+    staleTime: 0,
+  });
+  const companionReady = sourceType === 'local' && companionQuery.isSuccess;
+
+  const canScan =
+    sourceType === 'git' ? !!gitUrl : !!sourcePath && companionReady;
 
   // Pre-populate path when framework or scope changes
   const updatePath = (fw: string, sc: 'global' | 'project') => {
@@ -73,24 +99,37 @@ export default function ImportPage() {
     updatePath(framework, sc);
   };
 
-  // Scan mutation
+  // Scan mutation — local machine goes through the companion server running
+  // on the user's own device; only Git repos hit the backend directly.
   const scanMutation = useMutation({
     mutationFn: async () => {
-      const body =
-        sourceType === 'git'
-          ? {
-              source_type: 'git',
-              git_url: gitUrl,
-              git_branch: gitBranch || 'main',
-              subdirectory: gitSubdirectory,
-              framework,
-            }
-          : { source_type: 'local', path: sourcePath, framework };
+      if (sourceType === 'local') {
+        if (!companionReady) {
+          throw new Error('Local scanner not detected. Follow the setup steps below.');
+        }
+        const res = await fetch(`${COMPANION_URL}/scan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-MyACE-Companion': '1' },
+          body: JSON.stringify({ path: sourcePath, framework }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || 'Scan failed');
+        }
+        return res.json();
+      }
+
       const res = await fetch('/api/v1/collections/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          source_type: 'git',
+          git_url: gitUrl,
+          git_branch: gitBranch || 'main',
+          subdirectory: gitSubdirectory,
+          framework,
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -287,6 +326,16 @@ export default function ImportPage() {
                     className="flex-1 px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                   />
                 </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <div
+                    className={`h-2 w-2 rounded-full ${companionReady ? 'bg-green-400' : 'bg-muted-foreground/30'}`}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {companionReady
+                      ? 'Local scanner detected — ready to scan this machine.'
+                      : 'Local scanner not detected. See setup steps below.'}
+                  </span>
+                </div>
               </div>
             </>
           ) : (
@@ -363,35 +412,15 @@ export default function ImportPage() {
         {scanMutation.isError && (
           <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
             Scan failed: {scanMutation.error.message}
-            {sourceType === 'local' && (
-              <>
-                <div className="mt-2 text-xs text-destructive/80">
-                  Tip: When running in Docker, paths under{' '}
-                  <code className="bg-destructive/20 px-1 rounded">/host-home/</code> are
-                  accessible. Use the CLI directly for local paths:
-                </div>
-                <div className="mt-2 flex items-center gap-2 bg-destructive/20 p-2 rounded">
-                  <code className="text-xs flex-1">
-                    myace import --path &quot;{sourcePath}&quot; --name &quot;{collectionName || `imported-${framework}`}&quot;
-                  </code>
-                  <button
-                    onClick={() =>
-                      copyToClipboard(
-                        `myace import --path "${sourcePath}" --name "${collectionName || `imported-${framework}`}"`
-                      )
-                    }
-                    className="p-1 hover:bg-destructive/30 rounded"
-                  >
-                    {copied ? (
-                      <CheckIcon className="h-3 w-3 text-green-600" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
-                    )}
-                  </button>
-                </div>
-              </>
-            )}
           </div>
+        )}
+
+        {/* Local companion setup — shown proactively, not just after a failed scan */}
+        {sourceType === 'local' && !companionReady && (
+          <LocalCompanionSetup
+            sourcePath={sourcePath}
+            collectionName={collectionName || `imported-${framework}`}
+          />
         )}
       </div>
 
@@ -531,6 +560,63 @@ export default function ImportPage() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function LocalCompanionSetup({
+  sourcePath,
+  collectionName,
+}: {
+  sourcePath: string;
+  collectionName: string;
+}) {
+  const backendOrigin = window.location.origin;
+  const installCommand = 'pip install "myace-cli[serve]"';
+  const loginCommand = `myace login --server ${backendOrigin} --token <token-from-Settings>`;
+  const serveCommand = 'myace serve';
+  const oneShotCommand = `myace import --path "${sourcePath}" --name "${collectionName}" --push`;
+
+  return (
+    <div className="p-4 bg-muted rounded-lg space-y-3">
+      <p className="text-sm text-foreground">
+        Scanning your machine needs the <code className="bg-background px-1 rounded">myace</code>{' '}
+        CLI running locally as a companion server — a browser page can't read your filesystem
+        on its own.{' '}
+        <Link to="/settings" className="text-brand-600 hover:underline">
+          Create an API token
+        </Link>{' '}
+        if you haven't yet, then run:
+      </p>
+      <CliLine text={installCommand} />
+      <CliLine text={loginCommand} />
+      <CliLine text={serveCommand} />
+      <p className="text-xs text-muted-foreground pt-1">
+        Prefer a one-off, no-browser-roundtrip import instead? Run this after{' '}
+        <code className="bg-background px-1 rounded">myace login</code>:
+      </p>
+      <CliLine text={oneShotCommand} />
+    </div>
+  );
+}
+
+function CliLine({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="flex items-center gap-2 bg-foreground text-background p-2 rounded font-mono text-xs">
+      <code className="flex-1 break-all">{text}</code>
+      <button onClick={handleCopy} className="shrink-0 p-1 hover:bg-background/10 rounded transition-colors">
+        {copied ? (
+          <CheckIcon className="h-3.5 w-3.5 text-green-400" />
+        ) : (
+          <Copy className="h-3.5 w-3.5 text-background/70" />
+        )}
+      </button>
     </div>
   );
 }

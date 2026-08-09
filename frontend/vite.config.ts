@@ -12,8 +12,14 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // The frontend's Docker image always serves a static nginx build (see
+      // docker-compose.yml) — it never runs the Vite dev server in-container,
+      // so this proxy only ever runs on a developer's host via `npm run dev`
+      // (see docker-compose.dev.yml's comment). `backend` is a Docker-network
+      // hostname and doesn't resolve from the host; the backend's dev compose
+      // override exposes it on localhost:8000 for exactly this.
       '/api': {
-        target: 'http://backend:8000',
+        target: 'http://localhost:8000',
         changeOrigin: true,
       },
     },
