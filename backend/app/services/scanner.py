@@ -2,9 +2,12 @@
 
 import json
 import re
-import yaml
+import shutil
+import tempfile
 from pathlib import Path
-from typing import Optional
+
+import git
+import yaml
 
 
 def _resolve_path(path: str) -> Path:
@@ -98,6 +101,34 @@ def scan_directory(path: str | Path) -> list[dict]:
     return artifacts
 
 
+def scan_git_repository(
+    repo_url: str,
+    branch: str = "main",
+    subdirectory: str = "",
+) -> list[dict]:
+    """Shallow-clone a Git repository into a temp dir and scan it for canonical artifacts.
+
+    Only public repositories work out of the box — for private repos, embed a
+    token in the URL (e.g. https://<token>@github.com/owner/repo.git).
+    """
+    tmp_dir = tempfile.mkdtemp(prefix="myace-scan-")
+    try:
+        try:
+            git.Repo.clone_from(repo_url, tmp_dir, branch=branch, depth=1, single_branch=True)
+        except git.exc.GitCommandError as e:
+            raise ValueError(f"Failed to clone '{repo_url}' (branch '{branch}'): {e}") from e
+
+        scan_root = Path(tmp_dir)
+        if subdirectory:
+            scan_root = scan_root / subdirectory
+            if not scan_root.is_dir():
+                raise FileNotFoundError(f"Subdirectory '{subdirectory}' not found in repository")
+
+        return scan_directory(scan_root)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 def _parse_yaml_frontmatter(content: str) -> tuple[dict, str]:
     """Extract YAML frontmatter and body from markdown."""
     match = re.match(r"^---\n(.*?)\n---\n(.*)", content, re.DOTALL)
@@ -111,7 +142,7 @@ def _parse_yaml_frontmatter(content: str) -> tuple[dict, str]:
     return {}, content.strip()
 
 
-def _parse_skill_file(path: Path) -> Optional[dict]:
+def _parse_skill_file(path: Path) -> dict | None:
     content = path.read_text(encoding="utf-8")
     frontmatter, body = _parse_yaml_frontmatter(content)
     name = frontmatter.get("name", path.parent.name)
@@ -131,7 +162,7 @@ def _parse_skill_file(path: Path) -> Optional[dict]:
     }
 
 
-def _parse_agent_file(path: Path) -> Optional[dict]:
+def _parse_agent_file(path: Path) -> dict | None:
     content = path.read_text(encoding="utf-8")
     frontmatter, body = _parse_yaml_frontmatter(content)
     name = path.stem
@@ -153,7 +184,7 @@ def _parse_agent_file(path: Path) -> Optional[dict]:
     }
 
 
-def _parse_command_file(path: Path) -> Optional[dict]:
+def _parse_command_file(path: Path) -> dict | None:
     content = path.read_text(encoding="utf-8")
     frontmatter, body = _parse_yaml_frontmatter(content)
     name = path.stem
