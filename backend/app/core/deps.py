@@ -1,5 +1,6 @@
 """Auth dependencies — resolve the authenticated user from a session cookie or API token."""
 
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import Depends, HTTPException, Request, status
@@ -19,8 +20,12 @@ UNAUTHORIZED = HTTPException(
 
 
 async def _user_from_session(request: Request, session: AsyncSession) -> User | None:
-    user_id = request.session.get("user_id")
-    if not user_id:
+    raw_user_id = request.session.get("user_id")
+    if not raw_user_id:
+        return None
+    try:
+        user_id = uuid.UUID(raw_user_id)
+    except ValueError:
         return None
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()

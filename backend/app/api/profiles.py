@@ -1,9 +1,11 @@
 """Profile management and compilation routes."""
 
+import io
 import json
 import uuid
+import zipfile
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -14,6 +16,7 @@ from app.models.collection import Collection
 from app.models.profile import Profile, ProfileCompileRequest, ProfileCreate, ProfileRead
 from app.models.user import User
 from app.services.compiler import compile_profile
+from app.services.github_export import slugify
 
 router = APIRouter()
 
@@ -132,6 +135,47 @@ async def compile_profile_endpoint(
         include_disabled=request.include_disabled,
     )
     return compiled
+
+
+@router.post("/compile/zip")
+async def compile_profile_zip_endpoint(
+    request: ProfileCompileRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Compile a profile and return the resulting files as a downloadable zip,
+    for browser-only use without the CLI.
+    """
+    profile = await _get_profile_or_404(session, request.profile_id)
+    authorize_access(
+        owner_id=profile.owner_id, current_user=current_user,
+        is_public=profile.is_public, resource_name="Profile",
+    )
+
+    compiled = await compile_profile(
+        session=session,
+        profile=profile,
+        target=request.target,
+        include_disabled=request.include_disabled,
+    )
+    if "error" in compiled:
+        raise HTTPException(status_code=400, detail=compiled["error"])
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for filename, content in compiled["files"].items():
+            zf.writestr(filename, content)
+
+    # Sanitize into the Content-Disposition header — profile.name is
+    # user-controlled (including on public profiles owned by someone else),
+    # so an unescaped value here would be a header-injection vector.
+    zip_filename = f"{slugify(profile.name)}-{slugify(request.target)}.zip"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'},
+    )
 
 
 @router.put("/{profile_id}", response_model=ProfileRead)

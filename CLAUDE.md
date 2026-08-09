@@ -24,7 +24,7 @@ mypy app                         # type check (strict mode)
 alembic revision --autogenerate -m "description"   # new migration
 alembic upgrade head              # apply migrations
 ```
-Tests use SQLite (`aiosqlite`) via `tests/conftest.py`, not Postgres — no running DB needed to run the suite.
+Tests use SQLite (`aiosqlite`) via `tests/conftest.py`, not Postgres — no running DB needed to run the suite. The `db_session` fixture spins up a fresh in-memory SQLite engine per test and overrides the `get_session` FastAPI dependency to point at it (`app.dependency_overrides[get_session]`); any test that exercises an authenticated route should depend on `async_client` (which itself depends on `db_session`), not construct its own client. Requires `greenlet` installed (a runtime dependency of SQLAlchemy's async engine, listed explicitly in `pyproject.toml` since it isn't pulled in automatically by `sqlmodel`/`asyncpg`).
 
 ### Frontend (from `frontend/`)
 ```bash
@@ -63,6 +63,8 @@ A **Profile** references a base **Collection** plus additional collections and a
 4. Sorts by `priority` descending.
 5. Hands the list to a target adapter's `translate()`.
 
+`POST /api/v1/profiles/compile` returns the `{filename: content}` map as JSON (what the CLI's `pull` consumes). `POST /api/v1/profiles/compile/zip` (`app/api/profiles.py`) wraps the same `compile_profile()` call and streams the result back as a zip for browser-only download — no CLI required. Its `Content-Disposition` filename is built via `github_export.py`'s `slugify()`, not the raw `profile.name`/`target` — profile names are attacker-controllable on profiles you don't own (public profiles), so an unsanitized filename would be a header-injection vector into another user's response.
+
 ### Adapters translate IR → framework files
 `app/adapters/` (backend) and `cli/myace_cli/adapters/` (CLI) each implement `BaseAdapter`:
 ```python
@@ -89,6 +91,8 @@ All routes are prefixed `/api/v1/` (breaking changes get a new version prefix, a
 ### Authentication & Authorization
 Two auth mechanisms feed one dependency, `get_current_user` (`app/core/deps.py`): a **session cookie** (`request.session["user_id"]`, set by `SessionMiddleware` in `main.py` after `/auth/login` or an OIDC/GitHub/Google callback — this is what the web UI uses) or a **Bearer API token** (`Authorization: Bearer <key>`, matched by `ApiToken.token_prefix` then bcrypt-verified — this is what the CLI uses). Both resolve to the same `User` row; routes don't need to know which path was used.
 
+**Gotcha — session `user_id` must be parsed back into a `uuid.UUID` before querying.** The session cookie stores `str(user.id)` (session payloads are JSON, no native UUID type), so `_user_from_session` must do `uuid.UUID(raw_user_id)` before comparing against `User.id`. Comparing the raw string directly works against `asyncpg`/Postgres (which coerces loosely) but throws `AttributeError: 'str' object has no attribute 'hex'` under SQLite's `Uuid` bind processor — this only surfaced once the test suite actually exercised session-cookie-authenticated routes against real SQLite (see the `db_session` fixture note above).
+
 Authorization is ownership-based, not role-based-per-resource: every `Collection`/`Profile` has an `owner_id`, plus a `visibility`/`is_public` flag. `app/core/authz.py` has the two primitives every protected route uses — `authorize_access(owner_id=..., current_user=..., is_public=..., write=...)` for single-resource routes (404s, not 403s, if denied — doesn't reveal that the resource exists) and `owner_or_public_clause(...)` for list endpoints (returns a WHERE clause, or `None` for admins — no filter). `User.is_admin` bypasses every check. `Artifact` has no `owner_id` of its own — routes load the parent `Collection` first and authorize against that.
 
 First-ever registered user becomes admin automatically; `ADMIN_EMAILS` (config, comma-separated) promotes specific emails on register/OIDC-login going forward. There is no more "unauthenticated placeholder user" concept — `app/services/placeholder_user.py` (which used to resolve the nil UUID to one shared `local@myace.local` account) was removed once real auth landed; every create route derives ownership from `current_user.id`.
@@ -104,7 +108,7 @@ React Router SPA (`src/App.tsx`) with pages under `src/pages/` (Login, Dashboard
 
 `/login` is the only public route — everything else is wrapped in a `RequireAuth` component (`App.tsx`) that redirects to `/login` while `isLoading`/unauthenticated. `Login.tsx` itself redirects *away* from `/login` via a `useEffect` the moment `user` becomes non-null (covers both a fresh login and an already-valid session) — OIDC/GitHub/Google buttons only render if `GET /auth/providers` reports that provider configured. `Layout.tsx`'s sidebar footer shows the real signed-in user (name + Admin/User role badge) and a logout button, replacing what used to be a hardcoded "API Connected" indicator.
 
-**Two different things are called "export" — don't conflate them.** `TargetExporter.tsx` (`/compile`) compiles a **Profile** into a target framework's files (opencode/claude-code/cursor) for local copy/CLI pull. `CollectionDetail.tsx`'s "Export to GitHub" button pushes a **Collection**'s canonical artifacts to a real GitHub branch + PR. They share no code path.
+**Two different things are called "export" — don't conflate them.** `TargetExporter.tsx` (`/compile`) compiles a **Profile** into a target framework's files (opencode/claude-code/cursor), for copy-paste, a zip download (`POST /profiles/compile/zip`, browser-only — no CLI needed), or CLI pull. `CollectionDetail.tsx`'s "Export to GitHub" button pushes a **Collection**'s canonical artifacts to a real GitHub branch + PR. They share no code path.
 
 **`ImportPage.tsx`** has a Local Machine / GitHub Repository source toggle sharing one scan → select → import flow; both hit the same `POST /collections/scan` (see backend section above). `CollectionsManager.tsx`'s "Import Collection" button is just a `Link` to this page now — there used to be a separate quick-create form here that only wrote `{name, git_url}` to the DB without ever fetching anything, silently producing permanently-empty collections. Don't reintroduce a second "create collection" entry point without wiring it through the real scan/import flow.
 
