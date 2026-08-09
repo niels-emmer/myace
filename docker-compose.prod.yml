@@ -12,7 +12,7 @@
 
 services:
   frontend:
-    ports: []                          # no direct host access
+    ports: []                          # no direct host access — behind reverse proxy
     networks:
       - myace                          # private, to reach backend
       - proxy-net                      # external, for the reverse proxy
