@@ -16,8 +16,12 @@ The doc cache can be refreshed by admins via POST /api/v1/doc-cache/refresh.
 
 from app.adapters.base import BaseAdapter
 from app.adapters.claude_code import ClaudeCodeAdapter
+from app.adapters.cline import ClineAdapter
+from app.adapters.codex_cli import CodexCliAdapter
+from app.adapters.copilot_cli import CopilotCliAdapter
 from app.adapters.cursor import CursorAdapter
 from app.adapters.opencode import OpenCodeAdapter
+from app.adapters.windsurf import WindsurfAdapter
 
 _registry: dict[str, BaseAdapter] = {}
 
@@ -41,3 +45,7 @@ def list_adapters() -> list[BaseAdapter]:
 register_adapter(ClaudeCodeAdapter())
 register_adapter(OpenCodeAdapter())
 register_adapter(CursorAdapter())
+register_adapter(CodexCliAdapter())
+register_adapter(CopilotCliAdapter())
+register_adapter(ClineAdapter())
+register_adapter(WindsurfAdapter())
