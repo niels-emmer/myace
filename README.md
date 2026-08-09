@@ -451,6 +451,12 @@ MyACE is built on [FastAPI](https://fastapi.tiangolo.com/),
 [Tailwind CSS](https://tailwindcss.com/), and [Typer](https://typer.tiangolo.com/).
 Thanks to the maintainers of all of them.
 
+This entire project — every line of code, every test, every doc, every
+infrastructure config — was written by AI coding agents:
+[Claude Code / Sonnet 5](https://docs.anthropic.com/en/docs/claude-code/overview)
+and [OpenCode / DeepSeek V4-Flash](https://github.com/niels-emmer/opencode).
+The human (Niels) reviewed, directed, and shipped it.
+
 ## License
 
 [MIT](LICENSE) © 2026 [Niels Emmer](https://github.com/niels-emmer)
