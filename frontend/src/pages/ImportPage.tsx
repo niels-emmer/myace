@@ -9,6 +9,8 @@ import {
   Terminal,
   Globe,
   Folder,
+  Github,
+  HardDrive,
   Copy,
   Check as CheckIcon,
   Loader2,
@@ -19,6 +21,8 @@ const FRAMEWORKS = [
   { id: 'claude-code', label: 'Claude Code', globalPath: '~/.claude' },
   { id: 'cursor', label: 'Cursor', globalPath: '~/.cursor' },
 ];
+
+type SourceType = 'local' | 'git';
 
 interface Artifact {
   artifact_type: string;
@@ -34,14 +38,21 @@ interface Artifact {
 }
 
 export default function ImportPage() {
+  const [sourceType, setSourceType] = useState<SourceType>('local');
   const [collectionName, setCollectionName] = useState('');
   const [framework, setFramework] = useState('opencode');
   const [scope, setScope] = useState<'global' | 'project'>('global');
   const [sourcePath, setSourcePath] = useState('');
+  const [gitUrl, setGitUrl] = useState('');
+  const [gitBranch, setGitBranch] = useState('main');
+  const [gitSubdirectory, setGitSubdirectory] = useState('');
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [scanned, setScanned] = useState(false);
   const [cliCommand, setCliCommand] = useState('');
   const [copied, setCopied] = useState(false);
+
+  const sourceLabel = sourceType === 'git' ? gitUrl : sourcePath;
+  const canScan = sourceType === 'git' ? !!gitUrl : !!sourcePath;
 
   // Pre-populate path when framework or scope changes
   const updatePath = (fw: string, sc: 'global' | 'project') => {
@@ -65,10 +76,21 @@ export default function ImportPage() {
   // Scan mutation
   const scanMutation = useMutation({
     mutationFn: async () => {
+      const body =
+        sourceType === 'git'
+          ? {
+              source_type: 'git',
+              git_url: gitUrl,
+              git_branch: gitBranch || 'main',
+              subdirectory: gitSubdirectory,
+              framework,
+            }
+          : { source_type: 'local', path: sourcePath, framework };
       const res = await fetch('/api/v1/collections/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: sourcePath, framework }),
+        credentials: 'same-origin',
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -78,7 +100,7 @@ export default function ImportPage() {
     },
     onSuccess: (data) => {
       setArtifacts(
-        (data.artifacts || []).map((a: any) => ({ ...a, selected: true }))
+        (data.artifacts || []).map((a: Omit<Artifact, 'selected'>) => ({ ...a, selected: true }))
       );
       setScanned(true);
     },
@@ -91,12 +113,13 @@ export default function ImportPage() {
       const res = await fetch('/api/v1/collections/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({
           collection_name: collectionName || `imported-${framework}`,
-          collection_description: `Imported from ${sourcePath}`,
+          collection_description: `Imported from ${sourceLabel}`,
           collection_type: 'base',
           visibility: 'private',
-          owner_email: `import-${Date.now()}@myace.local`,
+          git_url: sourceType === 'git' ? gitUrl : '',
           artifacts: selected.map(({ selected, ...rest }) => rest),
         }),
       });
@@ -107,8 +130,11 @@ export default function ImportPage() {
       return res.json();
     },
     onSuccess: (data) => {
+      // The CLI's `import` command only supports --path today; git imports are web-only for now.
       setCliCommand(
-        `myace import --path "${sourcePath}" --name "${data.collection_name}" --push`
+        sourceType === 'git'
+          ? ''
+          : `myace import --path "${sourcePath}" --name "${data.collection_name}" --push`
       );
     },
   });
@@ -143,18 +169,46 @@ export default function ImportPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Import from Local System</h1>
-        <p className="text-gray-500 mt-1">
-          Scan an existing local configuration and import it as a MyACE collection
+        <h1 className="text-2xl font-bold text-foreground">Import</h1>
+        <p className="text-muted-foreground mt-1">
+          Scan a GitHub repository or your local machine, pick which items to bring in, then import them as a MyACE collection.
         </p>
       </div>
 
+      {/* Source Type Toggle */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setSourceType('local')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            sourceType === 'local'
+              ? 'border-brand-500 bg-brand-50 text-brand-700'
+              : 'border-border text-muted-foreground hover:border-input'
+          }`}
+        >
+          <HardDrive className="h-4 w-4" />
+          Local Machine
+        </button>
+        <button
+          type="button"
+          onClick={() => setSourceType('git')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            sourceType === 'git'
+              ? 'border-brand-500 bg-brand-50 text-brand-700'
+              : 'border-border text-muted-foreground hover:border-input'
+          }`}
+        >
+          <Github className="h-4 w-4" />
+          GitHub Repository
+        </button>
+      </div>
+
       {/* Configuration Form */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+      <div className="bg-card rounded-xl border border-border p-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Collection Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Collection Name
             </label>
             <input
@@ -162,83 +216,138 @@ export default function ImportPage() {
               value={collectionName}
               onChange={(e) => setCollectionName(e.target.value)}
               placeholder="e.g., my-opencode-config"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
             />
           </div>
 
-          {/* Source Framework */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Source Framework
-            </label>
-            <select
-              value={framework}
-              onChange={(e) => handleFrameworkChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-            >
-              {FRAMEWORKS.map((fw) => (
-                <option key={fw.id} value={fw.id}>
-                  {fw.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {sourceType === 'local' ? (
+            <>
+              {/* Source Framework */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Source Framework
+                </label>
+                <select
+                  value={framework}
+                  onChange={(e) => handleFrameworkChange(e.target.value)}
+                  className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                >
+                  {FRAMEWORKS.map((fw) => (
+                    <option key={fw.id} value={fw.id}>
+                      {fw.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          {/* Scope */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Scope
-            </label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => handleScopeChange('global')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors ${
-                  scope === 'global'
-                    ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <Globe className="h-4 w-4" />
-                Global Settings
-              </button>
-              <button
-                type="button"
-                onClick={() => handleScopeChange('project')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors ${
-                  scope === 'project'
-                    ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <Folder className="h-4 w-4" />
-                Project Settings
-              </button>
-            </div>
-          </div>
+              {/* Scope */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Scope
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleScopeChange('global')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors ${
+                      scope === 'global'
+                        ? 'border-brand-500 bg-brand-50 text-brand-700'
+                        : 'border-border hover:border-input'
+                    }`}
+                  >
+                    <Globe className="h-4 w-4" />
+                    Global Settings
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleScopeChange('project')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors ${
+                      scope === 'project'
+                        ? 'border-brand-500 bg-brand-50 text-brand-700'
+                        : 'border-border hover:border-input'
+                    }`}
+                  >
+                    <Folder className="h-4 w-4" />
+                    Project Settings
+                  </button>
+                </div>
+              </div>
 
-          {/* Source Path */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Source Folder
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={sourcePath}
-                onChange={(e) => setSourcePath(e.target.value)}
-                placeholder="~/.config/opencode"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-              />
-            </div>
-          </div>
+              {/* Source Path */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Source Folder
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={sourcePath}
+                    onChange={(e) => setSourcePath(e.target.value)}
+                    placeholder="~/.config/opencode"
+                    className="flex-1 px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Repository URL */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Repository URL
+                </label>
+                <input
+                  type="text"
+                  value={gitUrl}
+                  onChange={(e) => setGitUrl(e.target.value)}
+                  placeholder="https://github.com/owner/repo"
+                  className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+
+              {/* Branch */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Branch
+                </label>
+                <input
+                  type="text"
+                  value={gitBranch}
+                  onChange={(e) => setGitBranch(e.target.value)}
+                  placeholder="main"
+                  className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+
+              {/* Subdirectory */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Subdirectory <span className="text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={gitSubdirectory}
+                  onChange={(e) => setGitSubdirectory(e.target.value)}
+                  placeholder="Leave blank to scan the repository root"
+                  className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm font-mono focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+            </>
+          )}
         </div>
+
+        {sourceType === 'git' && (
+          <p className="text-xs text-muted-foreground">
+            Only public repositories work out of the box. For a private repo, embed a token in the URL:{' '}
+            <code className="bg-muted px-1 rounded">https://&lt;token&gt;@github.com/owner/repo.git</code>
+          </p>
+        )}
 
         {/* Scan Button */}
         <div className="flex justify-end">
           <button
             onClick={() => scanMutation.mutate()}
-            disabled={!sourcePath || scanMutation.isPending}
+            disabled={!canScan || scanMutation.isPending}
             className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
           >
             {scanMutation.isPending ? (
@@ -252,51 +361,55 @@ export default function ImportPage() {
 
         {/* Scan Error */}
         {scanMutation.isError && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
             Scan failed: {scanMutation.error.message}
-            <div className="mt-2 text-xs text-red-500">
-              Tip: When running in Docker, paths under{' '}
-              <code className="bg-red-100 px-1 rounded">/host-home/</code> are
-              accessible. Use the CLI directly for local paths:
-            </div>
-            <div className="mt-2 flex items-center gap-2 bg-red-100 p-2 rounded">
-              <code className="text-xs flex-1">
-                myace import --path &quot;{sourcePath}&quot; --name &quot;{collectionName || `imported-${framework}`}&quot;
-              </code>
-              <button
-                onClick={() =>
-                  copyToClipboard(
-                    `myace import --path "${sourcePath}" --name "${collectionName || `imported-${framework}`}"`
-                  )
-                }
-                className="p-1 hover:bg-red-200 rounded"
-              >
-                {copied ? (
-                  <CheckIcon className="h-3 w-3 text-green-600" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
-              </button>
-            </div>
+            {sourceType === 'local' && (
+              <>
+                <div className="mt-2 text-xs text-destructive/80">
+                  Tip: When running in Docker, paths under{' '}
+                  <code className="bg-destructive/20 px-1 rounded">/host-home/</code> are
+                  accessible. Use the CLI directly for local paths:
+                </div>
+                <div className="mt-2 flex items-center gap-2 bg-destructive/20 p-2 rounded">
+                  <code className="text-xs flex-1">
+                    myace import --path &quot;{sourcePath}&quot; --name &quot;{collectionName || `imported-${framework}`}&quot;
+                  </code>
+                  <button
+                    onClick={() =>
+                      copyToClipboard(
+                        `myace import --path "${sourcePath}" --name "${collectionName || `imported-${framework}`}"`
+                      )
+                    }
+                    className="p-1 hover:bg-destructive/30 rounded"
+                  >
+                    {copied ? (
+                      <CheckIcon className="h-3 w-3 text-green-600" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
 
       {/* Scan Results */}
       {scanned && artifacts.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <div className="px-6 py-4 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-card-foreground">
                 Discovered Resources
               </h2>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-muted-foreground">
                 ({selectedCount}/{artifacts.length} selected)
               </span>
             </div>
             <button
               onClick={toggleAll}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors"
             >
               {artifacts.every((a) => a.selected) ? (
                 <Square className="h-4 w-4" />
@@ -307,11 +420,11 @@ export default function ImportPage() {
             </button>
           </div>
 
-          <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-border max-h-96 overflow-y-auto">
             {artifacts.map((artifact, index) => (
               <div
                 key={`${artifact.artifact_type}-${artifact.name}-${index}`}
-                className={`flex items-center gap-3 px-6 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${
+                className={`flex items-center gap-3 px-6 py-3 hover:bg-accent transition-colors cursor-pointer ${
                   artifact.selected ? '' : 'opacity-50'
                 }`}
                 onClick={() => toggleArtifact(index)}
@@ -320,27 +433,27 @@ export default function ImportPage() {
                   {artifact.selected ? (
                     <CheckSquare className="h-5 w-5 text-brand-600" />
                   ) : (
-                    <Square className="h-5 w-5 text-gray-300" />
+                    <Square className="h-5 w-5 text-muted-foreground" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900 truncate">
+                    <span className="text-sm font-medium text-card-foreground truncate">
                       {artifact.name}
                     </span>
                     <span
                       className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                        typeColors[artifact.artifact_type] || 'bg-gray-50 text-gray-600'
+                        typeColors[artifact.artifact_type] || 'bg-muted text-muted-foreground'
                       }`}
                     >
                       {artifact.artifact_type}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 truncate mt-0.5">
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
                     {artifact.description || artifact.file_path}
                   </p>
                 </div>
-                <div className="flex-shrink-0 text-xs text-gray-400">
+                <div className="flex-shrink-0 text-xs text-muted-foreground">
                   p{artifact.priority}
                 </div>
               </div>
@@ -350,11 +463,11 @@ export default function ImportPage() {
       )}
 
       {scanned && artifacts.length === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <FolderOpen className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No artifacts found at the specified path.</p>
-          <p className="text-xs text-gray-400 mt-1">
-            Make sure the directory contains skills/, agents/, commands/, or AGENTS.md
+        <div className="bg-card rounded-xl border border-border p-12 text-center">
+          <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+          <p className="text-muted-foreground">No artifacts found at the specified source.</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">
+            Make sure it contains skills/, agents/, commands/, or AGENTS.md
           </p>
         </div>
       )}
@@ -373,38 +486,46 @@ export default function ImportPage() {
               ) : (
                 <Upload className="h-4 w-4" />
               )}
-              Import {selectedCount} Resource{selectedCount !== 1 ? 's' : ''} from Local System
+              Import {selectedCount} Resource{selectedCount !== 1 ? 's' : ''} from{' '}
+              {sourceType === 'git' ? 'GitHub' : 'Local System'}
             </button>
           </div>
 
-          {/* CLI Command */}
+          {/* Import Success */}
           {importMutation.isSuccess && (
-            <div className="bg-gray-900 text-gray-100 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Terminal className="h-4 w-4 text-green-400" />
-                  <span className="text-sm font-medium text-green-400">
-                    Import complete! CLI equivalent:
-                  </span>
-                </div>
-                <button
-                  onClick={() => copyToClipboard(cliCommand)}
-                  className="p-1.5 hover:bg-gray-700 rounded transition-colors"
-                >
-                  {copied ? (
-                    <CheckIcon className="h-4 w-4 text-green-400" />
-                  ) : (
-                    <Copy className="h-4 w-4 text-gray-400" />
-                  )}
-                </button>
+            <div className="bg-foreground text-background rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Terminal className="h-4 w-4 text-green-400" />
+                <span className="text-sm font-medium text-green-400">
+                  Import complete!{cliCommand ? ' CLI equivalent:' : ''}
+                </span>
               </div>
-              <code className="text-xs block">{cliCommand}</code>
+              {cliCommand ? (
+                <div className="flex items-center justify-between gap-2">
+                  <code className="text-xs block flex-1">{cliCommand}</code>
+                  <button
+                    onClick={() => copyToClipboard(cliCommand)}
+                    className="p-1.5 hover:bg-foreground/80 rounded transition-colors flex-shrink-0"
+                  >
+                    {copied ? (
+                      <CheckIcon className="h-4 w-4 text-green-400" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-background/60" />
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-background/70">
+                  Head to Collections to view and manage the imported artifacts. (Git imports
+                  aren't yet supported by the CLI.)
+                </p>
+              )}
             </div>
           )}
 
           {/* Import Error */}
           {importMutation.isError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
               Import failed: {importMutation.error.message}
             </div>
           )}
