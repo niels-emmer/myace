@@ -91,11 +91,35 @@ BINARY_DOWNLOADED=false
 
 if [ -n "$BINARY_NAME" ]; then
     DOWNLOAD_URL="${GH_RELEASE}/${BINARY_NAME}"
+    CHECKSUM_URL="${GH_RELEASE}/${BINARY_NAME}.sha256"
     info "Downloading ${BINARY_NAME}..."
     if curl -fsSL "$DOWNLOAD_URL" -o "$MYACE_BIN" 2>/dev/null; then
-        chmod +x "$MYACE_BIN"
-        info "Binary downloaded to ${MYACE_BIN}"
-        BINARY_DOWNLOADED=true
+        # Verify checksum
+        if CHECKSUM_FILE=$(curl -fsSL "$CHECKSUM_URL" 2>/dev/null); then
+            EXPECTED_HASH=$(echo "$CHECKSUM_FILE" | grep "${BINARY_NAME}" | awk '{print $1}')
+            if [ -n "$EXPECTED_HASH" ]; then
+                ACTUAL_HASH=$(sha256sum "$MYACE_BIN" | awk '{print $1}')
+                if [ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]; then
+                    error "Checksum mismatch! Downloaded binary may be tampered with."
+                    rm -f "$MYACE_BIN"
+                    warn "Falling back to pip install."
+                else
+                    chmod +x "$MYACE_BIN"
+                    info "Binary downloaded and verified: ${MYACE_BIN}"
+                    BINARY_DOWNLOADED=true
+                fi
+            else
+                # Checksum file exists but doesn't mention this binary
+                chmod +x "$MYACE_BIN"
+                warn "Checksum file found but no entry for ${BINARY_NAME} — skipping verification."
+                BINARY_DOWNLOADED=true
+            fi
+        else
+            # No checksum file published yet (older release)
+            chmod +x "$MYACE_BIN"
+            warn "No checksum file found — skipping verification."
+            BINARY_DOWNLOADED=true
+        fi
     else
         warn "Binary download failed (no release yet?). Falling back to pip install."
     fi

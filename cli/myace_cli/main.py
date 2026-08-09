@@ -2,6 +2,7 @@
 
 import getpass
 from pathlib import Path
+from urllib.parse import urlparse
 
 import typer
 from rich import print as rprint
@@ -92,6 +93,16 @@ def login(
     else:
         rprint("[dim]Validating credentials...[/dim]")
 
+    # ── Warn about HTTP (non-localhost) ──────────────────────────
+    parsed = urlparse(server)
+    if parsed.scheme == "http" and parsed.hostname not in (
+        "localhost", "127.0.0.1", "::1",
+    ):
+        rprint(
+            "[yellow]Warning:[/yellow] Token will be sent in plaintext "
+            "over HTTP!"
+        )
+
     # ── Validate ─────────────────────────────────────────────────
     rprint(f"   Server: [bold]{server}[/bold]")
     rprint(f"   Token:  [dim]{_mask_token(token)}[/dim]")
@@ -134,7 +145,7 @@ def status():
     if creds:
         rprint(Panel(
             f"[bold]Server:[/bold] {creds['server']}\n"
-            f"[bold]Token:[/bold]  [dim]{creds['token'][:12]}...[/dim]\n"
+            f"[bold]Token:[/bold]  [dim]{_mask_token(creds['token'])}[/dim]\n"
             f"[bold]Config:[/bold] {auth_manager.credentials_path}",
             title="Authenticated",
             border_style="green",
@@ -404,7 +415,10 @@ def import_cmd(
                 rprint(f"   Collection ID: {result['collection_id']}")
                 rprint(f"   Artifacts imported: {result['artifacts_imported']}")
         except httpx.HTTPStatusError as e:
-            rprint(f"[red]✗[/red] Failed to push: {e.response.status_code} {e.response.text}")
+            body = e.response.text[:500] if e.response.text else ""
+            rprint(f"[red]✗[/red] Failed to push: server returned {e.response.status_code}")
+            if body:
+                rprint(f"   [dim]{body}[/dim]")
         except httpx.ConnectError:
             rprint(f"[red]✗[/red] Could not connect to {creds['server']}")
 

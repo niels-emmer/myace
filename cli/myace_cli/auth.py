@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 
@@ -48,8 +49,42 @@ class AuthManager:
         if self.credentials_path.exists():
             self.credentials_path.unlink()
 
+    @staticmethod
+    def validate_server_url(server: str) -> str | None:
+        """Validate a server URL's format and scheme.
+
+        Returns None if valid, or an error message string if invalid.
+        """
+        parsed = urlparse(server)
+        if not parsed.scheme:
+            return "Server URL must include a scheme (http:// or https://)."
+        if parsed.scheme not in ("http", "https"):
+            return (
+                f"Unsupported URL scheme '{parsed.scheme}' — "
+                "use http:// or https://."
+            )
+        if not parsed.netloc:
+            return "Server URL must include a hostname."
+        return None
+
+    @staticmethod
+    def validate_token_format(token: str) -> str | None:
+        """Validate basic token format.
+
+        Returns None if valid, or an error message string if invalid.
+        """
+        if len(token) < 8:
+            return (
+                "Token appears too short (minimum 8 characters)."
+            )
+        return None
+
     def validate_credentials(self, server: str, token: str) -> str | None:
         """Validate credentials by calling the server's profiles endpoint.
+
+        Performs URL format validation, token format validation, and a
+        live HTTP check against the server. Redirects are not followed
+        to prevent token leakage to third-party hosts.
 
         Args:
             server: MyACE server URL.
@@ -58,11 +93,23 @@ class AuthManager:
         Returns:
             None if valid, or an error message string if validation failed.
         """
+        # Static validation first (no network)
+        url_error = self.validate_server_url(server)
+        if url_error:
+            return url_error
+
+        token_error = self.validate_token_format(token)
+        if token_error:
+            return token_error
+
+        # Live HTTP validation
         url = f"{server.rstrip('/')}/api/v1/profiles"
         headers = {"Authorization": f"Bearer {token}"}
 
         try:
-            with httpx.Client(timeout=15.0) as client:
+            # Disable redirects to prevent token leakage to third-party hosts
+            # in case the server responds with a 302 to an attacker URL.
+            with httpx.Client(timeout=15.0, follow_redirects=False) as client:
                 response = client.get(url, headers=headers)
                 if response.status_code == 200:
                     return None

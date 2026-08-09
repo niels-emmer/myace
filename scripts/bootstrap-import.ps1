@@ -69,11 +69,40 @@ $binaryDownloaded = $false
 
 if ($binaryName) {
     $downloadUrl = "${GH_RELEASE}/${binaryName}"
+    $checksumUrl = "${GH_RELEASE}/${binaryName}.sha256"
     Write-Info "Downloading ${binaryName}..."
     try {
         Invoke-WebRequest -Uri $downloadUrl -OutFile $myaceBin -ErrorAction Stop
-        Write-Info "Binary downloaded to $myaceBin"
-        $binaryDownloaded = $true
+
+        # Verify checksum
+        try {
+            $checksumContent = Invoke-WebRequest -Uri $checksumUrl -ErrorAction Stop
+            $checksumLines = $checksumContent -split "`n"
+            $expectedHash = $null
+            foreach ($line in $checksumLines) {
+                if ($line -match '^([a-f0-9]+)\s+\*?myace-windows') {
+                    $expectedHash = $matches[1]
+                    break
+                }
+            }
+            if ($expectedHash) {
+                $actualHash = (Get-FileHash -Path $myaceBin -Algorithm SHA256).Hash.ToLower()
+                if ($expectedHash -ne $actualHash) {
+                    Write-Error "Checksum mismatch! Downloaded binary may be tampered with."
+                    Remove-Item -Path $myaceBin -Force
+                    Write-Warn "Falling back to pip install."
+                } else {
+                    Write-Info "Binary downloaded and verified: $myaceBin"
+                    $binaryDownloaded = $true
+                }
+            } else {
+                Write-Warn "Checksum file found but no entry for ${binaryName} — skipping verification."
+                $binaryDownloaded = $true
+            }
+        } catch {
+            Write-Warn "No checksum file found — skipping verification."
+            $binaryDownloaded = $true
+        }
     } catch {
         Write-Warn "Binary download failed (no release yet?). Falling back to pip install."
     }

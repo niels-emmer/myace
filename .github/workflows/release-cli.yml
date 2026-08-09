@@ -60,9 +60,17 @@ jobs:
             mv dist/myace dist/${{ matrix.asset }}
           fi
 
-      - name: Upload release asset
+      - name: Generate checksum
+        shell: bash
+        run: |
+          cd dist
+          sha256sum ${{ matrix.asset }} > ${{ matrix.asset }}.sha256
+
+      - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          files: cli/dist/${{ matrix.asset }}
+          files: |
+            cli/dist/${{ matrix.asset }}
+            cli/dist/${{ matrix.asset }}.sha256
           fail_on_unmatched_files: false
           generate_release_notes: false
