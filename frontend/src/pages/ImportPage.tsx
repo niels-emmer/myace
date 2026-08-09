@@ -23,7 +23,7 @@ const FRAMEWORKS = [
   { id: 'cursor', label: 'Cursor', globalPath: '~/.cursor' },
 ];
 
-const COMPANION_URL = 'http://127.0.0.1:8765';
+const COMPANION_URLS = ['http://localhost:8765', 'http://127.0.0.1:8765'];
 
 type SourceType = 'local' | 'git';
 
@@ -64,16 +64,27 @@ export default function ImportPage() {
   const companionQuery = useQuery({
     queryKey: ['companion-health'],
     queryFn: async () => {
-      const res = await fetch(`${COMPANION_URL}/health`, {
-        mode: 'cors',
-        signal: AbortSignal.timeout(5000),
-      });
-      if (!res.ok) throw new Error('Companion unreachable');
-      return res.json() as Promise<{ status: string; server: string }>;
+      for (const baseUrl of COMPANION_URLS) {
+        try {
+          const res = await fetch(`${baseUrl}/health`, {
+            mode: 'cors',
+            cache: 'no-cache',
+            signal: AbortSignal.timeout(3000),
+          });
+          if (res.ok) {
+            const data = (await res.json()) as { status: string; server: string };
+            console.info(`[myace] Companion detected at ${baseUrl}`, data);
+            return data;
+          }
+        } catch (err) {
+          console.debug(`[myace] Companion not found at ${baseUrl}:`, err);
+        }
+      }
+      throw new Error('Companion unreachable at localhost:8765 or 127.0.0.1:8765');
     },
     enabled: sourceType === 'local',
-    retry: 2,
-    retryDelay: 2000,
+    retry: 3,
+    retryDelay: 3000,
     refetchInterval: 5000,
     staleTime: 0,
   });
@@ -109,7 +120,7 @@ export default function ImportPage() {
         if (!companionReady) {
           throw new Error('Local scanner not detected. Follow the setup steps below.');
         }
-        const res = await fetch(`${COMPANION_URL}/scan`, {
+        const res = await fetch(`${COMPANION_URLS[0]}/scan`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-MyACE-Companion': '1' },
           body: JSON.stringify({ path: sourcePath, framework }),
