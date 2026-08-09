@@ -11,7 +11,7 @@ This document defines the rules and conventions for AI coding agents (Claude Cod
 - Use `SQLModel` models for all database entities.
 - Use `Pydantic v2` for all API request/response schemas.
 - Never use `Any` or `dict` without a concrete type parameter.
-- Use `Optional[X]` instead of `X | None` for SQLModel fields.
+- Use `X | None` (PEP 604), not `Optional[X]` — enforced by ruff's `UP` rules (`backend/pyproject.toml`), which run in CI.
 
 **Frontend (TypeScript):**
 - All function parameters and return types MUST be annotated.
@@ -94,6 +94,10 @@ Both MUST support scanning these directory structures:
 
 The backend scanner includes Docker path resolution (`/host-home/` mount, broken symlink handling).
 
+The backend scanner additionally supports scanning a Git repository (`scan_git_repository()` — shallow clone to a temp dir, then delegates to the same directory-scanning logic). This is **web-only**: the CLI's `myace import` still only accepts `--path`. If you add git-source support to the CLI, keep its artifact discovery in sync with both existing scanners per the table above.
+
+`backend/app/services/github_export.py` is the inverse: converts canonical artifacts back into this same directory layout and pushes them to a GitHub branch + PR via the REST API. Keep `artifacts_to_files()` (export) and the scanner's parsers (import) symmetric — a collection exported to GitHub should scan back to the same artifacts.
+
 ### 9. Compose File Strategy
 
 Three compose files with layered overrides:
@@ -112,4 +116,38 @@ Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d
 - All database IDs are UUIDs, not auto-increment integers.
 - API keys are hashed with bcrypt before storage.
 - OIDC state parameters use cryptographically random nonces.
-- The bulk import endpoint auto-creates users when the nil UUID is passed as `owner_id`.
+- Every route (except `/health` and the auth entry points listed in rule 13) requires `Depends(get_current_user)` — never accept a client-supplied `owner_id`/`user_id` as the source of truth for who's making the request. Ownership on create always comes from `current_user.id`.
+- The GitHub PR export endpoint (`POST /collections/{id}/export/github`) takes a `github_token` in the request body, uses it for that single request only, and never persists or logs it — same rule as any other token, just worth calling out since it's user-supplied per-request rather than stored server-side.
+
+### 11. Artifact Response Serialization
+
+`Artifact.tags` and `Artifact.target_compatibility` are stored as JSON-encoded `Text` columns, but `ArtifactRead` (and `CanonicalArtifact`) declare them as `list[str]`. Never return a raw SQLModel `Artifact` row from an API route — FastAPI's response validation will 500 (`ResponseValidationError`) on any row with actual tags/compatibility data. Always convert through `_artifact_to_read()` in `backend/app/api/collections.py` (or `_db_to_canonical()` in `backend/app/services/compiler.py` for the compiler path), which `json.loads()` both fields first.
+
+### 12. Frontend React Query Cache Keys
+
+When two components fetch the same resource with different filters (e.g. an unfiltered list vs. a `visibility=public` list), give them distinct query keys — fold the filter into the key, e.g. `['collections', { visibility: 'public' }]`. Reusing a bare `['collections']` key for differently-filtered queries causes cache collisions: whichever query resolves first silently overwrites the cached data for every other component using that key, and the wrong data can appear during client-side (non-reload) navigation.
+
+### 13. Authentication & Authorization
+
+- **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`. Everything else requires it.
+- **Authorization is ownership + visibility, not per-route roles.** Use `authorize_access()` (single resource) and `owner_or_public_clause()` (list endpoints) from `backend/app/core/authz.py` — don't hand-roll owner checks. `authorize_access` 404s (not 403s) on denial, matching the rest of the codebase's convention of not revealing a resource's existence to someone who can't see it. `current_user.is_admin` bypasses both.
+- **`Artifact` has no `owner_id` of its own.** Authorize against its parent `Collection` — load the collection first, call `authorize_access` on that, then proceed.
+- **Bulk/cross-resource operations need a check per resource touched.** `bulk_export_artifacts`'s target collection needs its own write-check independent of the source collection's read-check — don't assume checking one resource covers every resource an endpoint touches.
+- **No more placeholder users.** `backend/app/services/placeholder_user.py` is gone. If you're tempted to special-case a nil/empty `owner_id`, that's a sign the route is missing `Depends(get_current_user)`.
+
+### 14. Documentation Maintenance
+
+This project maintains documentation for two audiences, and both are kept up to date in the same PR as the code they describe — not as follow-up cleanup:
+
+- **Human documentation**: `README.md` (what MyACE is, how to run it, public-facing) and `docs/` (deep dives — see [`docs/README.md`](docs/README.md) for the full index: architecture, data model, invariants, ADRs, debugging, extending).
+- **Agentic documentation**: this file (`AGENTS.md`) and `CLAUDE.md` (terse, enforceable rules and gotchas for AI coding agents working in this repo).
+
+Concretely, before you consider a change done:
+
+- **New route, model field, or config setting** → update the relevant table in `README.md` and, if it changes the data model or an invariant, `docs/data-model.md`/`docs/invariants.md`.
+- **New non-obvious pattern, gotcha, or convention** → add a numbered rule here (or to `CLAUDE.md`) *and* a corresponding entry in `docs/debugging.md` if it's the kind of thing someone will hit and need to search for.
+- **A decision that's expensive to reverse or could reasonably have gone another way** (a new auth mechanism, a data model shape, a deployment change) → write an ADR in `docs/adr/` — see [`docs/adr/README.md`](docs/adr/README.md) for when and how.
+- **A rule or doc becomes stale** (the code changed, the doc didn't) → fix it in the same PR, don't leave it for later. A stale doc is worse than no doc, because it's actively misleading.
+- **Removing a feature or file** → grep for it across `README.md`, `AGENTS.md`, `CLAUDE.md`, and `docs/` before considering the removal complete; dangling references to deleted code are a common way this drifts.
+
+If you're an AI agent and you're not sure whether a change is "documentation-worthy," err toward writing the one or two sentences — it's cheap now and expensive to reconstruct later.

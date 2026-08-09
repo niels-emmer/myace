@@ -1,0 +1,46 @@
+name: Feature Request
+description: Suggest an idea or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For anything that touches the data model, auth, or the canonical IR
+        schema, it helps to describe the *problem* before proposing a
+        specific implementation — see [`docs/architecture.md`](../../docs/architecture.md)
+        for the current design and [`docs/adr/`](../../docs/adr/) for past
+        decisions and their reasoning.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What are you trying to do that MyACE doesn't support today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: If you have one in mind. Rough sketches are fine.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches, workarounds, or why existing features don't cover this.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Backend (API)
+        - Frontend (web UI)
+        - CLI
+        - Adapters (Claude Code / OpenCode / Cursor)
+        - Documentation
+        - Other / not sure
+    validations:
+      required: true
