@@ -92,7 +92,7 @@ export default function Settings() {
   };
 
   const backendOrigin = window.location.origin;
-  const installCommand = 'pip install "git+https://github.com/niels-emmer/myace.git#subdirectory=cli"';
+  const installCommand = 'pipx install "git+https://github.com/niels-emmer/myace.git#subdirectory=cli"';
   const loginCommand = `myace login --server ${backendOrigin} --token ${newToken ?? '<your-token>'}`;
   const pullCommand = 'myace pull --profile my-defaults --target opencode --path ~/.opencode/';
 
