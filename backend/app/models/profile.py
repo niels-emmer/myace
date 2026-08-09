@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from sqlalchemy import ForeignKey, Text, Uuid
 from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String
@@ -34,6 +35,9 @@ class Profile(SQLModel, table=True):
         sa_column=Column("target_framework", String(64)),
     )
     is_public: bool = Field(default=False, sa_column=Column("is_public", Boolean, default=False))
+    deleted_at: datetime | None = Field(
+        default=None, sa_column=Column("deleted_at", DateTime(timezone=True)),
+    )
     version: int = Field(default=1, sa_column=Column("version", Integer, default=1))
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
@@ -78,5 +82,5 @@ class ProfileRead(SQLModel):
 class ProfileCompileRequest(SQLModel):
     """Request schema for compiling a profile into target-specific files."""
     profile_id: uuid.UUID
-    target: str  # e.g., "claude-code", "opencode", "cursor"
+    target: Literal["claude-code", "opencode", "cursor"] = "opencode"
     include_disabled: bool = False

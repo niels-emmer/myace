@@ -4,6 +4,7 @@ import io
 import json
 import uuid
 import zipfile
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +23,9 @@ router = APIRouter()
 
 
 async def _get_profile_or_404(session: AsyncSession, profile_id: uuid.UUID) -> Profile:
-    result = await session.execute(select(Profile).where(Profile.id == profile_id))
+    result = await session.execute(
+        select(Profile).where(Profile.id == profile_id, Profile.deleted_at == None)
+    )
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
@@ -227,7 +230,7 @@ async def delete_profile(
         write=True, resource_name="Profile",
     )
 
-    await session.delete(profile)
+    profile.deleted_at = datetime.now(UTC)
     await session.commit()
     return {"message": "Profile deleted"}
 

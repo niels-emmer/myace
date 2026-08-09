@@ -4,6 +4,7 @@ import base64
 import hashlib
 import secrets
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
@@ -55,9 +56,15 @@ async def register(
     result = await session.execute(select(User).where(User.email == data.email))
     if result.scalar_one_or_none():
         # Return a generic success response to prevent user enumeration.
-        # The caller doesn't need to know whether the email already exists.
-        request.session["user_id"] = str(result.scalar_one().id)
-        return result.scalar_one()
+        # Do NOT set the session or return the real user — the caller should
+        # proceed to login with their password. Returning a fake UserRead
+        # avoids leaking whether the email exists while keeping the same
+        # response shape.
+        return UserRead(
+            id=uuid.uuid4(), email=data.email, display_name="",
+            is_active=True, is_admin=False,
+            created_at=datetime.now(UTC), updated_at=datetime.now(UTC),
+        )
 
     is_admin = await _is_bootstrap_admin(session, data.email)
     user = User(

@@ -34,6 +34,9 @@ class Artifact(SQLModel, table=True):
     body: str = Field(sa_column=Column("body", Text, nullable=False))
     file_path: str = Field(sa_column=Column("file_path", Text, nullable=False))
     is_enabled: bool = Field(default=True, sa_column=Column("is_enabled", Boolean, default=True))
+    deleted_at: datetime | None = Field(
+        default=None, sa_column=Column("deleted_at", DateTime(timezone=True)),
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=Column("created_at", DateTime(timezone=True), nullable=False),

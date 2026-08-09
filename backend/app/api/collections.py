@@ -2,6 +2,9 @@
 
 import json
 import uuid
+from datetime import UTC, datetime
+
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -160,6 +163,7 @@ async def list_collection_artifacts(
 
     query = select(Artifact).where(
         Artifact.collection_id == collection_id,
+        Artifact.deleted_at == None,
     )
     if not include_disabled:
         query = query.where(Artifact.is_enabled == True)
@@ -188,6 +192,7 @@ async def get_artifact(
         select(Artifact).where(
             Artifact.id == artifact_id,
             Artifact.collection_id == collection_id,
+            Artifact.deleted_at == None,
         )
     )
     artifact = result.scalar_one_or_none()
@@ -215,6 +220,7 @@ async def update_artifact(
         select(Artifact).where(
             Artifact.id == artifact_id,
             Artifact.collection_id == collection_id,
+            Artifact.deleted_at == None,
         )
     )
     artifact = result.scalar_one_or_none()
@@ -260,12 +266,14 @@ async def bulk_delete_artifacts(
         select(Artifact).where(
             Artifact.collection_id == collection_id,
             Artifact.id.in_(request.artifact_ids),
+            Artifact.deleted_at == None,
         )
     )
     artifacts = result.scalars().all()
     deleted = len(artifacts)
+    now = datetime.now(UTC)
     for artifact in artifacts:
-        await session.delete(artifact)
+        artifact.deleted_at = now
     await session.commit()
 
     count_result = await session.execute(
@@ -304,6 +312,7 @@ async def bulk_export_artifacts(
         select(Artifact).where(
             Artifact.collection_id == collection_id,
             Artifact.id.in_(request.artifact_ids),
+            Artifact.deleted_at == None,
         )
     )
     source_artifacts = result.scalars().all()
@@ -422,6 +431,7 @@ async def export_collection_to_github(
         select(Artifact).where(
             Artifact.collection_id == collection_id,
             Artifact.is_enabled == True,
+            Artifact.deleted_at == None,
         )
     )
     db_artifacts = art_result.scalars().all()
@@ -466,7 +476,7 @@ async def export_collection_to_github(
 
 class ScanRequest(BaseModel):
     """Request to scan a local directory or a Git repository for artifacts."""
-    source_type: str = "local"  # "local" | "git"
+    source_type: Literal["local", "git"] = "local"
     path: str = ""
     git_url: str = ""
     git_branch: str = "main"
@@ -530,7 +540,7 @@ async def scan_local_directory(
 
 class BulkImportItem(BaseModel):
     """A single artifact to import."""
-    artifact_type: str
+    artifact_type: Literal["rule", "skill", "agent", "workflow", "model_config"]
     name: str
     version: str = "1.0.0"
     priority: int = 50

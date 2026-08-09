@@ -177,9 +177,11 @@ def scan_git_repository(
     tmp_dir = tempfile.mkdtemp(prefix="myace-scan-")
     try:
         try:
-            git.Repo.clone_from(repo_url, tmp_dir, branch=branch, depth=1, single_branch=True)
-        except git.exc.GitCommandError as e:
-            raise ValueError(f"Failed to clone repository (branch '{branch}'): {e}") from e
+            git.Repo.clone_from(safe_url, tmp_dir, branch=branch, depth=1, single_branch=True)
+        except git.exc.GitCommandError:
+            raise ValueError(
+                f"Failed to clone repository (branch '{branch}') from {safe_url}"
+            )
 
         scan_root = Path(tmp_dir)
         if subdirectory:

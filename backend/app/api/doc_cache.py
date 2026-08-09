@@ -1,6 +1,7 @@
 """Documentation cache routes — manage cached framework docs."""
 
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +22,7 @@ async def list_cache_entries(
     current_user: User = Depends(get_current_user),
 ):
     """List cached documentation entries."""
-    query = select(DocCacheEntry)
+    query = select(DocCacheEntry).where(DocCacheEntry.deleted_at == None)
     if framework:
         query = query.where(DocCacheEntry.framework == framework)
 
@@ -48,12 +49,14 @@ async def delete_cache_entry(
 ):
     """Delete a cached documentation entry."""
     result = await session.execute(
-        select(DocCacheEntry).where(DocCacheEntry.id == entry_id)
+        select(DocCacheEntry).where(
+            DocCacheEntry.id == entry_id, DocCacheEntry.deleted_at == None
+        )
     )
     entry = result.scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=404, detail="Cache entry not found")
 
-    await session.delete(entry)
+    entry.deleted_at = datetime.now(UTC)
     await session.commit()
     return {"message": "Cache entry deleted"}
