@@ -36,13 +36,10 @@ export interface Collection {
   updated_at: string;
 }
 
-export interface CollectionCreate {
-  name: string;
+export interface CollectionUpdate {
+  name?: string;
   description?: string;
-  git_url: string;
-  git_branch?: string;
   collection_type?: CollectionType;
-  visibility?: Visibility;
 }
 
 // ─── Artifact Types ──────────────────────────────────────────
@@ -105,7 +102,89 @@ export interface CompileResult {
   files: Record<string, string>;
 }
 
+// ─── Bulk Artifact Operations ────────────────────────────────
+
+export interface BulkExportRequest {
+  artifact_ids: string[];
+  target_collection_id?: string;
+  new_collection_name?: string;
+  new_collection_description?: string;
+  new_collection_type?: CollectionType;
+}
+
+export interface BulkExportResult {
+  target_collection_id: string;
+  target_collection_name: string;
+  exported: number;
+}
+
+export interface BulkDeleteResult {
+  deleted: number;
+}
+
+// ─── GitHub Export ───────────────────────────────────────────
+
+export interface GitHubExportRequest {
+  repo: string;
+  base_branch?: string;
+  new_branch?: string;
+  commit_message?: string;
+  pr_title?: string;
+  pr_body?: string;
+  github_token: string;
+}
+
+export interface GitHubExportResult {
+  pr_url: string;
+  pr_number: number;
+  branch: string;
+  files_exported: number;
+  skipped_model_configs: number;
+}
+
+// ─── Artifact Update Types ───────────────────────────────────
+
+export interface ArtifactUpdate {
+  name?: string;
+  artifact_type?: ArtifactType;
+  version?: string;
+  priority?: number;
+  target_compatibility?: string[];
+  tags?: string[];
+  description?: string;
+  body?: string;
+  file_path?: string;
+  is_enabled?: boolean;
+}
+
 // ─── Auth Types ──────────────────────────────────────────────
+
+export interface User {
+  id: string;
+  email: string;
+  display_name: string;
+  avatar_url?: string;
+  is_active: boolean;
+  is_admin: boolean;
+  created_at: string;
+}
+
+export interface UserRegister {
+  email: string;
+  password: string;
+  display_name: string;
+}
+
+export interface UserLogin {
+  email: string;
+  password: string;
+}
+
+export interface AuthProviders {
+  oidc: boolean;
+  github: boolean;
+  google: boolean;
+}
 
 export interface ApiToken {
   id: string;

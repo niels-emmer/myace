@@ -8,19 +8,15 @@ async function request<T>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = localStorage.getItem('myace_token');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers,
+    credentials: 'same-origin',
   });
 
   if (!response.ok) {
@@ -28,6 +24,7 @@ async function request<T>(
     throw new Error(error.detail || `HTTP ${response.status}`);
   }
 
+  if (response.status === 204) return undefined as T;
   return response.json();
 }
 
@@ -46,22 +43,48 @@ export const collectionsApi = {
   get: (id: string) =>
     request<import('@/types').Collection>(`/collections/${id}`),
 
-  create: (data: import('@/types').CollectionCreate, ownerId: string) =>
-    request<import('@/types').Collection>('/collections', {
-      method: 'POST',
+  update: (id: string, data: import('@/types').CollectionUpdate) =>
+    request<import('@/types').Collection>(`/collections/${id}`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
-      headers: { 'X-User-Id': ownerId },
     }),
 
-  getArtifacts: (collectionId: string, type?: string) => {
-    const qs = type ? `?type=${type}` : '';
-    return request<import('@/types').Artifact[]>(`/collections/${collectionId}/artifacts${qs}`);
+  getArtifacts: (collectionId: string, params?: { type?: string; include_disabled?: boolean }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.set('type', params.type);
+    if (params?.include_disabled) searchParams.set('include_disabled', 'true');
+    const qs = searchParams.toString();
+    return request<import('@/types').Artifact[]>(`/collections/${collectionId}/artifacts${qs ? `?${qs}` : ''}`);
   },
 
-  delete: (id: string, ownerId: string) =>
-    request<void>(`/collections/${id}`, {
-      method: 'DELETE',
-      headers: { 'X-User-Id': ownerId },
+  getArtifact: (collectionId: string, artifactId: string) =>
+    request<import('@/types').Artifact>(`/collections/${collectionId}/artifacts/${artifactId}`),
+
+  updateArtifact: (collectionId: string, artifactId: string, data: import('@/types').ArtifactUpdate) =>
+    request<import('@/types').Artifact>(`/collections/${collectionId}/artifacts/${artifactId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/collections/${id}`, { method: 'DELETE' }),
+
+  bulkDeleteArtifacts: (collectionId: string, artifactIds: string[]) =>
+    request<import('@/types').BulkDeleteResult>(`/collections/${collectionId}/artifacts/bulk-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ artifact_ids: artifactIds }),
+    }),
+
+  bulkExportArtifacts: (collectionId: string, data: import('@/types').BulkExportRequest) =>
+    request<import('@/types').BulkExportResult>(`/collections/${collectionId}/artifacts/bulk-export`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  exportToGithub: (collectionId: string, data: import('@/types').GitHubExportRequest) =>
+    request<import('@/types').GitHubExportResult>(`/collections/${collectionId}/export/github`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
 };
 
@@ -79,18 +102,16 @@ export const profilesApi = {
   get: (id: string) =>
     request<import('@/types').Profile>(`/profiles/${id}`),
 
-  create: (data: import('@/types').ProfileCreate, ownerId: string) =>
+  create: (data: import('@/types').ProfileCreate) =>
     request<import('@/types').Profile>('/profiles', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers: { 'X-User-Id': ownerId },
     }),
 
-  update: (id: string, data: import('@/types').ProfileCreate, ownerId: string) =>
+  update: (id: string, data: import('@/types').ProfileCreate) =>
     request<import('@/types').Profile>(`/profiles/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
-      headers: { 'X-User-Id': ownerId },
     }),
 
   compile: (data: import('@/types').ProfileCompileRequest) =>
@@ -99,11 +120,8 @@ export const profilesApi = {
       body: JSON.stringify(data),
     }),
 
-  delete: (id: string, ownerId: string) =>
-    request<void>(`/profiles/${id}`, {
-      method: 'DELETE',
-      headers: { 'X-User-Id': ownerId },
-    }),
+  delete: (id: string) =>
+    request<void>(`/profiles/${id}`, { method: 'DELETE' }),
 };
 
 // ─── Adapters ────────────────────────────────────────────────
@@ -119,23 +137,40 @@ export const adaptersApi = {
 // ─── Auth ────────────────────────────────────────────────────
 
 export const authApi = {
-  login: (provider: string) => {
+  register: (data: import('@/types').UserRegister) =>
+    request<import('@/types').User>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  login: (data: import('@/types').UserLogin) =>
+    request<import('@/types').User>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  logout: () =>
+    request<{ message: string }>('/auth/logout', { method: 'POST' }),
+
+  me: () =>
+    request<import('@/types').User>('/auth/me'),
+
+  providers: () =>
+    request<import('@/types').AuthProviders>('/auth/providers'),
+
+  loginWithProvider: (provider: string) => {
     window.location.href = `${API_BASE}/auth/login/${provider}`;
   },
 
-  createToken: (data: import('@/types').ApiTokenCreate, userId: string) =>
+  createToken: (data: import('@/types').ApiTokenCreate) =>
     request<import('@/types').ApiToken & { token?: string }>('/auth/tokens', {
       method: 'POST',
       body: JSON.stringify(data),
-      headers: { 'X-User-Id': userId },
     }),
 
-  listTokens: (userId: string) =>
-    request<import('@/types').ApiToken[]>(`/auth/tokens?user_id=${userId}`),
+  listTokens: () =>
+    request<import('@/types').ApiToken[]>('/auth/tokens'),
 
-  revokeToken: (tokenId: string, userId: string) =>
-    request<void>(`/auth/tokens/${tokenId}`, {
-      method: 'DELETE',
-      headers: { 'X-User-Id': userId },
-    }),
+  revokeToken: (tokenId: string) =>
+    request<void>(`/auth/tokens/${tokenId}`, { method: 'DELETE' }),
 };

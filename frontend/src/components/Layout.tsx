@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FolderGit2,
@@ -7,28 +7,38 @@ import {
   Download,
   Settings,
   Sparkles,
+  LogOut,
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/collections', icon: FolderGit2, label: 'Collections' },
   { to: '/profiles', icon: SlidersHorizontal, label: 'Profiles' },
   { to: '/import', icon: Upload, label: 'Import' },
-  { to: '/export', icon: Download, label: 'Export' },
+  { to: '/compile', icon: Download, label: 'Compile' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 export default function Layout() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6 border-b border-gray-200">
+      <aside className="w-64 bg-card border-r border-border flex flex-col">
+        <div className="p-6 border-b border-border">
           <div className="flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-brand-600" />
-            <h1 className="text-xl font-bold text-gray-900">MyACE</h1>
+            <h1 className="text-xl font-bold text-card-foreground">MyACE</h1>
           </div>
-          <p className="text-xs text-gray-500 mt-1">Agentic Coding Environment</p>
+          <p className="text-xs text-muted-foreground mt-1">Agentic Coding Environment</p>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
@@ -41,7 +51,7 @@ export default function Layout() {
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-brand-50 text-brand-700'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 }`
               }
             >
@@ -51,10 +61,23 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center gap-3 px-3 py-2 text-xs text-gray-500">
-            <div className="h-2 w-2 rounded-full bg-green-400" />
-            API Connected
+        <div className="p-4 border-t border-border space-y-1">
+          <div className="flex items-center justify-between px-3 py-2">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-card-foreground truncate">
+                {user?.display_name ?? '...'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {user?.is_admin ? 'Admin' : 'User'}
+              </p>
+            </div>
+            <button
+              onClick={handleLogout}
+              title="Log out"
+              className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors flex-shrink-0"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </aside>
