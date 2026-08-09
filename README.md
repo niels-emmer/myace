@@ -11,11 +11,10 @@ format Claude Code, OpenCode, Cursor (and whatever comes next) actually
 expects — instead of hand-maintaining N slightly-different copies, or
 picking one tool and losing the rest.
 
-<!--
-  Screenshot placeholder — add a screenshot of the Dashboard or a Collection
-  detail view here, e.g.:
-  ![MyACE Dashboard](docs/images/dashboard.png)
--->
+![MyACE Dashboard](docs/images/dashboard.png)
+![MyACE Collections](docs/images/collections.png)
+![MyACE Import](docs/images/import.png)
+![MyACE Settings](docs/images/settings.png)
 
 ## Why this exists
 
