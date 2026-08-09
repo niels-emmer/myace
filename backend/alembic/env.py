@@ -1,5 +1,6 @@
 """Alembic migrations environment."""
 
+import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -25,6 +26,19 @@ from app.models import (  # noqa: F401
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Prefer the DATABASE_URL from the environment (set via .env / compose) over
+# the hardcoded value in alembic.ini. The ini ships with the dev default
+# password, which silently breaks migrations in any deployment that uses a
+# real secret (e.g. production). Without this, `alembic upgrade head` fails
+# with "password authentication failed" even though the app connects fine.
+#
+# The app's DATABASE_URL uses the asyncpg driver, but alembic runs
+# synchronously and can't drive an async engine (MissingGreenlet). Rewrite
+# the URL to the synchronous psycopg2 driver for migrations.
+if os.environ.get("DATABASE_URL"):
+    url = os.environ["DATABASE_URL"].replace("+asyncpg", "+psycopg2")
+    config.set_main_option("sqlalchemy.url", url)
 
 target_metadata = SQLModel.metadata
 
