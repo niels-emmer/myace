@@ -209,3 +209,30 @@ export interface AdapterInfo {
   description: string;
   targets: string[];
 }
+
+// ─── Doc Cache Types ──────────────────────────────────────────
+
+export interface DocCacheEntry {
+  id: string;
+  framework: string;
+  url: string;
+  content_type: string;
+  fetched_at: string;
+  expires_at: string;
+}
+
+export interface DocCacheRefreshResult {
+  refreshed: Record<string, number>;
+  total_updated: number;
+}
+
+// ─── Admin Types ──────────────────────────────────────────────
+
+export interface UserAdminInfo {
+  id: string;
+  email: string;
+  display_name: string;
+  is_admin: boolean;
+  is_active: boolean;
+  created_at: string;
+}

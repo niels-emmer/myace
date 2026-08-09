@@ -572,6 +572,7 @@ function LocalCompanionSetup({
   collectionName: string;
 }) {
   const backendOrigin = window.location.origin;
+  const bootstrapCommand = `curl -fsSL https://raw.githubusercontent.com/niels-emmer/myace/main/scripts/bootstrap-import.sh | bash`;
   const installCommand = 'pip install "myace-cli[serve]"';
   const loginCommand = `myace login --server ${backendOrigin} --token <token-from-Settings>`;
   const serveCommand = 'myace serve';
@@ -579,23 +580,57 @@ function LocalCompanionSetup({
 
   return (
     <div className="p-4 bg-muted rounded-lg space-y-3">
-      <p className="text-sm text-foreground">
-        Scanning your machine needs the <code className="bg-background px-1 rounded">myace</code>{' '}
-        CLI running locally as a companion server — a browser page can't read your filesystem
-        on its own.{' '}
-        <Link to="/settings" className="text-brand-600 hover:underline">
-          Create an API token
-        </Link>{' '}
-        if you haven't yet, then run:
+      <p className="text-sm text-foreground font-medium">
+        Quick start — one-liner (macOS / Linux)
       </p>
-      <CliLine text={installCommand} />
-      <CliLine text={loginCommand} />
-      <CliLine text={serveCommand} />
-      <p className="text-xs text-muted-foreground pt-1">
-        Prefer a one-off, no-browser-roundtrip import instead? Run this after{' '}
-        <code className="bg-background px-1 rounded">myace login</code>:
+      <CliLine text={bootstrapCommand} />
+      <p className="text-xs text-muted-foreground">
+        Checks for Python 3.12+, creates a virtual environment, installs the CLI, and
+        guides you through login. View the script on{' '}
+        <a
+          href="https://github.com/niels-emmer/myace/blob/main/scripts/bootstrap-import.sh"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-brand-600 hover:underline"
+        >
+          GitHub
+        </a>{' '}
+        or use the{' '}
+        <a
+          href="https://github.com/niels-emmer/myace/blob/main/scripts/bootstrap-import.ps1"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-brand-600 hover:underline"
+        >
+          PowerShell version
+        </a>{' '}
+        for Windows.
       </p>
-      <CliLine text={oneShotCommand} />
+
+      <details className="text-sm">
+        <summary className="text-muted-foreground cursor-pointer hover:text-foreground">
+          Manual setup steps
+        </summary>
+        <div className="mt-3 space-y-3">
+          <p className="text-sm text-foreground">
+            Scanning your machine needs the <code className="bg-background px-1 rounded">myace</code>{' '}
+            CLI running locally as a companion server — a browser page can't read your filesystem
+            on its own.{' '}
+            <Link to="/settings" className="text-brand-600 hover:underline">
+              Create an API token
+            </Link>{' '}
+            if you haven't yet, then run:
+          </p>
+          <CliLine text={installCommand} />
+          <CliLine text={loginCommand} />
+          <CliLine text={serveCommand} />
+          <p className="text-xs text-muted-foreground pt-1">
+            Prefer a one-off, no-browser-roundtrip import instead? Run this after{' '}
+            <code className="bg-background px-1 rounded">myace login</code>:
+          </p>
+          <CliLine text={oneShotCommand} />
+        </div>
+      </details>
     </div>
   );
 }

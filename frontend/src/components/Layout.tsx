@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Link, Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   FolderGit2,
@@ -34,10 +34,10 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r border-border flex flex-col">
         <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <Sparkles className="h-6 w-6 text-brand-600" />
             <h1 className="text-xl font-bold text-card-foreground">MyACE</h1>
-          </div>
+          </Link>
           <p className="text-xs text-muted-foreground mt-1">Agentic Coding Environment</p>
         </div>
 
