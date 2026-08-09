@@ -27,9 +27,12 @@ router = APIRouter()
 
 
 async def _is_bootstrap_admin(session: AsyncSession, email: str) -> bool:
-    """First-ever user becomes admin; emails in ADMIN_EMAILS are promoted too."""
+    """First-ever user becomes admin (while ADMIN_BOOTSTRAP_ENABLED); emails in
+    ADMIN_EMAILS are always promoted regardless."""
     if email.lower() in settings.admin_email_list:
         return True
+    if not settings.admin_bootstrap_enabled:
+        return False
     count = (await session.execute(select(func.count()).select_from(User))).scalar_one()
     return count == 0
 

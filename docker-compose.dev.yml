@@ -24,5 +24,7 @@ services:
     volumes:
       # Mount home directory so the scanner can read local configs
       - ~/:/host-home:ro
-    # Hot reload is already enabled via the Dockerfile's --reload flag
-    # and the volume mount in the base compose file
+    # Hot reload: the base compose file already bind-mounts ./backend:/app;
+    # --reload here is dev-only (the Dockerfile's own CMD omits it, since
+    # docker-compose.yml alone is meant to run as unattended "production").
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

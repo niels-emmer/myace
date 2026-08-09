@@ -170,3 +170,20 @@ still in use and `APP_ENV != development`.
 **Fix:** set a real random `APP_SECRET_KEY` in your `.env` before exposing a
 deployment beyond localhost. This isn't cosmetic — anyone who knows the
 default value can forge a valid session cookie for any user.
+
+## `DEBUG` or `ADMIN_BOOTSTRAP_ENABLED` warning at startup
+
+**Symptom:** the backend logs one or both of:
+`DEBUG is true outside app_env=development...` /
+`ADMIN_BOOTSTRAP_ENABLED is true...`
+
+**Cause:** same pattern as the `APP_SECRET_KEY` warning above — both
+default to values that are convenient for local dev but unsafe left on for
+a deployment reachable beyond localhost. `DEBUG=true` publicly exposes
+`/docs`/`/redoc` and disables the session cookie's `https_only` flag.
+`ADMIN_BOOTSTRAP_ENABLED=true` means the *next* person to register becomes
+an admin, not just the very first person ever.
+
+**Fix:** set `DEBUG=false` in `.env`, and set `ADMIN_BOOTSTRAP_ENABLED=false`
+once you've registered your own admin account. Both warnings only fire
+when `APP_ENV != development`, so a local dev setup is unaffected.

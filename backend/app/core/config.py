@@ -36,14 +36,22 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
 
     # API Keys
-    api_key_salt: str = "change-me-to-a-random-salt"
     api_key_length: int = 48
 
     # Admin bootstrap
     admin_emails: str = ""
+    # First-ever registered user becomes admin when this is true (the only
+    # way to get an admin on a totally fresh database). Set to false in
+    # production once your own admin account exists, so a public multi-tenant
+    # deployment doesn't hand admin to whoever registers first after that.
+    admin_bootstrap_enabled: bool = True
 
     # CORS
     cors_origins: str = "https://myace.localhost"
+
+    # Trusted hosts (comma-separated). Empty disables the check — set this to
+    # your real domain(s) once DNS is live for a public deployment.
+    trusted_hosts: str = ""
 
     # Doc Cache
     doc_cache_ttl_days: int = 7
@@ -60,6 +68,10 @@ class Settings(BaseSettings):
     @property
     def admin_email_list(self) -> list[str]:
         return [e.strip().lower() for e in self.admin_emails.split(",") if e.strip()]
+
+    @property
+    def trusted_host_list(self) -> list[str]:
+        return [h.strip() for h in self.trusted_hosts.split(",") if h.strip()]
 
 
 settings = Settings()

@@ -52,3 +52,15 @@ that scaffolding's behavior.
   there's no invite-only mode or email verification step. Fine for a
   small, trusted-user deployment; would need revisiting before opening
   registration to the general public.
+
+## Update — `ADMIN_BOOTSTRAP_ENABLED`
+
+The risk noted above (open registration + automatic first-user-admin) is
+partially addressed: `_is_bootstrap_admin` (`backend/app/api/auth.py`) now
+checks `settings.admin_bootstrap_enabled` (default `true`) before the
+`count == 0` check. Operators are expected to set it to `false` in `.env`
+immediately after creating their own admin account on a public deployment
+— see the README's "Fork it and make it yours" checklist. This narrows the
+exposure window but doesn't close it outright (still a check-then-act race
+during that window); invite-only registration or email verification would
+be the fuller fix, not implemented here.

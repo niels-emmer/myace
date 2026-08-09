@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api import adapters, auth, collections, doc_cache, profiles
 from app.core.config import settings
@@ -27,6 +28,18 @@ async def lifespan(app: FastAPI):
             "forged by anyone who knows this value — set a real random secret before exposing "
             "this deployment beyond localhost."
         )
+    if settings.debug and settings.app_env != "development":
+        logger.warning(
+            "DEBUG is true outside app_env=development. This exposes /docs and /redoc "
+            "publicly and disables secure-only session cookies — set DEBUG=false for any "
+            "deployment reachable beyond localhost."
+        )
+    if settings.admin_bootstrap_enabled and settings.app_env != "development":
+        logger.warning(
+            "ADMIN_BOOTSTRAP_ENABLED is true: the next person to register becomes an admin. "
+            "Set it to false in .env once you've created your own admin account, especially "
+            "on a public deployment."
+        )
     yield
 
 
@@ -37,6 +50,12 @@ app = FastAPI(
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
 )
+
+# Trusted hosts — only enforced once TRUSTED_HOSTS is set (a fork-and-
+# self-host app can't hardcode a domain), so this is a no-op until an
+# operator configures their real domain(s) for a public deployment.
+if settings.trusted_host_list:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_host_list)
 
 # CORS middleware
 app.add_middleware(

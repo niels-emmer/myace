@@ -96,16 +96,26 @@ docker compose exec backend alembic upgrade head
 cd frontend && npm run dev   # starts on :5173, proxies /api to :8000
 ```
 
-The first person to register an account automatically becomes an admin.
+The first person to register an account automatically becomes an admin,
+as long as `ADMIN_BOOTSTRAP_ENABLED` is still `true` (the default) — see
+step 1 below for why you should turn it off again once that's you.
 
 ### Fork it and make it yours
 
 MyACE is designed to be forked and self-hosted, not run as someone else's
 SaaS. After forking:
 
-1. Update `.env` — at minimum, set a real random `APP_SECRET_KEY` before
-   exposing it beyond localhost (it signs session cookies; the app warns at
-   startup if you forget).
+1. Update `.env` before exposing it beyond localhost:
+   - Set a real random `APP_SECRET_KEY` (it signs session cookies; the app
+     warns at startup if you forget). Generate with `openssl rand -hex 32`.
+   - Set `DEBUG=false` (the default, `true`, exposes `/docs`/`/redoc`
+     publicly and disables secure-only cookies).
+   - Change `POSTGRES_PASSWORD` from the shipped default.
+   - Register your own account, then set `ADMIN_BOOTSTRAP_ENABLED=false` and
+     restart — otherwise the *next* person to register on a public
+     deployment becomes an admin too, not just the first.
+   - Set `CORS_ORIGINS` to your real domain(s), and `TRUSTED_HOSTS` too if
+     you want the extra `Host`-header check.
 2. Optionally configure OIDC/GitHub/Google SSO — see
    [`.env.example`](.env.example) and
    [`docs/extending.md#adding-an-sso-provider`](docs/extending.md#adding-an-sso-provider).
@@ -135,6 +145,34 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #    http://frontend:80   → your domain (SPA)
 #    http://backend:8000  → api.your-domain.com (API)
 ```
+
+#### Using nginx-proxy-manager
+
+1. In `.env`, set `PROXY_NETWORK` to whatever Docker network your
+   nginx-proxy-manager container is attached to (check with
+   `docker network ls` / `docker inspect <npm-container>`), then
+   `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`.
+   `frontend` and `backend` will join that network and be reachable by
+   container name from NPM, with no host ports of their own.
+2. Add two Proxy Hosts in NPM:
+   - Your main domain (e.g. `myace.example.com`) → Forward Hostname/IP
+     `frontend`, Forward Port `80`.
+   - An API subdomain (e.g. `api.myace.example.com`) → Forward Hostname/IP
+     `backend`, Forward Port `8000`.
+3. On both Proxy Hosts: enable **Force SSL** (request a cert via NPM's Let's
+   Encrypt integration) and leave "Websockets Support" off — this app
+   doesn't use any. NPM forwards `X-Forwarded-Proto`/`X-Forwarded-For` by
+   default, which pairs with the backend's `--proxy-headers` uvicorn flag
+   (`backend/Dockerfile`) to make OIDC redirect URIs resolve to `https://`
+   correctly.
+4. Set `CORS_ORIGINS=https://myace.example.com` in `.env` (the frontend
+   domain, not the API one) and restart the backend.
+5. `SessionMiddleware`'s cookie has no explicit `domain=` set, so it's
+   scoped to whichever host actually issues it — fine as shipped, since the
+   frontend proxies `/api/*` through its own origin (path-based, same
+   domain). You'd only need `domain=".example.com"` added in
+   `backend/app/main.py` if you instead split the frontend and API onto
+   different subdomains and called the API directly from browser JS.
 
 ### CLI setup
 
