@@ -59,12 +59,13 @@ def artifacts_to_files(artifacts: list[CanonicalArtifact]) -> dict[str, str]:
     rule_sections: list[str] = []
 
     for artifact in artifacts:
+        safe_name = slugify(artifact.name)
         if artifact.artifact_type == "skill":
-            path = f"skills/{artifact.name}/SKILL.md"
+            path = f"skills/{safe_name}/SKILL.md"
         elif artifact.artifact_type == "agent":
-            path = f"agents/{artifact.name}.md"
+            path = f"agents/{safe_name}.md"
         elif artifact.artifact_type == "workflow":
-            path = f"commands/{artifact.name}.md"
+            path = f"commands/{safe_name}.md"
         elif artifact.artifact_type == "rule":
             rule_sections.append(f"## {artifact.name}\n\n{artifact.body}".strip())
             continue

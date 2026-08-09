@@ -1,14 +1,18 @@
 """Adapter routes — list available adapters and preview translations."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.adapters import get_adapter, list_adapters
+from app.core.deps import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
 
 @router.get("")
-async def list_available_adapters():
+async def list_available_adapters(
+    current_user: User = Depends(get_current_user),
+):
     """List all registered target adapters."""
     adapters = list_adapters()
     return [
@@ -22,7 +26,10 @@ async def list_available_adapters():
 
 
 @router.get("/{adapter_name}")
-async def get_adapter_info(adapter_name: str):
+async def get_adapter_info(
+    adapter_name: str,
+    current_user: User = Depends(get_current_user),
+):
     """Get information about a specific adapter."""
     adapter = get_adapter(adapter_name)
     if not adapter:

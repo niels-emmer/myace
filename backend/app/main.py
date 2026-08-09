@@ -51,11 +51,21 @@ app = FastAPI(
     redoc_url="/redoc" if settings.debug else None,
 )
 
-# Trusted hosts — only enforced once TRUSTED_HOSTS is set (a fork-and-
-# self-host app can't hardcode a domain), so this is a no-op until an
-# operator configures their real domain(s) for a public deployment.
-if settings.trusted_host_list:
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_host_list)
+# Trusted hosts — always enforce. In development, allow all hosts (safe
+# default for local testing). In production, the operator MUST set
+# TRUSTED_HOSTS to their real domain(s); the app will fail at startup
+# with a clear error if it's left empty.
+if settings.app_env == "development":
+    allowed_hosts = settings.trusted_host_list or ["*"]
+else:
+    if not settings.trusted_host_list:
+        raise RuntimeError(
+            "TRUSTED_HOSTS is not set. This is required in production to prevent "
+            "Host-header injection attacks. Set it to your real domain(s) in .env, "
+            "e.g. TRUSTED_HOSTS=myace.macjuu.com"
+        )
+    allowed_hosts = settings.trusted_host_list
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
 
 # CORS middleware
 app.add_middleware(

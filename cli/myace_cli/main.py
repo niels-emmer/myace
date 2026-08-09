@@ -154,6 +154,14 @@ def pull(
     written = 0
     skipped = 0
     for filename, content in files.items():
+        # Prevent path traversal: reject filenames with path separators or
+        # parent-dir references. The server's compile response is derived from
+        # user-controlled artifact names, so a malicious/compromised server
+        # could return a filename like '../../.bashrc'.
+        if "/" in filename or "\\" in filename or ".." in filename:
+            rprint(f"  [red]Skipping unsafe filename: {filename}[/red]")
+            skipped += 1
+            continue
         file_path = output_path / filename
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
