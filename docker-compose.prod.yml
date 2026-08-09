@@ -19,7 +19,8 @@ services:
 
   backend:
     environment:
-      - CORS_ORIGINS=https://myace.macjuu.com
+      # Read from .env (gitignored) so the real domain never lands in the repo.
+      - CORS_ORIGINS=${CORS_ORIGINS}
 
 networks:
   myace:
