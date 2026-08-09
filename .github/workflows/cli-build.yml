@@ -98,7 +98,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
       - name: Create latest release with binaries
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: latest
           name: Latest build (${{ github.sha }})
