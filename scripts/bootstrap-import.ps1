@@ -101,11 +101,11 @@ if (Test-Path $activateScript) {
 Write-Step "Installing myace-cli"
 
 Write-Info "Upgrading pip..."
-& $python -m pip install --quiet --upgrade pip
+python -m pip install --quiet --upgrade pip
 
 Write-Info "Installing myace-cli[serve] from GitHub..."
 try {
-    & pip install --quiet "git+https://github.com/niels-emmer/myace.git#subdirectory=cli[serve]"
+    python -m pip install --quiet "git+https://github.com/niels-emmer/myace.git#subdirectory=cli[serve]"
     if ($LASTEXITCODE -eq 0) {
         Write-Info "myace-cli installed successfully"
     } else {

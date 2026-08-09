@@ -103,10 +103,10 @@ source "${VENV_DIR}/bin/activate"
 header "Installing myace-cli"
 
 info "Upgrading pip..."
-"$PYTHON" -m pip install --quiet --upgrade pip
+python -m pip install --quiet --upgrade pip
 
 info "Installing myace-cli[serve] from GitHub..."
-if pip install --quiet "git+https://github.com/niels-emmer/myace.git#subdirectory=cli[serve]"; then
+if python -m pip install --quiet "git+https://github.com/niels-emmer/myace.git#subdirectory=cli[serve]"; then
     info "myace-cli installed successfully"
 else
     error "Failed to install myace-cli"
