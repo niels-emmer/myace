@@ -10,6 +10,9 @@ updates:
       backend-deps:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "pip"
     directory: "/cli"
@@ -21,6 +24,9 @@ updates:
       cli-deps:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "npm"
     directory: "/frontend"
@@ -32,6 +38,9 @@ updates:
       frontend-deps:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   - package-ecosystem: "docker"
     directory: "/backend"

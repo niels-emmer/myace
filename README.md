@@ -220,7 +220,13 @@ Found a security issue? Please don't open a public issue — see
   PR, plus a Docker build check.
 - **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)) opens
   weekly PRs for backend/CLI (pip), frontend (npm), Docker base images, and
-  GitHub Actions themselves.
+  GitHub Actions themselves. Minor/patch bumps within each ecosystem are
+  grouped into one PR for convenience; major-version bumps are deliberately
+  left ungrouped so each lands as its own reviewable PR instead of getting
+  bundled with everything else (a grouped major-version PR previously
+  bundled React 18→19, Tailwind 3→4, Vite 5→8, and more into one unmergeable
+  PR — see [`docs/debugging.md`](docs/debugging.md) if you hit something
+  similar).
 - **Documentation** is expected to move in the same PR as the code it
   describes — see [`AGENTS.md`](AGENTS.md#14-documentation-maintenance).
 
