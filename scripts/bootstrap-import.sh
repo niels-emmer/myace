@@ -106,7 +106,7 @@ info "Upgrading pip..."
 python -m pip install --quiet --upgrade pip
 
 info "Installing myace-cli[serve] from GitHub..."
-if python -m pip install --quiet "git+https://github.com/niels-emmer/myace.git#subdirectory=cli[serve]"; then
+if python -m pip install --quiet "myace-cli[serve] @ git+https://github.com/niels-emmer/myace.git#subdirectory=cli"; then
     info "myace-cli installed successfully"
 else
     error "Failed to install myace-cli"

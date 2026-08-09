@@ -105,7 +105,7 @@ python -m pip install --quiet --upgrade pip
 
 Write-Info "Installing myace-cli[serve] from GitHub..."
 try {
-    python -m pip install --quiet "git+https://github.com/niels-emmer/myace.git#subdirectory=cli[serve]"
+    python -m pip install --quiet "myace-cli[serve] @ git+https://github.com/niels-emmer/myace.git#subdirectory=cli"
     if ($LASTEXITCODE -eq 0) {
         Write-Info "myace-cli installed successfully"
     } else {

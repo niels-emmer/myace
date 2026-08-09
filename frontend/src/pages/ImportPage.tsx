@@ -573,7 +573,7 @@ function LocalCompanionSetup({
 }) {
   const backendOrigin = window.location.origin;
   const bootstrapCommand = `curl -fsSL https://raw.githubusercontent.com/niels-emmer/myace/main/scripts/bootstrap-import.sh | bash`;
-  const installCommand = 'pipx install "git+https://github.com/niels-emmer/myace.git#subdirectory=cli[serve]"';
+  const installCommand = 'pipx install "myace-cli[serve] @ git+https://github.com/niels-emmer/myace.git#subdirectory=cli"';
   const loginCommand = `myace login --server ${backendOrigin} --token <token-from-Settings>`;
   const serveCommand = 'myace serve';
   const oneShotCommand = `myace import --path "${sourcePath}" --name "${collectionName}" --push`;
