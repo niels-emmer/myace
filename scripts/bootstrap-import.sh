@@ -28,7 +28,7 @@ set -euo pipefail
 
 MYACE_DIR="${MYACE_DIR:-${HOME}/.myace}"
 VENV_DIR="${MYACE_DIR}/venv"
-MYACE_SERVER="${MYACE_SERVER:-http://localhost:8000}"
+MYACE_SERVER="${MYACE_SERVER:-}"
 SCRIPT_URL="https://raw.githubusercontent.com/niels-emmer/myace/main/scripts/bootstrap-import.sh"
 
 # ─── Color helpers ─────────────────────────────────────────────
@@ -83,6 +83,26 @@ fi
 
 info "Found Python ${PY_VERSION} at ${PYTHON}"
 
+# ─── Step 1b: Check MyACE server URL ───────────────────────────
+header "MyACE Server"
+
+if [ -z "$MYACE_SERVER" ]; then
+    echo ""
+    echo "  Enter your MyACE server URL (e.g. https://myace.example.com):"
+    printf "  ${BOLD}Server URL:${NC} "
+    read -r MYACE_SERVER
+    echo ""
+    if [ -z "$MYACE_SERVER" ]; then
+        error "No server URL provided."
+        echo ""
+        echo "  Re-run with:"
+        echo "    MYACE_SERVER=https://your-server.example.com curl -fsSL ${SCRIPT_URL} | bash"
+        exit 1
+    fi
+fi
+
+info "Using server: ${MYACE_SERVER}"
+
 # ─── Step 2: Create virtual environment ────────────────────────
 header "Setting up virtual environment"
 
@@ -131,23 +151,23 @@ fi
 header "Setup Complete — Next Steps"
 
 echo ""
-echo "  ${BOLD}Option A: Import via web UI (recommended for first use)${NC}"
+echo "  ${BOLD}To connect to your MyACE server:${NC}"
 echo ""
 echo "    1. Open the MyACE web UI and create an API token:"
 echo "       ${MYACE_SERVER}/settings"
 echo ""
-echo "    2. Activate the environment and start the companion server:"
+echo "    2. Activate the environment and log in:"
 echo "       source ${VENV_DIR}/bin/activate"
 echo "       myace login --server ${MYACE_SERVER} --token <your-token>"
+echo ""
+echo "    3. Start the local companion server:"
 echo "       myace serve"
 echo ""
-echo "    3. Go to the Import page in your browser and scan your machine."
+echo "    4. Go to the Import page in your browser and scan your machine."
 echo ""
-echo "  ${BOLD}Option B: One-shot CLI import${NC}"
-echo ""
-echo "    source ${VENV_DIR}/bin/activate"
-echo "    myace login --server ${MYACE_SERVER} --token <your-token>"
-echo "    myace import --path ~/.config/opencode --name my-config --push"
+echo "  ${BOLD}Tip:${NC} If your MyACE server URL is different from ${MYACE_SERVER},"
+echo "  re-run with:"
+echo "    MYACE_SERVER=https://your-server.example.com ${SCRIPT_URL}"
 echo ""
 echo "  ${BOLD}Quick reference:${NC}"
 echo ""

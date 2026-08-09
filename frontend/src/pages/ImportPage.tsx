@@ -65,13 +65,15 @@ export default function ImportPage() {
     queryKey: ['companion-health'],
     queryFn: async () => {
       const res = await fetch(`${COMPANION_URL}/health`, {
-        signal: AbortSignal.timeout(1200),
+        mode: 'cors',
+        signal: AbortSignal.timeout(5000),
       });
       if (!res.ok) throw new Error('Companion unreachable');
       return res.json() as Promise<{ status: string; server: string }>;
     },
     enabled: sourceType === 'local',
-    retry: false,
+    retry: 2,
+    retryDelay: 2000,
     refetchInterval: 5000,
     staleTime: 0,
   });
