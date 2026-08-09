@@ -187,3 +187,29 @@ an admin, not just the very first person ever.
 **Fix:** set `DEBUG=false` in `.env`, and set `ADMIN_BOOTSTRAP_ENABLED=false`
 once you've registered your own admin account. Both warnings only fire
 when `APP_ENV != development`, so a local dev setup is unaffected.
+
+## A Dependabot PR fails CI with an unrelated-looking peer dependency error
+
+**Symptom:** a grouped Dependabot PR (e.g. `chore(frontend): bump the
+frontend-deps group...`) fails `npm ci`/`pip install` with an `ERESOLVE` or
+similar dependency-resolution error, even though nothing about the failure
+looks related to the actual code changes.
+
+**Cause:** `.github/dependabot.yml`'s groups used to match `patterns: ["*"]`
+with no `update-types` filter, which bundles *every* update in an ecosystem
+— including unrelated major-version bumps — into one PR. One instance of
+this bundled `typescript` 5→7 with `react` 18→19, `tailwindcss` 3→4, `vite`
+5→8, and a dozen others in a single PR; `typescript-eslint@8.x`'s peer
+range (`>=4.8.4 <6.1.0`) doesn't allow TS7 yet, so `npm ci` failed before
+any of the actually-relevant packages were even considered. Worse, even a
+"fix" for that one conflict would've shipped Tailwind 4 (a config-format
+breaking change) and React 19 in the same PR — neither of which current CI
+would catch as a silent runtime/styling break.
+
+**Fix:** each `groups.<name>` block in `.github/dependabot.yml` now scopes
+itself to `update-types: [minor, patch]`. Routine, low-risk bumps still get
+grouped into one convenient PR; anything major falls outside every group
+and lands as its own individually-reviewable PR instead. If you hit this
+again, check whether the failing PR is a major-version bump that should
+never have been grouped in the first place, rather than trying to patch
+around the peer-dependency error directly.
