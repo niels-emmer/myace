@@ -31,6 +31,9 @@ export interface Collection {
   visibility: Visibility;
   is_active: boolean;
   artifact_count: number;
+  download_count: number;
+  published: boolean;
+  category?: string;
   last_synced_at?: string;
   created_at: string;
   updated_at: string;
@@ -41,6 +44,7 @@ export interface CollectionUpdate {
   description?: string;
   collection_type?: CollectionType;
   visibility?: Visibility;
+  category?: string;
 }
 
 // ─── Artifact Types ──────────────────────────────────────────
@@ -226,6 +230,28 @@ export interface DocCacheEntry {
 export interface DocCacheRefreshResult {
   refreshed: Record<string, number>;
   total_updated: number;
+}
+
+// ─── Community / Publish Types ────────────────────────────────
+
+export interface PublishRequest {
+  category: string;
+  publish_name?: string;
+  publish_description?: string;
+  github_token: string;
+}
+
+export interface PublishResult {
+  pr_url: string;
+  pr_number: number;
+  branch: string;
+  published: boolean;
+}
+
+export interface ImportCommunityResult {
+  collection_id: string;
+  collection_name: string;
+  artifacts_imported: number;
 }
 
 // ─── Admin Types ──────────────────────────────────────────────

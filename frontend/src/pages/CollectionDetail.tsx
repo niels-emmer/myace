@@ -21,10 +21,10 @@ import {
   Github,
   ExternalLink,
   Share2,
-  Upload,
+  BookOpen,
 } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
-import type { Artifact, ArtifactType, CollectionType, Visibility } from '../types';
+import type { Artifact, ArtifactType, Collection, CollectionType, Visibility } from '../types';
 
 const ARTIFACT_TYPES: { value: ArtifactType | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -76,6 +76,13 @@ export default function CollectionDetail() {
   const [ghPrTitle, setGhPrTitle] = useState('');
   const [ghPrBody, setGhPrBody] = useState('');
   const [ghToken, setGhToken] = useState('');
+
+  // Publish to community
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishCategory, setPublishCategory] = useState('');
+  const [publishName, setPublishName] = useState('');
+  const [publishDescription, setPublishDescription] = useState('');
+  const [publishToken, setPublishToken] = useState('');
 
   // Collection-level actions
   const [showDeleteCollectionModal, setShowDeleteCollectionModal] = useState(false);
@@ -165,6 +172,22 @@ export default function CollectionDetail() {
         pr_body: ghPrBody.trim(),
         github_token: ghToken,
       }),
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: () =>
+      collectionsApi.publish(id!, {
+        category: publishCategory.trim(),
+        publish_name: publishName.trim() || undefined,
+        publish_description: publishDescription.trim() || undefined,
+        github_token: publishToken,
+      }),
+    onSuccess: () => {
+      queryClient.setQueryData(['collection', id], (old: Collection | undefined) =>
+        old ? { ...old, published: true, category: publishCategory.trim() } : old,
+      );
+      queryClient.invalidateQueries({ queryKey: ['collections'] });
+    },
   });
 
   const deleteCollectionMutation = useMutation({
@@ -257,6 +280,15 @@ export default function CollectionDetail() {
   const openShareModal = () => {
     setShareVisibility(collection.visibility);
     setShowShareModal(true);
+  };
+
+  const openPublishModal = () => {
+    publishMutation.reset();
+    setPublishCategory(collection.category || '');
+    setPublishName(collection.name);
+    setPublishDescription(collection.description || '');
+    setPublishToken('');
+    setShowPublishModal(true);
   };
 
   return (
@@ -413,12 +445,17 @@ export default function CollectionDetail() {
                 Share
               </button>
               <button
-                disabled
-                title="GitHub-hosted collections — coming soon"
-                className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-muted-foreground opacity-50 cursor-not-allowed"
+                onClick={openPublishModal}
+                disabled={collection.published}
+                title={collection.published ? 'Already published' : 'Publish to community collections'}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  collection.published
+                    ? 'bg-green-50 text-green-700 border border-green-200 cursor-default'
+                    : 'bg-muted border border-border text-foreground hover:bg-accent'
+                }`}
               >
-                <Upload className="h-3.5 w-3.5" />
-                Upload to GitHub
+                <BookOpen className="h-3.5 w-3.5" />
+                {collection.published ? 'Published' : 'Publish to Community'}
               </button>
               <button
                 onClick={() => setShowDeleteCollectionModal(true)}
@@ -846,6 +883,127 @@ export default function CollectionDetail() {
                 {deleteCollectionMutation.isPending ? 'Deleting...' : 'Delete'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Publish to Community Modal */}
+      {showPublishModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              Publish to Community
+            </h2>
+            <p className="text-sm text-muted-foreground -mt-2">
+              Submit this collection to the MyACE community collections store.
+              An admin will review and approve your submission.
+            </p>
+
+            {publishMutation.isSuccess ? (
+              <div className="space-y-4">
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+                  Collection submitted for review! PR #{publishMutation.data.pr_number} has been
+                  opened on branch <code className="bg-green-100 px-1 rounded">{publishMutation.data.branch}</code>.
+                </div>
+                <a
+                  href={publishMutation.data.pr_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium transition-colors"
+                >
+                  View Pull Request
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowPublishModal(false)}
+                    className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Category <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={publishCategory}
+                    onChange={(e) => setPublishCategory(e.target.value)}
+                    placeholder="e.g. python, iac, frontend, typescript"
+                    className={inputClass}
+                    autoFocus
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Helps users find your collection by category.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Display name <span className="text-muted-foreground font-normal">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={publishName}
+                    onChange={(e) => setPublishName(e.target.value)}
+                    placeholder={collection.name}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Description <span className="text-muted-foreground font-normal">(optional)</span>
+                  </label>
+                  <textarea
+                    value={publishDescription}
+                    onChange={(e) => setPublishDescription(e.target.value)}
+                    rows={3}
+                    className={inputClass}
+                    placeholder="What does this collection provide?"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">GitHub Token</label>
+                  <input
+                    type="password"
+                    value={publishToken}
+                    onChange={(e) => setPublishToken(e.target.value)}
+                    placeholder="ghp_..."
+                    className={`${inputClass} font-mono`}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Needs <code className="bg-muted px-1 rounded">repo</code> scope. Used only for this
+                    request — never stored.
+                  </p>
+                </div>
+
+                {publishMutation.isError && (
+                  <p className="text-sm text-destructive">
+                    {(publishMutation.error as Error).message}
+                  </p>
+                )}
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    onClick={() => setShowPublishModal(false)}
+                    className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => publishMutation.mutate()}
+                    disabled={!publishCategory.trim() || !publishToken.trim() || publishMutation.isPending}
+                    className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
+                  >
+                    {publishMutation.isPending ? 'Submitting...' : 'Submit for Review'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

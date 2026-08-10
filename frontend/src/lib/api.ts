@@ -86,6 +86,35 @@ export const collectionsApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // ─── Community / Publish ─────────────────────────────────
+
+  publish: (collectionId: string, data: import('@/types').PublishRequest) =>
+    request<import('@/types').PublishResult>(`/collections/${collectionId}/publish`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  listCommunity: (params?: { category?: string; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.category) searchParams.set('category', params.category);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const qs = searchParams.toString();
+    return request<import('@/types').Collection[]>(`/collections/community${qs ? `?${qs}` : ''}`);
+  },
+
+  listCommunityTop: (limit?: number) => {
+    const qs = limit ? `?limit=${limit}` : '';
+    return request<import('@/types').Collection[]>(`/collections/community/top${qs}`);
+  },
+
+  listCommunityCategories: () =>
+    request<string[]>('/collections/community/categories'),
+
+  importCommunity: (collectionId: string) =>
+    request<import('@/types').ImportCommunityResult>(`/collections/${collectionId}/import`, {
+      method: 'POST',
+    }),
 };
 
 // ─── Profiles ────────────────────────────────────────────────

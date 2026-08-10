@@ -33,6 +33,9 @@ class Collection(SQLModel, table=True):
     )
     is_active: bool = Field(default=True, sa_column=Column("is_active", Boolean, default=True))
     artifact_count: int = Field(default=0, sa_column=Column("artifact_count", Integer, default=0))
+    download_count: int = Field(default=0, sa_column=Column("download_count", Integer, default=0))
+    published: bool = Field(default=False, sa_column=Column("published", Boolean, default=False))
+    category: str | None = Field(default=None, sa_column=Column("category", String(128)))
     last_synced_at: datetime | None = Field(
         default=None,
         sa_column=Column("last_synced_at", DateTime(timezone=True)),
@@ -58,6 +61,7 @@ class CollectionCreate(SQLModel):
     git_branch: str = "main"
     collection_type: Literal["base", "additional"] = "base"
     visibility: Literal["private", "public"] = "private"
+    category: str | None = None
 
 
 class CollectionUpdate(SQLModel):
@@ -66,6 +70,7 @@ class CollectionUpdate(SQLModel):
     description: str | None = None
     collection_type: Literal["base", "additional"] | None = None
     visibility: Literal["private", "public"] | None = None
+    category: str | None = None
 
 
 class CollectionRead(SQLModel):
@@ -80,6 +85,9 @@ class CollectionRead(SQLModel):
     visibility: str
     is_active: bool
     artifact_count: int
+    download_count: int = 0
+    published: bool = False
+    category: str | None = None
     last_synced_at: datetime | None = None
     created_at: datetime
     updated_at: datetime

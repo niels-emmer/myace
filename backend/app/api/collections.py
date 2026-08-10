@@ -107,6 +107,62 @@ async def list_collections(
     return result.scalars().all()
 
 
+@router.get("/community", response_model=list[CollectionRead])
+async def list_community_collections(
+    category: str | None = None,
+    limit: int | None = None,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """List published community collections, optionally filtered by category."""
+    query = select(Collection).where(
+        Collection.published == True,
+        Collection.is_active == True,
+    )
+    if category:
+        query = query.where(Collection.category == category)
+    query = query.order_by(Collection.download_count.desc())
+    if limit:
+        query = query.limit(limit)
+
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
+@router.get("/community/top", response_model=list[CollectionRead])
+async def list_top_community_collections(
+    limit: int = 10,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """List the top N most downloaded published community collections."""
+    query = (
+        select(Collection)
+        .where(Collection.published == True, Collection.is_active == True)
+        .order_by(Collection.download_count.desc())
+        .limit(limit)
+    )
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
+@router.get("/community/categories", response_model=list[str])
+async def list_community_categories(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """List all distinct categories among published community collections."""
+    from sqlalchemy import distinct
+
+    query = select(distinct(Collection.category)).where(
+        Collection.published == True,
+        Collection.is_active == True,
+        Collection.category != None,
+    )
+    result = await session.execute(query)
+    return [row[0] for row in result.all() if row[0]]
+
+
 @router.get("/{collection_id}", response_model=CollectionRead)
 async def get_collection(
     collection_id: uuid.UUID,
@@ -471,6 +527,157 @@ async def export_collection_to_github(
     result["files_exported"] = len(files)
     result["skipped_model_configs"] = skipped_model_configs
     return result
+
+
+class PublishRequest(BaseModel):
+    """Request to publish a collection to the MyACE community store."""
+    category: str
+    publish_name: str | None = None
+    publish_description: str | None = None
+    github_token: str
+
+
+@router.post("/{collection_id}/publish")
+async def publish_collection(
+    collection_id: uuid.UUID,
+    request: PublishRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Publish a collection to the MyACE community collections store.
+
+    Validates the collection, exports its artifacts to the MyACE repo's
+    collections/ folder, and opens a pull request for admin review.
+    """
+    from app.services.publish import (
+        GitHubExportError,
+        publish_collection_to_community,
+    )
+
+    collection = await _get_collection_or_404(session, collection_id)
+    authorize_access(
+        owner_id=collection.owner_id, current_user=current_user,
+        write=True, resource_name="Collection",
+    )
+
+    if not request.category.strip():
+        raise HTTPException(status_code=422, detail="category is required")
+
+    art_result = await session.execute(
+        select(Artifact).where(
+            Artifact.collection_id == collection_id,
+            Artifact.is_enabled == True,
+            Artifact.deleted_at == None,
+        )
+    )
+    db_artifacts = art_result.scalars().all()
+    if not db_artifacts:
+        raise HTTPException(
+            status_code=400, detail="Collection has no enabled artifacts to publish"
+        )
+
+    canonical = [_artifact_to_canonical(a) for a in db_artifacts]
+
+    try:
+        result = await publish_collection_to_community(
+            collection_id=collection.id,
+            collection_name=collection.name,
+            collection_type=collection.collection_type,
+            category=request.category.strip(),
+            publish_name=request.publish_name,
+            publish_description=request.publish_description,
+            artifacts=canonical,
+            github_token=request.github_token,
+        )
+    except GitHubExportError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    # Mark the collection as published
+    collection.published = True
+    collection.category = request.category.strip()
+    await session.commit()
+
+    return {
+        "pr_url": result["pr_url"],
+        "pr_number": result["pr_number"],
+        "branch": result["branch"],
+        "published": True,
+    }
+
+
+@router.post("/{collection_id}/import", status_code=status.HTTP_201_CREATED)
+async def import_community_collection(
+    collection_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Import a published community collection into the user's workspace.
+
+    Creates a new collection owned by the caller with all artifacts copied.
+    Increments the download_count on the source collection.
+    """
+    source = await _get_collection_or_404(session, collection_id)
+    authorize_access(
+        owner_id=source.owner_id, current_user=current_user,
+        is_public=source.visibility == "public" or source.published,
+        resource_name="Collection",
+    )
+
+    if not source.published:
+        raise HTTPException(status_code=400, detail="Only published collections can be imported")
+
+    # Fetch source artifacts
+    art_result = await session.execute(
+        select(Artifact).where(
+            Artifact.collection_id == collection_id,
+            Artifact.deleted_at == None,
+        )
+    )
+    source_artifacts = art_result.scalars().all()
+
+    # Create a new collection for the user
+    target = Collection(
+        owner_id=current_user.id,
+        name=f"{source.name} (imported)",
+        description=source.description,
+        git_url=f"imported://community/{source.name}",
+        collection_type=source.collection_type,
+        visibility="private",
+        category=source.category,
+    )
+    session.add(target)
+    await session.commit()
+    await session.refresh(target)
+
+    # Copy artifacts
+    created = 0
+    for src in source_artifacts:
+        session.add(Artifact(
+            collection_id=target.id,
+            artifact_type=src.artifact_type,
+            name=src.name,
+            version=src.version,
+            priority=src.priority,
+            target_compatibility=src.target_compatibility,
+            tags=src.tags,
+            description=src.description,
+            body=src.body,
+            file_path=src.file_path,
+            is_enabled=src.is_enabled,
+        ))
+        created += 1
+    await session.commit()
+
+    # Update counts
+    target.artifact_count = created
+    source.download_count = (source.download_count or 0) + 1
+    await session.commit()
+
+    return {
+        "collection_id": str(target.id),
+        "collection_name": target.name,
+        "artifacts_imported": created,
+    }
 
 
 class ScanRequest(BaseModel):
