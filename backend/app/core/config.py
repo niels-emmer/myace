@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     # Set this to the intended scan root for your deployment.
     scan_root: str = "/host-home"
 
+    # Community collections
+    community_repo: str = "nemmer/MyACE"
+
     # Doc Cache
     doc_cache_ttl_days: int = 7
     doc_cache_refresh_interval_hours: int = 168
