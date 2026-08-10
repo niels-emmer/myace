@@ -18,11 +18,11 @@ import {
   AlertTriangle,
   FolderOutput,
   Trash2,
-  Github,
   ExternalLink,
   Share2,
   Upload,
 } from 'lucide-react';
+import { GithubIcon } from '../components/GithubIcon';
 import { collectionsApi } from '../lib/api';
 import type { Artifact, ArtifactType, CollectionType, Visibility } from '../types';
 
@@ -402,7 +402,7 @@ export default function CollectionDetail() {
                 title="Export this collection's enabled artifacts to a GitHub branch + PR"
                 className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-foreground hover:bg-accent transition-colors"
               >
-                <Github className="h-3.5 w-3.5" />
+                <GithubIcon className="h-3.5 w-3.5" />
                 Export to GitHub
               </button>
               <button
@@ -669,7 +669,7 @@ export default function CollectionDetail() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
-              <Github className="h-5 w-5" />
+              <GithubIcon className="h-5 w-5" />
               Export to GitHub
             </h2>
             <p className="text-sm text-muted-foreground -mt-2">
