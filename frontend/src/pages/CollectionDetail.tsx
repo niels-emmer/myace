@@ -24,7 +24,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
-import type { Artifact, ArtifactType, CollectionType, Visibility } from '../types';
+import type { Artifact, ArtifactType, Collection, CollectionType, Visibility } from '../types';
 
 const ARTIFACT_TYPES: { value: ArtifactType | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -183,7 +183,7 @@ export default function CollectionDetail() {
         github_token: publishToken,
       }),
     onSuccess: () => {
-      queryClient.setQueryData(['collection', id], (old: any) =>
+      queryClient.setQueryData(['collection', id], (old: Collection | undefined) =>
         old ? { ...old, published: true, category: publishCategory.trim() } : old,
       );
       queryClient.invalidateQueries({ queryKey: ['collections'] });

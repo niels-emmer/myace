@@ -572,7 +572,9 @@ async def publish_collection(
     )
     db_artifacts = art_result.scalars().all()
     if not db_artifacts:
-        raise HTTPException(status_code=400, detail="Collection has no enabled artifacts to publish")
+        raise HTTPException(
+            status_code=400, detail="Collection has no enabled artifacts to publish"
+        )
 
     canonical = [_artifact_to_canonical(a) for a in db_artifacts]
 
