@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from sqlalchemy import ForeignKey, Text, Uuid
 from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String
@@ -55,15 +56,16 @@ class CollectionCreate(SQLModel):
     description: str | None = None
     git_url: str
     git_branch: str = "main"
-    collection_type: str = "base"
-    visibility: str = "private"
+    collection_type: Literal["base", "additional"] = "base"
+    visibility: Literal["private", "public"] = "private"
 
 
 class CollectionUpdate(SQLModel):
     """Schema for updating a collection (all fields optional)."""
     name: str | None = None
     description: str | None = None
-    collection_type: str | None = None
+    collection_type: Literal["base", "additional"] | None = None
+    visibility: Literal["private", "public"] | None = None
 
 
 class CollectionRead(SQLModel):

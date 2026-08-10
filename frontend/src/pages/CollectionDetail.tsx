@@ -20,9 +20,11 @@ import {
   Trash2,
   Github,
   ExternalLink,
+  Share2,
+  Upload,
 } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
-import type { Artifact, ArtifactType, CollectionType } from '../types';
+import type { Artifact, ArtifactType, CollectionType, Visibility } from '../types';
 
 const ARTIFACT_TYPES: { value: ArtifactType | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -74,6 +76,11 @@ export default function CollectionDetail() {
   const [ghPrTitle, setGhPrTitle] = useState('');
   const [ghPrBody, setGhPrBody] = useState('');
   const [ghToken, setGhToken] = useState('');
+
+  // Collection-level actions
+  const [showDeleteCollectionModal, setShowDeleteCollectionModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareVisibility, setShareVisibility] = useState<Visibility>('private');
 
   const { data: collection, isLoading: loadingCollection } = useQuery({
     queryKey: ['collection', id],
@@ -160,6 +167,24 @@ export default function CollectionDetail() {
       }),
   });
 
+  const deleteCollectionMutation = useMutation({
+    mutationFn: () => collectionsApi.delete(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collections'] });
+      navigate('/collections');
+    },
+  });
+
+  const updateVisibilityMutation = useMutation({
+    mutationFn: (visibility: Visibility) =>
+      collectionsApi.update(id!, { visibility }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['collection', id], updated);
+      queryClient.invalidateQueries({ queryKey: ['collections'] });
+      setShowShareModal(false);
+    },
+  });
+
   if (loadingCollection) {
     return (
       <div className="text-center py-12 text-muted-foreground">Loading collection...</div>
@@ -227,6 +252,11 @@ export default function CollectionDetail() {
     setGhPrBody('');
     setGhToken('');
     setShowGithubModal(true);
+  };
+
+  const openShareModal = () => {
+    setShareVisibility(collection.visibility);
+    setShowShareModal(true);
   };
 
   return (
@@ -374,6 +404,28 @@ export default function CollectionDetail() {
               >
                 <Github className="h-3.5 w-3.5" />
                 Export to GitHub
+              </button>
+              <button
+                onClick={openShareModal}
+                className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-foreground hover:bg-accent transition-colors"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                Share
+              </button>
+              <button
+                disabled
+                title="GitHub-hosted collections — coming soon"
+                className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-muted-foreground opacity-50 cursor-not-allowed"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Upload to GitHub
+              </button>
+              <button
+                onClick={() => setShowDeleteCollectionModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
               </button>
               <button
                 onClick={startEdit}
@@ -750,6 +802,118 @@ export default function CollectionDetail() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Collection Confirmation */}
+      {showDeleteCollectionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-destructive/10 rounded-lg flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-card-foreground">
+                  Delete &ldquo;{collection.name}&rdquo;?
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This will permanently disable this collection and hide it from
+                  all views. This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            {deleteCollectionMutation.isError && (
+              <p className="text-sm text-destructive">
+                {(deleteCollectionMutation.error as Error).message}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteCollectionModal(false)}
+                className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteCollectionMutation.mutate()}
+                disabled={deleteCollectionMutation.isPending}
+                className="px-4 py-2 bg-destructive text-white rounded-lg hover:bg-destructive/90 disabled:opacity-50 text-sm font-medium transition-colors"
+              >
+                {deleteCollectionMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm space-y-4">
+            <h2 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+              <Share2 className="h-5 w-5" />
+              Share Collection
+            </h2>
+            <p className="text-sm text-muted-foreground -mt-2">
+              Control who can see this collection. Public collections are
+              visible to all users; private collections are only visible to you.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShareVisibility('private')}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-lg border text-sm font-medium transition-colors ${
+                  shareVisibility === 'private'
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-border text-muted-foreground hover:border-input'
+                }`}
+              >
+                <Lock className="h-4 w-4" />
+                Private
+              </button>
+              <button
+                onClick={() => setShareVisibility('public')}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-lg border text-sm font-medium transition-colors ${
+                  shareVisibility === 'public'
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-border text-muted-foreground hover:border-input'
+                }`}
+              >
+                <Globe className="h-4 w-4" />
+                Public
+              </button>
+            </div>
+
+            {updateVisibilityMutation.isError && (
+              <p className="text-sm text-destructive">
+                {(updateVisibilityMutation.error as Error).message}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => updateVisibilityMutation.mutate(shareVisibility)}
+                disabled={
+                  shareVisibility === collection.visibility ||
+                  updateVisibilityMutation.isPending
+                }
+                className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
+              >
+                {updateVisibilityMutation.isPending
+                  ? 'Saving...'
+                  : 'Save'}
+              </button>
+            </div>
           </div>
         </div>
       )}

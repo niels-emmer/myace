@@ -40,6 +40,7 @@ export interface CollectionUpdate {
   name?: string;
   description?: string;
   collection_type?: CollectionType;
+  visibility?: Visibility;
 }
 
 // ─── Artifact Types ──────────────────────────────────────────
