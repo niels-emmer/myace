@@ -67,7 +67,7 @@ jobs:
           sha256sum ${{ matrix.asset }} > ${{ matrix.asset }}.sha256
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             cli/dist/${{ matrix.asset }}
