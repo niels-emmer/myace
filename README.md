@@ -453,6 +453,8 @@ MyACE is built on [FastAPI](https://fastapi.tiangolo.com/),
 [Tailwind CSS](https://tailwindcss.com/), and [Typer](https://typer.tiangolo.com/).
 Thanks to the maintainers of all of them.
 
+Logo: <a href="https://www.flaticon.com/free-icons/layers" title="layers icons">Layers icons created by Good Ware - Flaticon</a>.
+
 This entire project — every line of code, every test, every doc, every
 infrastructure config — was written by AI coding agents:
 [Claude Code / Sonnet 5](https://docs.anthropic.com/en/docs/claude-code/overview)

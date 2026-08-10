@@ -6,7 +6,6 @@ import {
   Upload,
   Download,
   Settings,
-  Sparkles,
   LogOut,
   Shield,
 } from 'lucide-react';
@@ -36,7 +35,7 @@ export default function Layout() {
       <aside className="w-64 bg-card border-r border-border flex flex-col">
         <div className="p-6 border-b border-border">
           <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <Sparkles className="h-6 w-6 text-brand-600" />
+            <img src="/logo.png" alt="MyACE" className="h-7 w-7" />
             <h1 className="text-xl font-bold text-card-foreground">MyACE</h1>
           </Link>
           <p className="text-xs text-muted-foreground mt-1">Agentic Coding Environment</p>
