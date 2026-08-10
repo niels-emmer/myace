@@ -598,7 +598,7 @@ const PLATFORM_INFO: Record<NonNullable<Platform>, { label: string; icon: string
   'windows-x86_64': { label: 'Windows (x86_64)', icon: '🪟' },
 };
 
-const GH_LATEST = 'https://github.com/niels-emmer/myace/releases/latest/download';
+const GH_LATEST = 'https://github.com/niels-emmer/myace/releases/download/latest';
 
 function LocalCompanionSetup({
   sourcePath,
