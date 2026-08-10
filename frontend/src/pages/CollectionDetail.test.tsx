@@ -240,20 +240,20 @@ describe('CollectionDetail — action buttons', () => {
     });
   });
 
-  describe('Upload to GitHub button', () => {
-    it('renders a disabled Upload to GitHub button', async () => {
+  describe('Publish to Community button', () => {
+    it('renders a Publish to Community button', async () => {
       renderCollectionDetail();
 
-      const uploadBtn = await screen.findByRole('button', { name: /Upload to GitHub/i });
-      expect(uploadBtn).toBeInTheDocument();
-      expect(uploadBtn).toBeDisabled();
+      const publishBtn = await screen.findByRole('button', { name: /Publish to Community/i });
+      expect(publishBtn).toBeInTheDocument();
+      expect(publishBtn).not.toBeDisabled();
     });
 
-    it('has a tooltip indicating it is coming soon', async () => {
+    it('has a tooltip indicating the publish action', async () => {
       renderCollectionDetail();
 
-      const uploadBtn = await screen.findByRole('button', { name: /Upload to GitHub/i });
-      expect(uploadBtn).toHaveAttribute('title', 'GitHub-hosted collections — coming soon');
+      const publishBtn = await screen.findByRole('button', { name: /Publish to Community/i });
+      expect(publishBtn).toHaveAttribute('title', 'Publish to community collections');
     });
   });
 
@@ -267,7 +267,7 @@ describe('CollectionDetail — action buttons', () => {
       // Action buttons should be hidden during editing
       expect(screen.queryByRole('button', { name: /Delete/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Share/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Upload to GitHub/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Publish to Community/i })).not.toBeInTheDocument();
     });
   });
 });

@@ -17,8 +17,14 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column('collections', sa.Column('download_count', sa.Integer(), nullable=False, server_default=sa.text('0')))
-    op.add_column('collections', sa.Column('published', sa.Boolean(), nullable=False, server_default=sa.text('false')))
+    op.add_column(
+        'collections',
+        sa.Column('download_count', sa.Integer(), nullable=False, server_default=sa.text('0')),
+    )
+    op.add_column(
+        'collections',
+        sa.Column('published', sa.Boolean(), nullable=False, server_default=sa.text('false')),
+    )
     op.add_column('collections', sa.Column('category', sa.String(128), nullable=True))
 
 
