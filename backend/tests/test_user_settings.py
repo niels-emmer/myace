@@ -168,8 +168,9 @@ class TestDeleteAccount:
     @pytest.mark.asyncio
     async def test_delete_account(self, db_session: AsyncSession, async_client: AsyncClient):
         """Should soft-delete the user account."""
-        from app.models.user import User
         from sqlmodel import select
+
+        from app.models.user import User
 
         email, password = await _create_user(db_session)
         await async_client.post("/api/v1/auth/login", json={"email": email, "password": password})
@@ -199,16 +200,13 @@ class TestDeleteAccount:
     async def test_delete_account_deactivates_collections(self, db_session: AsyncSession, async_client: AsyncClient):
         """Should deactivate all owned collections."""
         import uuid
-        from app.models.collection import Collection
-        from app.models.user import User
+
         from sqlmodel import select
+
+        from app.models.collection import Collection
 
         email, password = await _create_user(db_session)
         await async_client.post("/api/v1/auth/login", json={"email": email, "password": password})
-
-        # Get user
-        result = await db_session.execute(select(User).where(User.email == email))
-        user = result.scalar_one()
 
         # Create a collection via the API so it's in the same session context
         resp = await async_client.post("/api/v1/collections", json={
@@ -233,16 +231,13 @@ class TestDeleteAccount:
     async def test_delete_account_deactivates_tokens(self, db_session: AsyncSession, async_client: AsyncClient):
         """Should deactivate all API tokens."""
         import uuid
-        from app.models.token import ApiToken
-        from app.models.user import User
+
         from sqlmodel import select
+
+        from app.models.token import ApiToken
 
         email, password = await _create_user(db_session)
         await async_client.post("/api/v1/auth/login", json={"email": email, "password": password})
-
-        # Get user
-        result = await db_session.execute(select(User).where(User.email == email))
-        user = result.scalar_one()
 
         # Create a token via the API
         resp = await async_client.post("/api/v1/auth/tokens", json={"name": "Test Token"})

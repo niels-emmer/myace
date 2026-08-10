@@ -17,7 +17,8 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column('users', sa.Column('mfa_enabled', sa.Boolean(), nullable=False, server_default=sa.text('false')))
+    op.add_column('users', sa.Column('mfa_enabled', sa.Boolean(), nullable=False,
+                  server_default=sa.text('false')))
     op.add_column('users', sa.Column('totp_secret', sa.String(length=64), nullable=True))
 
 

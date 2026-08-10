@@ -8,7 +8,7 @@ from app.models.token import ApiToken, ApiTokenCreate, ApiTokenRead
 from app.models.user import PasswordChange, User, UserCreate, UserRead, UserUpdate
 
 __all__ = [
-    "User", "UserCreate", "UserRead",
+    "User", "UserCreate", "UserRead", "UserUpdate", "PasswordChange",
     "Collection", "CollectionCreate", "CollectionRead",
     "Artifact", "ArtifactCreate", "ArtifactRead", "CanonicalArtifact",
     "Profile", "ProfileCreate", "ProfileRead", "ProfileCompileRequest",

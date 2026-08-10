@@ -55,6 +55,10 @@ select = ["E", "F", "I", "N", "W", "UP"]
 # every query using this pattern. Keep `== True`/`== False` in SQLAlchemy .where().
 ignore = ["E711", "E712"]
 
+[tool.ruff.lint.per-file-ignores]
+# Test files: long function signatures with type annotations are acceptable
+"tests/*" = ["E501"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true

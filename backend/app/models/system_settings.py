@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel
+from sqlmodel import Column, DateTime, Field, Integer, SQLModel
 
 
 class SystemSettings(SQLModel, table=True):

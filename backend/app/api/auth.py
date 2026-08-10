@@ -226,7 +226,9 @@ async def delete_account(
 
     # Soft-deactivate all owned collections
     result = await session.execute(
-        select(Collection).where(Collection.owner_id == current_user.id, Collection.is_active == True)
+        select(Collection).where(
+            Collection.owner_id == current_user.id, Collection.is_active == True
+        )
     )
     for collection in result.scalars().all():
         collection.is_active = False
