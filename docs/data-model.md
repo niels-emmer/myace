@@ -34,6 +34,9 @@ erDiagram
         string visibility "private | public"
         bool is_active "soft-delete flag"
         int artifact_count "denormalized cache"
+        int download_count "tracked for community collections"
+        bool published "true when submitted to community store"
+        string category "nullable — browse category"
     }
     ARTIFACT {
         uuid id PK
@@ -151,6 +154,18 @@ could be normalized into join tables. They're JSON-in-text instead because:
   level today).
 - It keeps the schema small for what is, so far, a single-user-per-resource
   data model with no need for relational queries across these lists.
+
+## Community collections
+
+Published collections have `published = True` and a `category` string for
+browsing. `download_count` tracks how many times the collection has been
+imported. When a user publishes a collection, it is exported to the MyACE
+repository's `collections/` folder via the GitHub API, and a pull request
+is opened for admin review. The database row is marked as published
+immediately on a successful API response.
+
+Importing a community collection creates a new user-owned `Collection` with
+copied `Artifact` rows and increments `download_count` on the source.
 
 If a future feature needs to query inside these lists (e.g. "find all public
 collections tagged `python`"), that's the point to normalize — don't

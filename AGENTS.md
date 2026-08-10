@@ -179,3 +179,30 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `is_active = False`. Every list/get query must filter out soft-deleted
   rows (`deleted_at == None` or `is_active == True`). If you add a new
   resource type, use soft-delete — never hard-delete.
+
+### 16. Community Collections Route Ordering
+
+- **Static `/community` routes must be registered before the dynamic
+  `/{collection_id}` route** in `backend/app/api/collections.py`. FastAPI
+  matches routes by registration order, and "community" looks like a UUID
+  path parameter — if `/{collection_id}` comes first, all `/community/*`
+  GET requests fail with a 422 UUID parse error. The fix is registering
+  `/community`, `/community/top`, and `/community/categories` above
+  `get_collection`.
+
+### 17. Import Updates download_count
+
+- **`POST /{collection_id}/import` must increment `download_count` on the
+  source collection.** This is the only place `download_count` is written
+  (it's never set by publish — that only sets `published = True`). If you
+  add another import-like operation for community collections, update the
+  counter there too.
+
+### 18. Publish Uses Existing GitHub Export
+
+- **`POST /{collection_id}/publish` reuses `artifacts_to_files()` and
+  `export_collection_to_github()` from `github_export.py`.** It prefixes
+  every file path with `collections/{type}/{slug}/` and adds a `README.md`.
+  The target repo is configured via `settings.community_repo` (default
+  `nemmer/MyACE`). The user's `github_token` is passed through, used once,
+  and never persisted — same contract as the existing GitHub export endpoint.

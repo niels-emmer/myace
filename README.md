@@ -41,6 +41,8 @@ demand — from a web UI, or with a one-line CLI pull.
   a profile into the exact files Claude Code, OpenCode, or Cursor expect.
 - **Export back out** — push a collection to a new GitHub branch and open a
   PR, so your canonical source of truth can live in its own repo.
+- **Community collections** — publish your collections to the MyACE community
+  store (submit via PR), browse and import collections published by other users.
 - **A real CLI** — `myace login`, `myace pull`, `myace import --push`. Script
   it, put it in a dotfiles repo, run it on a fresh machine.
 - **Real multi-user auth** — email+password or OIDC/GitHub/Google SSO,
