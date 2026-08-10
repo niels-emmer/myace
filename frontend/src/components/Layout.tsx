@@ -8,6 +8,7 @@ import {
   Settings,
   Sparkles,
   LogOut,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -59,6 +60,21 @@ export default function Layout() {
               {item.label}
             </NavLink>
           ))}
+          {user?.is_admin && (
+            <NavLink
+              to="/admin/system"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-brand-50 text-brand-700'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`
+              }
+            >
+              <Shield className="h-4 w-4" />
+              System
+            </NavLink>
+          )}
         </nav>
 
         <div className="p-4 border-t border-border space-y-1">

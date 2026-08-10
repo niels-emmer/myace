@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app.api import adapters, auth, collections, doc_cache, profiles
+from app.api import adapters, admin, auth, collections, doc_cache, profiles
 from app.core.config import settings
 from app.core.database import init_db
 
@@ -88,6 +88,7 @@ app.add_middleware(
 )
 
 # Register routers
+app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(collections.router, prefix="/api/v1/collections", tags=["Collections"])
 app.include_router(profiles.router, prefix="/api/v1/profiles", tags=["Profiles"])

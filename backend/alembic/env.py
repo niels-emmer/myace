@@ -19,6 +19,7 @@ from app.models import (  # noqa: F401
     collection,
     doc_cache,
     profile,
+    system_settings,
     token,
     user,
 )

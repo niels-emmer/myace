@@ -23,6 +23,13 @@ class User(SQLModel, table=True):
     avatar_url: str | None = Field(default=None, sa_column=Column("avatar_url", Text))
     is_active: bool = Field(default=True, sa_column=Column("is_active", Boolean, default=True))
     is_admin: bool = Field(default=False, sa_column=Column("is_admin", Boolean, default=False))
+    mfa_enabled: bool = Field(
+        default=False, sa_column=Column("mfa_enabled", Boolean, default=False)
+    )
+    totp_secret: str | None = Field(default=None, sa_column=Column("totp_secret", String(64)))
+    deleted_at: datetime | None = Field(
+        default=None, sa_column=Column("deleted_at", DateTime(timezone=True), nullable=True)
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=Column("created_at", DateTime(timezone=True), nullable=False),
@@ -67,3 +74,15 @@ class UserLogin(SQLModel):
     """Schema for email+password login."""
     email: str
     password: str
+
+
+class UserUpdate(SQLModel):
+    """Schema for updating user profile."""
+    display_name: str | None = None
+    email: str | None = None
+
+
+class PasswordChange(SQLModel):
+    """Schema for changing password."""
+    current_password: str
+    new_password: str

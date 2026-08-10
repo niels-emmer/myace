@@ -193,4 +193,47 @@ export const authApi = {
 
   listUsers: () =>
     request<import('@/types').UserAdminInfo[]>('/auth/users'),
+
+  updateProfile: (data: import('@/types').UserUpdate) =>
+    request<import('@/types').User>('/auth/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  changePassword: (data: import('@/types').PasswordChange) =>
+    request<{ message: string }>('/auth/me/password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteAccount: () =>
+    request<{ message: string }>('/auth/me', { method: 'DELETE' }),
+
+  setupTotp: () =>
+    request<import('@/types').MfaSetupResult>('/auth/me/mfa/totp/setup', {
+      method: 'POST',
+    }),
+
+  verifyTotp: (code: string) =>
+    request<import('@/types').MfaVerifyResult>(`/auth/me/mfa/totp/verify?code=${encodeURIComponent(code)}`, {
+      method: 'POST',
+    }),
+
+  disableTotp: (code: string) =>
+    request<{ message: string }>(`/auth/me/mfa/totp/disable?code=${encodeURIComponent(code)}`, {
+      method: 'POST',
+    }),
+};
+
+// ─── Admin API ────────────────────────────────────────────────
+
+export const adminApi = {
+  getSettings: () =>
+    request<import('@/types').SystemSettings>('/admin/settings'),
+
+  updateSettings: (data: import('@/types').SystemSettingsUpdate) =>
+    request<import('@/types').SystemSettings>('/admin/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 };
