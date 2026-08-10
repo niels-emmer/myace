@@ -167,6 +167,7 @@ export interface User {
   avatar_url?: string;
   is_active: boolean;
   is_admin: boolean;
+  mfa_enabled?: boolean;
   created_at: string;
 }
 
@@ -236,4 +237,55 @@ export interface UserAdminInfo {
   is_admin: boolean;
   is_active: boolean;
   created_at: string;
+}
+
+// ─── System Settings Types ────────────────────────────────────
+
+export interface SystemSettings {
+  oidc_enabled: boolean;
+  github_enabled: boolean;
+  google_enabled: boolean;
+  allow_registration: boolean;
+  mfa_enabled: boolean;
+  mfa_forced: boolean;
+  doc_cache_ttl_days: number;
+  updated_at: string;
+}
+
+export interface SystemSettingsUpdate {
+  oidc_enabled?: boolean;
+  github_enabled?: boolean;
+  google_enabled?: boolean;
+  allow_registration?: boolean;
+  mfa_enabled?: boolean;
+  mfa_forced?: boolean;
+  doc_cache_ttl_days?: number;
+}
+
+// ─── User Settings Types ──────────────────────────────────────
+
+export interface UserUpdate {
+  display_name?: string;
+  email?: string;
+}
+
+export interface PasswordChange {
+  current_password: string;
+  new_password: string;
+}
+
+export interface MfaSetupResult {
+  secret: string;
+  provisioning_uri: string;
+}
+
+export interface MfaVerifyResult {
+  message: string;
+  mfa_enabled: boolean;
+}
+
+export interface LoginMfaResponse {
+  mfa_required: boolean;
+  mfa_token: string;
+  message: string;
 }
