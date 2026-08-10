@@ -6,6 +6,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CollectionsManager from './pages/CollectionsManager';
 import CollectionDetail from './pages/CollectionDetail';
+import CommunityCollections from './pages/CommunityCollections';
+import CommunityCollectionDetail from './pages/CommunityCollectionDetail';
 import ProfileComposer from './pages/ProfileComposer';
 import ImportPage from './pages/ImportPage';
 import TargetExporter from './pages/TargetExporter';
@@ -60,6 +62,8 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/collections" element={<CollectionsManager />} />
+          <Route path="/collections/community" element={<CommunityCollections />} />
+          <Route path="/collections/community/:id" element={<CommunityCollectionDetail />} />
           <Route path="/collections/:id" element={<CollectionDetail />} />
           <Route path="/profiles" element={<ProfileComposer />} />
           <Route path="/import" element={<ImportPage />} />
