@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     # Set this to the intended scan root for your deployment.
     scan_root: str = "/host-home"
 
+    # Starter-pack collections — read by seed_starter_collections() on boot.
+    # docker-compose.yml mounts the repo's collections/ directory at this path
+    # inside the backend container. Running the backend outside Docker (e.g.
+    # `uvicorn app.main:app` from backend/), set this to the repo-root
+    # collections/ directory instead.
+    collections_root: str = "/app/collections"
+
     # Community collections
     community_repo: str = "nemmer/MyACE"
 

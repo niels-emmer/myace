@@ -43,6 +43,18 @@ collections/
     └── .gitkeep
 ```
 
+**Update (starter packs):** this folder now serves two purposes, not just one.
+It's still the publish target described below, but as of the starter-packs
+feature it's also the **install-time seed source** —
+`backend/app/services/seed_collections.py` walks every subdirectory here on
+every backend startup and creates a `Collection`/`Artifact` row set for it
+(owned by a dedicated system account, published + public immediately) if one
+doesn't already exist. The two flows compose: any community collection
+merged into `collections/base/` or `collections/additional/` via the publish
+PR flow becomes automatically seedable on the next deploy, with no separate
+step. See the "Starter packs" section in the root [`CLAUDE.md`](../../CLAUDE.md)
+for the on-disk content format and how to add a new starter collection.
+
 ### Publish flow
 
 1. User clicks "Publish to Community" on collection detail page

@@ -17,6 +17,10 @@ services:
       - CORS_ORIGINS=http://localhost
     volumes:
       - ./backend:/app
+      # Starter-pack content read by seed_starter_collections() on boot —
+      # read-only, present in both dev and prod (this is the base compose
+      # file, included by both overrides).
+      - ./collections:/app/collections:ro
     depends_on:
       postgres:
         condition: service_healthy

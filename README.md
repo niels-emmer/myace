@@ -43,6 +43,11 @@ demand — from a web UI, or with a one-line CLI pull.
   PR, so your canonical source of truth can live in its own repo.
 - **Community collections** — publish your collections to the MyACE community
   store (submit via PR), browse and import collections published by other users.
+- **Starter packs out of the box** — every fresh install seeds itself with 2
+  base collections (Vibecoder, Software Engineer) and 5 goal-specific ones
+  (Frontend, Backend, Infrastructure as Code Expert, Security Auditor,
+  Documentation Editor), so there's real, opinionated content to build a
+  first profile from on day one. See [`collections/`](collections/).
 - **A real CLI** — `myace login`, `myace pull`, `myace import --push`. Script
   it, put it in a dotfiles repo, run it on a fresh machine.
 - **Real multi-user auth** — email+password or OIDC/GitHub/Google SSO,
@@ -401,6 +406,9 @@ for the exact rules.
 ├── CLAUDE.md                    # Claude Code-specific agent guidance
 ├── CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, LICENSE
 ├── docs/                        # Deep-dive documentation (humans + agents)
+├── collections/                 # Starter-pack content (seeded on boot) +
+│   ├── base/                    #   community-publish target — see the
+│   └── additional/              #   "Starter packs" section in CLAUDE.md
 ├── docker-compose.yml           # Single-machine production
 ├── docker-compose.dev.yml       # Dev overrides (ports, mounts, CORS)
 ├── docker-compose.prod.yml      # VPS overrides (external network, no ports)
@@ -417,7 +425,7 @@ for the exact rules.
 │   │   ├── models/               # SQLModel schemas (User, Collection, Artifact, Profile, ApiToken, DocCache)
 │   │   ├── api/                  # Routes: auth, collections, profiles, adapters, doc_cache
 │   │   ├── adapters/             # Canonical IR → target translators (Claude, OpenCode, Cursor)
-│   │   └── services/             # Compiler, doc verifier, scanner (local + git), github_export
+│   │   └── services/             # Compiler, doc verifier, scanner (local + git), github_export, seed_collections
 │   └── tests/                    # pytest suite
 │
 ├── frontend/                    # React + Vite + TailwindCSS

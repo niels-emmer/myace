@@ -10,7 +10,8 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api import adapters, admin, auth, collections, doc_cache, profiles
 from app.core.config import settings
-from app.core.database import init_db
+from app.core.database import get_session_factory, init_db
+from app.services.seed_collections import seed_starter_collections
 
 logger = logging.getLogger("myace")
 
@@ -22,6 +23,16 @@ async def lifespan(app: FastAPI):
     """Application lifespan: initialize DB on startup."""
     if settings.app_env == "development":
         await init_db()
+    try:
+        async with get_session_factory()() as session:
+            await seed_starter_collections(session)
+    except Exception:
+        # Seeding must never take the app down. In particular, on a fresh
+        # production deployment the backend container can start before an
+        # operator has run `alembic upgrade head`, so the collections/users
+        # tables may not exist yet on this very first boot — the next
+        # restart after migrations run will pick the seed back up.
+        logger.exception("Starter-pack seeding failed — continuing startup without it.")
     if settings.app_secret_key == DEFAULT_SECRET_KEY and settings.app_env != "development":
         raise RuntimeError(
             "APP_SECRET_KEY is still the default placeholder value. Session cookies can be "

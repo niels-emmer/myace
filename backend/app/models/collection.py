@@ -36,6 +36,9 @@ class Collection(SQLModel, table=True):
     download_count: int = Field(default=0, sa_column=Column("download_count", Integer, default=0))
     published: bool = Field(default=False, sa_column=Column("published", Boolean, default=False))
     category: str | None = Field(default=None, sa_column=Column("category", String(128)))
+    is_starter_pack: bool = Field(
+        default=False, sa_column=Column("is_starter_pack", Boolean, nullable=False, default=False)
+    )
     last_synced_at: datetime | None = Field(
         default=None,
         sa_column=Column("last_synced_at", DateTime(timezone=True)),
@@ -88,6 +91,7 @@ class CollectionRead(SQLModel):
     download_count: int = 0
     published: bool = False
     category: str | None = None
+    is_starter_pack: bool = False
     last_synced_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
