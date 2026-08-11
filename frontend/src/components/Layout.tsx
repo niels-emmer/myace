@@ -38,7 +38,7 @@ export default function Layout() {
             <img src="/logo.png" alt="MyACE" className="h-7 w-7" />
             <h1 className="text-xl font-bold text-card-foreground">MyACE</h1>
           </Link>
-          <p className="text-xs text-muted-foreground mt-1">Agentic Coding Environment</p>
+          <p className="text-xs text-muted-foreground mt-1">Portable AI Agent Configs</p>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">

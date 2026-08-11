@@ -53,7 +53,7 @@ export default function Login() {
         <div className="flex flex-col items-center gap-2">
           <img src="/logo.png" alt="MyACE" className="h-10 w-10" />
           <h1 className="text-xl font-bold text-foreground">MyACE</h1>
-          <p className="text-sm text-muted-foreground">Agentic Coding Environment</p>
+          <p className="text-sm text-muted-foreground">Portable AI Agent Configs</p>
         </div>
 
         <div className="bg-card rounded-xl border border-border p-6 space-y-4">
