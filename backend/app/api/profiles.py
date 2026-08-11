@@ -84,7 +84,7 @@ async def list_profiles(
     session: AsyncSession = Depends(get_session),
 ):
     """List profiles visible to the caller: their own + public, or everything for admins."""
-    query = select(Profile)
+    query = select(Profile).where(Profile.deleted_at == None)
 
     clause = owner_or_public_clause(Profile.owner_id, Profile.is_public == True, current_user)
     if clause is not None:

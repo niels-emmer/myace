@@ -9,6 +9,7 @@ import CollectionDetail from './pages/CollectionDetail';
 import CommunityCollections from './pages/CommunityCollections';
 import CommunityCollectionDetail from './pages/CommunityCollectionDetail';
 import ProfileComposer from './pages/ProfileComposer';
+import ProfileDetail from './pages/ProfileDetail';
 import ImportPage from './pages/ImportPage';
 import TargetExporter from './pages/TargetExporter';
 import UserSettings from './pages/UserSettings';
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="/collections/community/:id" element={<CommunityCollectionDetail />} />
           <Route path="/collections/:id" element={<CollectionDetail />} />
           <Route path="/profiles" element={<ProfileComposer />} />
+          <Route path="/profiles/:id" element={<ProfileDetail />} />
           <Route path="/import" element={<ImportPage />} />
           <Route path="/compile" element={<TargetExporter />} />
           <Route path="/export" element={<Navigate to="/compile" replace />} />

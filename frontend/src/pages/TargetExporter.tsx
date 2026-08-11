@@ -1,11 +1,13 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Copy, Terminal, Check } from 'lucide-react';
 import { profilesApi, adaptersApi } from '../lib/api';
 import type { CompileResult } from '../types';
 
 export default function TargetExporter() {
-  const [selectedProfile, setSelectedProfile] = useState('');
+  const [searchParams] = useSearchParams();
+  const [selectedProfile, setSelectedProfile] = useState(searchParams.get('profile') ?? '');
   const [selectedTarget, setSelectedTarget] = useState('opencode');
   const [result, setResult] = useState<CompileResult | null>(null);
   const [loading, setLoading] = useState(false);

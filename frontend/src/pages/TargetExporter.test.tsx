@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import TargetExporter from './TargetExporter';
 import { profilesApi, adaptersApi } from '../lib/api';
@@ -48,7 +49,9 @@ function renderWithQueryClient() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <TargetExporter />
+      <MemoryRouter>
+        <TargetExporter />
+      </MemoryRouter>
     </QueryClientProvider>
   );
 }
