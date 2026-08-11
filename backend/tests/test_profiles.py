@@ -134,3 +134,22 @@ async def test_compile_zip_requires_auth(
         json={"profile_id": "00000000-0000-0000-0000-000000000000", "target": "claude-code"},
     )
     assert res.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_deleted_profile_excluded_from_list(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _register(async_client)
+    collection_id = await _create_collection_with_artifact(async_client, db_session)
+    profile_id = await _create_profile(async_client, collection_id)
+
+    delete_res = await async_client.delete(f"/api/v1/profiles/{profile_id}")
+    assert delete_res.status_code == 200
+
+    list_res = await async_client.get("/api/v1/profiles")
+    assert list_res.status_code == 200
+    assert profile_id not in [p["id"] for p in list_res.json()]
+
+    get_res = await async_client.get(f"/api/v1/profiles/{profile_id}")
+    assert get_res.status_code == 404
