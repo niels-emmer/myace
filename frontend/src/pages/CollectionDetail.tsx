@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -51,6 +51,7 @@ export default function CollectionDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [typeFilter, setTypeFilter] = useState<ArtifactType | 'all'>('all');
+  const [sortBy, setSortBy] = useState<'name-asc' | 'name-desc' | 'category'>('name-asc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Inline collection editing
@@ -96,14 +97,26 @@ export default function CollectionDetail() {
   });
 
   const { data: artifacts, isLoading: loadingArtifacts } = useQuery({
-    queryKey: ['artifacts', id, typeFilter],
-    queryFn: () =>
-      collectionsApi.getArtifacts(id!, {
-        type: typeFilter === 'all' ? undefined : typeFilter,
-        include_disabled: true,
-      }),
+    queryKey: ['artifacts', id],
+    queryFn: () => collectionsApi.getArtifacts(id!, { include_disabled: true }),
     enabled: !!id,
   });
+
+  const visibleArtifacts = useMemo(() => {
+    const filtered =
+      typeFilter === 'all'
+        ? (artifacts ?? [])
+        : (artifacts ?? []).filter((a) => a.artifact_type === typeFilter);
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      if (sortBy === 'name-asc') return a.name.localeCompare(b.name);
+      if (sortBy === 'name-desc') return b.name.localeCompare(a.name);
+      return (
+        a.artifact_type.localeCompare(b.artifact_type) || a.name.localeCompare(b.name)
+      );
+    });
+    return sorted;
+  }, [artifacts, typeFilter, sortBy]);
 
   const { data: allCollections } = useQuery({
     queryKey: ['collections'],
@@ -245,7 +258,7 @@ export default function CollectionDetail() {
     });
   };
 
-  const selectAll = () => setSelectedIds(new Set((artifacts ?? []).map((a) => a.id)));
+  const selectAll = () => setSelectedIds(new Set(visibleArtifacts.map((a) => a.id)));
   const selectNone = () => setSelectedIds(new Set());
 
   const openExportModal = () => {
@@ -499,25 +512,47 @@ export default function CollectionDetail() {
           );
         })}
 
-        {selectedIds.size > 0 && (
-          <div className="flex items-center gap-3 text-sm ml-2 pl-2 border-l border-border">
-            <span className="text-muted-foreground">{selectedIds.size} selected</span>
-            <button onClick={selectAll} className="text-brand-600 hover:underline">
-              Select all ({artifacts?.length ?? 0})
-            </button>
-            <button onClick={selectNone} className="text-brand-600 hover:underline">
-              Select none
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-3 text-sm ml-auto">
+          {selectedIds.size > 0 && (
+            <>
+              <span className="text-muted-foreground">{selectedIds.size} selected</span>
+              <button onClick={selectAll} className="text-brand-600 hover:underline">
+                Select all ({visibleArtifacts.length})
+              </button>
+              <button onClick={selectNone} className="text-brand-600 hover:underline">
+                Select none
+              </button>
+              <span className="text-border">|</span>
+            </>
+          )}
+          <span className="text-muted-foreground">Sort:</span>
+          <button
+            onClick={() => setSortBy('name-asc')}
+            className={sortBy === 'name-asc' ? 'text-brand-700 font-medium underline' : 'text-brand-600 hover:underline'}
+          >
+            A→Z
+          </button>
+          <button
+            onClick={() => setSortBy('name-desc')}
+            className={sortBy === 'name-desc' ? 'text-brand-700 font-medium underline' : 'text-brand-600 hover:underline'}
+          >
+            Z→A
+          </button>
+          <button
+            onClick={() => setSortBy('category')}
+            className={sortBy === 'category' ? 'text-brand-700 font-medium underline' : 'text-brand-600 hover:underline'}
+          >
+            Category
+          </button>
+        </div>
       </div>
 
       {/* Artifact List */}
       {loadingArtifacts ? (
         <div className="text-center py-12 text-muted-foreground">Loading artifacts...</div>
-      ) : artifacts && artifacts.length > 0 ? (
+      ) : visibleArtifacts.length > 0 ? (
         <div className="bg-card rounded-xl border border-border divide-y divide-border">
-          {artifacts.map((artifact) => (
+          {visibleArtifacts.map((artifact) => (
             <ArtifactRow
               key={artifact.id}
               artifact={artifact}
