@@ -137,6 +137,28 @@ async def test_compile_zip_requires_auth(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "target", ["claude-code", "opencode", "cursor", "codex-cli", "copilot-cli", "cline", "windsurf"]
+)
+async def test_compile_accepts_every_registered_adapter(
+    async_client: AsyncClient, db_session: AsyncSession, target: str
+) -> None:
+    """Every adapter registered in app.adapters must be a valid compile target,
+    not just the original three — a stale Literal here 422s before the request
+    ever reaches a perfectly working adapter."""
+    await _register(async_client)
+    collection_id = await _create_collection_with_artifact(async_client, db_session)
+    profile_id = await _create_profile(async_client, collection_id)
+
+    res = await async_client.post(
+        "/api/v1/profiles/compile",
+        json={"profile_id": profile_id, "target": target},
+    )
+    assert res.status_code == 200
+    assert "error" not in res.json()
+
+
+@pytest.mark.asyncio
 async def test_deleted_profile_excluded_from_list(
     async_client: AsyncClient, db_session: AsyncSession
 ) -> None:

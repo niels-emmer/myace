@@ -82,5 +82,7 @@ class ProfileRead(SQLModel):
 class ProfileCompileRequest(SQLModel):
     """Request schema for compiling a profile into target-specific files."""
     profile_id: uuid.UUID
-    target: Literal["claude-code", "opencode", "cursor"] = "opencode"
+    target: Literal[
+        "claude-code", "opencode", "cursor", "codex-cli", "copilot-cli", "cline", "windsurf"
+    ] = "opencode"
     include_disabled: bool = False
