@@ -79,7 +79,7 @@ export default function Dashboard() {
           <h2 className="text-lg font-semibold text-card-foreground">Quick Start</h2>
         </div>
         <div className="space-y-3">
-          <Step number={1} text="Import a Collection from GitHub or your local machine" />
+          <Step number={1} text="Browse the starter Collections, or import your own from GitHub or your local machine" />
           <Step number={2} text="Create a Profile combining a base + additional collections" />
           <Step number={3} text="Compile the profile into your target framework's files" />
           <Step number={4} text="Sync with the CLI: myace pull --profile <name> --target <framework>" />
