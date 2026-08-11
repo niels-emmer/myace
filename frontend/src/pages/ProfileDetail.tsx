@@ -42,7 +42,7 @@ export default function ProfileDetail() {
     queryFn: () => adaptersApi.list(),
   });
 
-  const targets = Array.from(new Set((adapters ?? []).flatMap((a) => a.targets)));
+  const targets = (adapters ?? []).map((a) => a.name);
   const baseCollections = collections?.filter((c) => c.collection_type === 'base') ?? [];
   const additionalCollections = collections?.filter((c) => c.collection_type === 'additional') ?? [];
   const collectionName = (cid: string) => collections?.find((c) => c.id === cid)?.name ?? cid;
