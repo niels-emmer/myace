@@ -124,8 +124,9 @@ SaaS. After forking:
    - Set `CORS_ORIGINS` to your real domain(s), and **`TRUSTED_HOSTS`** too
      (required in production — the app refuses to start without it, to
      prevent Host-header injection attacks).
-2. Optionally configure OIDC/GitHub/Google SSO — see
-   [`.env.example`](.env.example) and
+2. Optionally configure OIDC/GitHub/Google SSO — via `.env`
+   ([`.env.example`](.env.example)) or from System Settings → Authentication
+   Providers in the admin UI. See
    [`docs/extending.md#adding-an-sso-provider`](docs/extending.md#adding-an-sso-provider).
 3. Deploy with `docker-compose.prod.yml` behind your own reverse proxy — see
    [Production deployment](#production-vps-behind-a-reverse-proxy) below.
@@ -387,7 +388,10 @@ Every API route requires an authenticated user — either a browser session
 (set by `/auth/login` or an OIDC/GitHub/Google callback) or a Bearer API
 token (what the CLI uses). Email + password is the always-available
 baseline; OIDC/GitHub/Google are optional extra sign-in methods, registered
-only if their client ID/secret env vars are set.
+only if their client ID/secret env vars are set. A "Forgot password?" link
+on the login page sends a one-hour, single-use reset link by email, once
+SMTP is configured — see
+[`docs/extending.md#configuring-smtp-for-password-reset`](docs/extending.md#configuring-smtp-for-password-reset).
 
 Two roles: **user** (default — full access to their own collections/
 profiles/tokens, read-only access to anything another user marked
@@ -395,8 +399,11 @@ profiles/tokens, read-only access to anything another user marked
 entirely — can read/write everyone's data, for oversight). The first person
 to ever register becomes admin automatically; `ADMIN_EMAILS`
 (comma-separated) promotes specific emails on register/login going forward.
-See [`docs/invariants.md#authorization`](docs/invariants.md#authorization)
-for the exact rules.
+Admins can also disable, re-enable, or remove another user's account from
+System Settings → Users (soft-delete, same as the self-service account
+deletion in Settings — never a hard delete). See
+[`docs/invariants.md#authorization`](docs/invariants.md#authorization) for
+the exact rules.
 
 ## Compose Files
 

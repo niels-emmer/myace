@@ -33,6 +33,7 @@ const mockAdapter: AdapterInfo = {
   name: 'opencode',
   description: 'OpenCode adapter',
   targets: ['opencode'],
+  enabled: true,
 };
 
 const mockCompileResult: CompileResult = {

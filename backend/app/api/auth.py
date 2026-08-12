@@ -2,9 +2,10 @@
 
 import base64
 import hashlib
+import logging
 import secrets
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
@@ -20,23 +21,31 @@ from app.core.security import (
     default_token_expiry,
     generate_api_key,
     generate_oidc_state,
+    get_oauth_client,
     hash_api_key,
     hash_password,
-    oauth,
     verify_password,
 )
 from app.models.system_settings import SystemSettings
 from app.models.token import ApiToken, ApiTokenCreate, ApiTokenCreateResponse, ApiTokenRead
 from app.models.user import (
+    ForgotPasswordRequest,
     PasswordChange,
+    ResetPasswordRequest,
     User,
     UserLogin,
     UserRead,
     UserRegister,
     UserUpdate,
 )
+from app.services.effective_settings import get_effective_oauth_config, get_effective_smtp_config
+from app.services.email import EmailSendError, build_password_reset_email, send_email
+
+logger = logging.getLogger("myace")
 
 router = APIRouter()
+
+RESET_TOKEN_TTL = timedelta(hours=1)
 
 
 async def _is_bootstrap_admin(session: AsyncSession, email: str) -> bool:
@@ -206,6 +215,107 @@ async def change_password(
     return {"message": "Password updated"}
 
 
+@router.post("/forgot-password")
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Request a password-reset email.
+
+    Always returns a generic 200 regardless of whether the email exists or
+    the account has no password (OIDC-only) — same enumeration-prevention
+    convention as /auth/register. The reset link is only emailed, and the
+    token is only stored hashed, mirroring the API-token pattern.
+    """
+    generic_response = {
+        "message": "If that email is registered, a password reset link has been sent."
+    }
+
+    result = await session.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    if not user or not user.is_active:
+        return generic_response
+
+    token = secrets.token_urlsafe(32)
+    user.reset_token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    user.reset_token_expires_at = datetime.now(UTC) + RESET_TOKEN_TTL
+    session.add(user)
+    await session.commit()
+
+    reset_link = f"{settings.frontend_base_url.rstrip('/')}/reset-password?token={token}"
+    subject, body = build_password_reset_email(reset_link)
+    try:
+        config = await get_effective_smtp_config(session)
+        if config.enabled:
+            await send_email(config=config, to=user.email, subject=subject, text_body=body)
+        else:
+            logger.warning("Password reset requested but SMTP is disabled in System Settings.")
+    except EmailSendError:
+        logger.exception("Failed to send password-reset email to a user.")
+
+    return generic_response
+
+
+@router.post("/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Complete a password reset using a token from /auth/forgot-password."""
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=422, detail="New password must be at least 8 characters")
+
+    token_hash = hashlib.sha256(data.token.encode("utf-8")).hexdigest()
+    result = await session.execute(select(User).where(User.reset_token_hash == token_hash))
+    user = result.scalar_one_or_none()
+
+    now = datetime.now(UTC)
+    if (
+        not user
+        or not user.is_active
+        or not user.reset_token_expires_at
+        or user.reset_token_expires_at.replace(tzinfo=UTC) < now
+    ):
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    user.password_hash = hash_password(data.new_password)
+    user.reset_token_hash = None
+    user.reset_token_expires_at = None
+    user.updated_at = now
+    session.add(user)
+    await session.commit()
+    return {"message": "Password has been reset. You can now log in."}
+
+
+async def _deactivate_owned_resources(session: AsyncSession, user: User, now: datetime) -> None:
+    """Soft-deactivate everything a user owns — shared by the self-service
+    DELETE /me and the admin-triggered DELETE /users/{id}."""
+    from app.models.collection import Collection
+    from app.models.profile import Profile
+    from app.models.token import ApiToken
+
+    result = await session.execute(
+        select(Collection).where(Collection.owner_id == user.id, Collection.is_active == True)
+    )
+    for collection in result.scalars().all():
+        collection.is_active = False
+        session.add(collection)
+
+    result = await session.execute(
+        select(Profile).where(Profile.owner_id == user.id, Profile.deleted_at == None)
+    )
+    for profile in result.scalars().all():
+        profile.deleted_at = now
+        session.add(profile)
+
+    result = await session.execute(
+        select(ApiToken).where(ApiToken.user_id == user.id, ApiToken.is_active == True)
+    )
+    for token in result.scalars().all():
+        token.is_active = False
+        session.add(token)
+
+
 @router.delete("/me")
 async def delete_account(
     request: Request,
@@ -213,43 +323,13 @@ async def delete_account(
     session: AsyncSession = Depends(get_session),
 ):
     """Soft-delete the current user's account and all owned resources."""
-    from app.models.collection import Collection
-    from app.models.profile import Profile
-    from app.models.token import ApiToken
-
     now = datetime.now(UTC)
 
-    # Soft-delete user
     current_user.is_active = False
     current_user.deleted_at = now
     session.add(current_user)
 
-    # Soft-deactivate all owned collections
-    result = await session.execute(
-        select(Collection).where(
-            Collection.owner_id == current_user.id, Collection.is_active == True
-        )
-    )
-    for collection in result.scalars().all():
-        collection.is_active = False
-        session.add(collection)
-
-    # Soft-delete all owned profiles
-    result = await session.execute(
-        select(Profile).where(Profile.owner_id == current_user.id, Profile.deleted_at == None)
-    )
-    for profile in result.scalars().all():
-        profile.deleted_at = now
-        session.add(profile)
-
-    # Deactivate all API tokens
-    result = await session.execute(
-        select(ApiToken).where(ApiToken.user_id == current_user.id, ApiToken.is_active == True)
-    )
-    for token in result.scalars().all():
-        token.is_active = False
-        session.add(token)
-
+    await _deactivate_owned_resources(session, current_user, now)
     await session.commit()
 
     # Clear session
@@ -280,6 +360,72 @@ async def list_users(
     ]
 
 
+@router.patch("/users/{user_id}")
+async def set_user_active(
+    user_id: uuid.UUID,
+    is_active: bool,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """Enable or disable another user's account. Admin only.
+
+    Acting on your own account is rejected — use the self-service Settings
+    page (DELETE /me) for that. That restriction is also what makes this
+    endpoint safe from an accidental admin lockout: the caller is always a
+    distinct, active admin (enforced by `require_admin` +
+    `get_current_user`'s active-only filter), so at least one admin always
+    remains regardless of what happens to the target account.
+    """
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=400, detail="Use your own account settings to change your own status"
+        )
+
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_active = is_active
+    user.updated_at = datetime.now(UTC)
+    session.add(user)
+    await session.commit()
+    return {"id": str(user.id), "is_active": user.is_active}
+
+
+@router.delete("/users/{user_id}")
+async def remove_user(
+    user_id: uuid.UUID,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """Soft-delete another user's account and all owned resources. Admin only.
+
+    Mirrors DELETE /me's cascade exactly (minus the session-clear, which
+    only applies to the caller's own session). Acting on your own account
+    is rejected — use DELETE /me for that; see set_user_active() above for
+    why that alone is sufficient to prevent an admin lockout.
+    """
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=400, detail="Use your own account settings to delete your own account"
+        )
+
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    now = datetime.now(UTC)
+    user.is_active = False
+    user.deleted_at = now
+    session.add(user)
+
+    await _deactivate_owned_resources(session, user, now)
+    await session.commit()
+    return {"message": "User removed"}
+
+
 async def _is_provider_enabled(provider: str, session: AsyncSession) -> bool:
     """Check if an auth provider is enabled in system settings."""
     result = await session.execute(select(SystemSettings).where(SystemSettings.id == 1))
@@ -302,11 +448,10 @@ async def get_providers(
     result = await session.execute(select(SystemSettings).where(SystemSettings.id == 1))
     settings = result.scalar_one_or_none()
 
-    configured = {
-        "oidc": oauth.create_client("oidc") is not None,
-        "github": oauth.create_client("github") is not None,
-        "google": oauth.create_client("google") is not None,
-    }
+    configured = {}
+    for provider in ("oidc", "github", "google"):
+        config = await get_effective_oauth_config(provider, session)
+        configured[provider] = get_oauth_client(provider, config) is not None
 
     if settings:
         return {
@@ -332,7 +477,8 @@ async def login(
     if not await _is_provider_enabled(provider, session):
         raise HTTPException(status_code=403, detail=f"Provider is disabled: {provider}")
 
-    client = oauth.create_client(provider)
+    config = await get_effective_oauth_config(provider, session)
+    client = get_oauth_client(provider, config)
     if not client:
         raise HTTPException(status_code=400, detail=f"Provider not configured: {provider}")
 
@@ -362,7 +508,8 @@ async def auth_callback(
     if not await _is_provider_enabled(provider, session):
         raise HTTPException(status_code=403, detail=f"Provider is disabled: {provider}")
 
-    client = oauth.create_client(provider)
+    config = await get_effective_oauth_config(provider, session)
+    client = get_oauth_client(provider, config)
     if not client:
         raise HTTPException(status_code=400, detail=f"Provider not configured: {provider}")
 

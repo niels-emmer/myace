@@ -30,3 +30,4 @@ ADR-00XX`.
 | [0003](0003-ownership-based-authorization.md) | Ownership + visibility authorization, not RBAC/teams | Accepted |
 | [0004](0004-github-export-via-rest-api.md) | GitHub export via REST API, not a local git clone/push | Accepted |
 | [0005](0005-email-password-baseline-auth.md) | Email+password as the baseline auth method, SSO optional | Accepted |
+| [0006](0006-encrypted-admin-editable-secrets.md) | Encrypted admin-editable secrets in the database | Accepted |
