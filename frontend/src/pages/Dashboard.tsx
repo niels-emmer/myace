@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import {
   FolderGit2,
   SlidersHorizontal,
@@ -78,11 +79,27 @@ export default function Dashboard() {
           <Sparkles className="h-5 w-5 text-brand-600" />
           <h2 className="text-lg font-semibold text-card-foreground">Quick Start</h2>
         </div>
-        <div className="space-y-3">
-          <Step number={1} text="Browse the starter Collections, or import your own from GitHub or your local machine" />
-          <Step number={2} text="Create a Profile combining a base + additional collections" />
-          <Step number={3} text="Compile the profile into your target framework's files" />
-          <Step number={4} text="Sync with the CLI: myace pull --profile <name> --target <framework>" />
+        <div className="space-y-1">
+          <Step
+            number={1}
+            href="/import"
+            text="Browse the starter Collections, or import your own from GitHub or your local machine"
+          />
+          <Step
+            number={2}
+            href="/profiles"
+            text="Create a Profile combining a base + additional collections"
+          />
+          <Step
+            number={3}
+            href="/compile"
+            text="Compile the profile into your target framework's files"
+          />
+          <Step
+            number={4}
+            href="/compile"
+            text="Download as an archive, or sync with the CLI: myace pull --profile <name> --target <framework>"
+          />
         </div>
       </div>
 
@@ -117,14 +134,17 @@ export default function Dashboard() {
   );
 }
 
-function Step({ number, text }: { number: number; text: string }) {
+function Step({ number, text, href }: { number: number; text: string; href: string }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="flex items-center justify-center h-7 w-7 rounded-full bg-brand-100 text-brand-700 text-sm font-bold">
+    <Link
+      to={href}
+      className="flex items-center gap-3 rounded-lg px-2 py-1.5 -mx-2 transition-colors hover:bg-accent group"
+    >
+      <span className="flex items-center justify-center h-7 w-7 rounded-full bg-brand-100 text-brand-700 text-sm font-bold flex-shrink-0">
         {number}
       </span>
-      <p className="text-sm text-muted-foreground">{text}</p>
-      {number < 4 && <ArrowRight className="h-4 w-4 text-muted-foreground ml-auto" />}
-    </div>
+      <p className="text-sm text-muted-foreground group-hover:text-foreground">{text}</p>
+      <ArrowRight className="h-4 w-4 text-muted-foreground ml-auto flex-shrink-0 group-hover:text-foreground" />
+    </Link>
   );
 }
