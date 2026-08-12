@@ -1,6 +1,6 @@
 [project]
 name = "myace-cli"
-version = "0.1.0"
+version = "1.0.0"
 description = "MyACE CLI — Sync agentic coding environment profiles to your local machine"
 requires-python = ">=3.12"
 license = { text = "MIT" }
