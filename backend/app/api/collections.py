@@ -147,8 +147,13 @@ async def list_community_collections(
     count_result = await session.execute(count_query)
     total = count_result.scalar() or 0
 
-    # Fetch page
-    query = base_query.order_by(Collection.name.asc()).offset(offset).limit(limit)
+    # Fetch page — base collections first, then additional, both alphabetically
+    query = (
+        base_query
+        .order_by(Collection.collection_type.asc(), Collection.name.asc())
+        .offset(offset)
+        .limit(limit)
+    )
     result = await session.execute(query)
 
     return CommunityCollectionsResponse(
