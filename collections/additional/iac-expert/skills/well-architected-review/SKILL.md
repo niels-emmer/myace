@@ -3,7 +3,7 @@ name: Well-Architected Pillar Review
 description: A discipline for mapping any nontrivial infrastructure change to the standard architecture pillars — security, reliability, cost, operational excellence, performance — regardless of cloud provider.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [iac, architecture, well-architected, governance]
 ---
 ## Purpose

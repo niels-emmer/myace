@@ -2,7 +2,7 @@
 description: Read-only agent that reviews a diff for security issues — injection, secrets, auth/authz gaps, OWASP-Top-10-style concerns — after the feature is built and before it merges.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: subagent
 ---
 Read-only security reviewer. Block merge on real findings; don't rubber-stamp.

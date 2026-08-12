@@ -3,7 +3,7 @@ name: Data Classification Guide
 description: Public / internal / sensitive data tiers and what's allowed to touch an AI prompt, a log line, or a committed file at each tier.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [security, data-classification, privacy]
 ---
 ## Purpose

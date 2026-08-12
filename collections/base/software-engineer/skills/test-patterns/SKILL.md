@@ -3,7 +3,7 @@ name: Test Patterns
 description: What "well-tested" actually means — covering edge cases and failure modes deliberately, not just confirming the happy path runs once.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [testing, quality, edge-cases]
 ---
 ## Purpose

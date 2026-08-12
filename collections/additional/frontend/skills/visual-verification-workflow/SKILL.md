@@ -3,7 +3,7 @@ name: Visual Verification Workflow
 description: The procedure for actually confirming a UI change in a real or preview browser — golden path, an edge case, console errors, and responsive/dark-mode checks — before calling it done.
 version: "1.0.0"
 priority: 60
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [frontend, verification, testing, browser]
 ---
 ## Purpose

@@ -3,7 +3,7 @@ name: Experiment Tracking
 description: How to properly set up experiment logging — what to log, how to name runs, how to compare and recover results.
 version: "1.0.0"
 priority: 60
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [ml, experiments, tracking]
 ---
 ## Purpose

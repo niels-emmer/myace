@@ -2,7 +2,7 @@
 description: Reviews existing documentation against the code/config it describes, flags drift and unclear passages, and proposes specific fixes without silently rewriting meaning.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: subagent
 ---
 Documentation reviewer. Compare docs against actual code/config; flag drift and unclear passages.

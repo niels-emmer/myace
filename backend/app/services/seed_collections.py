@@ -112,6 +112,38 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "correctness, and error propagation across the stack."
             ),
         },
+        "devops": {
+            "name": "DevOps / Platform Engineer",
+            "category": "Infrastructure",
+            "description": (
+                "CI/CD pipeline design, container builds, observability stack, "
+                "incident response discipline, and release gate automation."
+            ),
+        },
+        "java-spring": {
+            "name": "Java / Spring Developer",
+            "category": "Backend",
+            "description": (
+                "Layered architecture, dependency injection discipline, "
+                "Spring Boot conventions, and build reproducibility."
+            ),
+        },
+        "ios-developer": {
+            "name": "iOS Developer",
+            "category": "Frontend",
+            "description": (
+                "SwiftUI-first development, state management patterns, "
+                "App Store readiness, and offline-first architecture."
+            ),
+        },
+        "android-developer": {
+            "name": "Android Developer",
+            "category": "Frontend",
+            "description": (
+                "Jetpack Compose-first development, state hoisting, "
+                "Play Store readiness, and lifecycle-aware architecture."
+            ),
+        },
     },
 }
 

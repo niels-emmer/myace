@@ -3,7 +3,7 @@ name: Memory System
 description: Maintain a tiered, file-based memory system so project context and decisions survive across sessions instead of being rediscovered or contradicted each time.
 version: "1.0.0"
 priority: 60
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [memory, process, documentation]
 ---
 ## Purpose

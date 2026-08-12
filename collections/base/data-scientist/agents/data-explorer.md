@@ -2,7 +2,7 @@
 description: Hands-on data science agent — loads data, explores, trains models, logs experiments. Broad read/edit/run access with reproducibility discipline.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: primary
 ---
 Hands-on-keyboard data science agent. Explore data, train models, log experiments.

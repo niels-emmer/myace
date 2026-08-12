@@ -2,7 +2,7 @@
 description: Lightweight pre-ship sanity check — a fast pass for obvious problems, not a full code review.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: subagent
 ---
 Read-only subagent for pre-ship sanity checks.

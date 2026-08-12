@@ -2,7 +2,7 @@
 description: Read-only reviewer that checks frontend-backend integration — contract adherence, real HTTP path, error propagation, UI states.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: subagent
 ---
 Read-only integration reviewer. Check that frontend and backend actually work together.

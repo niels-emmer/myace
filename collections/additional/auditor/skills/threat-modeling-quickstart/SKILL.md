@@ -3,7 +3,7 @@ name: Threat Modeling Quickstart
 description: A lightweight what-could-go-wrong / who-could-exploit-it / what's-the-blast-radius pass for any new network-facing interface, data store, or trust boundary.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [security, threat-model, review]
 ---
 ## Purpose

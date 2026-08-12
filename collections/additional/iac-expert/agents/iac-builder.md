@@ -2,8 +2,8 @@
 description: Writes and validates infrastructure-as-code changes — scaffolds resources, runs plan/lint/policy checks — but never applies them to real infrastructure without explicit human approval.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
-mode: primary
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+mode: subagent
 ---
 Write and validate IaC changes. Your job ends at a validated, reviewable plan — not a deployed change.
 

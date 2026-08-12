@@ -3,7 +3,7 @@ name: Backend Test Patterns
 description: Guidance for covering the failure and edge paths of a backend change — bad input, concurrent writes, partial failure — not just the happy path.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [testing, backend]
 ---
 ## Purpose

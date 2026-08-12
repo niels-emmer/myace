@@ -2,7 +2,7 @@
 description: Takes validated prototypes and refactors them into production-ready data pipelines, modules, and serving code with engineering rigor.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: subagent
 ---
 Refactor validated prototypes into production-ready pipelines and modules.

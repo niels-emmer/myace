@@ -106,7 +106,9 @@ class OpenCodeAdapter(BaseAdapter):
         tags_str = ", ".join(artifact.tags) if artifact.tags else ""
         header = f"## {artifact.name}\n"
         header += f"> Priority: {artifact.priority} | Tags: {tags_str}\n\n"
-        return header + artifact.body.strip() + "\n"
+        # Only the first paragraph — the core instruction without explanatory padding.
+        body = artifact.body.strip().split("\n\n")[0]
+        return header + body + "\n"
 
     def _merge_model_config(
         self,
