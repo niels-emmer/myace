@@ -93,7 +93,12 @@ never set one), OIDC/GitHub/Google (`oidc_sub` + `oidc_provider`, unique
 together), or both. `is_admin` bypasses ownership checks everywhere; see
 [invariants.md](invariants.md#authorization). `mfa_enabled` + `totp_secret`
 back TOTP-based MFA (`pyotp`) — `totp_secret` is only set once enrollment
-completes via `POST /auth/me/mfa/totp/setup` + `.../verify`.
+completes via `POST /auth/me/mfa/totp/setup` + `.../verify`. `reset_token_hash`
++ `reset_token_expires_at` back password-reset-by-email (`POST
+/auth/forgot-password` / `/auth/reset-password`) — only the SHA-256 hash of
+the emailed token is stored, mirroring the API-token-hash pattern; the token
+is single-use (both fields are cleared on a successful reset) and expires
+after 1 hour.
 
 ### `collections`
 
@@ -174,6 +179,42 @@ DB constraint) holding global, admin-only config: which auth providers
 via `GET /admin/settings`, written via `PATCH /admin/settings`
 (`SystemSettings.tsx`) — both admin-gated. Not owner-scoped; there is
 exactly one row.
+
+Also holds the SMTP config used for password-reset emails: `smtp_enabled`,
+`smtp_host`, `smtp_port`, `smtp_username`, `smtp_from_email`,
+`smtp_from_name`, `smtp_use_tls`, and `smtp_password_encrypted` (the
+admin-entered password, Fernet-encrypted — see
+[ADR-0006](adr/0006-encrypted-admin-editable-secrets.md)). Any of these left
+unset falls back to the matching `SMTP_*` env var at runtime
+(`app/services/effective_settings.py`); a non-empty DB value always wins.
+`SystemSettingsRead` never returns `smtp_password_encrypted` itself — only a
+computed `smtp_password_set: bool` — and `SystemSettingsUpdate` accepts a
+plaintext, write-only `smtp_password` field that the `PATCH /admin/settings`
+handler encrypts before persisting.
+
+Also holds per-provider OAuth credentials — `oidc_client_id`,
+`oidc_client_secret_encrypted`, `oidc_issuer_url`, `oidc_scopes`,
+`github_client_id`, `github_client_secret_encrypted`, `google_client_id`,
+`google_client_secret_encrypted` — entered via System Settings' expandable
+Authentication Providers rows instead of only `.env`. Same precedence and
+encryption contract as SMTP above (`get_effective_oauth_config()` in
+`effective_settings.py`; `{provider}_client_secret_set` computed booleans,
+never the encrypted value, on `SystemSettingsRead`). `security.py`'s
+`get_oauth_client()` rebuilds a provider's Authlib client whenever its
+effective config changes (tracked by a fingerprint), so a credential saved
+here takes effect on the next login/callback request without a restart.
+
+Also holds `disabled_adapters` — a JSON-encoded `list[str]` of adapter
+names (`BaseAdapter.adapter_name()`) an admin has disabled system-wide,
+same manual-JSON-in-`Text`-column convention as
+`Profile.disabled_artifact_ids`. Toggled via `PATCH
+/admin/adapters/{name}?enabled=<bool>`. Enforced in two places: the
+frontend's compile target picker (`TargetExporter.tsx`) filters disabled
+adapters out of the dropdown, and `compile_profile()`
+(`app/services/compiler.py`) — the single choke point both
+`/profiles/compile` and `/profiles/compile/zip` funnel through — raises
+`AdapterDisabledError` (→ HTTP 400) if the requested `target` is disabled,
+so the restriction can't be bypassed by calling the API directly.
 
 ## Why JSON-as-text instead of proper junction tables
 

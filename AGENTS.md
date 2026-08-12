@@ -153,6 +153,8 @@ When two components fetch the same resource with different filters (e.g. an unfi
 - **`Artifact` has no `owner_id` of its own.** Authorize against its parent `Collection` — load the collection first, call `authorize_access` on that, then proceed.
 - **Bulk/cross-resource operations need a check per resource touched.** `bulk_export_artifacts`'s target collection needs its own write-check independent of the source collection's read-check — don't assume checking one resource covers every resource an endpoint touches.
 - **No more placeholder users.** `backend/app/services/placeholder_user.py` is gone. If you're tempted to special-case a nil/empty `owner_id`, that's a sign the route is missing `Depends(get_current_user)`.
+- **Admin-on-another-user actions never touch the caller's own row.** `PATCH /auth/users/{id}?is_active=<bool>` and `DELETE /auth/users/{id}` (`backend/app/api/auth.py`) both 400 if `user_id == current_user.id` — self-service account changes go through `/auth/me`/`DELETE /auth/me` instead. This isn't just a UX nicety: it's what guarantees these two routes can never lock out every admin, since the caller (`require_admin` + `get_current_user`'s active-only filter) is always a distinct, active admin — don't add a separate "last admin" counting check on top, it would be dead code.
+- **`DELETE /auth/users/{id}` mirrors `DELETE /auth/me`'s cascade exactly** (soft-deactivate owned collections, soft-delete owned profiles, deactivate API tokens — see `_deactivate_owned_resources()`). If you change one, change the other, or extract further shared logic rather than letting them drift.
 
 ### 14. Documentation Maintenance
 
@@ -206,3 +208,63 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   The target repo is configured via `settings.community_repo` (default
   `nemmer/MyACE`). The user's `github_token` is passed through, used once,
   and never persisted — same contract as the existing GitHub export endpoint.
+
+### 19. Admin-Editable Secrets Must Go Through `app/core/crypto.py`
+
+- **Any secret an admin can enter via System Settings (SMTP password, OAuth
+  client secrets) must be encrypted before it touches the database** — use
+  `encrypt_secret()`/`decrypt_secret()` from `backend/app/core/crypto.py`
+  (Fernet, keyed by `settings.settings_encryption_key`). See
+  [ADR-0006](docs/adr/0006-encrypted-admin-editable-secrets.md).
+- Follow the established shape: the "Update" Pydantic schema takes a
+  plaintext, write-only field (e.g. `smtp_password`); the route handler
+  encrypts it into the `_encrypted` DB column; the "Read" schema exposes
+  only a computed `{field}_set: bool`, never the encrypted value itself.
+  `system_settings.py`'s `SystemSettingsRead.from_settings()` is the
+  reference implementation.
+- `get_effective_*_config()` helpers in
+  `backend/app/services/effective_settings.py` are where "DB value
+  overrides env var if non-empty, else env var" is resolved — new
+  admin-editable config should extend that module rather than re-deriving
+  the precedence rule inline at each call site.
+
+### 20. OAuth Clients Are Rebuilt Per-Request From Effective Config, Not Registered Once at Import
+
+- **`security.py` no longer holds a module-level `oauth` singleton.**
+  `get_oauth_client(provider, config)` builds (or returns a cached) Authlib
+  remote app from the provider's *effective* config (DB override merged
+  over env — see rule 19), keyed by a fingerprint of that config. This is
+  what lets a credential saved via System Settings take effect on the next
+  login/callback request without restarting the backend.
+- Authlib's `OAuth.create_client()` permanently caches the first client it
+  builds for a given name — calling `oauth.register()` again with new
+  credentials does **not** rebuild an already-cached client. `get_oauth_client()`
+  works around this by constructing a fresh `OAuth()` registry (cheap) only
+  when the fingerprint changes, rather than mutating Authlib's internal
+  `_clients` cache directly.
+- Every call site (`login()`, `auth_callback()`, `get_providers()` in
+  `backend/app/api/auth.py`) must call `get_effective_oauth_config(provider,
+  session)` first and pass the result to `get_oauth_client()` — never call
+  `get_oauth_client()` with hand-built config, and never reintroduce a
+  module-level `oauth.create_client(provider)` call.
+
+### 21. Adapter Enable/Disable — Enforce at the compile_profile() Choke Point
+
+- **Adapters themselves stay static, stateless Python classes** (rule 3) —
+  `system_settings.disabled_adapters` (a JSON-encoded `list[str]`, admin-only,
+  toggled via `PATCH /admin/adapters/{name}?enabled=<bool>`) is an
+  *enforcement* layer on top of the registry, not a change to how adapters
+  are registered.
+- **The enforcement check lives in `compile_profile()`**
+  (`app/services/compiler.py`), immediately before `get_adapter(target)` is
+  called, raising `AdapterDisabledError` if `target` is in the disabled
+  list. Both `/profiles/compile` and `/profiles/compile/zip` funnel through
+  this one function — if you add a third way to compile a profile, route it
+  through `compile_profile()` too rather than calling `get_adapter()`
+  directly, or it will silently bypass the disabled check.
+- The frontend additionally filters disabled adapters out of
+  `TargetExporter.tsx`'s target picker — that's a UX nicety, not the
+  enforcement boundary. Don't rely on it alone; the backend check is what
+  actually matters for a direct API call or a CLI `myace pull`.
+- If you add a new adapter, no `disabled_adapters` change is needed — it
+  defaults to enabled (absent from the list) automatically.

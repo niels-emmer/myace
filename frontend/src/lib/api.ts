@@ -223,6 +223,15 @@ export const authApi = {
   listUsers: () =>
     request<import('@/types').UserAdminInfo[]>('/auth/users'),
 
+  setUserActive: (userId: string, isActive: boolean) =>
+    request<{ id: string; is_active: boolean }>(
+      `/auth/users/${userId}?is_active=${isActive}`,
+      { method: 'PATCH' },
+    ),
+
+  removeUser: (userId: string) =>
+    request<{ message: string }>(`/auth/users/${userId}`, { method: 'DELETE' }),
+
   updateProfile: (data: import('@/types').UserUpdate) =>
     request<import('@/types').User>('/auth/me', {
       method: 'PATCH',
@@ -237,6 +246,18 @@ export const authApi = {
 
   deleteAccount: () =>
     request<{ message: string }>('/auth/me', { method: 'DELETE' }),
+
+  forgotPassword: (data: import('@/types').ForgotPasswordRequest) =>
+    request<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  resetPassword: (data: import('@/types').ResetPasswordRequest) =>
+    request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
   setupTotp: () =>
     request<import('@/types').MfaSetupResult>('/auth/me/mfa/totp/setup', {
@@ -264,5 +285,23 @@ export const adminApi = {
     request<import('@/types').SystemSettings>('/admin/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),
+    }),
+
+  toggleAdapter: (name: string, enabled: boolean) =>
+    request<{ name: string; enabled: boolean }>(
+      `/admin/adapters/${encodeURIComponent(name)}?enabled=${enabled}`,
+      { method: 'PATCH' },
+    ),
+
+  testSmtp: (overrides?: import('@/types').SmtpTestOverrides) =>
+    request<{ message: string }>('/admin/settings/smtp/test', {
+      method: 'POST',
+      body: JSON.stringify(overrides ?? {}),
+    }),
+
+  testOAuthProvider: (provider: string, overrides?: import('@/types').OAuthTestOverrides) =>
+    request<{ message: string }>(`/admin/settings/oauth/${provider}/test`, {
+      method: 'POST',
+      body: JSON.stringify(overrides ?? {}),
     }),
 };

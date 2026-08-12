@@ -27,6 +27,12 @@ class User(SQLModel, table=True):
         default=False, sa_column=Column("mfa_enabled", Boolean, default=False)
     )
     totp_secret: str | None = Field(default=None, sa_column=Column("totp_secret", String(64)))
+    reset_token_hash: str | None = Field(
+        default=None, sa_column=Column("reset_token_hash", String(64))
+    )
+    reset_token_expires_at: datetime | None = Field(
+        default=None, sa_column=Column("reset_token_expires_at", DateTime(timezone=True))
+    )
     deleted_at: datetime | None = Field(
         default=None, sa_column=Column("deleted_at", DateTime(timezone=True), nullable=True)
     )
@@ -85,4 +91,15 @@ class UserUpdate(SQLModel):
 class PasswordChange(SQLModel):
     """Schema for changing password."""
     current_password: str
+    new_password: str
+
+
+class ForgotPasswordRequest(SQLModel):
+    """Schema for requesting a password-reset email."""
+    email: str
+
+
+class ResetPasswordRequest(SQLModel):
+    """Schema for completing a password reset with a token."""
+    token: str
     new_password: str

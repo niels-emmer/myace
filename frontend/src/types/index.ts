@@ -214,6 +214,7 @@ export interface AdapterInfo {
   name: string;
   description: string;
   targets: string[];
+  enabled: boolean;
 }
 
 // ─── Doc Cache Types ──────────────────────────────────────────
@@ -275,6 +276,23 @@ export interface SystemSettings {
   mfa_enabled: boolean;
   mfa_forced: boolean;
   doc_cache_ttl_days: number;
+  disabled_adapters: string[];
+  smtp_enabled: boolean;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_username: string | null;
+  smtp_password_set: boolean;
+  smtp_from_email: string | null;
+  smtp_from_name: string | null;
+  smtp_use_tls: boolean | null;
+  oidc_client_id: string | null;
+  oidc_client_secret_set: boolean;
+  oidc_issuer_url: string | null;
+  oidc_scopes: string | null;
+  github_client_id: string | null;
+  github_client_secret_set: boolean;
+  google_client_id: string | null;
+  google_client_secret_set: boolean;
   updated_at: string;
 }
 
@@ -286,6 +304,39 @@ export interface SystemSettingsUpdate {
   mfa_enabled?: boolean;
   mfa_forced?: boolean;
   doc_cache_ttl_days?: number;
+  smtp_enabled?: boolean;
+  smtp_host?: string;
+  smtp_port?: number;
+  smtp_username?: string;
+  smtp_password?: string;
+  smtp_from_email?: string;
+  smtp_from_name?: string;
+  smtp_use_tls?: boolean;
+  oidc_client_id?: string;
+  oidc_client_secret?: string;
+  oidc_issuer_url?: string;
+  oidc_scopes?: string;
+  github_client_id?: string;
+  github_client_secret?: string;
+  google_client_id?: string;
+  google_client_secret?: string;
+}
+
+export interface SmtpTestOverrides {
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  from_email?: string;
+  from_name?: string;
+  use_tls?: boolean;
+}
+
+export interface OAuthTestOverrides {
+  client_id?: string;
+  client_secret?: string;
+  issuer_url?: string;
+  scopes?: string;
 }
 
 // ─── User Settings Types ──────────────────────────────────────
@@ -297,6 +348,15 @@ export interface UserUpdate {
 
 export interface PasswordChange {
   current_password: string;
+  new_password: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
   new_password: string;
 }
 

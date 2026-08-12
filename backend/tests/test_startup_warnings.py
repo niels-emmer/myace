@@ -67,11 +67,27 @@ async def test_warns_on_admin_bootstrap_enabled_outside_dev(monkeypatch, caplog)
 
 
 @pytest.mark.asyncio
+async def test_warns_on_missing_settings_encryption_key(monkeypatch, caplog):
+    monkeypatch.setattr("app.main.settings.app_env", "production")
+    monkeypatch.setattr("app.main.settings.app_secret_key", "a-real-random-secret")
+    monkeypatch.setattr("app.main.settings.debug", False)
+    monkeypatch.setattr("app.main.settings.admin_bootstrap_enabled", False)
+    monkeypatch.setattr("app.main.settings.settings_encryption_key", "")
+
+    with caplog.at_level(logging.WARNING, logger="myace"):
+        async with lifespan(app):
+            pass
+
+    assert any("SETTINGS_ENCRYPTION_KEY" in r.message for r in caplog.records)
+
+
+@pytest.mark.asyncio
 async def test_no_warnings_when_properly_configured(monkeypatch, caplog):
     monkeypatch.setattr("app.main.settings.app_env", "production")
     monkeypatch.setattr("app.main.settings.app_secret_key", "a-real-random-secret")
     monkeypatch.setattr("app.main.settings.debug", False)
     monkeypatch.setattr("app.main.settings.admin_bootstrap_enabled", False)
+    monkeypatch.setattr("app.main.settings.settings_encryption_key", "a-real-fernet-key")
 
     with caplog.at_level(logging.WARNING, logger="myace"):
         async with lifespan(app):
