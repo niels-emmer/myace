@@ -84,7 +84,11 @@ In short:
 3. Run the checks above locally.
 4. Open a PR against `main` — the template will ask what changed and how you
    tested it.
-5. CI must pass. At least one maintainer review is required before merge.
+5. CI must pass — see the required checks in
+   [`.github/workflows/ci.yml`](.github/workflows/ci.yml). This project
+   currently has a single maintainer, so PRs merge on green CI without a
+   separate review step; that will change (a review will be required)
+   once there's more than one maintainer.
 
 ## Project structure
 

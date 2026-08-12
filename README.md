@@ -212,17 +212,17 @@ Download the binary for your platform from the
 
 ```bash
 # Linux (x86_64)
-curl -fsSL https://github.com/niels-emmer/myace/releases/download/latest/myace-linux-x86_64 -o myace
+curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-linux-x86_64 -o myace
 chmod +x ./myace
 sudo mv ./myace /usr/local/bin/
 
 # macOS (Intel)
-curl -fsSL https://github.com/niels-emmer/myace/releases/download/latest/myace-macos-x86_64 -o myace
+curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-macos-x86_64 -o myace
 chmod +x ./myace
 sudo mv ./myace /usr/local/bin/
 
 # macOS (Apple Silicon)
-curl -fsSL https://github.com/niels-emmer/myace/releases/download/latest/myace-macos-arm64 -o myace
+curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-macos-arm64 -o myace
 chmod +x ./myace
 sudo mv ./myace /usr/local/bin/
 ```
@@ -439,6 +439,19 @@ the exact rules.
 | `docker-compose.yml` | `docker compose up -d` | Single-machine prod | `http://localhost:80` |
 | `+ docker-compose.dev.yml` | `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d` | Development | Frontend `:80`, API `:8000`, home dir mounted at `/host-home` |
 | `+ docker-compose.prod.yml` | `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` | VPS behind proxy | No host ports; attach via `PROXY_NETWORK` env var |
+
+## Backups
+
+There is no automated backup mechanism yet — `postgres-data` is a plain
+named Docker volume with no scheduled dump job, no offsite copy, and no
+built-in restore procedure. If you're running MyACE anywhere that matters
+(open registration, real user accounts, anything you'd be upset to lose),
+back up the volume yourself in the meantime, e.g. a cron'd
+`docker compose exec -T postgres pg_dump -U myace myace | gzip > backup.sql.gz`
+copied off the host. See
+[`docs/plans/postgres-backups-plan.md`](docs/plans/postgres-backups-plan.md)
+for the planned automated setup (in-stack `pg_dump` sidecar + offsite copy +
+tested restore procedure) — not yet implemented.
 
 ## Project Structure
 
