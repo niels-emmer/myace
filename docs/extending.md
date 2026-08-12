@@ -198,3 +198,13 @@ open a PR.
 - If two components fetch the same resource with different filters, give
   them distinct React Query keys —
   [debugging.md](debugging.md#react-query-shows-stalewrong-data-after-client-side-navigation).
+- `Layout.tsx`'s sidebar is a `lg:`-breakpoint responsive drawer: static
+  and always visible at `lg` (1024px) and up, an off-canvas `fixed` panel
+  below it (toggled by a `Menu`-icon button in a mobile-only top bar,
+  closed by tapping the backdrop, its own `X` button, or navigating). New
+  pages don't need to do anything special for this — content just renders
+  in `<main>` below/beside it — but if a page adds its own wide content
+  (a table, a multi-column form), wrap it so it doesn't cause horizontal
+  scroll at 375px — an `overflow-x-auto` wrapper (see `SystemSettings.tsx`'s
+  tables) or a `grid-cols-1 sm:grid-cols-2` pattern are the two used
+  elsewhere in this codebase.
