@@ -33,6 +33,9 @@ depth, it links here.
 - **[adr/](adr/)** — Architecture Decision Records. Short documents that
   capture *why* a non-obvious decision was made, so nobody re-litigates it
   (or repeats a mistake) six months later.
+- **[ADAPTERS_RESEARCH.md](ADAPTERS_RESEARCH.md)** — research on unbuilt
+  target-adapter candidates (Continue.dev, Aider, pi.dev, Roo Code, ...),
+  with notes on which candidates have since shipped.
 
 ## Keeping this up to date
 

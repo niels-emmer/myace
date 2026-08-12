@@ -11,7 +11,7 @@ have since been built — see `backend/app/adapters/`. A fourth adapter,
 Codex CLI (`codex_cli.py`), was also built but doesn't appear anywhere in
 this research's 9 investigated targets. pi.dev, Continue.dev, Aider, and
 Roo Code remain unbuilt and are still the best-researched next candidates
-(see [extending.md](docs/extending.md#adding-a-target-adapter) for the
+(see [extending.md](extending.md#adding-a-target-adapter) for the
 current adapter-adding checklist, including a step this research predates:
 registering the new target in `ProfileCompileRequest`'s `Literal`).
 
