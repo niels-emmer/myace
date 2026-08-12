@@ -443,7 +443,7 @@ the exact rules.
 ├── docs/                        # Deep-dive documentation (humans + agents)
 ├── collections/                 # Starter-pack content (seeded on boot) +
 │   ├── base/                    #   community-publish target — see the
-│   └── additional/              #   "Starter packs" section in CLAUDE.md
+│   └── additional/              #   "Starter packs" section in AGENTS.md
 ├── docker-compose.yml           # Single-machine production
 ├── docker-compose.dev.yml       # Dev overrides (ports, mounts, CORS)
 ├── docker-compose.prod.yml      # VPS overrides (external network, no ports)

@@ -1,6 +1,55 @@
 # MyACE — AI Agent Maintenance Guidelines
 
-This document defines the rules and conventions for AI coding agents (Claude Code, OpenCode, Codex, etc.) maintaining the MyACE codebase.
+This document defines the rules and conventions for AI coding agents (Claude Code, OpenCode, Codex, etc.) maintaining the MyACE codebase. It is the single source of truth for agent-facing rules and gotchas — `CLAUDE.md` imports this file (via Claude Code's `@AGENTS.md` memory-import syntax) and adds only genuinely Claude-Code-specific notes on top, so don't duplicate content there.
+
+## What this is
+
+MyACE ("My Agentic Coding Environment") makes AI agent configurations (rules, skills, agent definitions, workflows, model configs) portable across frameworks (OpenCode, Claude Code, Cursor, and others). It stores everything as a **Canonical Intermediate Representation (IR)** — Markdown with YAML frontmatter — and translates that IR into target-framework-specific files via adapters. See [docs/architecture.md](docs/architecture.md) for the full picture.
+
+Three components:
+- **`backend/`** — FastAPI + SQLModel API (Postgres in prod, SQLite for tests) that stores collections/artifacts/profiles and compiles profiles into target files.
+- **`frontend/`** — React + Vite + TailwindCSS SPA (served by nginx in prod, proxies `/api/*` to the backend).
+- **`cli/`** — Python Typer CLI (`myace`) that pulls compiled profiles from the server and can scan local config directories to import them.
+
+## Commands
+
+### Backend (from `backend/`)
+```bash
+pip install -e ".[dev]"          # install with dev deps
+pytest                           # run all tests
+pytest tests/test_adapters.py    # run one test file
+pytest tests/test_adapters.py::test_name -v   # run a single test
+ruff check .                     # lint
+mypy app                         # type check (strict mode)
+alembic revision --autogenerate -m "description"   # new migration
+alembic upgrade head              # apply migrations
+```
+Tests use SQLite (`aiosqlite`) via `tests/conftest.py`, not Postgres — no running DB needed to run the suite. The `db_session` fixture spins up a fresh in-memory SQLite engine per test and overrides the `get_session` FastAPI dependency to point at it (`app.dependency_overrides[get_session]`); any test that exercises an authenticated route should depend on `async_client` (which itself depends on `db_session`), not construct its own client. Requires `greenlet` installed (a runtime dependency of SQLAlchemy's async engine, listed explicitly in `pyproject.toml` since it isn't pulled in automatically by `sqlmodel`/`asyncpg`).
+
+### Frontend (from `frontend/`)
+```bash
+npm install
+npm run dev       # Vite dev server on :5173, proxies /api to :8000
+npm run build     # tsc -b && vite build
+npm run lint       # eslint .
+npm run test       # vitest
+```
+`npm run dev`'s proxy target (`vite.config.ts`) is `http://localhost:8000`, not the Docker-network hostname `backend` — the frontend's Docker image always serves a static nginx build (see `docker-compose.yml`), so this proxy is only ever exercised by `npm run dev` running on the host, per `docker-compose.dev.yml`'s own comment. Run `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d` first so the backend is reachable on `localhost:8000`, then `npm run dev` separately for HMR.
+
+### CLI (from `cli/`)
+```bash
+pip install -e ".[dev]"
+pytest
+myace --help
+```
+
+### Full stack (Docker)
+```bash
+cp .env.example .env
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+docker compose exec backend alembic upgrade head
+```
+Dev stack: frontend on `:80`, backend on `:8000` directly, home dir mounted at `/host-home` (needed for the scanner to reach host config dirs like `~/.claude`, `~/.config/opencode`). See the compose file table in [README.md](README.md#compose-files) for the dev/prod override layering.
 
 ## Repository Architecture Rules
 
@@ -268,3 +317,138 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   actually matters for a direct API call or a CLI `myace pull`.
 - If you add a new adapter, no `disabled_adapters` change is needed — it
   defaults to enabled (absent from the list) automatically.
+
+### 22. Zip Compile Endpoint Filename Sanitization
+
+- `POST /profiles/compile/zip` (`backend/app/api/profiles.py`) builds its
+  `Content-Disposition` filename via `github_export.py`'s `slugify()`,
+  never the raw `profile.name`/`target`. Profile names are
+  attacker-controllable on profiles you don't own (public profiles), so an
+  unsanitized filename would be a header-injection vector into another
+  user's response. Any new route that echoes a user-supplied string into a
+  response header needs the same treatment.
+
+### 23. Frontend Adapter Pickers Must Read `adapter.name`, Not `adapter.targets`
+
+- `GET /adapters`/`GET /adapters/{name}` responses include each adapter's
+  `supported_targets()` aliases (e.g. `claude-code`/`claude`) purely as
+  metadata. Only the primary `adapter_name()` is ever a valid compile
+  `target` or lookup key. UI code building a target picker (e.g.
+  `TargetExporter.tsx`) must read `adapter.name`, not flatten
+  `adapter.targets` into options.
+
+### 24. Local Companion Server (`myace serve`) Security Model
+
+- `cli/myace_cli/local_server.py` runs a small FastAPI app on
+  `127.0.0.1:8765` (lazy-imports `fastapi`/`uvicorn` — only
+  `pip install "myace-cli[serve]"` needs them, not the base CLI) so the web
+  UI can scan the user's *own* machine without the browser needing
+  filesystem access. It reuses `cli/myace_cli/scanner.py`'s
+  `scan_directory()` directly — no third parallel scanner implementation.
+- Security model — preserve all of it if you touch this file: refuses to
+  start without existing `myace login` credentials; binds loopback-only;
+  CORS reflects exactly the logged-in server's origin (never `*`);
+  `POST /scan` additionally requires a custom `X-MyACE-Companion` header
+  (forces a real preflight, blocks blind `no-cors` POSTs) and a
+  server-side `Origin` check (not just a CORS response header) so a
+  non-browser client can't skip the dance. Also implements Chrome's
+  Private Network Access preflight (`Access-Control-Allow-Private-Network`)
+  since a page on a public origin fetching a loopback address gets an
+  extra preflight beyond normal CORS.
+- **Gotcha — never add `from __future__ import annotations` to this
+  file.** Its FastAPI app, route handlers, and Pydantic model are all
+  defined *inside* `build_app()` so the base CLI install never needs
+  fastapi/uvicorn. PEP 563 turns every annotation into a string that
+  FastAPI resolves via `typing.get_type_hints()` against the function's
+  *module* globals — which don't include names only bound in
+  `build_app()`'s local scope, so `Request`/the request model silently
+  fail to resolve and every route 422s as if the parameters don't exist.
+- The web UI's "Local Machine" import source (`ImportPage.tsx`) talks to
+  this server exclusively. The backend's own
+  `POST /collections/scan?source_type=local` route is left in place for
+  direct-API/dev use but is unreachable from the hosted web UI — on a real
+  deployment it would scan the *server's* filesystem, not the visitor's.
+  `ImportPage.tsx` polls `GET /health` on this server while "Local
+  Machine" is selected and shows a setup panel when it's unreachable.
+
+### 25. Starter Packs Are Seeded, Not Scanned
+
+- `backend/app/services/seed_collections.py` turns
+  `collections/{base,additional}/<slug>/` into `Collection`+`Artifact` row
+  sets on every backend startup (`seed_starter_collections()`, called from
+  `app/main.py`'s lifespan), owned by a dedicated, **passwordless** system
+  account (`starter-packs@myace.local` — `password_hash` stays `None`, so
+  it can never authenticate via `/auth/login`) that exists purely to
+  satisfy `Collection.owner_id`'s `NOT NULL` FK. Every seeded collection
+  ships `published=True` + `visibility="public"` + `is_starter_pack=True`.
+- Idempotent by `(name, is_starter_pack)` lookup — safe to call
+  unconditionally on every restart/replica, unlike `init_db()` (dev-only).
+  Seeding failures (e.g. schema not migrated yet on a brand-new
+  deployment) are caught and logged, never raised — a seeding problem must
+  never block the app from starting; the next restart after migrations
+  land picks it back up.
+- Deliberately does **not** call the public `scanner.scan_directory()` —
+  that function's path resolution confines scans to `settings.scan_root`
+  as a security boundary against arbitrary *user-supplied* local-machine
+  paths, which doesn't apply to these hardcoded, trusted paths. It reuses
+  the scanner's private per-file parsers (`_parse_skill_file`,
+  `_parse_agent_file`, `_parse_command_file`, `_parse_agents_md`) directly
+  against a local directory walk instead, so the on-disk format stays in
+  sync with what the scanner (and therefore the community-import flow)
+  already understands.
+- To add a starter pack: create the directory under
+  `collections/{base,additional}/<slug>/` in the scanner's format, then
+  add an entry to `STARTER_COLLECTIONS` in `seed_collections.py` with its
+  display `name`/`category`/`description` — no migration needed.
+
+### 26. Session `user_id` Must Be Parsed Back Into a `uuid.UUID` Before Querying
+
+- The session cookie stores `str(user.id)` (session payloads are JSON, no
+  native UUID type), so `_user_from_session` (`backend/app/core/deps.py`)
+  must do `uuid.UUID(raw_user_id)` before comparing against `User.id`.
+  Comparing the raw string directly works against `asyncpg`/Postgres
+  (which coerces loosely) but throws
+  `AttributeError: 'str' object has no attribute 'hex'` under SQLite's
+  `Uuid` bind processor — this only surfaces once a test actually
+  exercises a session-cookie-authenticated route against real SQLite (see
+  the `db_session` fixture note under Commands, above).
+
+### 27. Production Hardening Checks in `app/main.py`
+
+- `APP_SECRET_KEY` still being the placeholder is a `RuntimeError` in
+  production (not just a warning) — see
+  [debugging.md](docs/debugging.md#backend-refuses-to-start-runtimeerror-app_secret_key-is-still-the-default).
+- `TrustedHostMiddleware` is **always** registered: it defaults to `['*']`
+  in development, but raises a `RuntimeError` at startup in production if
+  `TRUSTED_HOSTS` is unset. This is what prevents Host-header injection
+  behind a reverse proxy — never relax it to a default-allow in
+  production.
+- `backend/Dockerfile`'s uvicorn `CMD` runs with
+  `--proxy-headers --forwarded-allow-ips=*`, which is safe only because
+  `docker-compose.prod.yml` exposes no host port (only the reverse-proxy
+  container on the same Docker network can reach it) — don't copy that
+  flag into a setup where the backend is directly internet-reachable.
+
+### 28. Frontend Structure Gotchas
+
+- **Two different things are called "export" — don't conflate them.**
+  `TargetExporter.tsx` (`/compile`) compiles a **Profile** into a target
+  framework's files (copy-paste, zip download, or CLI pull).
+  `CollectionDetail.tsx`'s "Export to GitHub" button pushes a
+  **Collection**'s canonical artifacts to a real GitHub branch + PR. They
+  share no code path.
+- `ImportPage.tsx`'s Local Machine / GitHub Repository source toggle
+  shares one scan → select → import flow, but Local Machine scans hit the
+  `myace serve` companion server (rule 24), not the backend.
+- `UserSettings.tsx`'s "CLI Setup" block is generated, not static copy —
+  it interpolates `window.location.origin` and the just-created API
+  token. Never hardcode a server URL or placeholder token back into it; a
+  wrong one silently breaks first-run onboarding.
+- `CollectionDetail.tsx`'s confirm-before-destructive-action modal is this
+  codebase's only such pattern — copy it (don't invent a new one) for any
+  new destructive frontend action.
+- When two components fetch the same resource with different filters
+  (rule 12), or need distinct list scoping, give them distinct React
+  Query keys — `CollectionDetail.tsx` scopes to `['collection', id]` /
+  `['artifacts', id, typeFilter]` rather than the shared `['collections']`/
+  `['profiles']` keys used elsewhere.

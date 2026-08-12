@@ -6,8 +6,9 @@ Task-oriented guides for common changes. Each one assumes you've read
 
 ## Adding a target adapter
 
-To support a new framework (say, "Continue.dev" — see `ADAPTERS_RESEARCH.md`
-for other unbuilt candidates; don't reuse one of the 7 already shipped in
+To support a new framework (say, "Continue.dev" — see
+[ADAPTERS_RESEARCH.md](ADAPTERS_RESEARCH.md) for other unbuilt candidates;
+don't reuse one of the 7 already shipped in
 `backend/app/adapters/__init__.py`):
 
 1. **Backend**: create `backend/app/adapters/continue_dev.py` implementing
