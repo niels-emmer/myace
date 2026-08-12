@@ -52,6 +52,15 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "security/testing/documentation discipline, file-based memory system."
             ),
         },
+        "data-scientist": {
+            "name": "Data Scientist",
+            "category": "Base Profiles",
+            "description": (
+                "Exploratory, notebook-driven workflow with experiment tracking, "
+                "data validation gates, model evaluation discipline, and "
+                "reproducible pipelines — built for ML and data work."
+            ),
+        },
     },
     "additional": {
         "frontend": {
@@ -92,6 +101,15 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
             "description": (
                 "Read-only docs/content specialist — keeps README/AGENTS/CLAUDE docs in "
                 "sync with code changes."
+            ),
+        },
+        "fullstack": {
+            "name": "Full-Stack Developer",
+            "category": "Frontend",
+            "description": (
+                "End-to-end frontend + backend discipline — contract-first "
+                "development, shared type boundaries, integration-level "
+                "correctness, and error propagation across the stack."
             ),
         },
     },
