@@ -115,7 +115,7 @@ export default function TargetExporter() {
               onChange={(e) => setSelectedTarget(e.target.value)}
               className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm"
             >
-              {adapters?.map((a) => (
+              {adapters?.filter((a) => a.enabled).map((a) => (
                 <option key={a.name} value={a.name}>
                   {a.name}
                 </option>

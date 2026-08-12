@@ -72,6 +72,27 @@ class Settings(BaseSettings):
     doc_cache_ttl_days: int = 7
     doc_cache_refresh_interval_hours: int = 168
 
+    # SMTP — used for password-reset emails. All fields are the bootstrap
+    # default; a non-empty value saved via the System Settings UI (stored
+    # encrypted in system_settings) overrides these at runtime — see
+    # app/services/effective_settings.py.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_from_name: str = "MyACE"
+    smtp_use_tls: bool = True
+
+    # Security — symmetric key for encrypting admin-editable secrets (SMTP
+    # password, OAuth client secrets) stored in the database. Generate with:
+    # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    settings_encryption_key: str = ""
+
+    # Base URL of the frontend, used to build links in outgoing emails
+    # (e.g. the password-reset link). Does not affect API/CORS behavior.
+    frontend_base_url: str = "http://localhost:5173"
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

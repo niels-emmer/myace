@@ -28,6 +28,9 @@ Split the current monolithic Settings page into two separate concerns:
 - The system settings page shows which providers are configured (from env) and allows toggling them on/off
 - Links to setup documentation are shown for each provider
 - Future: encrypted credential storage in DB for full UI-based configuration
+- **Superseded by [ADR-0006](../adr/0006-encrypted-admin-editable-secrets.md):**
+  the "future" noted above is now implemented — SMTP and OAuth provider
+  secrets can be entered via System Settings and are stored encrypted.
 
 ### ADR-3: TOTP for MFA (not WebAuthN in this iteration)
 - `pyotp` library for TOTP generation/verification

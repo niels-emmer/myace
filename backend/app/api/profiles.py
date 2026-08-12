@@ -16,7 +16,7 @@ from app.core.deps import get_current_user
 from app.models.collection import Collection
 from app.models.profile import Profile, ProfileCompileRequest, ProfileCreate, ProfileRead
 from app.models.user import User
-from app.services.compiler import compile_profile
+from app.services.compiler import AdapterDisabledError, compile_profile
 from app.services.github_export import slugify
 
 router = APIRouter()
@@ -131,12 +131,15 @@ async def compile_profile_endpoint(
         is_public=profile.is_public, resource_name="Profile",
     )
 
-    compiled = await compile_profile(
-        session=session,
-        profile=profile,
-        target=request.target,
-        include_disabled=request.include_disabled,
-    )
+    try:
+        compiled = await compile_profile(
+            session=session,
+            profile=profile,
+            target=request.target,
+            include_disabled=request.include_disabled,
+        )
+    except AdapterDisabledError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return compiled
 
 
@@ -156,12 +159,15 @@ async def compile_profile_zip_endpoint(
         is_public=profile.is_public, resource_name="Profile",
     )
 
-    compiled = await compile_profile(
-        session=session,
-        profile=profile,
-        target=request.target,
-        include_disabled=request.include_disabled,
-    )
+    try:
+        compiled = await compile_profile(
+            session=session,
+            profile=profile,
+            target=request.target,
+            include_disabled=request.include_disabled,
+        )
+    except AdapterDisabledError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if "error" in compiled:
         raise HTTPException(status_code=400, detail=compiled["error"])
 
