@@ -3,7 +3,7 @@ name: Resource Naming And Tagging
 description: A concrete, cloud-agnostic naming and tagging template for infrastructure resources — resource type, workload, environment, region, plus mandatory ownership and cost tags.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [iac, naming, tagging, governance]
 ---
 ## Purpose

@@ -2,7 +2,7 @@
 description: Quick pre-ship checklist to run before pushing or merging a change.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 ---
 Run through this before pushing or merging any change, even a small one. It should take under a minute for a small diff.
 

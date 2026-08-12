@@ -2,7 +2,7 @@
 description: Read-only agent that reviews a diff for correctness, simplicity, and consistency with existing patterns — flags both bugs and unnecessary complexity.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: subagent
 ---
 Read-only reviewer for correctness, simplicity, and consistency.

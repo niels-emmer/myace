@@ -3,7 +3,7 @@ name: End-to-End Testing
 description: E2E test patterns — what to test, how to structure tests, environment management, avoiding flakiness.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [fullstack, testing, e2e]
 ---
 ## Purpose

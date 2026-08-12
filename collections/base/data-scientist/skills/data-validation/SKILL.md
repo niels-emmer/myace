@@ -3,7 +3,7 @@ name: Data Validation
 description: Data quality checks to run before modeling — distribution summaries, leakage detection, class balance.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [ml, data, validation]
 ---
 ## Purpose

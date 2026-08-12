@@ -2,7 +2,7 @@
 description: The standard pre-merge verification checklist — tests, lint, security pass, and documentation, all confirmed before a change is considered done.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 ---
 1. Run the full relevant test suite and confirm an actual pass — quote the real result (counts, or the specific failing tests), don't summarize a run you didn't just do.
 2. Confirm the change added or updated tests that cover it, checked against the `test-patterns` skill's checklist (edge cases and failure modes, not only the happy path) — not just that some test somewhere still passes.

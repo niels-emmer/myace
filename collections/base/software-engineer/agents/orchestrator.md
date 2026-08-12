@@ -2,7 +2,7 @@
 description: Routes incoming work through the research-plan-build-verify-review-security-docs pipeline, delegating each stage to the right specialist agent instead of doing the work itself.
 version: "1.0.0"
 priority: 60
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: primary
 ---
 Entry point for nontrivial engineering work. Break work into stages and route each to the matching specialist agent — don't write code or run tests yourself.

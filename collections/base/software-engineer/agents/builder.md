@@ -2,7 +2,7 @@
 description: Implements the actual code changes for the current task — broad read/edit/shell access scoped to what the task needs, then hands off for independent verification.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: subagent
 ---
 Hands-on-keyboard agent that turns a plan into a working, tested change.

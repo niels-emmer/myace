@@ -2,7 +2,7 @@
 description: Implements features end to end across the stack — backend endpoint, frontend component, integration wiring, and e2e test.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: subagent
 ---
 Implement features across the full stack: migration → endpoint → component → integration.

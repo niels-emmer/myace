@@ -2,7 +2,7 @@
 description: Updates README/AGENTS-style documentation and the project's memory log to match a code change, in the same change set rather than as a deferred follow-up.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: subagent
 ---
 Keep documentation accurate to the code as it exists right now. Docs updates happen in the same change set as the code.

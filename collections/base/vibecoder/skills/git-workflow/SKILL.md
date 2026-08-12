@@ -3,7 +3,7 @@ name: Git Workflow
 description: Lightweight branch naming and pull-request-vs-direct-push guidance for fast solo/small-team iteration.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [git, workflow]
 ---
 ## Purpose

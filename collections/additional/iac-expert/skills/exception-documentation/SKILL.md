@@ -3,7 +3,7 @@ name: Exception Documentation
 description: The template for documenting a deliberate, approved deviation from an infrastructure invariant — rationale, compensating control, approver, and expiry — instead of a silent workaround.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [iac, governance, risk, compliance]
 ---
 ## Purpose

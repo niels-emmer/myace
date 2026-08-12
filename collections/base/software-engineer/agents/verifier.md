@@ -2,7 +2,7 @@
 description: Read-only agent that runs the test suite, build, and linters against a change and reports pass/fail with evidence — never edits code to make something pass.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: subagent
 ---
 Independent verification agent. Run tests, build, and linters against a change and report pass/fail with evidence.

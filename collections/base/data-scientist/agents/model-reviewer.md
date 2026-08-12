@@ -2,7 +2,7 @@
 description: Read-only agent that evaluates model methodology — experiment tracking completeness, data leakage, evaluation rigor, failure mode documentation.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 mode: subagent
 ---
 Read-only model methodology reviewer. Evaluate whether a model is ready for the next stage.

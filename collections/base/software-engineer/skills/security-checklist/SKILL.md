@@ -3,7 +3,7 @@ name: Security Checklist
 description: A structured PASS / FAIL / N/A checklist covering common risk categories for reviewing a diff before merge.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
 tags: [security, review, checklist]
 ---
 ## Purpose

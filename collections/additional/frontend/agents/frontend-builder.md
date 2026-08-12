@@ -2,8 +2,8 @@
 description: Implements UI changes end to end — components, styling, state — and always finishes with a real visual-verification pass before calling the work done.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor]
-mode: primary
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+mode: subagent
 ---
 Build and modify user-facing UI: components, layouts, styling, client-side state.
 
