@@ -1,5 +1,11 @@
 # Plan: Admin/System Settings Menus
 
+**Status: Shipped.** The `UserSettings.tsx`/`SystemSettings.tsx` split, the
+`system_settings` table + migration, and MFA/TOTP endpoints all exist as
+described below. See the `system_settings` table entry in
+[data-model.md](../data-model.md) for the current schema. Kept here as
+historical design record, not a live task list.
+
 ## Overview
 
 Split the current monolithic Settings page into two separate concerns:

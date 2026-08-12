@@ -47,7 +47,7 @@ Out of scope:
   deployment
 - Missing security best-practices in a self-hosted deployment that deviates
   from the documented setup (e.g. running with the default `APP_SECRET_KEY`
-  in production — the app warns about this at startup)
+  in production — the app refuses to start over this, see below)
 
 ## Security Model (summary)
 
@@ -64,8 +64,8 @@ A few things worth knowing if you're self-hosting:
 
 - **`APP_SECRET_KEY` signs session cookies.** Set a real random value before
   exposing a deployment beyond localhost — the default placeholder is
-  intentionally obvious and the app logs a warning at startup if it's still
-  in use outside development.
+  intentionally obvious and the app refuses to start (`RuntimeError`) if
+  it's still in use outside development.
 - **GitHub tokens used for the "Export to GitHub" feature are per-request
   only.** They are never persisted to the database or logged.
 - **API tokens are bcrypt-hashed at rest** and shown to the user exactly

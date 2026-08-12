@@ -24,12 +24,14 @@ erDiagram
         string oidc_provider "nullable"
         bool is_active
         bool is_admin
+        bool mfa_enabled
+        string totp_secret "nullable — set once MFA is enrolled"
     }
     COLLECTION {
         uuid id PK
         uuid owner_id FK
         string name
-        string git_url "real URL, or imported://name for non-git sources"
+        string git_url "real URL, or imported://name / seed://type/slug for non-git sources"
         string collection_type "base | additional"
         string visibility "private | public"
         bool is_active "soft-delete flag"
@@ -37,6 +39,7 @@ erDiagram
         int download_count "tracked for community collections"
         bool published "true when submitted to community store"
         string category "nullable — browse category"
+        bool is_starter_pack "true for the seeded starter collections"
     }
     ARTIFACT {
         uuid id PK
@@ -56,6 +59,7 @@ erDiagram
         uuid base_collection_id FK
         string additional_collection_ids "JSON-encoded list[uuid]"
         string disabled_artifact_ids "JSON-encoded list[uuid]"
+        string target_framework "nullable — preferred compile target, informational only"
         bool is_public
         datetime deleted_at "nullable — soft-delete timestamp"
         int version "incremented on every update"
@@ -74,6 +78,11 @@ erDiagram
 has no relationships to the rest of the schema — it's a standalone TTL cache,
 keyed by `framework` + `content_hash`.
 
+`SYSTEM_SETTINGS` also has no relationships — it's a singleton row
+(`id` always `1`) holding global, admin-editable config: which auth
+providers are enabled, whether registration/MFA are allowed or forced, and
+the doc cache TTL. See the `system_settings` section below.
+
 ## Tables
 
 ### `users`
@@ -82,20 +91,28 @@ The only table every other owned table has a foreign key into. A user can
 authenticate via password (`password_hash`, nullable — SSO-only accounts
 never set one), OIDC/GitHub/Google (`oidc_sub` + `oidc_provider`, unique
 together), or both. `is_admin` bypasses ownership checks everywhere; see
-[invariants.md](invariants.md#authorization).
+[invariants.md](invariants.md#authorization). `mfa_enabled` + `totp_secret`
+back TOTP-based MFA (`pyotp`) — `totp_secret` is only set once enrollment
+completes via `POST /auth/me/mfa/totp/setup` + `.../verify`.
 
 ### `collections`
 
 A named bag of artifacts. `git_url` is a real repository URL for
-GitHub-imported collections, or a synthetic `imported://<name>` URI for
-collections created from a local scan or from bulk-exporting artifacts —
-don't assume it's always dereferenceable. `visibility` (`private`/`public`)
-is the only access-control dimension beyond ownership; there is no
-per-collaborator sharing. `is_active` is a soft-delete flag — deleted
-collections are never physically removed. `artifact_count` is a denormalized
-cache updated by every route that adds/removes artifacts (import, bulk
-delete, bulk export) — if you add a new artifact-mutating route, update it
-there too or the count will drift.
+GitHub-imported collections, or a synthetic URI for anything that didn't
+come from a real git remote — `imported://<name>` for a local scan or
+bulk-exported artifacts, `imported://community/<name>` for a community
+import, `seed://<collection_type>/<slug>` for the built-in starter packs
+(`seed_collections.py`) — don't assume it's always dereferenceable.
+`visibility` (`private`/`public`) is the only access-control dimension
+beyond ownership; there is no per-collaborator sharing. `is_active` is a
+soft-delete flag — deleted collections are never physically removed.
+`artifact_count` is a denormalized cache updated by every route that
+adds/removes artifacts (import, bulk delete, bulk export) — if you add a new
+artifact-mutating route, update it there too or the count will drift.
+`is_starter_pack` marks the collections seeded on every backend startup from
+`collections/base/` and `collections/additional/`, owned by a dedicated
+passwordless system account — see the "Starter packs" section in
+`CLAUDE.md`.
 
 ### `artifacts`
 
@@ -121,7 +138,10 @@ This means the database will happily store a profile referencing a
 collection that's since been deleted or made private; the compiler
 (`compile_profile()`) silently skips any collection ID it can't resolve
 rather than erroring. `version` increments on every `PUT` — there's no
-history table, just the counter. `is_public` is the profile's own
+history table, just the counter. `target_framework` is an optional,
+free-string "preferred target" hint shown in the UI — it's never validated
+against the adapter registry and has no effect on compilation; the actual
+target is chosen per-compile-request. `is_public` is the profile's own
 visibility flag, independent of the visibility of the collections it
 references (see the documented gap in
 [invariants.md](invariants.md#a-gap-thats-accepted-not-fixed)). `deleted_at`
@@ -143,6 +163,17 @@ Unrelated to the auth/ownership model above — a TTL-based cache of fetched
 framework documentation, used by adapter compatibility checks. Not
 owner-scoped; it's shared, read-only reference data. `deleted_at` supports
 soft-delete — cache entries are never physically removed from the database.
+
+### `system_settings`
+
+A singleton row (`id` is always `1`, enforced by convention rather than a
+DB constraint) holding global, admin-only config: which auth providers
+(`oidc_enabled`/`github_enabled`/`google_enabled`) and registration
+(`allow_registration`) are turned on, whether MFA is available
+(`mfa_enabled`) or mandatory (`mfa_forced`), and `doc_cache_ttl_days`. Read
+via `GET /admin/settings`, written via `PATCH /admin/settings`
+(`SystemSettings.tsx`) — both admin-gated. Not owner-scoped; there is
+exactly one row.
 
 ## Why JSON-as-text instead of proper junction tables
 

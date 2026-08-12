@@ -6,27 +6,41 @@ Task-oriented guides for common changes. Each one assumes you've read
 
 ## Adding a target adapter
 
-To support a new framework (say, "Windsurf"):
+To support a new framework (say, "Continue.dev" — see `ADAPTERS_RESEARCH.md`
+for other unbuilt candidates; don't reuse one of the 7 already shipped in
+`backend/app/adapters/__init__.py`):
 
-1. **Backend**: create `backend/app/adapters/windsurf.py` implementing
+1. **Backend**: create `backend/app/adapters/continue_dev.py` implementing
    `BaseAdapter` (see `backend/app/adapters/base.py` for the interface):
    ```python
-   class WindsurfAdapter(BaseAdapter):
-       def adapter_name(self) -> str: return "windsurf"
-       def supported_targets(self) -> list[str]: return ["windsurf"]
+   class ContinueDevAdapter(BaseAdapter):
+       def adapter_name(self) -> str: return "continue-dev"
+       def supported_targets(self) -> list[str]: return ["continue-dev"]
        def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
            ...  # canonical artifacts in, {filename: content} out
    ```
    Register it in `backend/app/adapters/__init__.py`'s adapter list.
-2. **CLI fallback**: mirror the same adapter in
-   `cli/myace_cli/adapters/windsurf.py` — the CLI keeps its own copies so
+2. **Compile endpoint**: add the adapter's primary name to the `target`
+   `Literal` in `ProfileCompileRequest` (`backend/app/models/profile.py`).
+   This is easy to forget and fails silently in a confusing way: the adapter
+   works fine in isolation, but `POST /profiles/compile` 422s on it forever
+   because Pydantic rejects the request before it ever reaches
+   `get_adapter()` — this exact bug shipped for four adapters (`codex-cli`,
+   `copilot-cli`, `cline`, `windsurf`) until it was caught and fixed.
+3. **CLI fallback**: mirror the same adapter in
+   `cli/myace_cli/adapters/continue_dev.py` — the CLI keeps its own copies so
    `myace pull` can render locally if the server is unreachable. Keep the
-   two in sync; there's no automated check for this today.
-3. **Test**: add a `TestWindsurfAdapter` class to
-   `backend/tests/test_adapters.py` following the existing pattern for
-   `TestClaudeCodeAdapter`/`TestOpenCodeAdapter`/`TestCursorAdapter` — at
-   minimum, one test per artifact type your adapter handles specially.
-4. **Docs**: add a row to the target adapters table in `README.md`.
+   two in sync; there's no automated check for this today. (In practice the
+   CLI currently only mirrors the original three — `claude_code`, `opencode`,
+   `cursor` — so this step is aspirational for the other four until someone
+   backports them.)
+4. **Test**: add a `TestContinueDevAdapter` class to
+   `backend/tests/test_adapters.py` following the existing pattern (see
+   `TestClaudeCodeAdapter`, `TestCodexCliAdapter`, `TestWindsurfAdapter`,
+   etc.) — at minimum, one test per artifact type your adapter handles
+   specially.
+5. **Docs**: add a row to the target adapters table in `README.md`, and to
+   the adapter list in `architecture.md` and `CLAUDE.md`.
 
 Adapters must stay stateless and pure — see
 [invariants.md #9](invariants.md#canonical-ir). Don't reach into the

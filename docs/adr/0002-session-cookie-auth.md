@@ -57,3 +57,10 @@ it was. `get_current_user` accepts either.
 - Every frontend `fetch()` call must set `credentials: 'same-origin'` or
   the cookie silently isn't sent. This bit two hand-rolled `fetch()` calls
   in `ImportPage.tsx` that bypassed the shared `api.ts` helper.
+
+## Update — `APP_SECRET_KEY` check hardened to a `RuntimeError`
+
+The warning described above was later hardened: the app now refuses to
+start (`RuntimeError` in `app/main.py`) if `APP_SECRET_KEY` is still the
+default placeholder and `app_env != "development"`, rather than just
+logging a warning. See [SECURITY.md](../../SECURITY.md).

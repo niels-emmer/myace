@@ -189,17 +189,17 @@ Download the binary for your platform from the
 
 ```bash
 # Linux (x86_64)
-curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-linux-x86_64 -o myace
+curl -fsSL https://github.com/niels-emmer/myace/releases/download/latest/myace-linux-x86_64 -o myace
 chmod +x ./myace
 sudo mv ./myace /usr/local/bin/
 
 # macOS (Intel)
-curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-macos-x86_64 -o myace
+curl -fsSL https://github.com/niels-emmer/myace/releases/download/latest/myace-macos-x86_64 -o myace
 chmod +x ./myace
 sudo mv ./myace /usr/local/bin/
 
 # macOS (Apple Silicon)
-curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-macos-arm64 -o myace
+curl -fsSL https://github.com/niels-emmer/myace/releases/download/latest/myace-macos-arm64 -o myace
 chmod +x ./myace
 sudo mv ./myace /usr/local/bin/
 ```
@@ -373,6 +373,13 @@ Markdown body with the actual rule/instruction content...
 | Claude Code | `claude-code`, `claude` | `CLAUDE.md`, `.claude/agents/*.md`, `.claude/workflows/*.md` |
 | OpenCode | `opencode`, `open-code` | `.opencode/skills/*.json`, `.opencode/agents/*.json`, `AGENTS.md` |
 | Cursor | `cursor`, `cursor-editor` | `.cursorrules`, `.cursor/rules/*.mdc`, `.cursor/workflows/*.mdc` |
+| Codex CLI | `codex-cli`, `codex`, `openai-codex` | `AGENTS.md`, `.agents/skills/*/SKILL.md`, `.agents/agents/*.md`, `.codex/config.toml` |
+| GitHub Copilot CLI | `copilot-cli`, `copilot`, `github-copilot` | `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md` |
+| Cline | `cline`, `clinerules` | `.clinerules/*.md` |
+| Windsurf | `windsurf`, `codeium-windsurf` | `.windsurf/rules/*.md` |
+
+Only the first three are mirrored in the CLI's offline fallback adapters
+(`cli/myace_cli/adapters/`) — the rest are backend/web-UI-only for now.
 
 ## Authentication & Roles
 
@@ -422,9 +429,9 @@ for the exact rules.
 │   ├── app/
 │   │   ├── main.py              # App entrypoint, CORS + session middleware
 │   │   ├── core/                # Config, DB session, OIDC/security, deps (auth), authz (ownership checks)
-│   │   ├── models/               # SQLModel schemas (User, Collection, Artifact, Profile, ApiToken, DocCache)
-│   │   ├── api/                  # Routes: auth, collections, profiles, adapters, doc_cache
-│   │   ├── adapters/             # Canonical IR → target translators (Claude, OpenCode, Cursor)
+│   │   ├── models/               # SQLModel schemas (User, Collection, Artifact, Profile, ApiToken, DocCache, SystemSettings)
+│   │   ├── api/                  # Routes: auth, collections, profiles, adapters, doc_cache, admin
+│   │   ├── adapters/             # Canonical IR → target translators (7: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf)
 │   │   └── services/             # Compiler, doc verifier, scanner (local + git), github_export, seed_collections
 │   └── tests/                    # pytest suite
 │
@@ -435,7 +442,9 @@ for the exact rules.
 │   ├── src/
 │   │   ├── components/           # Layout, shared UI
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
-│   │   ├── pages/                 # Login, Dashboard, Collections, CollectionDetail, Profiles, Import, Compile, Settings
+│   │   ├── pages/                 # Login, Dashboard, Collections, CollectionDetail, CommunityCollections,
+│   │   │                          #   CommunityCollectionDetail, Profiles, ProfileDetail, Import, Compile,
+│   │   │                          #   UserSettings, SystemSettings (admin-gated)
 │   │   ├── lib/                   # API client
 │   │   └── types/                 # TypeScript interfaces
 │   └── dist/                     # Production build
@@ -443,7 +452,7 @@ for the exact rules.
 ├── cli/                          # Python Typer CLI
 │   ├── pyproject.toml
 │   └── myace_cli/
-│       ├── main.py               # Entrypoint (6 commands)
+│       ├── main.py               # Entrypoint (7 commands)
 │       ├── auth.py               # Credential storage
 │       ├── sync.py               # Profile fetch + write
 │       ├── scanner.py            # Local directory scanner

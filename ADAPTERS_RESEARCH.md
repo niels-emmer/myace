@@ -4,6 +4,17 @@
 
 Nine potential adapter targets were investigated. Seven are viable for MyACE adapter development. Two are lower priority due to format overlap or limited configuration surface.
 
+**Status update:** Windsurf, Cline, and GitHub Copilot (built as `copilot-cli`,
+targeting the Copilot CLI rather than just the editor's
+`.github/copilot-instructions.md` file, though it produces that file too)
+have since been built — see `backend/app/adapters/`. A fourth adapter,
+Codex CLI (`codex_cli.py`), was also built but doesn't appear anywhere in
+this research's 9 investigated targets. pi.dev, Continue.dev, Aider, and
+Roo Code remain unbuilt and are still the best-researched next candidates
+(see [extending.md](docs/extending.md#adding-a-target-adapter) for the
+current adapter-adding checklist, including a step this research predates:
+registering the new target in `ProfileCompileRequest`'s `Literal`).
+
 ---
 
 ## Viable Targets (high priority)
@@ -24,7 +35,7 @@ Nine potential adapter targets were investigated. Seven are viable for MyACE ada
 
 ---
 
-### 2. Windsurf (Codeium)
+### 2. Windsurf (Codeium) — BUILT (`backend/app/adapters/windsurf.py`)
 
 | Property | Value |
 |----------|-------|
@@ -70,7 +81,7 @@ Nine potential adapter targets were investigated. Seven are viable for MyACE ada
 
 ---
 
-### 5. Cline
+### 5. Cline — BUILT (`backend/app/adapters/cline.py`)
 
 | Property | Value |
 |----------|-------|
@@ -100,7 +111,7 @@ Nine potential adapter targets were investigated. Seven are viable for MyACE ada
 
 ---
 
-### 7. GitHub Copilot
+### 7. GitHub Copilot — BUILT (`backend/app/adapters/copilot_cli.py`, as `copilot-cli`)
 
 | Property | Value |
 |----------|-------|
@@ -141,15 +152,18 @@ Nine potential adapter targets were investigated. Seven are viable for MyACE ada
 
 | Priority | Target | Rationale |
 |----------|--------|-----------|
-| 1 | **Windsurf** | Most similar to existing Cursor adapter; large and growing user base |
-| 2 | **Cline** | Open-source, 1.2M+ MAU, `.clinerules/` format similar to Cursor |
+| 1 | **Windsurf** — ✅ built | Most similar to existing Cursor adapter; large and growing user base |
+| 2 | **Cline** — ✅ built | Open-source, 1.2M+ MAU, `.clinerules/` format similar to Cursor |
 | 3 | **Continue.dev** | Rich config surface, VS Code native, growing enterprise adoption |
 | 4 | **Aider** | Simplest to implement; terminal-native, complements CLI workflow |
 | 5 | **pi.dev** | Native AGENTS.md support; skills system maps well to Canonical IR |
 | 6 | **Roo Code** | More complex due to mode system; fork of Cline with additional features |
-| 7 | **GitHub Copilot** | Largest user base but simplest format; quick win for visibility |
+| 7 | **GitHub Copilot** — ✅ built (as `copilot-cli`) | Largest user base but simplest format; quick win for visibility |
 | 8 | **Zed AI** | Monitor for maturity |
 | 9 | **CodeGPT** | Already covered by Cursor adapter |
+
+*(Codex CLI was also built — `backend/app/adapters/codex_cli.py` — despite
+not appearing in this research.)*
 
 ---
 
