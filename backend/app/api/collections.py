@@ -7,7 +7,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -147,10 +147,17 @@ async def list_community_collections(
     count_result = await session.execute(count_query)
     total = count_result.scalar() or 0
 
-    # Fetch page — base collections first, then additional, both alphabetically
+    # Fetch page — base collections first, then additional, both alphabetically.
+    # 'additional' < 'base' alphabetically, so use a CASE expression to force
+    # the correct order: base → 0, additional → 1.
+    type_order = case(
+        (Collection.collection_type == "base", 0),
+        (Collection.collection_type == "additional", 1),
+        else_=2,
+    )
     query = (
         base_query
-        .order_by(Collection.collection_type.asc(), Collection.name.asc())
+        .order_by(type_order, Collection.name.asc())
         .offset(offset)
         .limit(limit)
     )
