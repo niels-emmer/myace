@@ -11,10 +11,16 @@ format Claude Code, OpenCode, Cursor (and whatever comes next) actually
 expects — instead of hand-maintaining N slightly-different copies, or
 picking one tool and losing the rest.
 
-![MyACE Dashboard](docs/images/dashboard.png)
-![MyACE Collections](docs/images/collections.png)
-![MyACE Import](docs/images/import.png)
-![MyACE Settings](docs/images/settings.png)
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/login.png" alt="MyACE login screen" /></td>
+    <td width="50%"><img src="docs/images/dashboard.png" alt="MyACE dashboard" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/collections.png" alt="MyACE collections" /></td>
+    <td width="50%"><img src="docs/images/compile.png" alt="MyACE compile — a sample profile compiled to OpenCode" /></td>
+  </tr>
+</table>
 
 ## Why this exists
 
