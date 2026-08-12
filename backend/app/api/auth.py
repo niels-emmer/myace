@@ -7,6 +7,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from itsdangerous import URLSafeTimedSerializer
@@ -440,6 +441,20 @@ async def _is_provider_enabled(provider: str, session: AsyncSession) -> bool:
     return field_map.get(provider, True)
 
 
+async def _fetch_github_primary_email(client: StarletteOAuth2App, token: dict) -> str:
+    """GitHub's /user endpoint returns a null `email` unless the user made
+    one public, even with the user:email scope granted — the actual address
+    (and whether it's verified) lives at /user/emails instead."""
+    resp = await client.get("https://api.github.com/user/emails", token=token)
+    resp.raise_for_status()
+    emails = resp.json()
+    primary = next((e for e in emails if e.get("primary") and e.get("verified")), None)
+    if primary:
+        return str(primary["email"])
+    verified = next((e for e in emails if e.get("verified")), None)
+    return str(verified["email"]) if verified else ""
+
+
 @router.get("/providers")
 async def get_providers(
     session: AsyncSession = Depends(get_session),
@@ -525,10 +540,28 @@ async def auth_callback(
     token = await client.authorize_access_token(request, code_verifier=code_verifier)
     user_info = token.get("userinfo") or await client.userinfo(token=token)
 
-    oidc_sub = user_info.get("sub")
-    email = user_info.get("email", "")
-    display_name = user_info.get("name", user_info.get("preferred_username", email.split("@")[0]))
-    avatar_url = user_info.get("picture")
+    if provider == "github":
+        # GitHub is plain OAuth2, not OIDC — its /user response has no `sub`/
+        # `preferred_username`/`picture` claims, and `email` is null unless
+        # the user made one public, even with the user:email scope granted.
+        oidc_sub = str(user_info["id"])
+        email = user_info.get("email") or await _fetch_github_primary_email(client, token)
+        display_name = user_info.get("name") or user_info.get("login") or email.split("@")[0]
+        avatar_url = user_info.get("avatar_url")
+    else:
+        oidc_sub = user_info.get("sub")
+        email = user_info.get("email", "")
+        display_name = (
+            user_info.get("name") or user_info.get("preferred_username") or email.split("@")[0]
+        )
+        avatar_url = user_info.get("picture")
+
+    if not email:
+        raise HTTPException(
+            status_code=400,
+            detail="Your GitHub account has no verified email address. Add and "
+            "verify an email on GitHub, then try signing in again.",
+        )
 
     # Find or create user
     result = await session.execute(

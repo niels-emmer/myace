@@ -185,6 +185,21 @@ Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d
   error, since nothing else in the request/response cycle surfaces the
   problem until a provider actually validates a real `code_challenge`
   against a missing `code_verifier`.
+- **GitHub is plain OAuth2, not OIDC — it needs an explicit `userinfo_endpoint`
+  and provider-specific field mapping.** `get_oauth_client()`
+  (`backend/app/core/security.py`) must register GitHub with
+  `api_base_url`/`userinfo_endpoint` set to `https://api.github.com/` /
+  `https://api.github.com/user` — there's no discovery document for Authlib
+  to find `userinfo_endpoint` from, so omitting it makes
+  `client.userinfo()` raise `KeyError: 'userinfo_endpoint'`. GitHub's
+  `/user` response also doesn't use OIDC claim names (`id` not `sub`,
+  `login`/`avatar_url` not `preferred_username`/`picture`), and `email` is
+  null unless the user made one public *even with the `user:email` scope
+  granted* — the real address lives at `/user/emails`, which
+  `auth_callback()` falls back to via `_fetch_github_primary_email()`. Any
+  new non-OIDC provider needs this same explicit-endpoint-plus-field-mapping
+  treatment, not the generic `sub`/`email`/`name`/`picture` path that works
+  for true OIDC providers (Google, generic OIDC).
 - Every route (except `/health` and the auth entry points listed in rule 13) requires `Depends(get_current_user)` — never accept a client-supplied `owner_id`/`user_id` as the source of truth for who's making the request. Ownership on create always comes from `current_user.id`.
 - The GitHub PR export endpoint (`POST /collections/{id}/export/github`) takes a `github_token` in the request body, uses it for that single request only, and never persists or logs it — same rule as any other token, just worth calling out since it's user-supplied per-request rather than stored server-side.
 - **Registration must never authenticate without a password.** The

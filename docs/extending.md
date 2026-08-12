@@ -97,6 +97,14 @@ To add a fourth provider that also speaks OAuth2/OIDC:
    `AuthProviders` type (`frontend/src/types/index.ts`), `Login.tsx`'s
    button list, and `PROVIDER_INFO` in `SystemSettings.tsx` (setup steps +
    console/docs links for the credentials accordion).
+5. **If the provider isn't OIDC** (like GitHub — plain OAuth2, no
+   `.well-known/openid-configuration`), you must set `api_base_url`/
+   `userinfo_endpoint` explicitly in its `security.py` registration (see
+   AGENTS.md's Security Rules), and add a provider-specific branch in
+   `auth_callback()` to map its actual response fields — don't assume the
+   generic OIDC `sub`/`email`/`name`/`picture` claim names apply. Also
+   check whether the provider ever omits an email by default (GitHub does,
+   even with an email-scoped grant) and needs a follow-up call to fetch one.
 
 No database migration needed for `users` — `User.oidc_provider` is a plain
 string, not an enum.
