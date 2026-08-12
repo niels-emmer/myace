@@ -7,6 +7,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -112,26 +113,48 @@ async def list_collections(
     return result.scalars().all()
 
 
-@router.get("/community", response_model=list[CollectionRead])
+class CommunityCollectionsResponse(BaseModel):
+    """Paginated response for community collections."""
+    items: list[CollectionRead]
+    total: int
+
+
+@router.get("/community", response_model=CommunityCollectionsResponse)
 async def list_community_collections(
+    collection_type: str | None = Query(None, alias="type"),
     category: str | None = None,
-    limit: int | None = None,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """List published community collections, optionally filtered by category."""
-    query = select(Collection).where(
+    """List published community collections, with optional filters and pagination.
+
+    Results are sorted alphabetically by name. Supports filtering by
+    collection_type ('base'/'additional') and/or category.
+    """
+    base_query = select(Collection).where(
         Collection.published == True,
         Collection.is_active == True,
     )
+    if collection_type:
+        base_query = base_query.where(Collection.collection_type == collection_type)
     if category:
-        query = query.where(Collection.category == category)
-    query = query.order_by(Collection.download_count.desc())
-    if limit:
-        query = query.limit(limit)
+        base_query = base_query.where(Collection.category == category)
 
+    # Total count for pagination
+    count_query = select(func.count()).select_from(base_query.subquery())
+    count_result = await session.execute(count_query)
+    total = count_result.scalar() or 0
+
+    # Fetch page
+    query = base_query.order_by(Collection.name.asc()).offset(offset).limit(limit)
     result = await session.execute(query)
-    return result.scalars().all()
+
+    return CommunityCollectionsResponse(
+        items=list(result.scalars().all()),
+        total=total,
+    )
 
 
 @router.get("/community/top", response_model=list[CollectionRead])

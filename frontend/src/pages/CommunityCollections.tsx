@@ -6,26 +6,39 @@ import {
   BookOpen,
   Download,
   ChevronRight,
-  Grid3X3,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
 import type { Collection } from '../types';
 
+const PAGE_SIZE = 10;
+
 export default function CommunityCollections() {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [collectionType, setCollectionType] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
-  const { data: categories } = useQuery({
-    queryKey: ['community-categories'],
-    queryFn: () => collectionsApi.listCommunityCategories(),
-  });
+  const offset = page * PAGE_SIZE;
 
-  const { data: collections, isLoading } = useQuery({
-    queryKey: ['community-collections', selectedCategory],
+  const { data, isLoading } = useQuery({
+    queryKey: ['community-collections', collectionType, page],
     queryFn: () =>
-      collectionsApi.listCommunity(
-        selectedCategory ? { category: selectedCategory } : undefined,
-      ),
+      collectionsApi.listCommunity({
+        ...(collectionType ? { type: collectionType } : {}),
+        offset,
+        limit: PAGE_SIZE,
+      }),
   });
+
+  const collections = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const handleTypeChange = (type: string | null) => {
+    setCollectionType(type);
+    setPage(0);
+  };
 
   return (
     <div className="space-y-6">
@@ -49,51 +62,98 @@ export default function CommunityCollections() {
         </div>
       </div>
 
-      {/* Category filter */}
-      {categories && categories.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setSelectedCategory(null)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
-              selectedCategory === null
-                ? 'border-brand-500 bg-brand-50 text-brand-700'
-                : 'border-border text-muted-foreground hover:border-input hover:text-accent-foreground'
-            }`}
-          >
-            <Grid3X3 className="h-4 w-4" />
-            All
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
-                selectedCategory === cat
-                  ? 'border-brand-500 bg-brand-50 text-brand-700'
-                  : 'border-border text-muted-foreground hover:border-input hover:text-accent-foreground'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Collection type filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => handleTypeChange(null)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+            collectionType === null
+              ? 'border-brand-500 bg-brand-50 text-brand-700'
+              : 'border-border text-muted-foreground hover:border-input hover:text-accent-foreground'
+          }`}
+        >
+          All
+        </button>
+        <button
+          onClick={() => handleTypeChange('base')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+            collectionType === 'base'
+              ? 'border-brand-500 bg-brand-50 text-brand-700'
+              : 'border-border text-muted-foreground hover:border-input hover:text-accent-foreground'
+          }`}
+        >
+          Base
+        </button>
+        <button
+          onClick={() => handleTypeChange('additional')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+            collectionType === 'additional'
+              ? 'border-brand-500 bg-brand-50 text-brand-700'
+              : 'border-border text-muted-foreground hover:border-input hover:text-accent-foreground'
+          }`}
+        >
+          Additional
+        </button>
+      </div>
 
       {/* Collection list */}
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Loading collections...</div>
-      ) : collections && collections.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {collections.map((collection) => (
-            <CommunityCollectionCard key={collection.id} collection={collection} />
-          ))}
-        </div>
+      ) : collections.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {collections.map((collection) => (
+              <CommunityCollectionCard key={collection.id} collection={collection} />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                onClick={() => setPage(0)}
+                disabled={page === 0}
+                className="p-2 rounded-lg border border-border text-muted-foreground hover:text-accent-foreground hover:bg-accent transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                title="First page"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setPage(Math.max(0, page - 1))}
+                disabled={page === 0}
+                className="p-2 rounded-lg border border-border text-muted-foreground hover:text-accent-foreground hover:bg-accent transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                title="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-sm text-muted-foreground px-3">
+                Page {page + 1} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                disabled={page >= totalPages - 1}
+                className="p-2 rounded-lg border border-border text-muted-foreground hover:text-accent-foreground hover:bg-accent transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                title="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setPage(totalPages - 1)}
+                disabled={page >= totalPages - 1}
+                className="p-2 rounded-lg border border-border text-muted-foreground hover:text-accent-foreground hover:bg-accent transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                title="Last page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center py-12 bg-card rounded-xl border border-border">
           <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground">
-            {selectedCategory
-              ? `No collections in the "${selectedCategory}" category yet.`
+            {collectionType
+              ? `No ${collectionType} collections available yet.`
               : 'No community collections yet.'}
           </p>
         </div>

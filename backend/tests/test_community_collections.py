@@ -65,7 +65,7 @@ async def test_list_community_collections_empty(
     await _register(async_client)
     res = await async_client.get("/api/v1/collections/community")
     assert res.status_code == 200
-    assert res.json() == []
+    assert res.json() == {"items": [], "total": 0}
 
 
 @pytest.mark.asyncio
@@ -86,10 +86,11 @@ async def test_list_community_collections_with_published(
     res = await async_client.get("/api/v1/collections/community")
     assert res.status_code == 200
     data = res.json()
-    assert len(data) == 1
-    assert data[0]["id"] == collection_id
-    assert data[0]["published"] is True
-    assert data[0]["category"] == "python"
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["id"] == collection_id
+    assert data["items"][0]["published"] is True
+    assert data["items"][0]["category"] == "python"
 
 
 @pytest.mark.asyncio
@@ -112,8 +113,9 @@ async def test_list_community_collections_filters_by_category(
     res = await async_client.get("/api/v1/collections/community?category=python")
     assert res.status_code == 200
     data = res.json()
-    assert len(data) == 1
-    assert data[0]["category"] == "python"
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["category"] == "python"
 
 
 @pytest.mark.asyncio
@@ -230,7 +232,8 @@ async def test_publish_is_immediate_and_self_serve(
     # Immediately visible in the community listing, no extra step.
     res = await async_client.get("/api/v1/collections/community")
     assert res.status_code == 200
-    assert any(c["id"] == collection_id for c in res.json())
+    data = res.json()
+    assert any(c["id"] == collection_id for c in data["items"])
 
 
 @pytest.mark.asyncio

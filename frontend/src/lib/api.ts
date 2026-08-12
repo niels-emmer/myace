@@ -95,12 +95,14 @@ export const collectionsApi = {
       body: JSON.stringify(data),
     }),
 
-  listCommunity: (params?: { category?: string; limit?: number }) => {
+  listCommunity: (params?: { type?: string; category?: string; offset?: number; limit?: number }) => {
     const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.set('type', params.type);
     if (params?.category) searchParams.set('category', params.category);
-    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset !== undefined) searchParams.set('offset', String(params.offset));
+    if (params?.limit !== undefined) searchParams.set('limit', String(params.limit));
     const qs = searchParams.toString();
-    return request<import('@/types').Collection[]>(`/collections/community${qs ? `?${qs}` : ''}`);
+    return request<import('@/types').CommunityCollectionsResponse>(`/collections/community${qs ? `?${qs}` : ''}`);
   },
 
   listCommunityTop: (limit?: number) => {
