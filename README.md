@@ -50,9 +50,16 @@ demand — from a web UI, or with a one-line CLI pull.
   first profile from on day one. See [`collections/`](collections/).
 - **A real CLI** — `myace login`, `myace pull`, `myace import --push`. Script
   it, put it in a dotfiles repo, run it on a fresh machine.
-- **Real multi-user auth** — email+password or OIDC/GitHub/Google SSO,
-  private-by-default collections and profiles with an explicit public/private
-  flag, and an admin role for oversight. Not a toy single-user hack.
+- **Real multi-user auth** — email+password (with email-based password
+  reset) or OIDC/GitHub/Google SSO, private-by-default collections and
+  profiles with an explicit public/private flag, and an admin role for
+  oversight. Not a toy single-user hack.
+- **Admin controls in the UI, no redeploy needed** — configure SMTP and
+  OAuth provider credentials (Client ID/Secret, redirect URLs, a
+  connectivity test button) from System Settings instead of editing `.env`;
+  enable/disable target adapters and other users' accounts system-wide.
+- **Responsive** — the web UI works on a phone-width screen (a slide-out
+  drawer replaces the sidebar below ~1024px), not just desktop.
 
 ## How it works
 
@@ -124,11 +131,20 @@ SaaS. After forking:
    - Set `CORS_ORIGINS` to your real domain(s), and **`TRUSTED_HOSTS`** too
      (required in production — the app refuses to start without it, to
      prevent Host-header injection attacks).
+   - Set `SETTINGS_ENCRYPTION_KEY` if you plan to save SMTP or OAuth
+     provider secrets from the System Settings UI (rather than only via
+     `.env`) — required before those forms can save; generate with
+     `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+     See [ADR-0006](docs/adr/0006-encrypted-admin-editable-secrets.md).
 2. Optionally configure OIDC/GitHub/Google SSO — via `.env`
    ([`.env.example`](.env.example)) or from System Settings → Authentication
    Providers in the admin UI. See
    [`docs/extending.md#adding-an-sso-provider`](docs/extending.md#adding-an-sso-provider).
-3. Deploy with `docker-compose.prod.yml` behind your own reverse proxy — see
+3. Optionally configure SMTP for password-reset emails, the same way — via
+   `.env` or System Settings → Email (SMTP), with a "Send Test Email"
+   button to verify it. See
+   [`docs/extending.md#configuring-smtp-for-password-reset`](docs/extending.md#configuring-smtp-for-password-reset).
+4. Deploy with `docker-compose.prod.yml` behind your own reverse proxy — see
    [Production deployment](#production-vps-behind-a-reverse-proxy) below.
 
 ### Production (single machine)
@@ -382,6 +398,11 @@ Markdown body with the actual rule/instruction content...
 Only the first three are mirrored in the CLI's offline fallback adapters
 (`cli/myace_cli/adapters/`) — the rest are backend/web-UI-only for now.
 
+An admin can disable any adapter system-wide from System Settings →
+Adapter Registry — disabled adapters disappear from the Compile page's
+target picker and are rejected server-side if requested directly (e.g. via
+`myace pull`).
+
 ## Authentication & Roles
 
 Every API route requires an authenticated user — either a browser session
@@ -435,11 +456,12 @@ the exact rules.
 │   ├── alembic/                 # Migrations
 │   ├── app/
 │   │   ├── main.py              # App entrypoint, CORS + session middleware
-│   │   ├── core/                # Config, DB session, OIDC/security, deps (auth), authz (ownership checks)
+│   │   ├── core/                # Config, DB session, OIDC/security, crypto (encrypted admin secrets), deps (auth), authz (ownership checks)
 │   │   ├── models/               # SQLModel schemas (User, Collection, Artifact, Profile, ApiToken, DocCache, SystemSettings)
 │   │   ├── api/                  # Routes: auth, collections, profiles, adapters, doc_cache, admin
 │   │   ├── adapters/             # Canonical IR → target translators (7: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf)
-│   │   └── services/             # Compiler, doc verifier, scanner (local + git), github_export, seed_collections
+│   │   └── services/             # Compiler, doc verifier, scanner (local + git), github_export, seed_collections,
+│   │                              #   email (SMTP send), effective_settings (DB-override-vs-env resolver)
 │   └── tests/                    # pytest suite
 │
 ├── frontend/                    # React + Vite + TailwindCSS
@@ -447,11 +469,11 @@ the exact rules.
 │   ├── nginx.conf
 │   ├── package.json
 │   ├── src/
-│   │   ├── components/           # Layout, shared UI
+│   │   ├── components/           # Layout (responsive sidebar/drawer), shared UI
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
-│   │   ├── pages/                 # Login, Dashboard, Collections, CollectionDetail, CommunityCollections,
-│   │   │                          #   CommunityCollectionDetail, Profiles, ProfileDetail, Import, Compile,
-│   │   │                          #   UserSettings, SystemSettings (admin-gated)
+│   │   ├── pages/                 # Login, ResetPassword, Dashboard, Collections, CollectionDetail,
+│   │   │                          #   CommunityCollections, CommunityCollectionDetail, Profiles, ProfileDetail,
+│   │   │                          #   Import, Compile, UserSettings, SystemSettings (admin-gated)
 │   │   ├── lib/                   # API client
 │   │   └── types/                 # TypeScript interfaces
 │   └── dist/                     # Production build

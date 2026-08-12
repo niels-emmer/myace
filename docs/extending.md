@@ -119,25 +119,6 @@ Email" button on the System Settings page to validate a configuration (host/
 port/credentials as currently typed, not necessarily saved yet) before
 relying on it — it sends a real email to the requesting admin's own address.
 
-## Configuring SMTP for password reset
-
-Password-reset emails (`POST /auth/forgot-password`) are sent via SMTP,
-configured either through `.env` (`SMTP_HOST`/`SMTP_PORT`/`SMTP_USERNAME`/
-`SMTP_PASSWORD`/`SMTP_FROM_EMAIL`/`SMTP_FROM_NAME`/`SMTP_USE_TLS` — see
-`.env.example`) or through System Settings → Email (SMTP), which an admin
-can use instead of editing `.env` and restarting. A value saved via System
-Settings overrides the matching env var at runtime
-(`backend/app/services/effective_settings.py`); the master `smtp_enabled`
-toggle there has no env-var equivalent — it defaults off, so email sending
-stays inert until an admin explicitly turns it on.
-
-Requires `SETTINGS_ENCRYPTION_KEY` (`.env.example`) to be set before the
-SMTP password can be saved via the UI — see
-[ADR-0006](adr/0006-encrypted-admin-editable-secrets.md). Use the "Send Test
-Email" button on the System Settings page to validate a configuration (host/
-port/credentials as currently typed, not necessarily saved yet) before
-relying on it — it sends a real email to the requesting admin's own address.
-
 ## Adding an API route
 
 Every new route that touches user data must answer three questions before
