@@ -278,14 +278,28 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   add another import-like operation for community collections, update the
   counter there too.
 
-### 18. Publish Uses Existing GitHub Export
+### 18. Publish Is Self-Serve, Not a GitHub PR — and Is Unrelated to Starter Packs
 
-- **`POST /{collection_id}/publish` reuses `artifacts_to_files()` and
-  `export_collection_to_github()` from `github_export.py`.** It prefixes
-  every file path with `collections/{type}/{slug}/` and adds a `README.md`.
-  The target repo is configured via `settings.community_repo` (default
-  `nemmer/MyACE`). The user's `github_token` is passed through, used once,
-  and never persisted — same contract as the existing GitHub export endpoint.
+- **`POST /{collection_id}/publish` is a pure DB write, immediate and
+  ungated.** It sets `published=True` and `visibility="public"` (and, if
+  provided, overwrites `name`/`description` with `publish_name`/
+  `publish_description`) on the caller's own `Collection` row. That's the
+  entire operation — no GitHub call, no `github_token`, no PR, no admin
+  approval step. `GET /collections/community` lists anything with
+  `published=True AND is_active=True`; there's nothing else to satisfy.
+- **This used to open a GitHub PR against this repo's `collections/`
+  folder** (`app/services/publish.py`, removed) with UI copy promising "an
+  admin will review and approve." It didn't actually gate anything — the DB
+  flag flipped regardless of the PR's fate — so the review step was fake.
+  Don't reintroduce a PR-based publish flow; if a real moderation gate is
+  wanted, add an explicit `review_status`-style field enforced in
+  `list_community_collections()`, not a side-channel GitHub PR.
+- **The starter-pack set (rule 25) is a completely separate, one-directional
+  thing.** It's a fixed list hand-maintained in this repo's `collections/`
+  directory, changed via the normal branch → PR → CI → merge → deploy
+  workflow (by a human or an agent working in this repo), and picked up by
+  `seed_starter_collections()` on backend boot. Nothing a user publishes
+  through the API ever flows into it automatically.
 
 ### 19. Admin-Editable Secrets Must Go Through `app/core/crypto.py`
 

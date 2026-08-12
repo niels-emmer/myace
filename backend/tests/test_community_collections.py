@@ -203,6 +203,62 @@ async def test_import_non_published_collection_fails(
 
 
 @pytest.mark.asyncio
+async def test_publish_is_immediate_and_self_serve(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Publishing sets published=True and visibility=public on the caller's own
+    row immediately — no admin approval step, no GitHub round-trip."""
+    await _register(async_client)
+    collection_id = await _create_collection(async_client, db_session, visibility="private")
+
+    res = await async_client.post(
+        f"/api/v1/collections/{collection_id}/publish",
+        json={
+            "category": "python",
+            "publish_name": "Published Display Name",
+            "publish_description": "A public-facing description.",
+        },
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["published"] is True
+    assert data["visibility"] == "public"
+    assert data["category"] == "python"
+    assert data["name"] == "Published Display Name"
+    assert data["description"] == "A public-facing description."
+
+    # Immediately visible in the community listing, no extra step.
+    res = await async_client.get("/api/v1/collections/community")
+    assert res.status_code == 200
+    assert any(c["id"] == collection_id for c in res.json())
+
+
+@pytest.mark.asyncio
+async def test_publish_requires_enabled_artifacts(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Publishing a collection with no enabled artifacts returns 400."""
+    await _register(async_client)
+    res = await async_client.post(
+        "/api/v1/collections",
+        json={
+            "name": "empty-collection",
+            "git_url": "https://example.com/repo.git",
+            "collection_type": "base",
+            "visibility": "private",
+        },
+    )
+    assert res.status_code == 201
+    collection_id = res.json()["id"]
+
+    res = await async_client.post(
+        f"/api/v1/collections/{collection_id}/publish",
+        json={"category": "python"},
+    )
+    assert res.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_publish_requires_category(
     async_client: AsyncClient, db_session: AsyncSession
 ) -> None:
@@ -212,7 +268,7 @@ async def test_publish_requires_category(
 
     res = await async_client.post(
         f"/api/v1/collections/{collection_id}/publish",
-        json={"category": "", "github_token": "ghp_fake_token"},
+        json={"category": ""},
     )
     assert res.status_code == 422
 
@@ -224,7 +280,7 @@ async def test_publish_requires_auth(
     """Publishing without authentication returns 401."""
     res = await async_client.post(
         "/api/v1/collections/00000000-0000-0000-0000-000000000000/publish",
-        json={"category": "python", "github_token": "ghp_fake_token"},
+        json={"category": "python"},
     )
     assert res.status_code == 401
 

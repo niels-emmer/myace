@@ -48,13 +48,16 @@ demand — from a web UI, or with a one-line CLI pull.
   a profile into the exact files Claude Code, OpenCode, or Cursor expect.
 - **Export back out** — push a collection to a new GitHub branch and open a
   PR, so your canonical source of truth can live in its own repo.
-- **Community collections** — publish your collections to the MyACE community
-  store (submit via PR), browse and import collections published by other users.
+- **Community collections** — publish your collections to make them public
+  immediately, browse and import collections published by other users. This
+  is self-serve, not admin-moderated.
 - **Starter packs out of the box** — every fresh install seeds itself with 2
   base collections (Vibecoder, Software Engineer) and 5 goal-specific ones
   (Frontend, Backend, Infrastructure as Code Expert, Security Auditor,
   Documentation Editor), so there's real, opinionated content to build a
-  first profile from on day one. See [`collections/`](collections/).
+  first profile from on day one. This is a fixed, code-reviewed set
+  maintained in [`collections/`](collections/) — separate from user-published
+  community collections, and not affected by them.
 - **A real CLI** — `myace login`, `myace pull`, `myace import --push`. Script
   it, put it in a dotfiles repo, run it on a fresh machine.
 - **Real multi-user auth** — email+password (with email-based password
@@ -473,9 +476,9 @@ tested restore procedure) — not yet implemented.
 ├── CLAUDE.md                    # Claude Code-specific agent guidance
 ├── CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, LICENSE
 ├── docs/                        # Deep-dive documentation (humans + agents)
-├── collections/                 # Starter-pack content (seeded on boot) +
-│   ├── base/                    #   community-publish target — see the
-│   └── additional/              #   "Starter packs" section in AGENTS.md
+├── collections/                 # Starter-pack content (seeded on boot),
+│   ├── base/                    #   hand-curated and code-reviewed here —
+│   └── additional/              #   see "Starter packs" section in AGENTS.md
 ├── docker-compose.yml           # Single-machine production
 ├── docker-compose.dev.yml       # Dev overrides (ports, mounts, CORS)
 ├── docker-compose.prod.yml      # VPS overrides (external network, no ports)
