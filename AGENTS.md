@@ -171,6 +171,20 @@ Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d
 - OIDC authorization code flow uses PKCE (S256) — `code_verifier` is stored
   in the session, `code_challenge` is sent with the authorize redirect. Never
   skip PKCE when adding a new OIDC provider.
+- **`auth_callback()` must explicitly forward the stashed `code_verifier`.**
+  Authlib only auto-manages PKCE (generating and replaying the verifier via
+  its own session-backed state) when `code_challenge_method` is set on the
+  client *at registration time*. This codebase passes `code_challenge`/
+  `code_challenge_method` per-request to `authorize_redirect()` instead (so
+  the same generic client works for all three providers), which means
+  Authlib's internal state never contains a verifier — `auth_callback()`
+  must `request.session.pop("code_verifier", None)` and pass it explicitly
+  to `client.authorize_access_token(request, code_verifier=code_verifier)`.
+  Omitting this doesn't fail locally against mocked tests; it 500s against
+  every real provider at the token-exchange step with a PKCE mismatch
+  error, since nothing else in the request/response cycle surfaces the
+  problem until a provider actually validates a real `code_challenge`
+  against a missing `code_verifier`.
 - Every route (except `/health` and the auth entry points listed in rule 13) requires `Depends(get_current_user)` — never accept a client-supplied `owner_id`/`user_id` as the source of truth for who's making the request. Ownership on create always comes from `current_user.id`.
 - The GitHub PR export endpoint (`POST /collections/{id}/export/github`) takes a `github_token` in the request body, uses it for that single request only, and never persists or logs it — same rule as any other token, just worth calling out since it's user-supplied per-request rather than stored server-side.
 - **Registration must never authenticate without a password.** The
