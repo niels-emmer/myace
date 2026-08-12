@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Shield, Database, RefreshCw, Users, Cpu, Globe, Lock, UserPlus,
-  Smartphone, ToggleLeft, ToggleRight, ExternalLink,
+  Smartphone, ToggleLeft, ToggleRight, ExternalLink, Trash2, AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { adminApi, authApi, adaptersApi, docCacheApi } from '../lib/api';
+import type { UserAdminInfo } from '@/types';
 
 const PROVIDER_DOCS: Record<string, { name: string; docs: string }> = {
   oidc: {
@@ -71,6 +73,24 @@ export default function SystemSettings() {
   const toggleSetting = (key: string, currentValue: boolean) => {
     updateMutation.mutate({ [key]: !currentValue });
   };
+
+  const setUserActiveMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      authApi.setUserActive(id, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+  });
+
+  const removeUserMutation = useMutation({
+    mutationFn: (id: string) => authApi.removeUser(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      setUserToRemove(null);
+    },
+  });
+
+  const [userToRemove, setUserToRemove] = useState<UserAdminInfo | null>(null);
 
   if (!user?.is_admin) {
     return (
@@ -290,30 +310,72 @@ export default function SystemSettings() {
                   <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Name</th>
                   <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Email</th>
                   <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Role</th>
-                  <th className="text-left py-2 font-medium text-muted-foreground">Status</th>
+                  <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Status</th>
+                  <th className="text-right py-2 font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {allUsers.map((u) => (
-                  <tr key={u.id} className="border-b border-border/50">
-                    <td className="py-2 pr-4 text-card-foreground">{u.display_name || '—'}</td>
-                    <td className="py-2 pr-4 text-muted-foreground">{u.email}</td>
-                    <td className="py-2 pr-4">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        u.is_admin ? 'bg-purple-50 text-purple-700' : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {u.is_admin ? 'Admin' : 'User'}
-                      </span>
-                    </td>
-                    <td className="py-2">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        u.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                      }`}>
-                        {u.is_active ? 'Active' : 'Disabled'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {allUsers.map((u) => {
+                  const isSelf = u.id === user?.id;
+                  return (
+                    <tr key={u.id} className="border-b border-border/50">
+                      <td className="py-2 pr-4 text-card-foreground">{u.display_name || '—'}</td>
+                      <td className="py-2 pr-4 text-muted-foreground">{u.email}</td>
+                      <td className="py-2 pr-4">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          u.is_admin ? 'bg-purple-50 text-purple-700' : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {u.is_admin ? 'Admin' : 'User'}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-4">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          u.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                        }`}>
+                          {u.is_active ? 'Active' : 'Disabled'}
+                        </span>
+                      </td>
+                      <td className="py-2">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() =>
+                              setUserActiveMutation.mutate({ id: u.id, isActive: !u.is_active })
+                            }
+                            disabled={isSelf || setUserActiveMutation.isPending}
+                            className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                              u.is_active
+                                ? 'text-green-600 hover:bg-green-50'
+                                : 'text-muted-foreground hover:bg-accent'
+                            }`}
+                            title={
+                              isSelf
+                                ? 'Use your own account settings to change your own status'
+                                : u.is_active ? 'Disable user' : 'Enable user'
+                            }
+                          >
+                            {u.is_active ? (
+                              <ToggleRight className="h-5 w-5" />
+                            ) : (
+                              <ToggleLeft className="h-5 w-5" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setUserToRemove(u)}
+                            disabled={isSelf}
+                            className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title={
+                              isSelf
+                                ? 'Use your own account settings to delete your own account'
+                                : 'Remove user'
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -321,6 +383,50 @@ export default function SystemSettings() {
           <p className="text-sm text-muted-foreground">No users found.</p>
         )}
       </div>
+
+      {userToRemove && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-destructive/10 rounded-lg flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-card-foreground">
+                  Remove {userToRemove.display_name || userToRemove.email}?
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This deactivates their account and all collections, profiles, and API tokens
+                  they own. This is reversible by re-enabling the account, but is otherwise not
+                  undoable from this screen.
+                </p>
+              </div>
+            </div>
+
+            {removeUserMutation.isError && (
+              <p className="text-sm text-destructive">
+                {(removeUserMutation.error as Error).message}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setUserToRemove(null)}
+                className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => removeUserMutation.mutate(userToRemove.id)}
+                disabled={removeUserMutation.isPending}
+                className="px-4 py-2 bg-destructive text-white rounded-lg hover:bg-destructive/90 disabled:opacity-50 text-sm font-medium transition-colors"
+              >
+                {removeUserMutation.isPending ? 'Removing...' : 'Remove'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Adapter Registry */}
       <div className="bg-card rounded-xl border border-border p-6">

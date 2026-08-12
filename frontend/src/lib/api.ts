@@ -223,6 +223,15 @@ export const authApi = {
   listUsers: () =>
     request<import('@/types').UserAdminInfo[]>('/auth/users'),
 
+  setUserActive: (userId: string, isActive: boolean) =>
+    request<{ id: string; is_active: boolean }>(
+      `/auth/users/${userId}?is_active=${isActive}`,
+      { method: 'PATCH' },
+    ),
+
+  removeUser: (userId: string) =>
+    request<{ message: string }>(`/auth/users/${userId}`, { method: 'DELETE' }),
+
   updateProfile: (data: import('@/types').UserUpdate) =>
     request<import('@/types').User>('/auth/me', {
       method: 'PATCH',

@@ -395,8 +395,11 @@ profiles/tokens, read-only access to anything another user marked
 entirely — can read/write everyone's data, for oversight). The first person
 to ever register becomes admin automatically; `ADMIN_EMAILS`
 (comma-separated) promotes specific emails on register/login going forward.
-See [`docs/invariants.md#authorization`](docs/invariants.md#authorization)
-for the exact rules.
+Admins can also disable, re-enable, or remove another user's account from
+System Settings → Users (soft-delete, same as the self-service account
+deletion in Settings — never a hard delete). See
+[`docs/invariants.md#authorization`](docs/invariants.md#authorization) for
+the exact rules.
 
 ## Compose Files
 
