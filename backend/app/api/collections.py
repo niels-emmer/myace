@@ -539,10 +539,9 @@ class PublishRequest(BaseModel):
     category: str
     publish_name: str | None = None
     publish_description: str | None = None
-    github_token: str
 
 
-@router.post("/{collection_id}/publish")
+@router.post("/{collection_id}/publish", response_model=CollectionRead)
 async def publish_collection(
     collection_id: uuid.UUID,
     request: PublishRequest,
@@ -551,14 +550,13 @@ async def publish_collection(
 ):
     """Publish a collection to the MyACE community collections store.
 
-    Validates the collection, exports its artifacts to the MyACE repo's
-    collections/ folder, and opens a pull request for admin review.
+    Self-serve and immediate: sets published=True and visibility="public" on
+    the caller's own row, which is all `GET /collections/community` and
+    `GET /collections/{id}` check. There is no admin approval step — the
+    starter-pack set in collections/ is a separate, code-reviewed artifact
+    maintained directly in this repo (see seed_collections.py), unrelated to
+    what a user publishes here.
     """
-    from app.services.publish import (
-        GitHubExportError,
-        publish_collection_to_community,
-    )
-
     collection = await _get_collection_or_404(session, collection_id)
     authorize_access(
         owner_id=collection.owner_id, current_user=current_user,
@@ -581,33 +579,17 @@ async def publish_collection(
             status_code=400, detail="Collection has no enabled artifacts to publish"
         )
 
-    canonical = [_artifact_to_canonical(a) for a in db_artifacts]
-
-    try:
-        result = await publish_collection_to_community(
-            collection_id=collection.id,
-            collection_name=collection.name,
-            collection_type=collection.collection_type,
-            category=request.category.strip(),
-            publish_name=request.publish_name,
-            publish_description=request.publish_description,
-            artifacts=canonical,
-            github_token=request.github_token,
-        )
-    except GitHubExportError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-
-    # Mark the collection as published
-    collection.published = True
+    if request.publish_name and request.publish_name.strip():
+        collection.name = request.publish_name.strip()
+    if request.publish_description is not None:
+        collection.description = request.publish_description.strip()
     collection.category = request.category.strip()
+    collection.published = True
+    collection.visibility = "public"
     await session.commit()
+    await session.refresh(collection)
 
-    return {
-        "pr_url": result["pr_url"],
-        "pr_number": result["pr_number"],
-        "branch": result["branch"],
-        "published": True,
-    }
+    return collection
 
 
 @router.post("/{collection_id}/import", status_code=status.HTTP_201_CREATED)

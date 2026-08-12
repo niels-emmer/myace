@@ -229,12 +229,19 @@ could be normalized into join tables. They're JSON-in-text instead because:
 
 ## Community collections
 
-Published collections have `published = True` and a `category` string for
-browsing. `download_count` tracks how many times the collection has been
-imported. When a user publishes a collection, it is exported to the MyACE
-repository's `collections/` folder via the GitHub API, and a pull request
-is opened for admin review. The database row is marked as published
-immediately on a successful API response.
+Published collections have `published = True`, `visibility = "public"`, and
+a `category` string for browsing. `download_count` tracks how many times
+the collection has been imported. Publishing (`POST /{id}/publish`) is
+self-serve and immediate — it's a plain DB write on the caller's own row,
+with no GitHub involvement and no admin approval step. `GET
+/collections/community` lists anything with `published = True AND is_active
+= True`.
+
+This is entirely separate from the seeded starter-pack set (`is_starter_pack
+= True`, owned by the system account — see the `collections` table above):
+starter packs are a fixed list maintained directly in this repo's
+`collections/` directory and shipped via the normal code-review/deploy
+pipeline, not something a user's publish action feeds into.
 
 Importing a community collection creates a new user-owned `Collection` with
 copied `Artifact` rows and increments `download_count` on the source.

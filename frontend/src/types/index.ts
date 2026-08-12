@@ -239,14 +239,6 @@ export interface PublishRequest {
   category: string;
   publish_name?: string;
   publish_description?: string;
-  github_token: string;
-}
-
-export interface PublishResult {
-  pr_url: string;
-  pr_number: number;
-  branch: string;
-  published: boolean;
 }
 
 export interface ImportCommunityResult {

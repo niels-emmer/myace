@@ -90,7 +90,7 @@ export const collectionsApi = {
   // ─── Community / Publish ─────────────────────────────────
 
   publish: (collectionId: string, data: import('@/types').PublishRequest) =>
-    request<import('@/types').PublishResult>(`/collections/${collectionId}/publish`, {
+    request<import('@/types').Collection>(`/collections/${collectionId}/publish`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
