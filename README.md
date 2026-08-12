@@ -401,6 +401,18 @@ Markdown body with the actual rule/instruction content...
 | GitHub Copilot CLI | `copilot-cli`, `copilot`, `github-copilot` | `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md` |
 | Cline | `cline`, `clinerules` | `.clinerules/*.md` |
 | Windsurf | `windsurf`, `codeium-windsurf` | `.windsurf/rules/*.md` |
+| Aider | `aider` | `CONVENTIONS.md`, `.aider.conf.yml` |
+| Continue | `continue`, `continue-dev` | `.continue/rules/*.md`, `.continue/prompts/*.prompt`, `config.yaml` |
+| Goose | `goose` | `.goosehints` |
+| Sourcegraph Cody | `cody`, `sourcegraph-cody` | `.sourcegraph/*.rule.md` |
+| Amazon Q Developer | `amazon-q`, `amazonq` | `.amazonq/rules/*.md` |
+
+Roo Code was evaluated but deliberately not built: its extension was shut
+down and its repo archived on 2026-05-15 (see
+[ADAPTERS_RESEARCH.md](docs/ADAPTERS_RESEARCH.md)). Sourcegraph
+Cody's current public docs don't list a dedicated rules capability matching
+`.sourcegraph/*.rule.md`; that adapter uses a conservative best-effort
+format pending confirmation (see `backend/app/adapters/cody.py`).
 
 Only the first three are mirrored in the CLI's offline fallback adapters
 (`cli/myace_cli/adapters/`) — the rest are backend/web-UI-only for now.
