@@ -204,6 +204,18 @@ never the encrypted value, on `SystemSettingsRead`). `security.py`'s
 effective config changes (tracked by a fingerprint), so a credential saved
 here takes effect on the next login/callback request without a restart.
 
+Also holds `disabled_adapters` — a JSON-encoded `list[str]` of adapter
+names (`BaseAdapter.adapter_name()`) an admin has disabled system-wide,
+same manual-JSON-in-`Text`-column convention as
+`Profile.disabled_artifact_ids`. Toggled via `PATCH
+/admin/adapters/{name}?enabled=<bool>`. Enforced in two places: the
+frontend's compile target picker (`TargetExporter.tsx`) filters disabled
+adapters out of the dropdown, and `compile_profile()`
+(`app/services/compiler.py`) — the single choke point both
+`/profiles/compile` and `/profiles/compile/zip` funnel through — raises
+`AdapterDisabledError` (→ HTTP 400) if the requested `target` is disabled,
+so the restriction can't be bypassed by calling the API directly.
+
 ## Why JSON-as-text instead of proper junction tables
 
 `Collection.tags`/`target_compatibility` and `Profile.additional_collection_ids`/`disabled_artifact_ids`

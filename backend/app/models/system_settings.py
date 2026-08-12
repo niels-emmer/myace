@@ -1,5 +1,6 @@
 """System settings model — single-row table for runtime-configurable settings."""
 
+import json
 from datetime import UTC, datetime
 
 from sqlalchemy import Text
@@ -33,6 +34,15 @@ class SystemSettings(SQLModel, table=True):
 
     # ─── Doc Cache ─────────────────────────────────────────────
     doc_cache_ttl_days: int = Field(default=7)
+
+    # ─── Adapter Registry ────────────────────────────────────────
+    # JSON-encoded list[str] of adapter names (BaseAdapter.adapter_name())
+    # currently disabled system-wide — same manual-JSON-in-Text-column
+    # convention as Profile.disabled_artifact_ids. Enforced both in the
+    # frontend target picker and in compile_profile() (see AGENTS.md).
+    disabled_adapters: str = Field(
+        default="[]", sa_column=Column("disabled_adapters", Text, server_default="[]")
+    )
 
     # ─── SMTP (password-reset email) ────────────────────────────
     # Empty/None fields fall back to the env var default of the same name
@@ -102,6 +112,7 @@ class SystemSettingsRead(SQLModel):
     mfa_enabled: bool
     mfa_forced: bool
     doc_cache_ttl_days: int
+    disabled_adapters: list[str]
     smtp_enabled: bool
     smtp_host: str | None = None
     smtp_port: int | None = None
@@ -123,11 +134,12 @@ class SystemSettingsRead(SQLModel):
     @classmethod
     def from_settings(cls, settings: "SystemSettings") -> "SystemSettingsRead":
         encrypted_fields = {
-            "smtp_password_encrypted", "oidc_client_secret_encrypted",
+            "disabled_adapters", "smtp_password_encrypted", "oidc_client_secret_encrypted",
             "github_client_secret_encrypted", "google_client_secret_encrypted",
         }
         return cls(
             **settings.model_dump(exclude=encrypted_fields),
+            disabled_adapters=json.loads(settings.disabled_adapters),
             smtp_password_set=bool(settings.smtp_password_encrypted),
             oidc_client_secret_set=bool(settings.oidc_client_secret_encrypted),
             github_client_secret_set=bool(settings.github_client_secret_encrypted),
@@ -150,6 +162,7 @@ class SystemSettingsUpdate(SQLModel):
     mfa_enabled: bool | None = None
     mfa_forced: bool | None = None
     doc_cache_ttl_days: int | None = None
+    disabled_adapters: list[str] | None = None
     smtp_enabled: bool | None = None
     smtp_host: str | None = None
     smtp_port: int | None = None

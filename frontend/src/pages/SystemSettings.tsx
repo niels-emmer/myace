@@ -308,6 +308,14 @@ export default function SystemSettings() {
     updateMutation.mutate({ [key]: !currentValue });
   };
 
+  const toggleAdapterMutation = useMutation({
+    mutationFn: ({ name, enabled }: { name: string; enabled: boolean }) =>
+      adminApi.toggleAdapter(name, enabled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adapters'] });
+    },
+  });
+
   const [expandedProvider, setExpandedProvider] = useState<ProviderKey | null>(null);
 
   const onProviderCredentialsSaved = () => {
@@ -795,20 +803,44 @@ export default function SystemSettings() {
         {adapters && adapters.length > 0 ? (
           <div className="space-y-2">
             {adapters.map((adapter) => (
-              <div key={adapter.name} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <div
+                key={adapter.name}
+                className={`flex items-center justify-between p-3 bg-muted rounded-lg ${
+                  adapter.enabled ? '' : 'opacity-60'
+                }`}
+              >
                 <div>
                   <p className="text-sm font-medium text-card-foreground">{adapter.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{adapter.description}</p>
                 </div>
-                <div className="flex flex-wrap gap-1.5 ml-3">
-                  {adapter.targets.map((target) => (
-                    <span
-                      key={target}
-                      className="px-2 py-0.5 bg-background text-muted-foreground rounded text-xs font-medium"
-                    >
-                      {target}
-                    </span>
-                  ))}
+                <div className="flex items-center gap-3 ml-3">
+                  <div className="flex flex-wrap gap-1.5 justify-end">
+                    {adapter.targets.map((target) => (
+                      <span
+                        key={target}
+                        className="px-2 py-0.5 bg-background text-muted-foreground rounded text-xs font-medium"
+                      >
+                        {target}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() =>
+                      toggleAdapterMutation.mutate({ name: adapter.name, enabled: !adapter.enabled })
+                    }
+                    className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
+                      adapter.enabled
+                        ? 'text-green-600 hover:bg-green-100'
+                        : 'text-muted-foreground hover:bg-accent'
+                    }`}
+                    title={adapter.enabled ? 'Disable adapter' : 'Enable adapter'}
+                  >
+                    {adapter.enabled ? (
+                      <ToggleRight className="h-5 w-5" />
+                    ) : (
+                      <ToggleLeft className="h-5 w-5" />
+                    )}
+                  </button>
                 </div>
               </div>
             ))}

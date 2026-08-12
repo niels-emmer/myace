@@ -245,3 +245,24 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   session)` first and pass the result to `get_oauth_client()` — never call
   `get_oauth_client()` with hand-built config, and never reintroduce a
   module-level `oauth.create_client(provider)` call.
+
+### 21. Adapter Enable/Disable — Enforce at the compile_profile() Choke Point
+
+- **Adapters themselves stay static, stateless Python classes** (rule 3) —
+  `system_settings.disabled_adapters` (a JSON-encoded `list[str]`, admin-only,
+  toggled via `PATCH /admin/adapters/{name}?enabled=<bool>`) is an
+  *enforcement* layer on top of the registry, not a change to how adapters
+  are registered.
+- **The enforcement check lives in `compile_profile()`**
+  (`app/services/compiler.py`), immediately before `get_adapter(target)` is
+  called, raising `AdapterDisabledError` if `target` is in the disabled
+  list. Both `/profiles/compile` and `/profiles/compile/zip` funnel through
+  this one function — if you add a third way to compile a profile, route it
+  through `compile_profile()` too rather than calling `get_adapter()`
+  directly, or it will silently bypass the disabled check.
+- The frontend additionally filters disabled adapters out of
+  `TargetExporter.tsx`'s target picker — that's a UX nicety, not the
+  enforcement boundary. Don't rely on it alone; the backend check is what
+  actually matters for a direct API call or a CLI `myace pull`.
+- If you add a new adapter, no `disabled_adapters` change is needed — it
+  defaults to enabled (absent from the list) automatically.

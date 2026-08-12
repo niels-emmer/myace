@@ -278,6 +278,12 @@ export const adminApi = {
       body: JSON.stringify(data),
     }),
 
+  toggleAdapter: (name: string, enabled: boolean) =>
+    request<{ name: string; enabled: boolean }>(
+      `/admin/adapters/${encodeURIComponent(name)}?enabled=${enabled}`,
+      { method: 'PATCH' },
+    ),
+
   testSmtp: (overrides?: import('@/types').SmtpTestOverrides) =>
     request<{ message: string }>('/admin/settings/smtp/test', {
       method: 'POST',
