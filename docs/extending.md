@@ -6,17 +6,17 @@ Task-oriented guides for common changes. Each one assumes you've read
 
 ## Adding a target adapter
 
-To support a new framework (say, "Continue.dev" — see
+To support a new framework (say, "pi.dev" — see
 [ADAPTERS_RESEARCH.md](ADAPTERS_RESEARCH.md) for other unbuilt candidates;
-don't reuse one of the 7 already shipped in
+don't reuse one of the 12 already shipped in
 `backend/app/adapters/__init__.py`):
 
-1. **Backend**: create `backend/app/adapters/continue_dev.py` implementing
+1. **Backend**: create `backend/app/adapters/pi_dev.py` implementing
    `BaseAdapter` (see `backend/app/adapters/base.py` for the interface):
    ```python
-   class ContinueDevAdapter(BaseAdapter):
-       def adapter_name(self) -> str: return "continue-dev"
-       def supported_targets(self) -> list[str]: return ["continue-dev"]
+   class PiDevAdapter(BaseAdapter):
+       def adapter_name(self) -> str: return "pi-dev"
+       def supported_targets(self) -> list[str]: return ["pi-dev"]
        def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
            ...  # canonical artifacts in, {filename: content} out
    ```
@@ -29,13 +29,13 @@ don't reuse one of the 7 already shipped in
    `get_adapter()` — this exact bug shipped for four adapters (`codex-cli`,
    `copilot-cli`, `cline`, `windsurf`) until it was caught and fixed.
 3. **CLI fallback**: mirror the same adapter in
-   `cli/myace_cli/adapters/continue_dev.py` — the CLI keeps its own copies so
+   `cli/myace_cli/adapters/pi_dev.py` — the CLI keeps its own copies so
    `myace pull` can render locally if the server is unreachable. Keep the
    two in sync; there's no automated check for this today. (In practice the
    CLI currently only mirrors the original three — `claude_code`, `opencode`,
-   `cursor` — so this step is aspirational for the other four until someone
+   `cursor` — so this step is aspirational for the other nine until someone
    backports them.)
-4. **Test**: add a `TestContinueDevAdapter` class to
+4. **Test**: add a `TestPiDevAdapter` class to
    `backend/tests/test_adapters.py` following the existing pattern (see
    `TestClaudeCodeAdapter`, `TestCodexCliAdapter`, `TestWindsurfAdapter`,
    etc.) — at minimum, one test per artifact type your adapter handles

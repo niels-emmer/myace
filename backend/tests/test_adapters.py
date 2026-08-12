@@ -18,6 +18,11 @@ class TestAdapterRegistry:
         assert "copilot-cli" in names
         assert "cline" in names
         assert "windsurf" in names
+        assert "aider" in names
+        assert "continue" in names
+        assert "goose" in names
+        assert "cody" in names
+        assert "amazon-q" in names
 
     def test_get_adapter(self):
         """Should retrieve adapter by name."""
@@ -531,3 +536,349 @@ class TestWindsurfAdapter:
         )
         result = self.adapter.translate([rule])
         assert "trigger: manual" in result[".windsurf/rules/optional.md"]
+
+
+class TestAiderAdapter:
+    """Test Aider adapter translation."""
+
+    def setup_method(self):
+        self.adapter = get_adapter("aider")
+
+    def test_translate_rule_creates_conventions_md(self):
+        rule = CanonicalArtifact(
+            artifact_type="rule",
+            name="type-safety",
+            version="1.0.0",
+            target_compatibility=["python"],
+            priority=80,
+            tags=["python"],
+            description="Type safety rules",
+            body="Use strict typing.",
+        )
+        result = self.adapter.translate([rule])
+        assert "CONVENTIONS.md" in result
+        assert "type-safety" in result["CONVENTIONS.md"]
+        assert "Use strict typing." in result["CONVENTIONS.md"]
+
+    def test_translate_creates_aider_conf_yml_with_read_key(self):
+        rule = CanonicalArtifact(
+            artifact_type="rule",
+            name="naming",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=50,
+            tags=[],
+            description="Naming",
+            body="Use snake_case.",
+        )
+        result = self.adapter.translate([rule])
+        assert ".aider.conf.yml" in result
+        assert "read: CONVENTIONS.md" in result[".aider.conf.yml"]
+
+    def test_translate_model_config_adds_model_key(self):
+        mc = CanonicalArtifact(
+            artifact_type="model_config",
+            name="gpt-4o",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=50,
+            tags=[],
+            description="Default model",
+            body='{"provider": "openai", "model": "gpt-4o"}',
+        )
+        result = self.adapter.translate([mc])
+        assert ".aider.conf.yml" in result
+        assert "model: gpt-4o" in result[".aider.conf.yml"]
+        assert "CONVENTIONS.md" not in result
+
+    def test_translate_empty_artifacts_returns_empty_dict(self):
+        assert self.adapter.translate([]) == {}
+
+
+class TestContinueAdapter:
+    """Test Continue adapter translation — verified against
+    https://docs.continue.dev/customize/rules and /reference: config.yaml is
+    the current format (config.json is deprecated)."""
+
+    def setup_method(self):
+        self.adapter = get_adapter("continue")
+
+    def test_translate_rule_creates_markdown_with_frontmatter(self):
+        rule = CanonicalArtifact(
+            artifact_type="rule",
+            name="type-safety",
+            version="1.0.0",
+            target_compatibility=["python"],
+            priority=90,
+            tags=["python"],
+            description="Type safety rules",
+            body="Use strict typing.",
+        )
+        result = self.adapter.translate([rule])
+        path = ".continue/rules/type-safety.md"
+        assert path in result
+        content = result[path]
+        assert content.startswith("---\n")
+        import yaml
+        frontmatter = yaml.safe_load(content.split("---\n")[1])
+        assert frontmatter["name"] == "type-safety"
+        assert frontmatter["description"] == "Type safety rules"
+        assert frontmatter["alwaysApply"] is True
+        assert frontmatter["globs"] == ["**/*.python"]
+        assert "Use strict typing." in content
+
+    def test_translate_low_priority_rule_not_always_apply(self):
+        rule = CanonicalArtifact(
+            artifact_type="rule",
+            name="optional",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=30,
+            tags=[],
+            description="Optional",
+            body="Nice to have.",
+        )
+        result = self.adapter.translate([rule])
+        import yaml
+        frontmatter = yaml.safe_load(result[".continue/rules/optional.md"].split("---\n")[1])
+        assert frontmatter["alwaysApply"] is False
+
+    def test_translate_workflow_creates_prompt_file(self):
+        workflow = CanonicalArtifact(
+            artifact_type="workflow",
+            name="ship",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=50,
+            tags=[],
+            description="Pre-ship checklist",
+            body="Run tests, then commit.",
+        )
+        result = self.adapter.translate([workflow])
+        path = ".continue/prompts/ship.prompt"
+        assert path in result
+        assert "Run tests, then commit." in result[path]
+
+    def test_translate_skill_and_agent_create_prefixed_rule_files(self):
+        skill = CanonicalArtifact(
+            artifact_type="skill",
+            name="testing",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=50,
+            tags=[],
+            description="Testing guide",
+            body="Write tests first.",
+        )
+        agent = CanonicalArtifact(
+            artifact_type="agent",
+            name="reviewer",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=50,
+            tags=[],
+            description="Reviews code",
+            body="Review all PRs.",
+        )
+        result = self.adapter.translate([skill, agent])
+        assert ".continue/rules/skill-testing.md" in result
+        assert ".continue/rules/agent-reviewer.md" in result
+
+    def test_translate_model_configs_merge_into_config_yaml(self):
+        model = CanonicalArtifact(
+            artifact_type="model_config",
+            name="model:claude-sonnet-4-5",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=50,
+            tags=["provider:anthropic"],
+            description="Model config",
+            body="{}",
+        )
+        mcp = CanonicalArtifact(
+            artifact_type="model_config",
+            name="mcp:example-server",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=50,
+            tags=[],
+            description="MCP server",
+            body='{"command": "npm"}',
+        )
+        result = self.adapter.translate([model, mcp])
+        assert "config.yaml" in result
+        import yaml
+        config = yaml.safe_load(result["config.yaml"])
+        assert config["models"][0]["name"] == "claude-sonnet-4-5"
+        assert config["models"][0]["provider"] == "anthropic"
+        assert config["mcpServers"][0]["name"] == "example-server"
+        assert config["mcpServers"][0]["command"] == "npm"
+
+
+class TestGooseAdapter:
+    """Test Goose adapter translation."""
+
+    def setup_method(self):
+        self.adapter = get_adapter("goose")
+
+    def test_translate_rule_creates_goosehints_file(self):
+        rule = CanonicalArtifact(
+            artifact_type="rule",
+            name="type-safety",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=80,
+            tags=[],
+            description="Type safety",
+            body="Use strict typing.",
+        )
+        result = self.adapter.translate([rule])
+        assert ".goosehints" in result
+        assert "type-safety" in result[".goosehints"]
+        assert "Use strict typing." in result[".goosehints"]
+
+    def test_translate_multiple_artifact_types_merge_into_one_file(self):
+        rule = CanonicalArtifact(
+            artifact_type="rule", name="r1", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="", body="Rule body.",
+        )
+        skill = CanonicalArtifact(
+            artifact_type="skill", name="s1", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="", body="Skill body.",
+        )
+        result = self.adapter.translate([rule, skill])
+        assert len(result) == 1
+        assert "Rule body." in result[".goosehints"]
+        assert "Skill body." in result[".goosehints"]
+
+    def test_translate_model_config_skipped(self):
+        mc = CanonicalArtifact(
+            artifact_type="model_config", name="gpt-4o", version="1.0.0",
+            target_compatibility=[], priority=50, tags=[], description="", body="{}",
+        )
+        assert self.adapter.translate([mc]) == {}
+
+    def test_translate_empty_artifacts_returns_empty_dict(self):
+        assert self.adapter.translate([]) == {}
+
+
+class TestCodyAdapter:
+    """Test Sourcegraph Cody adapter translation."""
+
+    def setup_method(self):
+        self.adapter = get_adapter("cody")
+
+    def test_translate_rule_creates_sourcegraph_rule_md(self):
+        rule = CanonicalArtifact(
+            artifact_type="rule",
+            name="naming-convention",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=70,
+            tags=[],
+            description="Naming rules",
+            body="Use snake_case.",
+        )
+        result = self.adapter.translate([rule])
+        path = ".sourcegraph/naming-convention.rule.md"
+        assert path in result
+        content = result[path]
+        assert content.startswith("---\n")
+        import yaml
+        frontmatter = yaml.safe_load(content.split("---\n")[1])
+        assert frontmatter["description"] == "Naming rules"
+        assert "Use snake_case." in content
+
+    def test_translate_skill_agent_workflow_use_prefixed_paths(self):
+        skill = CanonicalArtifact(
+            artifact_type="skill", name="testing", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="Testing", body="Write tests.",
+        )
+        agent = CanonicalArtifact(
+            artifact_type="agent", name="reviewer", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="Reviews", body="Review code.",
+        )
+        workflow = CanonicalArtifact(
+            artifact_type="workflow", name="ship", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="Ships", body="Ship it.",
+        )
+        result = self.adapter.translate([skill, agent, workflow])
+        assert ".sourcegraph/skill-testing.rule.md" in result
+        assert ".sourcegraph/agent-reviewer.rule.md" in result
+        assert ".sourcegraph/workflow-ship.rule.md" in result
+
+    def test_translate_model_config_skipped(self):
+        mc = CanonicalArtifact(
+            artifact_type="model_config", name="gpt-4o", version="1.0.0",
+            target_compatibility=[], priority=50, tags=[], description="", body="{}",
+        )
+        assert self.adapter.translate([mc]) == {}
+
+    def test_translate_description_with_colon_produces_valid_yaml(self):
+        """A raw f-string frontmatter would break on 'key: value' text in
+        the description; safe_dump must escape it correctly."""
+        rule = CanonicalArtifact(
+            artifact_type="rule",
+            name="weird",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=50,
+            tags=[],
+            description="Note: this contains a colon",
+            body="Body.",
+        )
+        result = self.adapter.translate([rule])
+        import yaml
+        content = result[".sourcegraph/weird.rule.md"]
+        frontmatter = yaml.safe_load(content.split("---\n")[1])
+        assert frontmatter["description"] == "Note: this contains a colon"
+
+
+class TestAmazonQAdapter:
+    """Test Amazon Q Developer adapter translation."""
+
+    def setup_method(self):
+        self.adapter = get_adapter("amazon-q")
+
+    def test_translate_rule_creates_amazonq_rules_file(self):
+        rule = CanonicalArtifact(
+            artifact_type="rule",
+            name="s3-encryption",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=80,
+            tags=[],
+            description="S3 buckets must be encrypted",
+            body="All S3 buckets must have encryption enabled.",
+        )
+        result = self.adapter.translate([rule])
+        path = ".amazonq/rules/s3-encryption.md"
+        assert path in result
+        assert "All S3 buckets must have encryption enabled." in result[path]
+        # Verified against AWS docs: plain Markdown, no YAML frontmatter.
+        assert not result[path].startswith("---")
+
+    def test_translate_skill_agent_workflow_use_prefixed_paths(self):
+        skill = CanonicalArtifact(
+            artifact_type="skill", name="testing", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="Testing", body="Write tests.",
+        )
+        agent = CanonicalArtifact(
+            artifact_type="agent", name="reviewer", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="Reviews", body="Review code.",
+        )
+        workflow = CanonicalArtifact(
+            artifact_type="workflow", name="ship", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="Ships", body="Ship it.",
+        )
+        result = self.adapter.translate([skill, agent, workflow])
+        assert ".amazonq/rules/skill-testing.md" in result
+        assert ".amazonq/rules/agent-reviewer.md" in result
+        assert ".amazonq/rules/workflow-ship.md" in result
+
+    def test_translate_model_config_skipped(self):
+        mc = CanonicalArtifact(
+            artifact_type="model_config", name="gpt-4o", version="1.0.0",
+            target_compatibility=[], priority=50, tags=[], description="", body="{}",
+        )
+        assert self.adapter.translate([mc]) == {}

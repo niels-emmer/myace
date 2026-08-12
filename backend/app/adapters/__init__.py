@@ -14,12 +14,17 @@ dynamically adjust their output based on the latest framework docs.
 The doc cache can be refreshed by admins via POST /api/v1/doc-cache/refresh.
 """
 
+from app.adapters.aider import AiderAdapter
+from app.adapters.amazon_q import AmazonQAdapter
 from app.adapters.base import BaseAdapter
 from app.adapters.claude_code import ClaudeCodeAdapter
 from app.adapters.cline import ClineAdapter
 from app.adapters.codex_cli import CodexCliAdapter
+from app.adapters.cody import CodyAdapter
+from app.adapters.continue_dev import ContinueAdapter
 from app.adapters.copilot_cli import CopilotCliAdapter
 from app.adapters.cursor import CursorAdapter
+from app.adapters.goose import GooseAdapter
 from app.adapters.opencode import OpenCodeAdapter
 from app.adapters.windsurf import WindsurfAdapter
 
@@ -49,3 +54,8 @@ register_adapter(CodexCliAdapter())
 register_adapter(CopilotCliAdapter())
 register_adapter(ClineAdapter())
 register_adapter(WindsurfAdapter())
+register_adapter(AiderAdapter())
+register_adapter(ContinueAdapter())
+register_adapter(GooseAdapter())
+register_adapter(CodyAdapter())
+register_adapter(AmazonQAdapter())
