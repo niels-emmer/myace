@@ -97,6 +97,44 @@ by `settings.app_secret_key`. It also happens to be what backs the actual
 user session after login succeeds — see
 [architecture.md](architecture.md#authentication--authorization).
 
+## GitHub/Google/OIDC login fails with "redirect URI is not associated with this application" behind a reverse proxy
+
+**Symptom:** the OAuth provider's callback URL is registered correctly
+(exactly matching `https://your-domain/api/v1/auth/callback/<provider>`),
+but the provider still rejects the login with a redirect-URI-mismatch
+error. Hitting `GET /auth/login/<provider>` directly and inspecting the
+`Location` header shows the `redirect_uri` query param is `http://...`
+instead of `https://...`.
+
+**Cause:** the backend builds its OAuth `redirect_uri` from
+`request.url_for(...)` (`backend/app/api/auth.py`), which trusts the
+`X-Forwarded-Proto` header (uvicorn's `--proxy-headers` in
+`backend/Dockerfile`). In a `docker-compose.prod.yml` deployment behind an
+external reverse proxy (e.g. nginx-proxy-manager), the request actually
+passes through **two** proxy hops: the external reverse proxy → the
+`frontend` nginx container's `/api/` location → the `backend` container.
+If the frontend's `nginx.conf` sets `proxy_set_header X-Forwarded-Proto
+$scheme;`, it silently overwrites whatever the external proxy correctly
+sent with its *own* `$scheme` — which is always `http`, since that nginx
+container never terminates TLS itself. The backend then always thinks the
+original request was plain HTTP, no matter what the external proxy saw.
+
+**Fix:** `frontend/nginx.conf` must forward the already-set header from
+upstream rather than overwrite it, falling back to `$scheme` only when
+nothing set it (e.g. the frontend container is the direct edge listener,
+as in the base `docker-compose.yml` single-machine setup with no reverse
+proxy in front):
+```nginx
+map $http_x_forwarded_proto $proxy_x_forwarded_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
+# ... in the /api/ location:
+proxy_set_header X-Forwarded-Proto $proxy_x_forwarded_proto;
+```
+This affects every OAuth provider (OIDC/GitHub/Google) equally, since they
+all build their `redirect_uri` the same way.
+
 ## A SQLAlchemy `.where(Column == True)` clause looks wrong to a linter
 
 **Symptom:** ruff flags `E712` ("avoid equality comparisons to `True`; use

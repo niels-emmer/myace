@@ -428,6 +428,15 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `docker-compose.prod.yml` exposes no host port (only the reverse-proxy
   container on the same Docker network can reach it) — don't copy that
   flag into a setup where the backend is directly internet-reachable.
+- That `X-Forwarded-Proto` trust only helps if it survives the full hop
+  chain. In `docker-compose.prod.yml`, requests pass through an external
+  reverse proxy *and* the `frontend` nginx container's `/api/` location
+  before reaching the backend — `frontend/nginx.conf` must forward the
+  header it already received (`map`-based fallback to its own `$scheme`
+  only when nothing set it), never unconditionally overwrite it with
+  `$scheme`, or every OAuth `redirect_uri` silently becomes `http://` no
+  matter what the external proxy saw. See
+  [debugging.md](docs/debugging.md#githubgoogleoidc-login-fails-with-redirect-uri-is-not-associated-with-this-application-behind-a-reverse-proxy).
 
 ### 28. Frontend Structure Gotchas
 
