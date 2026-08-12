@@ -325,3 +325,24 @@ as the `postgres` and `backend` services.** If you change the password in
 `.env` without rebuilding the stack, the backup container will fail to
 authenticate on its next scheduled run. Restart the backup container after
 any credential change: `docker compose restart postgres-backup`.
+
+## `502 Bad Gateway` from nginx after a backend container restart
+
+**Symptom:** after a `docker compose up -d --build` (or any operation that
+recreates the backend container), the frontend returns 502s on every `/api/*`
+request. The nginx error log shows `connect() failed (111: Connection refused)
+while connecting to upstream`.
+
+**Cause:** nginx resolves upstream hostnames at startup and caches the IP
+address. When the backend container is recreated, Docker assigns it a new
+internal IP — nginx still points to the old one, which no longer exists.
+
+**Fix:** `frontend/nginx.conf` now uses a variable in `proxy_pass`
+(`set $backend_upstream http://backend:8000;`), which forces nginx to resolve
+DNS at runtime rather than caching at startup. If you add a new `proxy_pass`
+directive elsewhere in the config, use the same variable pattern — a bare
+`proxy_pass http://service:port;` will have the same caching problem.
+
+**If you're running an older nginx.conf without the variable fix:** restart
+the frontend container after any backend restart:
+`docker compose restart frontend`.
