@@ -88,13 +88,14 @@ class TestClaudeCodeAdapter:
 
 
 class TestOpenCodeAdapter:
-    """Test OpenCode adapter translation."""
+    """Test OpenCode adapter translation — verified against
+    https://opencode.ai/docs: skills/agents/commands are Markdown with YAML
+    frontmatter, only opencode.json is JSON."""
 
     def setup_method(self):
         self.adapter = get_adapter("opencode")
 
-    def test_translate_skill_creates_json(self):
-        """Skills should become JSON files."""
+    def test_translate_skill_creates_markdown_with_frontmatter(self):
         skill = CanonicalArtifact(
             artifact_type="skill",
             name="type-safety",
@@ -106,11 +107,60 @@ class TestOpenCodeAdapter:
             body="Use strict typing.",
         )
         result = self.adapter.translate([skill])
-        assert ".opencode/skills/type-safety.json" in result
-        import json
-        data = json.loads(result[".opencode/skills/type-safety.json"])
-        assert data["name"] == "type-safety"
-        assert data["priority"] == 80
+        path = ".opencode/skills/type-safety/SKILL.md"
+        assert path in result
+        content = result[path]
+        assert content.startswith("---\n")
+        frontmatter, body = content.split("---\n", 2)[1:]
+        import yaml
+        parsed = yaml.safe_load(frontmatter)
+        # Only OpenCode's own recognized skill fields at the top level.
+        assert parsed.keys() <= {"name", "description", "compatibility", "metadata"}
+        assert parsed["name"] == "type-safety"
+        assert parsed["description"] == "Type safety rules"
+        assert parsed["metadata"] == {"version": "1.0.0", "priority": 80, "tags": ["python"]}
+        assert body.strip() == "Use strict typing."
+
+    def test_translate_agent_creates_markdown_with_mode_and_model(self):
+        agent = CanonicalArtifact(
+            artifact_type="agent",
+            name="reviewer",
+            version="1.0.0",
+            target_compatibility=["opencode"],
+            priority=50,
+            tags=["mode:subagent", "model:anthropic/claude-sonnet-4-5"],
+            description="Reviews code",
+            body="You are a thorough code reviewer.",
+        )
+        result = self.adapter.translate([agent])
+        path = ".opencode/agents/reviewer.md"
+        assert path in result
+        import yaml
+        frontmatter = yaml.safe_load(result[path].split("---\n")[1])
+        assert frontmatter == {
+            "description": "Reviews code",
+            "mode": "subagent",
+            "model": "anthropic/claude-sonnet-4-5",
+        }
+        assert "You are a thorough code reviewer." in result[path]
+
+    def test_translate_workflow_creates_command_markdown(self):
+        workflow = CanonicalArtifact(
+            artifact_type="workflow",
+            name="ship",
+            version="1.0.0",
+            target_compatibility=["opencode"],
+            priority=50,
+            tags=[],
+            description="Pre-ship checklist",
+            body="Run tests, then commit.",
+        )
+        result = self.adapter.translate([workflow])
+        path = ".opencode/commands/ship.md"
+        assert path in result
+        import yaml
+        frontmatter = yaml.safe_load(result[path].split("---\n")[1])
+        assert frontmatter == {"description": "Pre-ship checklist"}
 
     def test_translate_rule_creates_agents_md(self):
         """Rules should become AGENTS.md entries."""
@@ -127,6 +177,71 @@ class TestOpenCodeAdapter:
         result = self.adapter.translate([rule])
         assert "AGENTS.md" in result
         assert "naming-convention" in result["AGENTS.md"]
+
+    def test_translate_model_configs_merge_into_single_opencode_json(self):
+        import json
+
+        model = CanonicalArtifact(
+            artifact_type="model_config",
+            name="model:claude-sonnet-4-5",
+            version="1.0.0",
+            target_compatibility=["opencode"],
+            priority=50,
+            tags=["provider:anthropic"],
+            description="Model config",
+            body=json.dumps({"temperature": 0.2}),
+        )
+        mcp = CanonicalArtifact(
+            artifact_type="model_config",
+            name="mcp:example-server",
+            version="1.0.0",
+            target_compatibility=["opencode"],
+            priority=50,
+            tags=["mcp"],
+            description="MCP server",
+            body=json.dumps({"type": "remote", "url": "https://example.com/mcp"}),
+        )
+        result = self.adapter.translate([model, mcp])
+        assert ".opencode/models" not in "".join(result.keys())
+        assert "opencode.json" in result
+        config = json.loads(result["opencode.json"])
+        assert config["provider"]["anthropic"]["models"]["claude-sonnet-4-5"] == {"temperature": 0.2}
+        assert config["mcp"]["example-server"] == {
+            "type": "remote", "url": "https://example.com/mcp",
+        }
+
+    def test_compiled_skill_round_trips_through_the_scanner(self, tmp_path):
+        """A skill compiled to OpenCode format must scan back in with its
+        version/priority/tags intact — they live under SKILL.md's
+        explicitly free-form `metadata` field since OpenCode itself doesn't
+        recognize them at the top level (see _format_skill)."""
+        from pathlib import Path
+
+        from app.services.scanner import _parse_skill_file
+
+        skill = CanonicalArtifact(
+            artifact_type="skill",
+            name="git-release",
+            version="2.3.0",
+            target_compatibility=["opencode"],
+            priority=77,
+            tags=["maintainers", "releases"],
+            description="Create releases",
+            body="Do the release thing.",
+        )
+        result = self.adapter.translate([skill])
+        skill_dir = tmp_path / "skills" / "git-release"
+        skill_dir.mkdir(parents=True)
+        skill_file = skill_dir / "SKILL.md"
+        skill_file.write_text(result[".opencode/skills/git-release/SKILL.md"])
+
+        parsed = _parse_skill_file(Path(skill_file))
+        assert parsed["name"] == "git-release"
+        assert parsed["version"] == "2.3.0"
+        assert parsed["priority"] == 77
+        assert parsed["tags"] == ["maintainers", "releases"]
+        assert parsed["description"] == "Create releases"
+        assert parsed["body"] == "Do the release thing."
 
 
 class TestCursorAdapter:

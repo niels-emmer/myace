@@ -26,7 +26,8 @@ picking one tool and losing the rest.
 
 If you've built up a set of coding conventions, review rubrics, or agent
 personas you like, you've probably hit this: every framework wants them in
-a different shape. OpenCode wants JSON skill files and an `AGENTS.md`.
+a different shape. OpenCode wants Markdown skill/agent/command files under
+`.opencode/` plus an `AGENTS.md` and a JSON `opencode.json` for models/MCP.
 Claude Code wants `CLAUDE.md` plus `.claude/agents/*.md`. Cursor wants
 `.cursorrules` and `.mdc` files. None of that structure is really about the
 *content* — it's packaging.
@@ -394,7 +395,7 @@ Markdown body with the actual rule/instruction content...
 | Adapter | Target Frameworks | Output |
 |---------|------------------|--------|
 | Claude Code | `claude-code`, `claude` | `CLAUDE.md`, `.claude/agents/*.md`, `.claude/workflows/*.md` |
-| OpenCode | `opencode`, `open-code` | `.opencode/skills/*.json`, `.opencode/agents/*.json`, `AGENTS.md` |
+| OpenCode | `opencode`, `open-code` | `.opencode/skills/*/SKILL.md`, `.opencode/agents/*.md`, `.opencode/commands/*.md`, `AGENTS.md`, `opencode.json` |
 | Cursor | `cursor`, `cursor-editor` | `.cursorrules`, `.cursor/rules/*.mdc`, `.cursor/workflows/*.mdc` |
 | Codex CLI | `codex-cli`, `codex`, `openai-codex` | `AGENTS.md`, `.agents/skills/*/SKILL.md`, `.agents/agents/*.md`, `.codex/config.toml` |
 | GitHub Copilot CLI | `copilot-cli`, `copilot`, `github-copilot` | `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md` |
