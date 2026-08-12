@@ -1,10 +1,15 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Shield, Database, RefreshCw, Users, Cpu, Globe, Lock, UserPlus,
-  Smartphone, ToggleLeft, ToggleRight, ExternalLink,
+  Smartphone, ToggleLeft, ToggleRight, ExternalLink, Mail, Send, Loader2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { adminApi, authApi, adaptersApi, docCacheApi } from '../lib/api';
+
+const inputClass =
+  'w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm ' +
+  'focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 const PROVIDER_DOCS: Record<string, { name: string; docs: string }> = {
   oidc: {
@@ -71,6 +76,66 @@ export default function SystemSettings() {
   const toggleSetting = (key: string, currentValue: boolean) => {
     updateMutation.mutate({ [key]: !currentValue });
   };
+
+  const [smtpForm, setSmtpForm] = useState({
+    smtp_enabled: false,
+    smtp_host: '',
+    smtp_port: 587,
+    smtp_username: '',
+    smtp_from_email: '',
+    smtp_from_name: '',
+    smtp_use_tls: true,
+  });
+  const [smtpPasswordInput, setSmtpPasswordInput] = useState('');
+  const [smtpInitialized, setSmtpInitialized] = useState(false);
+
+  // Adjust state during render (React's recommended alternative to an Effect
+  // here — https://react.dev/learn/you-might-not-need-an-effect) rather than
+  // setting it inside a useEffect, which would cascade an extra render.
+  if (settings && !smtpInitialized) {
+    setSmtpInitialized(true);
+    setSmtpForm({
+      smtp_enabled: settings.smtp_enabled,
+      smtp_host: settings.smtp_host ?? '',
+      smtp_port: settings.smtp_port ?? 587,
+      smtp_username: settings.smtp_username ?? '',
+      smtp_from_email: settings.smtp_from_email ?? '',
+      smtp_from_name: settings.smtp_from_name ?? '',
+      smtp_use_tls: settings.smtp_use_tls ?? true,
+    });
+  }
+
+  const saveSmtpMutation = useMutation({
+    mutationFn: () => {
+      const payload: Record<string, unknown> = { ...smtpForm };
+      if (smtpPasswordInput) payload.smtp_password = smtpPasswordInput;
+      return adminApi.updateSettings(payload);
+    },
+    onSuccess: () => {
+      setSmtpPasswordInput('');
+      queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+    },
+  });
+
+  const clearSmtpPasswordMutation = useMutation({
+    mutationFn: () => adminApi.updateSettings({ smtp_password: '' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+    },
+  });
+
+  const testSmtpMutation = useMutation({
+    mutationFn: () =>
+      adminApi.testSmtp({
+        host: smtpForm.smtp_host || undefined,
+        port: smtpForm.smtp_port || undefined,
+        username: smtpForm.smtp_username || undefined,
+        password: smtpPasswordInput || undefined,
+        from_email: smtpForm.smtp_from_email || undefined,
+        from_name: smtpForm.smtp_from_name || undefined,
+        use_tls: smtpForm.smtp_use_tls,
+      }),
+  });
 
   if (!user?.is_admin) {
     return (
@@ -169,6 +234,155 @@ export default function SystemSettings() {
         <p className="text-sm text-muted-foreground">
           When disabled, new users cannot register. Existing users can still log in.
         </p>
+      </div>
+
+      {/* Email (SMTP) */}
+      <div className="bg-card rounded-xl border border-border p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-brand-600" />
+            <h2 className="text-lg font-semibold text-card-foreground">Email (SMTP)</h2>
+          </div>
+          <button
+            onClick={() => setSmtpForm((f) => ({ ...f, smtp_enabled: !f.smtp_enabled }))}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              smtpForm.smtp_enabled
+                ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                : 'bg-muted text-muted-foreground hover:bg-accent'
+            }`}
+          >
+            {smtpForm.smtp_enabled ? (
+              <><ToggleRight className="h-4 w-4" /> Enabled</>
+            ) : (
+              <><ToggleLeft className="h-4 w-4" /> Disabled</>
+            )}
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Used to send password-reset emails. Values saved here override the SMTP_* env vars at runtime.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Host</label>
+            <input
+              type="text"
+              value={smtpForm.smtp_host}
+              onChange={(e) => setSmtpForm((f) => ({ ...f, smtp_host: e.target.value }))}
+              placeholder="smtp.example.com"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Port</label>
+            <input
+              type="number"
+              value={smtpForm.smtp_port}
+              onChange={(e) => setSmtpForm((f) => ({ ...f, smtp_port: Number(e.target.value) }))}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Username</label>
+            <input
+              type="text"
+              value={smtpForm.smtp_username}
+              onChange={(e) => setSmtpForm((f) => ({ ...f, smtp_username: e.target.value }))}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Password</label>
+            <input
+              type="password"
+              value={smtpPasswordInput}
+              onChange={(e) => setSmtpPasswordInput(e.target.value)}
+              placeholder={settings?.smtp_password_set ? 'Configured — leave blank to keep' : ''}
+              className={inputClass}
+            />
+            {settings?.smtp_password_set && !smtpPasswordInput && (
+              <button
+                type="button"
+                onClick={() => clearSmtpPasswordMutation.mutate()}
+                className="mt-1 text-xs text-destructive hover:underline"
+              >
+                Clear saved password
+              </button>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">From email</label>
+            <input
+              type="email"
+              value={smtpForm.smtp_from_email}
+              onChange={(e) => setSmtpForm((f) => ({ ...f, smtp_from_email: e.target.value }))}
+              placeholder="noreply@example.com"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">From name</label>
+            <input
+              type="text"
+              value={smtpForm.smtp_from_name}
+              onChange={(e) => setSmtpForm((f) => ({ ...f, smtp_from_name: e.target.value }))}
+              className={inputClass}
+            />
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 mt-3 text-sm text-card-foreground">
+          <input
+            type="checkbox"
+            checked={smtpForm.smtp_use_tls}
+            onChange={(e) => setSmtpForm((f) => ({ ...f, smtp_use_tls: e.target.checked }))}
+            className="rounded border-input"
+          />
+          Use STARTTLS
+        </label>
+
+        {testSmtpMutation.isSuccess && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+            {testSmtpMutation.data.message}
+          </div>
+        )}
+        {testSmtpMutation.isError && (
+          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
+            {(testSmtpMutation.error as Error).message}
+          </div>
+        )}
+        {saveSmtpMutation.isSuccess && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+            SMTP settings saved.
+          </div>
+        )}
+        {saveSmtpMutation.isError && (
+          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
+            {(saveSmtpMutation.error as Error).message}
+          </div>
+        )}
+
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={() => testSmtpMutation.mutate()}
+            disabled={testSmtpMutation.isPending || !smtpForm.smtp_host}
+            className="flex items-center gap-2 px-3 py-1.5 bg-muted text-foreground border border-border rounded-lg hover:bg-accent disabled:opacity-50 text-sm font-medium"
+          >
+            {testSmtpMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+            Send Test Email
+          </button>
+          <button
+            onClick={() => saveSmtpMutation.mutate()}
+            disabled={saveSmtpMutation.isPending}
+            className="px-3 py-1.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium"
+          >
+            Save
+          </button>
+        </div>
       </div>
 
       {/* MFA Settings */}

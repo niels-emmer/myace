@@ -275,6 +275,14 @@ export interface SystemSettings {
   mfa_enabled: boolean;
   mfa_forced: boolean;
   doc_cache_ttl_days: number;
+  smtp_enabled: boolean;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_username: string | null;
+  smtp_password_set: boolean;
+  smtp_from_email: string | null;
+  smtp_from_name: string | null;
+  smtp_use_tls: boolean | null;
   updated_at: string;
 }
 
@@ -286,6 +294,24 @@ export interface SystemSettingsUpdate {
   mfa_enabled?: boolean;
   mfa_forced?: boolean;
   doc_cache_ttl_days?: number;
+  smtp_enabled?: boolean;
+  smtp_host?: string;
+  smtp_port?: number;
+  smtp_username?: string;
+  smtp_password?: string;
+  smtp_from_email?: string;
+  smtp_from_name?: string;
+  smtp_use_tls?: boolean;
+}
+
+export interface SmtpTestOverrides {
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  from_email?: string;
+  from_name?: string;
+  use_tls?: boolean;
 }
 
 // ─── User Settings Types ──────────────────────────────────────
@@ -297,6 +323,15 @@ export interface UserUpdate {
 
 export interface PasswordChange {
   current_password: string;
+  new_password: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
   new_password: string;
 }
 

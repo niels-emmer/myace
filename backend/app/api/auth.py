@@ -2,9 +2,10 @@
 
 import base64
 import hashlib
+import logging
 import secrets
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
@@ -28,15 +29,23 @@ from app.core.security import (
 from app.models.system_settings import SystemSettings
 from app.models.token import ApiToken, ApiTokenCreate, ApiTokenCreateResponse, ApiTokenRead
 from app.models.user import (
+    ForgotPasswordRequest,
     PasswordChange,
+    ResetPasswordRequest,
     User,
     UserLogin,
     UserRead,
     UserRegister,
     UserUpdate,
 )
+from app.services.effective_settings import get_effective_smtp_config
+from app.services.email import EmailSendError, build_password_reset_email, send_email
+
+logger = logging.getLogger("myace")
 
 router = APIRouter()
+
+RESET_TOKEN_TTL = timedelta(hours=1)
 
 
 async def _is_bootstrap_admin(session: AsyncSession, email: str) -> bool:
@@ -204,6 +213,78 @@ async def change_password(
     session.add(current_user)
     await session.commit()
     return {"message": "Password updated"}
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Request a password-reset email.
+
+    Always returns a generic 200 regardless of whether the email exists or
+    the account has no password (OIDC-only) — same enumeration-prevention
+    convention as /auth/register. The reset link is only emailed, and the
+    token is only stored hashed, mirroring the API-token pattern.
+    """
+    generic_response = {
+        "message": "If that email is registered, a password reset link has been sent."
+    }
+
+    result = await session.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    if not user or not user.is_active:
+        return generic_response
+
+    token = secrets.token_urlsafe(32)
+    user.reset_token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    user.reset_token_expires_at = datetime.now(UTC) + RESET_TOKEN_TTL
+    session.add(user)
+    await session.commit()
+
+    reset_link = f"{settings.frontend_base_url.rstrip('/')}/reset-password?token={token}"
+    subject, body = build_password_reset_email(reset_link)
+    try:
+        config = await get_effective_smtp_config(session)
+        if config.enabled:
+            await send_email(config=config, to=user.email, subject=subject, text_body=body)
+        else:
+            logger.warning("Password reset requested but SMTP is disabled in System Settings.")
+    except EmailSendError:
+        logger.exception("Failed to send password-reset email to a user.")
+
+    return generic_response
+
+
+@router.post("/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Complete a password reset using a token from /auth/forgot-password."""
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=422, detail="New password must be at least 8 characters")
+
+    token_hash = hashlib.sha256(data.token.encode("utf-8")).hexdigest()
+    result = await session.execute(select(User).where(User.reset_token_hash == token_hash))
+    user = result.scalar_one_or_none()
+
+    now = datetime.now(UTC)
+    if (
+        not user
+        or not user.is_active
+        or not user.reset_token_expires_at
+        or user.reset_token_expires_at.replace(tzinfo=UTC) < now
+    ):
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    user.password_hash = hash_password(data.new_password)
+    user.reset_token_hash = None
+    user.reset_token_expires_at = None
+    user.updated_at = now
+    session.add(user)
+    await session.commit()
+    return {"message": "Password has been reset. You can now log in."}
 
 
 @router.delete("/me")

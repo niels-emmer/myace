@@ -93,7 +93,12 @@ never set one), OIDC/GitHub/Google (`oidc_sub` + `oidc_provider`, unique
 together), or both. `is_admin` bypasses ownership checks everywhere; see
 [invariants.md](invariants.md#authorization). `mfa_enabled` + `totp_secret`
 back TOTP-based MFA (`pyotp`) — `totp_secret` is only set once enrollment
-completes via `POST /auth/me/mfa/totp/setup` + `.../verify`.
+completes via `POST /auth/me/mfa/totp/setup` + `.../verify`. `reset_token_hash`
++ `reset_token_expires_at` back password-reset-by-email (`POST
+/auth/forgot-password` / `/auth/reset-password`) — only the SHA-256 hash of
+the emailed token is stored, mirroring the API-token-hash pattern; the token
+is single-use (both fields are cleared on a successful reset) and expires
+after 1 hour.
 
 ### `collections`
 
@@ -174,6 +179,18 @@ DB constraint) holding global, admin-only config: which auth providers
 via `GET /admin/settings`, written via `PATCH /admin/settings`
 (`SystemSettings.tsx`) — both admin-gated. Not owner-scoped; there is
 exactly one row.
+
+Also holds the SMTP config used for password-reset emails: `smtp_enabled`,
+`smtp_host`, `smtp_port`, `smtp_username`, `smtp_from_email`,
+`smtp_from_name`, `smtp_use_tls`, and `smtp_password_encrypted` (the
+admin-entered password, Fernet-encrypted — see
+[ADR-0006](adr/0006-encrypted-admin-editable-secrets.md)). Any of these left
+unset falls back to the matching `SMTP_*` env var at runtime
+(`app/services/effective_settings.py`); a non-empty DB value always wins.
+`SystemSettingsRead` never returns `smtp_password_encrypted` itself — only a
+computed `smtp_password_set: bool` — and `SystemSettingsUpdate` accepts a
+plaintext, write-only `smtp_password` field that the `PATCH /admin/settings`
+handler encrypts before persisting.
 
 ## Why JSON-as-text instead of proper junction tables
 

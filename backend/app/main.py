@@ -51,6 +51,12 @@ async def lifespan(app: FastAPI):
             "Set it to false in .env once you've created your own admin account, especially "
             "on a public deployment."
         )
+    if not settings.settings_encryption_key:
+        logger.warning(
+            "SETTINGS_ENCRYPTION_KEY is not set. Admin-editable secrets (SMTP password, "
+            "OAuth client secrets) cannot be saved via System Settings until it's configured — "
+            "see .env.example."
+        )
     yield
 
 
