@@ -48,12 +48,17 @@ export default function Login() {
   const anyProviderConfigured = providers && (providers.oidc || providers.github || providers.google);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-2">
-          <img src="/logo.png" alt="MyACE" className="h-10 w-10" />
+        <div className="flex flex-col items-center gap-2 text-center">
+          <img src="/logo.png" alt="MyACE" className="h-[60px] w-[60px] sm:h-16 sm:w-16" />
           <h1 className="text-xl font-bold text-foreground">MyACE</h1>
           <p className="text-sm text-muted-foreground">Portable AI Agent Configs</p>
+          <p className="text-sm text-muted-foreground">
+            Store your AI agent rules, skills, and workflows once, then compile them into
+            ready-to-use config files for Claude Code, OpenCode, Cursor, and more. Accounts are
+            free — MyACE is still in testing, so expect some rough edges.
+          </p>
         </div>
 
         <div className="bg-card rounded-xl border border-border p-6 space-y-4">
@@ -171,6 +176,16 @@ export default function Login() {
           )}
         </div>
       </div>
+
+      <a
+        href="https://github.com/niels-emmer/myace"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-8 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Github className="h-4 w-4" />
+        View on GitHub
+      </a>
     </div>
   );
 }
