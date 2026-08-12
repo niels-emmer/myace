@@ -153,6 +153,8 @@ When two components fetch the same resource with different filters (e.g. an unfi
 - **`Artifact` has no `owner_id` of its own.** Authorize against its parent `Collection` — load the collection first, call `authorize_access` on that, then proceed.
 - **Bulk/cross-resource operations need a check per resource touched.** `bulk_export_artifacts`'s target collection needs its own write-check independent of the source collection's read-check — don't assume checking one resource covers every resource an endpoint touches.
 - **No more placeholder users.** `backend/app/services/placeholder_user.py` is gone. If you're tempted to special-case a nil/empty `owner_id`, that's a sign the route is missing `Depends(get_current_user)`.
+- **Admin-on-another-user actions never touch the caller's own row.** `PATCH /auth/users/{id}?is_active=<bool>` and `DELETE /auth/users/{id}` (`backend/app/api/auth.py`) both 400 if `user_id == current_user.id` — self-service account changes go through `/auth/me`/`DELETE /auth/me` instead. This isn't just a UX nicety: it's what guarantees these two routes can never lock out every admin, since the caller (`require_admin` + `get_current_user`'s active-only filter) is always a distinct, active admin — don't add a separate "last admin" counting check on top, it would be dead code.
+- **`DELETE /auth/users/{id}` mirrors `DELETE /auth/me`'s cascade exactly** (soft-deactivate owned collections, soft-delete owned profiles, deactivate API tokens — see `_deactivate_owned_resources()`). If you change one, change the other, or extract further shared logic rather than letting them drift.
 
 ### 14. Documentation Maintenance
 

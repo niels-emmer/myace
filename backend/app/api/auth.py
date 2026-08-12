@@ -287,6 +287,35 @@ async def reset_password(
     return {"message": "Password has been reset. You can now log in."}
 
 
+async def _deactivate_owned_resources(session: AsyncSession, user: User, now: datetime) -> None:
+    """Soft-deactivate everything a user owns — shared by the self-service
+    DELETE /me and the admin-triggered DELETE /users/{id}."""
+    from app.models.collection import Collection
+    from app.models.profile import Profile
+    from app.models.token import ApiToken
+
+    result = await session.execute(
+        select(Collection).where(Collection.owner_id == user.id, Collection.is_active == True)
+    )
+    for collection in result.scalars().all():
+        collection.is_active = False
+        session.add(collection)
+
+    result = await session.execute(
+        select(Profile).where(Profile.owner_id == user.id, Profile.deleted_at == None)
+    )
+    for profile in result.scalars().all():
+        profile.deleted_at = now
+        session.add(profile)
+
+    result = await session.execute(
+        select(ApiToken).where(ApiToken.user_id == user.id, ApiToken.is_active == True)
+    )
+    for token in result.scalars().all():
+        token.is_active = False
+        session.add(token)
+
+
 @router.delete("/me")
 async def delete_account(
     request: Request,
@@ -294,43 +323,13 @@ async def delete_account(
     session: AsyncSession = Depends(get_session),
 ):
     """Soft-delete the current user's account and all owned resources."""
-    from app.models.collection import Collection
-    from app.models.profile import Profile
-    from app.models.token import ApiToken
-
     now = datetime.now(UTC)
 
-    # Soft-delete user
     current_user.is_active = False
     current_user.deleted_at = now
     session.add(current_user)
 
-    # Soft-deactivate all owned collections
-    result = await session.execute(
-        select(Collection).where(
-            Collection.owner_id == current_user.id, Collection.is_active == True
-        )
-    )
-    for collection in result.scalars().all():
-        collection.is_active = False
-        session.add(collection)
-
-    # Soft-delete all owned profiles
-    result = await session.execute(
-        select(Profile).where(Profile.owner_id == current_user.id, Profile.deleted_at == None)
-    )
-    for profile in result.scalars().all():
-        profile.deleted_at = now
-        session.add(profile)
-
-    # Deactivate all API tokens
-    result = await session.execute(
-        select(ApiToken).where(ApiToken.user_id == current_user.id, ApiToken.is_active == True)
-    )
-    for token in result.scalars().all():
-        token.is_active = False
-        session.add(token)
-
+    await _deactivate_owned_resources(session, current_user, now)
     await session.commit()
 
     # Clear session
@@ -359,6 +358,72 @@ async def list_users(
         }
         for u in users
     ]
+
+
+@router.patch("/users/{user_id}")
+async def set_user_active(
+    user_id: uuid.UUID,
+    is_active: bool,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """Enable or disable another user's account. Admin only.
+
+    Acting on your own account is rejected — use the self-service Settings
+    page (DELETE /me) for that. That restriction is also what makes this
+    endpoint safe from an accidental admin lockout: the caller is always a
+    distinct, active admin (enforced by `require_admin` +
+    `get_current_user`'s active-only filter), so at least one admin always
+    remains regardless of what happens to the target account.
+    """
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=400, detail="Use your own account settings to change your own status"
+        )
+
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_active = is_active
+    user.updated_at = datetime.now(UTC)
+    session.add(user)
+    await session.commit()
+    return {"id": str(user.id), "is_active": user.is_active}
+
+
+@router.delete("/users/{user_id}")
+async def remove_user(
+    user_id: uuid.UUID,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """Soft-delete another user's account and all owned resources. Admin only.
+
+    Mirrors DELETE /me's cascade exactly (minus the session-clear, which
+    only applies to the caller's own session). Acting on your own account
+    is rejected — use DELETE /me for that; see set_user_active() above for
+    why that alone is sufficient to prevent an admin lockout.
+    """
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=400, detail="Use your own account settings to delete your own account"
+        )
+
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    now = datetime.now(UTC)
+    user.is_active = False
+    user.deleted_at = now
+    session.add(user)
+
+    await _deactivate_owned_resources(session, user, now)
+    await session.commit()
+    return {"message": "User removed"}
 
 
 async def _is_provider_enabled(provider: str, session: AsyncSession) -> bool:
