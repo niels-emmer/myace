@@ -214,6 +214,7 @@ export interface AdapterInfo {
   name: string;
   description: string;
   targets: string[];
+  enabled: boolean;
 }
 
 // ─── Doc Cache Types ──────────────────────────────────────────
@@ -275,6 +276,7 @@ export interface SystemSettings {
   mfa_enabled: boolean;
   mfa_forced: boolean;
   doc_cache_ttl_days: number;
+  disabled_adapters: string[];
   updated_at: string;
 }
 

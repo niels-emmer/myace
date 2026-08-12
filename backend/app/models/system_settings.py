@@ -1,7 +1,9 @@
 """System settings model — single-row table for runtime-configurable settings."""
 
+import json
 from datetime import UTC, datetime
 
+from sqlalchemy import Text
 from sqlmodel import Column, DateTime, Field, Integer, SQLModel
 
 
@@ -32,6 +34,15 @@ class SystemSettings(SQLModel, table=True):
     # ─── Doc Cache ─────────────────────────────────────────────
     doc_cache_ttl_days: int = Field(default=7)
 
+    # ─── Adapter Registry ────────────────────────────────────────
+    # JSON-encoded list[str] of adapter names (BaseAdapter.adapter_name())
+    # currently disabled system-wide — same manual-JSON-in-Text-column
+    # convention as Profile.disabled_artifact_ids. Enforced both in the
+    # frontend target picker and in compile_profile() (see AGENTS.md).
+    disabled_adapters: str = Field(
+        default="[]", sa_column=Column("disabled_adapters", Text, server_default="[]")
+    )
+
     # ─── Metadata ──────────────────────────────────────────────
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
@@ -51,7 +62,15 @@ class SystemSettingsRead(SQLModel):
     mfa_enabled: bool
     mfa_forced: bool
     doc_cache_ttl_days: int
+    disabled_adapters: list[str]
     updated_at: datetime
+
+    @classmethod
+    def from_settings(cls, settings: "SystemSettings") -> "SystemSettingsRead":
+        return cls(
+            **settings.model_dump(exclude={"disabled_adapters"}),
+            disabled_adapters=json.loads(settings.disabled_adapters),
+        )
 
 
 class SystemSettingsUpdate(SQLModel):
@@ -63,3 +82,4 @@ class SystemSettingsUpdate(SQLModel):
     mfa_enabled: bool | None = None
     mfa_forced: bool | None = None
     doc_cache_ttl_days: int | None = None
+    disabled_adapters: list[str] | None = None

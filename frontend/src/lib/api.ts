@@ -265,4 +265,10 @@ export const adminApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+
+  toggleAdapter: (name: string, enabled: boolean) =>
+    request<{ name: string; enabled: boolean }>(
+      `/admin/adapters/${encodeURIComponent(name)}?enabled=${enabled}`,
+      { method: 'PATCH' },
+    ),
 };

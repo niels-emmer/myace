@@ -10,6 +10,11 @@ from app.adapters import get_adapter, list_adapters
 from app.models.artifact import Artifact, CanonicalArtifact
 from app.models.collection import Collection
 from app.models.profile import Profile
+from app.models.system_settings import SystemSettings
+
+
+class AdapterDisabledError(Exception):
+    """Raised when compilation targets an adapter an admin has disabled."""
 
 
 async def compile_profile(
@@ -73,6 +78,14 @@ async def compile_profile(
 
     # Sort by priority descending
     all_artifacts = sorted(seen_names.values(), key=lambda a: a.priority, reverse=True)
+
+    # Reject a system-wide-disabled adapter before translating — this is
+    # the single choke point both /profiles/compile and /profiles/compile/zip
+    # funnel through, so it can't be bypassed via either route.
+    settings_result = await session.execute(select(SystemSettings).where(SystemSettings.id == 1))
+    settings_row = settings_result.scalar_one_or_none()
+    if settings_row and target in json.loads(settings_row.disabled_adapters):
+        raise AdapterDisabledError(f"Adapter '{target}' is currently disabled by an administrator")
 
     # Translate via adapter
     adapter = get_adapter(target)
