@@ -241,6 +241,11 @@ export interface PublishRequest {
   publish_description?: string;
 }
 
+export interface CommunityCollectionsResponse {
+  items: Collection[];
+  total: number;
+}
+
 export interface ImportCommunityResult {
   collection_id: string;
   collection_name: string;
