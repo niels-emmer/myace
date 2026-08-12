@@ -60,6 +60,29 @@ services:
     networks:
       - myace
 
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local:16
+    container_name: myace-postgres-backup
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=${POSTGRES_DB:-myace}
+      - POSTGRES_USER=${POSTGRES_USER:-myace}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-myace_secret}
+      - SCHEDULE=@daily
+      - BACKUP_KEEP_DAYS=7
+      - BACKUP_KEEP_WEEKS=4
+      - BACKUP_KEEP_MONTHS=6
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - myace
+
 volumes:
   postgres-data:
 

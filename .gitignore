@@ -34,3 +34,6 @@ build/
 # MyACE
 cli/tests/__pycache__/
 backend/tests/__pycache__/
+
+# Postgres backup dumps (host-local, not repo content)
+backups/

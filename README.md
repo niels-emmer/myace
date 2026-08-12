@@ -11,6 +11,10 @@ format Claude Code, OpenCode, Cursor (and whatever comes next) actually
 expects — instead of hand-maintaining N slightly-different copies, or
 picking one tool and losing the rest.
 
+> **MyACE is under heavy development and changes near daily. Use at your own
+> risk.** Currently supporting **12 coding environments**, with a community
+> store holding **13 starter agent profiles** (3 base + 10 specializations).
+
 <table>
   <tr>
     <td width="50%"><img src="docs/images/login.png" alt="MyACE login screen" /></td>
@@ -51,13 +55,15 @@ demand — from a web UI, or with a one-line CLI pull.
 - **Community collections** — publish your collections to make them public
   immediately, browse and import collections published by other users. This
   is self-serve, not admin-moderated.
-- **Starter packs out of the box** — every fresh install seeds itself with 2
-  base collections (Vibecoder, Software Engineer) and 5 goal-specific ones
-  (Frontend, Backend, Infrastructure as Code Expert, Security Auditor,
-  Documentation Editor), so there's real, opinionated content to build a
-  first profile from on day one. This is a fixed, code-reviewed set
-  maintained in [`collections/`](collections/) — separate from user-published
-  community collections, and not affected by them.
+- **Starter packs out of the box** — every fresh install seeds itself with 3
+  base collections (Vibecoder, Software Engineer, Data Scientist) and 10
+  specializations (Frontend, Backend, Infrastructure as Code Expert, Security
+  Auditor, Documentation Editor, Full-Stack Developer, DevOps/Platform
+  Engineer, Java/Spring Developer, iOS Developer, Android Developer), so
+  there's real, opinionated content to build a first profile from on day one.
+  This is a fixed, code-reviewed set maintained in
+  [`collections/`](collections/) — separate from user-published community
+  collections, and not affected by them.
 - **A real CLI** — `myace login`, `myace pull`, `myace import --push`. Script
   it, put it in a dotfiles repo, run it on a fresh machine.
 - **Real multi-user auth** — email+password (with email-based password
@@ -458,16 +464,41 @@ the exact rules.
 
 ## Backups
 
-There is no automated backup mechanism yet — `postgres-data` is a plain
-named Docker volume with no scheduled dump job, no offsite copy, and no
-built-in restore procedure. If you're running MyACE anywhere that matters
-(open registration, real user accounts, anything you'd be upset to lose),
-back up the volume yourself in the meantime, e.g. a cron'd
-`docker compose exec -T postgres pg_dump -U myace myace | gzip > backup.sql.gz`
-copied off the host. See
-[`docs/plans/postgres-backups-plan.md`](docs/plans/postgres-backups-plan.md)
-for the planned automated setup (in-stack `pg_dump` sidecar + offsite copy +
-tested restore procedure) — not yet implemented.
+A `postgres-backup` sidecar container runs alongside Postgres in the same
+stack (`docker-compose.yml`), wrapping `pg_dump` on a daily schedule with
+built-in retention. It uses the
+[`prodrigestivill/postgres-backup-local`](https://github.com/prodrigestivill/docker-postgres-backup-local)
+image and writes compressed `.sql.gz` dumps to `./backups/` on the host.
+
+**Retention defaults** (configurable via environment overrides in the compose
+file or `.env`):
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `SCHEDULE` | `@daily` | Cron expression or `@daily`/`@weekly`/`@monthly` |
+| `BACKUP_KEEP_DAYS` | `7` | Daily dumps kept for 7 days |
+| `BACKUP_KEEP_WEEKS` | `4` | Weekly dumps kept for 4 weeks |
+| `BACKUP_KEEP_MONTHS` | `6` | Monthly dumps kept for 6 months |
+
+**Offsite copy** is not automated by this stack — the dumps live on the same
+host disk as the database, so a host failure loses both. For production
+deployments, add a host-level cron job to copy `./backups/` off-box (e.g.
+`rclone sync` to Backblaze B2 or S3, or `rsync` to another machine).
+
+### Restore
+
+```bash
+# List available backups
+ls -lh backups/
+
+# Restore a specific dump
+gunzip -c backups/myace-<date>.sql.gz | \
+  docker compose exec -T postgres psql -U myace myace
+```
+
+> **Test your restore procedure before you need it.** Run the restore against
+> a scratch database on a separate Postgres instance to confirm the dump is
+> valid end-to-end. An untested backup is not a backup.
 
 ## Project Structure
 
@@ -494,7 +525,7 @@ tested restore procedure) — not yet implemented.
 │   │   ├── core/                # Config, DB session, OIDC/security, crypto (encrypted admin secrets), deps (auth), authz (ownership checks)
 │   │   ├── models/               # SQLModel schemas (User, Collection, Artifact, Profile, ApiToken, DocCache, SystemSettings)
 │   │   ├── api/                  # Routes: auth, collections, profiles, adapters, doc_cache, admin
-│   │   ├── adapters/             # Canonical IR → target translators (7: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf)
+│   │   ├── adapters/             # Canonical IR → target translators (12: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Cody, Amazon Q)
 │   │   └── services/             # Compiler, doc verifier, scanner (local + git), github_export, seed_collections,
 │   │                              #   email (SMTP send), effective_settings (DB-override-vs-env resolver)
 │   └── tests/                    # pytest suite
