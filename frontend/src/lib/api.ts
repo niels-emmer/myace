@@ -238,6 +238,18 @@ export const authApi = {
   deleteAccount: () =>
     request<{ message: string }>('/auth/me', { method: 'DELETE' }),
 
+  forgotPassword: (data: import('@/types').ForgotPasswordRequest) =>
+    request<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  resetPassword: (data: import('@/types').ResetPasswordRequest) =>
+    request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   setupTotp: () =>
     request<import('@/types').MfaSetupResult>('/auth/me/mfa/totp/setup', {
       method: 'POST',
@@ -264,5 +276,11 @@ export const adminApi = {
     request<import('@/types').SystemSettings>('/admin/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),
+    }),
+
+  testSmtp: (overrides?: import('@/types').SmtpTestOverrides) =>
+    request<{ message: string }>('/admin/settings/smtp/test', {
+      method: 'POST',
+      body: JSON.stringify(overrides ?? {}),
     }),
 };

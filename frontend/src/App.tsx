@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import CollectionsManager from './pages/CollectionsManager';
 import CollectionDetail from './pages/CollectionDetail';
@@ -59,6 +60,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />

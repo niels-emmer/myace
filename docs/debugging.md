@@ -216,3 +216,43 @@ and lands as its own individually-reviewable PR instead. If you hit this
 again, check whether the failing PR is a major-version bump that should
 never have been grouped in the first place, rather than trying to patch
 around the peer-dependency error directly.
+
+## `TypeError: can't compare offset-naive and offset-aware datetimes` comparing an expiry field
+
+**Symptom:** comparing a stored `datetime` column (e.g. `expires_at`,
+`reset_token_expires_at`) against `datetime.now(UTC)` raises this `TypeError`
+— but only sometimes, or only in tests.
+
+**Cause:** SQLite (used by the test suite — see `tests/conftest.py`) doesn't
+have a native timezone-aware timestamp type, so a `DateTime(timezone=True)`
+column round-trips as a naive `datetime` under `aiosqlite`, even though the
+same column comes back tz-aware under real Postgres. Comparing that naive
+value directly against `datetime.now(UTC)` (tz-aware) raises `TypeError`.
+
+**Fix:** call `.replace(tzinfo=UTC)` on the stored value before comparing —
+`app/core/deps.py`'s `ApiToken.expires_at` check and `app/api/auth.py`'s
+`reset_password` both do this. It's a no-op under Postgres (already UTC) and
+fixes the SQLite case. Don't reach for `expires_at.tzinfo is None` branching
+— the `.replace()` call is safe unconditionally since every such column is
+always stored/interpreted as UTC.
+
+## A running dev container doesn't pick up a newly-added Python dependency
+
+**Symptom:** after adding a new package to `backend/pyproject.toml`'s
+`dependencies`, the already-running `myace-backend` dev container (started
+via `docker-compose.dev.yml`, which bind-mounts `backend/` for hot-reload)
+crashes on reload with `ModuleNotFoundError`, even though the source code
+change that imports it is correct and present in the container.
+
+**Cause:** the bind mount syncs *source files*, not the installed package
+set — `pyproject.toml` changing doesn't trigger a `pip install` inside an
+already-running container. The container's `site-packages` is frozen as of
+whenever the image was last built.
+
+**Fix:** for local dev iteration, `docker exec myace-backend pip install
+<package>` to unblock the running container immediately, then `docker
+compose ... up -d --build` (or just restart the container) once you're done
+iterating so the image itself picks up the new dependency for the next
+person who builds it. Don't forget the actual fix is the `pyproject.toml`
+change — the `pip install` inside the container is a dev-loop shortcut, not
+a substitute for it.

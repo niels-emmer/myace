@@ -206,3 +206,22 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   The target repo is configured via `settings.community_repo` (default
   `nemmer/MyACE`). The user's `github_token` is passed through, used once,
   and never persisted — same contract as the existing GitHub export endpoint.
+
+### 19. Admin-Editable Secrets Must Go Through `app/core/crypto.py`
+
+- **Any secret an admin can enter via System Settings (SMTP password, OAuth
+  client secrets) must be encrypted before it touches the database** — use
+  `encrypt_secret()`/`decrypt_secret()` from `backend/app/core/crypto.py`
+  (Fernet, keyed by `settings.settings_encryption_key`). See
+  [ADR-0006](docs/adr/0006-encrypted-admin-editable-secrets.md).
+- Follow the established shape: the "Update" Pydantic schema takes a
+  plaintext, write-only field (e.g. `smtp_password`); the route handler
+  encrypts it into the `_encrypted` DB column; the "Read" schema exposes
+  only a computed `{field}_set: bool`, never the encrypted value itself.
+  `system_settings.py`'s `SystemSettingsRead.from_settings()` is the
+  reference implementation.
+- `get_effective_*_config()` helpers in
+  `backend/app/services/effective_settings.py` are where "DB value
+  overrides env var if non-empty, else env var" is resolved — new
+  admin-editable config should extend that module rather than re-deriving
+  the precedence rule inline at each call site.

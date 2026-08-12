@@ -387,7 +387,10 @@ Every API route requires an authenticated user — either a browser session
 (set by `/auth/login` or an OIDC/GitHub/Google callback) or a Bearer API
 token (what the CLI uses). Email + password is the always-available
 baseline; OIDC/GitHub/Google are optional extra sign-in methods, registered
-only if their client ID/secret env vars are set.
+only if their client ID/secret env vars are set. A "Forgot password?" link
+on the login page sends a one-hour, single-use reset link by email, once
+SMTP is configured — see
+[`docs/extending.md#configuring-smtp-for-password-reset`](docs/extending.md#configuring-smtp-for-password-reset).
 
 Two roles: **user** (default — full access to their own collections/
 profiles/tokens, read-only access to anything another user marked

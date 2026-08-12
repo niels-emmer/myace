@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Github, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -112,7 +112,14 @@ export default function Login() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Password</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-foreground">Password</label>
+                {mode === 'login' && (
+                  <Link to="/reset-password" className="text-xs text-brand-600 hover:underline">
+                    Forgot password?
+                  </Link>
+                )}
+              </div>
               <input
                 type="password"
                 value={password}

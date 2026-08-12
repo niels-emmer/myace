@@ -2,15 +2,17 @@
 
 from datetime import UTC, datetime
 
-from sqlmodel import Column, DateTime, Field, Integer, SQLModel
+from sqlalchemy import Text
+from sqlmodel import Column, DateTime, Field, Integer, SQLModel, String
 
 
 class SystemSettings(SQLModel, table=True):
     """Runtime system-wide settings. Single-row table (id=1 always).
 
-    Env vars serve as initial defaults and for sensitive credentials (OIDC
-    client secrets). DB settings override env vars at runtime for toggles
-    and non-sensitive configuration.
+    Env vars serve as initial defaults. DB settings override env vars at
+    runtime for toggles, non-sensitive configuration, and — since
+    ADR-0006 — admin-editable secrets (SMTP password, OAuth client
+    secrets), which are encrypted before being stored here.
     """
 
     __tablename__ = "system_settings"
@@ -32,6 +34,27 @@ class SystemSettings(SQLModel, table=True):
     # ─── Doc Cache ─────────────────────────────────────────────
     doc_cache_ttl_days: int = Field(default=7)
 
+    # ─── SMTP (password-reset email) ────────────────────────────
+    # Empty/None fields fall back to the env var default of the same name
+    # (see app/services/effective_settings.py). smtp_password is never
+    # stored in plaintext — only its Fernet-encrypted form.
+    smtp_enabled: bool = Field(default=False)
+    smtp_host: str | None = Field(default=None, sa_column=Column("smtp_host", String(255)))
+    smtp_port: int | None = Field(default=None)
+    smtp_username: str | None = Field(
+        default=None, sa_column=Column("smtp_username", String(255))
+    )
+    smtp_password_encrypted: str | None = Field(
+        default=None, sa_column=Column("smtp_password_encrypted", Text)
+    )
+    smtp_from_email: str | None = Field(
+        default=None, sa_column=Column("smtp_from_email", String(255))
+    )
+    smtp_from_name: str | None = Field(
+        default=None, sa_column=Column("smtp_from_name", String(255))
+    )
+    smtp_use_tls: bool | None = Field(default=None)
+
     # ─── Metadata ──────────────────────────────────────────────
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
@@ -51,11 +74,32 @@ class SystemSettingsRead(SQLModel):
     mfa_enabled: bool
     mfa_forced: bool
     doc_cache_ttl_days: int
+    smtp_enabled: bool
+    smtp_host: str | None = None
+    smtp_port: int | None = None
+    smtp_username: str | None = None
+    smtp_password_set: bool = False
+    smtp_from_email: str | None = None
+    smtp_from_name: str | None = None
+    smtp_use_tls: bool | None = None
     updated_at: datetime
+
+    @classmethod
+    def from_settings(cls, settings: "SystemSettings") -> "SystemSettingsRead":
+        return cls(
+            **settings.model_dump(exclude={"smtp_password_encrypted"}),
+            smtp_password_set=bool(settings.smtp_password_encrypted),
+        )
 
 
 class SystemSettingsUpdate(SQLModel):
-    """Schema for updating system settings (all fields optional)."""
+    """Schema for updating system settings (all fields optional).
+
+    `smtp_password` is a plaintext write-only field — the route handler
+    encrypts it into `smtp_password_encrypted` before persisting. Sending
+    an empty string clears the stored secret; omitting the field leaves
+    it unchanged.
+    """
     oidc_enabled: bool | None = None
     github_enabled: bool | None = None
     google_enabled: bool | None = None
@@ -63,3 +107,11 @@ class SystemSettingsUpdate(SQLModel):
     mfa_enabled: bool | None = None
     mfa_forced: bool | None = None
     doc_cache_ttl_days: int | None = None
+    smtp_enabled: bool | None = None
+    smtp_host: str | None = None
+    smtp_port: int | None = None
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_from_name: str | None = None
+    smtp_use_tls: bool | None = None
