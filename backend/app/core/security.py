@@ -56,6 +56,11 @@ def get_oauth_client(provider: str, config: OAuthProviderConfig) -> StarletteOAu
             client_secret=config.client_secret,
             access_token_url="https://github.com/login/oauth/access_token",
             authorize_url="https://github.com/login/oauth/authorize",
+            # GitHub isn't OIDC — there's no discovery document to supply
+            # userinfo_endpoint, so it must be set explicitly or
+            # client.userinfo() 500s with KeyError: 'userinfo_endpoint'.
+            api_base_url="https://api.github.com/",
+            userinfo_endpoint="https://api.github.com/user",
             client_kwargs={"scope": "user:email"},
         )
     elif provider == "google":
