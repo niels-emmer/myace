@@ -124,8 +124,9 @@ SaaS. After forking:
    - Set `CORS_ORIGINS` to your real domain(s), and **`TRUSTED_HOSTS`** too
      (required in production — the app refuses to start without it, to
      prevent Host-header injection attacks).
-2. Optionally configure OIDC/GitHub/Google SSO — see
-   [`.env.example`](.env.example) and
+2. Optionally configure OIDC/GitHub/Google SSO — via `.env`
+   ([`.env.example`](.env.example)) or from System Settings → Authentication
+   Providers in the admin UI. See
    [`docs/extending.md#adding-an-sso-provider`](docs/extending.md#adding-an-sso-provider).
 3. Deploy with `docker-compose.prod.yml` behind your own reverse proxy — see
    [Production deployment](#production-vps-behind-a-reverse-proxy) below.

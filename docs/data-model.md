@@ -192,6 +192,18 @@ computed `smtp_password_set: bool` — and `SystemSettingsUpdate` accepts a
 plaintext, write-only `smtp_password` field that the `PATCH /admin/settings`
 handler encrypts before persisting.
 
+Also holds per-provider OAuth credentials — `oidc_client_id`,
+`oidc_client_secret_encrypted`, `oidc_issuer_url`, `oidc_scopes`,
+`github_client_id`, `github_client_secret_encrypted`, `google_client_id`,
+`google_client_secret_encrypted` — entered via System Settings' expandable
+Authentication Providers rows instead of only `.env`. Same precedence and
+encryption contract as SMTP above (`get_effective_oauth_config()` in
+`effective_settings.py`; `{provider}_client_secret_set` computed booleans,
+never the encrypted value, on `SystemSettingsRead`). `security.py`'s
+`get_oauth_client()` rebuilds a provider's Authlib client whenever its
+effective config changes (tracked by a fingerprint), so a credential saved
+here takes effect on the next login/callback request without a restart.
+
 ## Why JSON-as-text instead of proper junction tables
 
 `Collection.tags`/`target_compatibility` and `Profile.additional_collection_ids`/`disabled_artifact_ids`

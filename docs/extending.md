@@ -69,21 +69,36 @@ sixth means touching all of:
 ## Adding an SSO provider
 
 OIDC (generic), GitHub, and Google are already wired via Authlib
-(`backend/app/core/security.py`). To add a fourth provider that also speaks
-OAuth2/OIDC:
+(`backend/app/core/security.py`). Credentials for all three can be set
+either via `.env` or, since the OAuth provider admin UI shipped, via System
+Settings → Authentication Providers — click a provider row to expand it,
+which shows the exact callback URL to register with the provider and fields
+for Client ID/Secret (and Issuer URL/Scopes for OIDC). A "Test Connection"
+button checks reachability/format (not a full login — that needs a real
+browser redirect, hence the "Sign in with X" callout in its result message).
+See [ADR-0006](adr/0006-encrypted-admin-editable-secrets.md) for how the
+secret is stored.
+
+To add a fourth provider that also speaks OAuth2/OIDC:
 
 1. Add `<provider>_client_id`/`<provider>_client_secret` (and any
-   provider-specific URLs) to `backend/app/core/config.py`.
-2. Register it with `oauth.register(name="<provider>", ...)` in
+   provider-specific URLs) to `backend/app/core/config.py`, and matching
+   `{provider}_client_id`/`{provider}_client_secret_encrypted` columns to
+   `SystemSettings` (+ a migration) if it should also be admin-editable.
+2. Extend `get_effective_oauth_config()`
+   (`backend/app/services/effective_settings.py`) with the new provider's
+   branch, and add it to `get_oauth_client()`'s registration branches in
    `security.py`, following the GitHub/Google examples.
-3. Add `"<provider>"` to the allowed-providers check in
-   `backend/app/api/auth.py`'s `login()` route.
+3. Add `"<provider>"` to the allowed-providers checks in
+   `backend/app/api/auth.py`'s `login()`/`auth_callback()` routes and to
+   `OAUTH_PROVIDERS` in `backend/app/api/admin.py`.
 4. Add it to `GET /auth/providers`'s response and to the frontend's
-   `AuthProviders` type (`frontend/src/types/index.ts`) and `Login.tsx`'s
-   button list.
+   `AuthProviders` type (`frontend/src/types/index.ts`), `Login.tsx`'s
+   button list, and `PROVIDER_INFO` in `SystemSettings.tsx` (setup steps +
+   console/docs links for the credentials accordion).
 
-No database migration needed — `User.oidc_provider` is a plain string, not
-an enum.
+No database migration needed for `users` — `User.oidc_provider` is a plain
+string, not an enum.
 
 ## Configuring SMTP for password reset
 

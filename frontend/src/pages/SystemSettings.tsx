@@ -3,28 +3,259 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Shield, Database, RefreshCw, Users, Cpu, Globe, Lock, UserPlus,
   Smartphone, ToggleLeft, ToggleRight, ExternalLink, Mail, Send, Loader2,
+  ChevronDown, ChevronRight, Copy, Check, FlaskConical,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { adminApi, authApi, adaptersApi, docCacheApi } from '../lib/api';
+import type { SystemSettings } from '@/types';
 
 const inputClass =
   'w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm ' +
   'focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
-const PROVIDER_DOCS: Record<string, { name: string; docs: string }> = {
+type ProviderKey = 'oidc' | 'github' | 'google';
+
+const PROVIDER_INFO: Record<ProviderKey, {
+  name: string;
+  docs: string;
+  console: string | null;
+  steps: string[];
+}> = {
   oidc: {
     name: 'OIDC (Authentik / Keycloak)',
     docs: 'https://goauthentik.io/docs/providers/oauth2/',
+    console: null,
+    steps: [
+      'In your identity provider (Authentik, Keycloak, etc.), create a new OAuth2/OIDC application.',
+      'Set its redirect URI to the callback URL below, and note its issuer URL.',
+      'Copy the Client ID, Client Secret, and Issuer URL into the fields below.',
+    ],
   },
   github: {
     name: 'GitHub',
     docs: 'https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app',
+    console: 'https://github.com/settings/developers',
+    steps: [
+      'Go to GitHub → Settings → Developer settings → OAuth Apps → "New OAuth App".',
+      'Set the "Authorization callback URL" to the callback URL below.',
+      'Copy the generated Client ID and Client Secret into the fields below.',
+    ],
   },
   google: {
     name: 'Google',
     docs: 'https://developers.google.com/identity/protocols/oauth2/web-server',
+    console: 'https://console.cloud.google.com/apis/credentials',
+    steps: [
+      'Go to Google Cloud Console → APIs & Services → Credentials → "Create Credentials" → "OAuth client ID".',
+      'Choose "Web application" and add the callback URL below under "Authorized redirect URIs".',
+      'Copy the generated Client ID and Client Secret into the fields below.',
+    ],
   },
 };
+
+interface ProviderCredentialsPanelProps {
+  provider: ProviderKey;
+  settings: SystemSettings;
+  onSaved: () => void;
+}
+
+function ProviderCredentialsPanel({ provider, settings, onSaved }: ProviderCredentialsPanelProps) {
+  const info = PROVIDER_INFO[provider];
+  const secretSet = settings[`${provider}_client_secret_set`];
+
+  const [clientId, setClientId] = useState(settings[`${provider}_client_id`] ?? '');
+  const [clientSecret, setClientSecret] = useState('');
+  const [issuerUrl, setIssuerUrl] = useState(settings.oidc_issuer_url ?? '');
+  const [scopes, setScopes] = useState(settings.oidc_scopes ?? '');
+  const [copied, setCopied] = useState(false);
+
+  const redirectUrl = `${window.location.origin}/api/v1/auth/callback/${provider}`;
+
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      const payload: Record<string, unknown> = { [`${provider}_client_id`]: clientId };
+      if (provider === 'oidc') {
+        payload.oidc_issuer_url = issuerUrl;
+        payload.oidc_scopes = scopes;
+      }
+      if (clientSecret) payload[`${provider}_client_secret`] = clientSecret;
+      return adminApi.updateSettings(payload);
+    },
+    onSuccess: () => {
+      setClientSecret('');
+      onSaved();
+    },
+  });
+
+  const clearSecretMutation = useMutation({
+    mutationFn: () => adminApi.updateSettings({ [`${provider}_client_secret`]: '' }),
+    onSuccess: onSaved,
+  });
+
+  const testMutation = useMutation({
+    mutationFn: () =>
+      adminApi.testOAuthProvider(provider, {
+        client_id: clientId || undefined,
+        client_secret: clientSecret || undefined,
+        issuer_url: provider === 'oidc' ? issuerUrl || undefined : undefined,
+        scopes: provider === 'oidc' ? scopes || undefined : undefined,
+      }),
+  });
+
+  const copyRedirectUrl = () => {
+    navigator.clipboard.writeText(redirectUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="px-4 pb-4 pt-1 space-y-4 border-t border-border">
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-2">Setup steps</p>
+        <ol className="list-decimal list-inside space-y-1 text-sm text-card-foreground">
+          {info.steps.map((step, i) => <li key={i}>{step}</li>)}
+        </ol>
+        <div className="flex items-center gap-3 mt-2">
+          {info.console && (
+            <a
+              href={info.console}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1"
+            >
+              Open {info.name} console <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+          <a
+            href={info.docs}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1"
+          >
+            Docs <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-muted-foreground mb-1">
+          Redirect / callback URL
+        </label>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 px-3 py-2 bg-muted rounded-lg text-xs text-foreground overflow-x-auto whitespace-nowrap">
+            {redirectUrl}
+          </code>
+          <button
+            type="button"
+            onClick={copyRedirectUrl}
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
+            title="Copy"
+          >
+            {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">Client ID</label>
+          <input
+            type="text"
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">Client Secret</label>
+          <input
+            type="password"
+            value={clientSecret}
+            onChange={(e) => setClientSecret(e.target.value)}
+            placeholder={secretSet ? 'Configured — leave blank to keep' : ''}
+            className={inputClass}
+          />
+          {secretSet && !clientSecret && (
+            <button
+              type="button"
+              onClick={() => clearSecretMutation.mutate()}
+              className="mt-1 text-xs text-destructive hover:underline"
+            >
+              Clear saved secret
+            </button>
+          )}
+        </div>
+        {provider === 'oidc' && (
+          <>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Issuer URL</label>
+              <input
+                type="text"
+                value={issuerUrl}
+                onChange={(e) => setIssuerUrl(e.target.value)}
+                placeholder="https://auth.example.com/application/o/myace/"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Scopes</label>
+              <input
+                type="text"
+                value={scopes}
+                onChange={(e) => setScopes(e.target.value)}
+                placeholder="openid profile email"
+                className={inputClass}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      {testMutation.isSuccess && (
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+          {testMutation.data.message}
+        </div>
+      )}
+      {testMutation.isError && (
+        <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
+          {(testMutation.error as Error).message}
+        </div>
+      )}
+      {saveMutation.isSuccess && (
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+          {info.name} credentials saved.
+        </div>
+      )}
+      {saveMutation.isError && (
+        <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
+          {(saveMutation.error as Error).message}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => testMutation.mutate()}
+          disabled={testMutation.isPending || !clientId}
+          className="flex items-center gap-2 px-3 py-1.5 bg-muted text-foreground border border-border rounded-lg hover:bg-accent disabled:opacity-50 text-sm font-medium"
+        >
+          {testMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <FlaskConical className="h-4 w-4" />
+          )}
+          Test Connection
+        </button>
+        <button
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+          className="px-3 py-1.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium"
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function SystemSettings() {
   const queryClient = useQueryClient();
@@ -75,6 +306,13 @@ export default function SystemSettings() {
 
   const toggleSetting = (key: string, currentValue: boolean) => {
     updateMutation.mutate({ [key]: !currentValue });
+  };
+
+  const [expandedProvider, setExpandedProvider] = useState<ProviderKey | null>(null);
+
+  const onProviderCredentialsSaved = () => {
+    queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+    queryClient.invalidateQueries({ queryKey: ['auth-providers'] });
   };
 
   const [smtpForm, setSmtpForm] = useState({
@@ -165,37 +403,41 @@ export default function SystemSettings() {
           <h2 className="text-lg font-semibold text-card-foreground">Authentication Providers</h2>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
-          Enable or disable SSO providers. Provider credentials are configured via environment variables.
+          Click a provider to configure its Client ID/Secret, or enable/disable it once configured
+          (via .env or here).
         </p>
         <div className="space-y-3">
-          {Object.entries(PROVIDER_DOCS).map(([key, info]) => {
+          {(Object.keys(PROVIDER_INFO) as ProviderKey[]).map((key) => {
+            const info = PROVIDER_INFO[key];
             const configured = !!providers?.[key as keyof typeof providers];
-            const enabled = settings?.[key as keyof typeof settings] as boolean | undefined;
+            const enabled = settings?.[`${key}_enabled`];
+            const isExpanded = expandedProvider === key;
             return (
-              <div key={key} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium text-card-foreground">{info.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {configured ? 'Configured via env' : 'Not configured'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <a
-                    href={info.docs}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1"
+              <div key={key} className="bg-muted rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between p-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedProvider(isExpanded ? null : key)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
                   >
-                    Docs <ExternalLink className="h-3 w-3" />
-                  </a>
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-card-foreground">{info.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {configured ? 'Configured' : 'Not configured'}
+                      </p>
+                    </div>
+                  </button>
                   <button
                     onClick={() => toggleSetting(`${key}_enabled`, enabled ?? true)}
-                    className={`p-1.5 rounded-lg transition-colors ${
+                    className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
                       enabled !== false
-                        ? 'text-green-600 hover:bg-green-50'
+                        ? 'text-green-600 hover:bg-green-100'
                         : 'text-muted-foreground hover:bg-accent'
                     }`}
                     title={enabled !== false ? 'Disable provider' : 'Enable provider'}
@@ -203,6 +445,13 @@ export default function SystemSettings() {
                     {enabled !== false ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
                   </button>
                 </div>
+                {isExpanded && settings && (
+                  <ProviderCredentialsPanel
+                    provider={key}
+                    settings={settings}
+                    onSaved={onProviderCredentialsSaved}
+                  />
+                )}
               </div>
             );
           })}

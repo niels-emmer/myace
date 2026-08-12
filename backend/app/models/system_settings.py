@@ -55,6 +55,34 @@ class SystemSettings(SQLModel, table=True):
     )
     smtp_use_tls: bool | None = Field(default=None)
 
+    # ─── OAuth Provider Credentials (admin-editable, encrypted) ──
+    # Empty/None fields fall back to the matching env var (see
+    # app/services/effective_settings.py). The *_client_secret_encrypted
+    # columns are never returned by the API — only a computed
+    # `{provider}_client_secret_set` boolean (see SystemSettingsRead).
+    oidc_client_id: str | None = Field(
+        default=None, sa_column=Column("oidc_client_id", String(255))
+    )
+    oidc_client_secret_encrypted: str | None = Field(
+        default=None, sa_column=Column("oidc_client_secret_encrypted", Text)
+    )
+    oidc_issuer_url: str | None = Field(
+        default=None, sa_column=Column("oidc_issuer_url", String(500))
+    )
+    oidc_scopes: str | None = Field(default=None, sa_column=Column("oidc_scopes", String(255)))
+    github_client_id: str | None = Field(
+        default=None, sa_column=Column("github_client_id", String(255))
+    )
+    github_client_secret_encrypted: str | None = Field(
+        default=None, sa_column=Column("github_client_secret_encrypted", Text)
+    )
+    google_client_id: str | None = Field(
+        default=None, sa_column=Column("google_client_id", String(255))
+    )
+    google_client_secret_encrypted: str | None = Field(
+        default=None, sa_column=Column("google_client_secret_encrypted", Text)
+    )
+
     # ─── Metadata ──────────────────────────────────────────────
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
@@ -82,13 +110,28 @@ class SystemSettingsRead(SQLModel):
     smtp_from_email: str | None = None
     smtp_from_name: str | None = None
     smtp_use_tls: bool | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret_set: bool = False
+    oidc_issuer_url: str | None = None
+    oidc_scopes: str | None = None
+    github_client_id: str | None = None
+    github_client_secret_set: bool = False
+    google_client_id: str | None = None
+    google_client_secret_set: bool = False
     updated_at: datetime
 
     @classmethod
     def from_settings(cls, settings: "SystemSettings") -> "SystemSettingsRead":
+        encrypted_fields = {
+            "smtp_password_encrypted", "oidc_client_secret_encrypted",
+            "github_client_secret_encrypted", "google_client_secret_encrypted",
+        }
         return cls(
-            **settings.model_dump(exclude={"smtp_password_encrypted"}),
+            **settings.model_dump(exclude=encrypted_fields),
             smtp_password_set=bool(settings.smtp_password_encrypted),
+            oidc_client_secret_set=bool(settings.oidc_client_secret_encrypted),
+            github_client_secret_set=bool(settings.github_client_secret_encrypted),
+            google_client_secret_set=bool(settings.google_client_secret_encrypted),
         )
 
 
@@ -115,3 +158,11 @@ class SystemSettingsUpdate(SQLModel):
     smtp_from_email: str | None = None
     smtp_from_name: str | None = None
     smtp_use_tls: bool | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret: str | None = None
+    oidc_issuer_url: str | None = None
+    oidc_scopes: str | None = None
+    github_client_id: str | None = None
+    github_client_secret: str | None = None
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
