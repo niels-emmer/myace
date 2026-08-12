@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Upload,
   FolderOpen,
@@ -41,7 +41,9 @@ interface Artifact {
 }
 
 export default function ImportPage() {
-  const [sourceType, setSourceType] = useState<SourceType>('local');
+  const [searchParams] = useSearchParams();
+  const initialSource: SourceType = searchParams.get('source') === 'git' ? 'git' : 'local';
+  const [sourceType, setSourceType] = useState<SourceType>(initialSource);
   const [collectionName, setCollectionName] = useState('');
   const [framework, setFramework] = useState('opencode');
   const [scope, setScope] = useState<'global' | 'project'>('global');
