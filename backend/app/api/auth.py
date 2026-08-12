@@ -513,7 +513,16 @@ async def auth_callback(
     if not client:
         raise HTTPException(status_code=400, detail=f"Provider not configured: {provider}")
 
-    token = await client.authorize_access_token(request)
+    # PKCE: authlib only auto-manages code_verifier when code_challenge_method
+    # is set on the client at registration time — since login() passes it
+    # per-request instead (get_oauth_client() builds clients generically for
+    # all three providers), authlib's own session-backed state_data never
+    # contains it. Retrieve the one login() stored ourselves and forward it
+    # explicitly, or the token exchange 500s with the provider's PKCE error
+    # ("A code_verifier was not included, but the authorization request
+    # included a code_challenge").
+    code_verifier = request.session.pop("code_verifier", None)
+    token = await client.authorize_access_token(request, code_verifier=code_verifier)
     user_info = token.get("userinfo") or await client.userinfo(token=token)
 
     oidc_sub = user_info.get("sub")
