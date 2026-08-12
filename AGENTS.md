@@ -225,3 +225,23 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   overrides env var if non-empty, else env var" is resolved — new
   admin-editable config should extend that module rather than re-deriving
   the precedence rule inline at each call site.
+
+### 20. OAuth Clients Are Rebuilt Per-Request From Effective Config, Not Registered Once at Import
+
+- **`security.py` no longer holds a module-level `oauth` singleton.**
+  `get_oauth_client(provider, config)` builds (or returns a cached) Authlib
+  remote app from the provider's *effective* config (DB override merged
+  over env — see rule 19), keyed by a fingerprint of that config. This is
+  what lets a credential saved via System Settings take effect on the next
+  login/callback request without restarting the backend.
+- Authlib's `OAuth.create_client()` permanently caches the first client it
+  builds for a given name — calling `oauth.register()` again with new
+  credentials does **not** rebuild an already-cached client. `get_oauth_client()`
+  works around this by constructing a fresh `OAuth()` registry (cheap) only
+  when the fingerprint changes, rather than mutating Authlib's internal
+  `_clients` cache directly.
+- Every call site (`login()`, `auth_callback()`, `get_providers()` in
+  `backend/app/api/auth.py`) must call `get_effective_oauth_config(provider,
+  session)` first and pass the result to `get_oauth_client()` — never call
+  `get_oauth_client()` with hand-built config, and never reintroduce a
+  module-level `oauth.create_client(provider)` call.

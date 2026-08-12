@@ -21,9 +21,9 @@ from app.core.security import (
     default_token_expiry,
     generate_api_key,
     generate_oidc_state,
+    get_oauth_client,
     hash_api_key,
     hash_password,
-    oauth,
     verify_password,
 )
 from app.models.system_settings import SystemSettings
@@ -38,7 +38,7 @@ from app.models.user import (
     UserRegister,
     UserUpdate,
 )
-from app.services.effective_settings import get_effective_smtp_config
+from app.services.effective_settings import get_effective_oauth_config, get_effective_smtp_config
 from app.services.email import EmailSendError, build_password_reset_email, send_email
 
 logger = logging.getLogger("myace")
@@ -383,11 +383,10 @@ async def get_providers(
     result = await session.execute(select(SystemSettings).where(SystemSettings.id == 1))
     settings = result.scalar_one_or_none()
 
-    configured = {
-        "oidc": oauth.create_client("oidc") is not None,
-        "github": oauth.create_client("github") is not None,
-        "google": oauth.create_client("google") is not None,
-    }
+    configured = {}
+    for provider in ("oidc", "github", "google"):
+        config = await get_effective_oauth_config(provider, session)
+        configured[provider] = get_oauth_client(provider, config) is not None
 
     if settings:
         return {
@@ -413,7 +412,8 @@ async def login(
     if not await _is_provider_enabled(provider, session):
         raise HTTPException(status_code=403, detail=f"Provider is disabled: {provider}")
 
-    client = oauth.create_client(provider)
+    config = await get_effective_oauth_config(provider, session)
+    client = get_oauth_client(provider, config)
     if not client:
         raise HTTPException(status_code=400, detail=f"Provider not configured: {provider}")
 
@@ -443,7 +443,8 @@ async def auth_callback(
     if not await _is_provider_enabled(provider, session):
         raise HTTPException(status_code=403, detail=f"Provider is disabled: {provider}")
 
-    client = oauth.create_client(provider)
+    config = await get_effective_oauth_config(provider, session)
+    client = get_oauth_client(provider, config)
     if not client:
         raise HTTPException(status_code=400, detail=f"Provider not configured: {provider}")
 

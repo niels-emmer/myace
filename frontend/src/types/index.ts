@@ -283,6 +283,14 @@ export interface SystemSettings {
   smtp_from_email: string | null;
   smtp_from_name: string | null;
   smtp_use_tls: boolean | null;
+  oidc_client_id: string | null;
+  oidc_client_secret_set: boolean;
+  oidc_issuer_url: string | null;
+  oidc_scopes: string | null;
+  github_client_id: string | null;
+  github_client_secret_set: boolean;
+  google_client_id: string | null;
+  google_client_secret_set: boolean;
   updated_at: string;
 }
 
@@ -302,6 +310,14 @@ export interface SystemSettingsUpdate {
   smtp_from_email?: string;
   smtp_from_name?: string;
   smtp_use_tls?: boolean;
+  oidc_client_id?: string;
+  oidc_client_secret?: string;
+  oidc_issuer_url?: string;
+  oidc_scopes?: string;
+  github_client_id?: string;
+  github_client_secret?: string;
+  google_client_id?: string;
+  google_client_secret?: string;
 }
 
 export interface SmtpTestOverrides {
@@ -312,6 +328,13 @@ export interface SmtpTestOverrides {
   from_email?: string;
   from_name?: string;
   use_tls?: boolean;
+}
+
+export interface OAuthTestOverrides {
+  client_id?: string;
+  client_secret?: string;
+  issuer_url?: string;
+  scopes?: string;
 }
 
 // ─── User Settings Types ──────────────────────────────────────

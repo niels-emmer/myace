@@ -283,4 +283,10 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify(overrides ?? {}),
     }),
+
+  testOAuthProvider: (provider: string, overrides?: import('@/types').OAuthTestOverrides) =>
+    request<{ message: string }>(`/admin/settings/oauth/${provider}/test`, {
+      method: 'POST',
+      body: JSON.stringify(overrides ?? {}),
+    }),
 };

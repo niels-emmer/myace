@@ -5,51 +5,73 @@ from datetime import UTC, datetime, timedelta
 
 import bcrypt
 from authlib.integrations.starlette_client import OAuth
-from starlette.config import Config as StarletteConfig
+from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 
 from app.core.config import settings
+from app.services.effective_settings import OAuthProviderConfig
 
 # ─── OAuth / OIDC ─────────────────────────────────────────────
+#
+# Each provider's Authlib remote app is built from its *effective* config
+# (a DB override in system_settings, merged over the env var default — see
+# app/services/effective_settings.py) and cached by a fingerprint of that
+# config. A credential saved via System Settings takes effect on the next
+# login/callback request, without a restart — see ADR-0006.
 
-starlette_config = StarletteConfig(environ={
-    "OIDC_CLIENT_ID": settings.oidc_client_id,
-    "OIDC_CLIENT_SECRET": settings.oidc_client_secret,
-    "GITHUB_CLIENT_ID": settings.github_client_id,
-    "GITHUB_CLIENT_SECRET": settings.github_client_secret,
-    "GOOGLE_CLIENT_ID": settings.google_client_id,
-    "GOOGLE_CLIENT_SECRET": settings.google_client_secret,
-})
+_client_cache: dict[str, tuple[str, StarletteOAuth2App]] = {}
 
-oauth = OAuth(starlette_config)
 
-# Register OIDC provider
-if settings.oidc_issuer_url:
-    oauth.register(
-        name="oidc",
-        server_metadata_url=f"{settings.oidc_issuer_url}/.well-known/openid-configuration",
-        client_kwargs={"scope": settings.oidc_scopes},
-    )
+def _fingerprint(config: OAuthProviderConfig) -> str:
+    return f"{config.client_id}:{config.client_secret}:{config.issuer_url}:{config.scopes}"
 
-# Register GitHub
-if settings.github_client_id:
-    oauth.register(
-        name="github",
-        client_id=settings.github_client_id,
-        client_secret=settings.github_client_secret,
-        access_token_url="https://github.com/login/oauth/access_token",
-        authorize_url="https://github.com/login/oauth/authorize",
-        client_kwargs={"scope": "user:email"},
-    )
 
-# Register Google
-if settings.google_client_id:
-    oauth.register(
-        name="google",
-        client_id=settings.google_client_id,
-        client_secret=settings.google_client_secret,
-        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-        client_kwargs={"scope": "openid email profile"},
-    )
+def get_oauth_client(provider: str, config: OAuthProviderConfig) -> StarletteOAuth2App | None:
+    """Return the Authlib remote app for a provider, rebuilding it if the
+    effective config has changed since it was last built. Returns None if
+    the provider isn't configured (no client ID), or — for OIDC — has no
+    issuer URL to discover metadata from."""
+    if not config.client_id:
+        return None
+    if provider == "oidc" and not config.issuer_url:
+        return None
+
+    fingerprint = _fingerprint(config)
+    cached = _client_cache.get(provider)
+    if cached and cached[0] == fingerprint:
+        return cached[1]
+
+    registry = OAuth()
+    if provider == "oidc":
+        registry.register(
+            name="oidc",
+            client_id=config.client_id,
+            client_secret=config.client_secret,
+            server_metadata_url=f"{config.issuer_url}/.well-known/openid-configuration",
+            client_kwargs={"scope": config.scopes},
+        )
+    elif provider == "github":
+        registry.register(
+            name="github",
+            client_id=config.client_id,
+            client_secret=config.client_secret,
+            access_token_url="https://github.com/login/oauth/access_token",
+            authorize_url="https://github.com/login/oauth/authorize",
+            client_kwargs={"scope": "user:email"},
+        )
+    elif provider == "google":
+        registry.register(
+            name="google",
+            client_id=config.client_id,
+            client_secret=config.client_secret,
+            server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+            client_kwargs={"scope": "openid email profile"},
+        )
+    else:
+        return None
+
+    client = registry.create_client(provider)
+    _client_cache[provider] = (fingerprint, client)
+    return client
 
 
 # ─── API Key Management ───────────────────────────────────────
