@@ -294,3 +294,34 @@ iterating so the image itself picks up the new dependency for the next
 person who builds it. Don't forget the actual fix is the `pyproject.toml`
 change — the `pip install` inside the container is a dev-loop shortcut, not
 a substitute for it.
+
+## Restoring from a backup dump
+
+**Symptom:** the database is corrupted, accidentally dropped, or you need to
+roll back to a known-good state. The `postgres-backup` sidecar has been
+writing daily dumps to `./backups/`, but you've never actually tested the
+restore path.
+
+**Cause:** the backup sidecar only handles the *dump* side — there's no
+automated restore mechanism. You need to run `pg_dump`'s inverse (`psql`)
+manually.
+
+**Fix:**
+```bash
+# 1. List available backups
+ls -lh backups/
+
+# 2. Restore a specific dump into the running Postgres container
+gunzip -c backups/myace-<date>.sql.gz | \
+  docker compose exec -T postgres psql -U myace myace
+```
+
+**Before you need it:** test this against a scratch Postgres instance (e.g.
+`docker run --rm -e POSTGRES_PASSWORD=test postgres:16-alpine`) to confirm
+the dump is valid end-to-end. An untested backup is not a backup.
+
+**Gotcha — the backup sidecar uses the same `POSTGRES_PASSWORD` from `.env`
+as the `postgres` and `backend` services.** If you change the password in
+`.env` without rebuilding the stack, the backup container will fail to
+authenticate on its next scheduled run. Restart the backup container after
+any credential change: `docker compose restart postgres-backup`.
