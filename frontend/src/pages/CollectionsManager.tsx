@@ -25,10 +25,13 @@ export default function CollectionsManager() {
     enabled: !!user,
   });
 
-  const { data: topCommunity, isLoading: loadingTop } = useQuery({
-    queryKey: ['community-collections', 'top'],
-    queryFn: () => collectionsApi.listCommunityTop(10),
+  const { data: communityData, isLoading: loadingTop } = useQuery({
+    queryKey: ['community-collections', 'preview'],
+    queryFn: () => collectionsApi.listCommunity({ limit: 10 }),
   });
+
+  const topCommunity = communityData?.items;
+  const totalCommunity = communityData?.total ?? 0;
 
   return (
     <div className="space-y-8">
@@ -128,11 +131,24 @@ export default function CollectionsManager() {
         {loadingTop ? (
           <div className="text-center py-8 text-muted-foreground">Loading community collections...</div>
         ) : topCommunity && topCommunity.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {topCommunity.map((collection) => (
-              <CommunityCollectionCard key={collection.id} collection={collection} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {topCommunity.map((collection) => (
+                <CommunityCollectionCard key={collection.id} collection={collection} />
+              ))}
+            </div>
+            {totalCommunity > 10 && (
+              <p className="text-center text-sm text-muted-foreground mt-4">
+                First 10 collections shown,{' '}
+                <Link
+                  to="/collections/community"
+                  className="text-brand-600 hover:underline font-medium"
+                >
+                  click here to view all community collections
+                </Link>
+              </p>
+            )}
+          </>
         ) : (
           <div className="text-center py-8 bg-card rounded-xl border border-border">
             <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
