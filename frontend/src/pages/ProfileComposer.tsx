@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { SlidersHorizontal, Plus, Save, Download } from 'lucide-react';
+import { SlidersHorizontal, Save, Download } from 'lucide-react';
 import { adaptersApi, collectionsApi, profilesApi } from '../lib/api';
 import ProfileFormFields from '../components/ProfileForm';
 import type { Profile, ProfileCreate } from '../types';
@@ -77,26 +77,31 @@ export default function ProfileComposer() {
     createMutation.mutate(form);
   };
 
+  const openNewProfileForm = () => {
+    createMutation.reset();
+    setForm(emptyForm);
+    setShowForm(true);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Profile Composer</h1>
-          <p className="text-muted-foreground mt-1">
-            A profile is a named recipe: one base collection plus optional additional collections, layered by priority. Compile a profile to produce the actual files for a target framework.
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            createMutation.reset();
-            setForm(emptyForm);
-            setShowForm(!showForm);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors text-sm font-medium"
-        >
-          <Plus className="h-4 w-4" />
-          New Profile
-        </button>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Profile Composer</h1>
+        <p className="text-muted-foreground mt-1">
+          A profile is a named recipe: one base collection plus optional additional
+          collections, layered by priority. View and edit your profiles here, or{' '}
+          <button
+            onClick={openNewProfileForm}
+            className="text-brand-600 hover:underline font-medium"
+          >
+            add a new profile
+          </button>{' '}
+          to your exact liking. Then,{' '}
+          <Link to="/compile" className="text-brand-600 hover:underline font-medium">
+            compile your profile
+          </Link>{' '}
+          to produce the actual files for a target framework.
+        </p>
       </div>
 
       {/* Create Form */}
@@ -142,7 +147,15 @@ export default function ProfileComposer() {
       ) : (
         <div className="text-center py-12 bg-card rounded-xl border border-border">
           <SlidersHorizontal className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">No profiles yet. Create your first composition!</p>
+          <p className="text-muted-foreground">
+            No profiles yet.{' '}
+            <button
+              onClick={openNewProfileForm}
+              className="text-brand-600 hover:underline font-medium"
+            >
+              Create your first composition!
+            </button>
+          </p>
         </div>
       )}
     </div>
