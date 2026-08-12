@@ -10,14 +10,20 @@ import {
   BookOpen,
   Grid3X3,
   Download,
+  HardDrive,
+  Github,
 } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import type { Collection } from '../types';
 
 export default function CollectionsManager() {
+  const { user } = useAuth();
+
   const { data: collections, isLoading } = useQuery({
-    queryKey: ['collections'],
-    queryFn: () => collectionsApi.list(),
+    queryKey: ['collections', { owner_id: user?.id }],
+    queryFn: () => collectionsApi.list({ owner_id: user?.id }),
+    enabled: !!user,
   });
 
   const { data: topCommunity, isLoading: loadingTop } = useQuery({
@@ -61,7 +67,32 @@ export default function CollectionsManager() {
         ) : (
           <div className="text-center py-12 bg-card rounded-xl border border-border">
             <FolderGit2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground">No collections yet. Import your first one!</p>
+            <p className="text-muted-foreground mb-4">
+              You don't have any collections yet. Get started by importing one:
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                to="/import?source=local"
+                className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
+              >
+                <HardDrive className="h-4 w-4" />
+                Import from local machine
+              </Link>
+              <Link
+                to="/import?source=git"
+                className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
+              >
+                <Github className="h-4 w-4" />
+                Import from a GitHub repo
+              </Link>
+              <Link
+                to="/collections/community"
+                className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
+              >
+                <BookOpen className="h-4 w-4" />
+                Browse community collections
+              </Link>
+            </div>
           </div>
         )}
       </div>

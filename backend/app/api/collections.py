@@ -87,7 +87,12 @@ async def list_collections(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """List collections visible to the caller: their own + public, or everything for admins."""
+    """List collections visible to the caller: their own + public, or everything for admins.
+
+    `owner_id` narrows this further — any caller may pass their own id (e.g. to fetch
+    strictly-owned collections, excluding public ones they don't own); only admins may
+    pass someone else's.
+    """
     query = select(Collection)
 
     clause = owner_or_public_clause(
@@ -95,7 +100,7 @@ async def list_collections(
     )
     if clause is not None:
         query = query.where(clause)
-    if owner_id and current_user.is_admin:
+    if owner_id and (current_user.is_admin or owner_id == current_user.id):
         query = query.where(Collection.owner_id == owner_id)
     if collection_type:
         query = query.where(Collection.collection_type == collection_type)
