@@ -96,13 +96,18 @@ def _parse_skill_file(path: Path) -> dict | None:
     if isinstance(compatibility, str):
         compatibility = [compatibility]
 
+    # version/priority/tags aren't part of OpenCode's own recognized SKILL.md
+    # frontmatter — the opencode adapter (translate() output) stashes them
+    # under the explicitly free-form `metadata` field instead of top-level,
+    # so check there too to round-trip cleanly through compile -> scan.
+    metadata = frontmatter.get("metadata") or {}
     return {
         "artifact_type": "skill",
         "name": name,
-        "version": frontmatter.get("version", "1.0.0"),
-        "priority": frontmatter.get("priority", 50),
+        "version": frontmatter.get("version", metadata.get("version", "1.0.0")),
+        "priority": frontmatter.get("priority", metadata.get("priority", 50)),
         "target_compatibility": compatibility,
-        "tags": frontmatter.get("tags", []),
+        "tags": frontmatter.get("tags", metadata.get("tags", [])),
         "description": frontmatter.get("description", ""),
         "body": body,
         "file_path": str(path.relative_to(path.parents[2]) if len(path.parents) > 2 else path.name),
