@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   FolderGit2,
-  Plus,
   GitBranch,
   Globe,
   Lock,
@@ -34,20 +33,29 @@ export default function CollectionsManager() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-foreground">Collections</h1>
-          <p className="text-muted-foreground mt-1">
-            Groups of artifacts (rules, skills, agents, workflows) imported from GitHub or your local machine. Combine collections into a Profile to compile them for a target framework.
-          </p>
-        </div>
-        <Link
-          to="/import"
-          className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors text-sm font-medium"
-        >
-          <Plus className="h-4 w-4" />
-          Import Collection
-        </Link>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Collections</h1>
+        <p className="text-muted-foreground mt-1">
+          Collections are groups of artifacts (rules, skills, agents, workflows) serving a
+          role or specific function in agentic coding. They can be imported from{' '}
+          <Link to="/import?source=git" className="text-brand-600 hover:underline font-medium">
+            any GitHub repository
+          </Link>
+          , from{' '}
+          <Link to="/import?source=local" className="text-brand-600 hover:underline font-medium">
+            your local machine
+          </Link>
+          , or imported from the{' '}
+          <Link to="/collections/community" className="text-brand-600 hover:underline font-medium">
+            Community Collections
+          </Link>
+          .
+        </p>
+        <p className="text-muted-foreground mt-2">
+          Base collections select your coding profile, additional collections add specific
+          roles and skills. Combine them into a Profile for your project, and compile them to
+          any framework.
+        </p>
       </div>
 
       {/* My Collections */}

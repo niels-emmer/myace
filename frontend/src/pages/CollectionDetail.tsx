@@ -81,8 +81,14 @@ export default function CollectionDetail() {
   // Publish to community
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishCategory, setPublishCategory] = useState('');
+  const [isNewCategory, setIsNewCategory] = useState(false);
   const [publishName, setPublishName] = useState('');
   const [publishDescription, setPublishDescription] = useState('');
+
+  const { data: existingCategories } = useQuery({
+    queryKey: ['community-categories'],
+    queryFn: () => collectionsApi.listCommunityCategories(),
+  });
 
   // Collection-level actions
   const [showDeleteCollectionModal, setShowDeleteCollectionModal] = useState(false);
@@ -294,7 +300,10 @@ export default function CollectionDetail() {
 
   const openPublishModal = () => {
     publishMutation.reset();
-    setPublishCategory(collection.category || '');
+    const currentCategory = collection.category || '';
+    const isKnownCategory = !!currentCategory && (existingCategories ?? []).includes(currentCategory);
+    setPublishCategory(currentCategory);
+    setIsNewCategory(!!currentCategory && !isKnownCategory);
     setPublishName(collection.name);
     setPublishDescription(collection.description || '');
     setShowPublishModal(true);
@@ -951,17 +960,44 @@ export default function CollectionDetail() {
                   <label className="block text-sm font-medium text-foreground mb-1">
                     Category <span className="text-destructive">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={publishCategory}
-                    onChange={(e) => setPublishCategory(e.target.value)}
-                    placeholder="e.g. python, iac, frontend, typescript"
+                  <select
+                    value={isNewCategory ? '__new__' : publishCategory}
+                    onChange={(e) => {
+                      if (e.target.value === '__new__') {
+                        setIsNewCategory(true);
+                        setPublishCategory('');
+                      } else {
+                        setIsNewCategory(false);
+                        setPublishCategory(e.target.value);
+                      }
+                    }}
                     className={inputClass}
                     autoFocus
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Helps users find your collection by category.
-                  </p>
+                  >
+                    <option value="" disabled>
+                      Select a category…
+                    </option>
+                    {(existingCategories ?? []).map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="__new__">+ New category…</option>
+                  </select>
+                  {isNewCategory ? (
+                    <input
+                      type="text"
+                      value={publishCategory}
+                      onChange={(e) => setPublishCategory(e.target.value)}
+                      placeholder="e.g. python, iac, frontend, typescript"
+                      className={`${inputClass} mt-2`}
+                      autoFocus
+                    />
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Helps users find your collection by category.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
