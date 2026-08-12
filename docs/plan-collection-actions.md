@@ -1,5 +1,13 @@
 # Plan: Collection Action Buttons (Delete, Share, Upload)
 
+**Status: Superseded.** Delete and Share shipped as planned. "Upload to
+GitHub" shipped as a fully working "Export to GitHub" feature (real PR
+creation, not the placeholder described below) — see
+[ADR-0004](adr/0004-github-export-via-rest-api.md) and the "GitHub PR
+export" section in `CLAUDE.md`/`AGENTS.md` for the current design. Kept
+here as historical design record; the placeholder framing below no longer
+reflects `CollectionDetail.tsx`.
+
 ## Feature Summary
 
 Add three action buttons to the collection detail page (next to the existing

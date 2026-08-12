@@ -1,5 +1,11 @@
 # PLAN: CLI Sidecar Binary Release
 
+**Status: Shipped.** All acceptance criteria below are met —
+`cli/build.spec`, `.github/workflows/release-cli.yml` (4-platform matrix on
+`cli-v*` tags), `cli/myace_cli/__main__.py`, and `scripts/bootstrap-import.sh`/
+`.ps1` all exist, and README documents the binary install path. Kept here as
+historical design record, not a live task list.
+
 ## Goal
 
 Deliver `myace` as a standalone, cross-platform binary (Linux x86_64, macOS
