@@ -1,6 +1,7 @@
 # MyACE — My Agentic Coding Environment
 
 [![CI](https://github.com/niels-emmer/myace/actions/workflows/ci.yml/badge.svg)](https://github.com/niels-emmer/myace/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/niels-emmer/myace)](https://github.com/niels-emmer/myace/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](backend/pyproject.toml)
 [![Node 20+](https://img.shields.io/badge/node-20%2B-green)](frontend/package.json)
