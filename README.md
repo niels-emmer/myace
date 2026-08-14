@@ -432,8 +432,10 @@ only Cody Enterprise — see
 [`docs/plans/starter-collections-improvements.md`](docs/plans/starter-collections-improvements.md)
 for the audit findings.
 
-Only the first three are mirrored in the CLI's offline fallback adapters
-(`cli/myace_cli/adapters/`) — the rest are backend/web-UI-only for now.
+The first three (Claude Code, OpenCode, Cursor) have a kept-in-sync copy in
+`cli/myace_cli/adapters/` for local rendering — but `myace pull` doesn't
+call into it yet, so today it always needs a reachable server regardless of
+target; see [docs/architecture.md](docs/architecture.md#adapters).
 
 An admin can disable any adapter system-wide from System Settings →
 Adapter Registry — disabled adapters disappear from the Compile page's

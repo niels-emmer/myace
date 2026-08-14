@@ -28,13 +28,18 @@ don't reuse one of the 12 already shipped in
    because Pydantic rejects the request before it ever reaches
    `get_adapter()` — this exact bug shipped for four adapters (`codex-cli`,
    `copilot-cli`, `cline`, `windsurf`) until it was caught and fixed.
-3. **CLI fallback**: mirror the same adapter in
-   `cli/myace_cli/adapters/pi_dev.py` — the CLI keeps its own copies so
-   `myace pull` can render locally if the server is unreachable. Keep the
-   two in sync; there's no automated check for this today. (In practice the
-   CLI currently only mirrors the original three — `claude_code`, `opencode`,
-   `cursor` — so this step is aspirational for the other nine until someone
-   backports them.)
+3. **CLI copy** (optional, currently unused): mirror the same adapter in
+   `cli/myace_cli/adapters/pi_dev.py`. This package exists — and is
+   maintained in sync for `claude_code`/`opencode`/`cursor` — for a local
+   -rendering fallback that hasn't been wired up yet: `myace pull`
+   (`cli/myace_cli/sync.py`) always calls the backend's `/profiles/compile`
+   endpoint directly and has no code path that falls back to
+   `myace_cli.adapters` if the server is unreachable. Until that's built,
+   adding a CLI copy for a new adapter is optional — the other eight
+   backend adapters (everything except `claude_code`/`opencode`/`cursor`)
+   don't have one, and nothing currently regresses because of that. If you
+   do add one, keep it in sync with its backend counterpart by hand —
+   there's no automated check for this today.
 4. **Test**: add a `TestPiDevAdapter` class to
    `backend/tests/test_adapters.py` following the existing pattern (see
    `TestClaudeCodeAdapter`, `TestCodexCliAdapter`, `TestWindsurfAdapter`,

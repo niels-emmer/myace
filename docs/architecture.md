@@ -100,8 +100,9 @@ for one target framework at a time.
 
 ## Adapters
 
-`backend/app/adapters/` (and a client-side fallback copy in
-`cli/myace_cli/adapters/`) each implement:
+`backend/app/adapters/` (and a client-side copy of three of them in
+`cli/myace_cli/adapters/`, kept in sync by hand but not yet wired into any
+CLI command — see the note below) each implement:
 
 ```python
 class BaseAdapter(ABC):
@@ -115,11 +116,16 @@ priority) happens before `translate()` is called; the adapter's only job is
 "canonical artifacts in, framework-specific files out." Eleven are
 registered today (`backend/app/adapters/__init__.py`): `claude_code`,
 `opencode`, `cursor`, `codex_cli`, `copilot_cli`, `cline`, `windsurf`,
-`aider`, `continue_dev`, `goose`, `amazon_q`. The CLI's
-offline fallback (`cli/myace_cli/adapters/`) still only mirrors the
-original three. See
+`aider`, `continue_dev`, `goose`, `amazon_q`. `cli/myace_cli/adapters/`
+mirrors only three of them (`claude_code`, `opencode`, `cursor`) — and,
+as of this writing, `myace pull` (`cli/myace_cli/sync.py`) doesn't actually
+call into that package at all; it always fetches a compiled profile from
+the backend's `/profiles/compile` endpoint and has no fallback path for an
+unreachable server. The CLI copies are real, tested, and kept in sync, but
+currently unused — building the fallback that would use them is open work,
+not yet started. See
 [extending.md#adding-a-target-adapter](extending.md#adding-a-target-adapter)
-to add another.
+to add another adapter.
 
 ## Import and export are symmetric, on purpose
 

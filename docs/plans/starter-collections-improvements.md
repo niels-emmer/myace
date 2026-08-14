@@ -2,7 +2,15 @@
 
 ## Status
 
-Not started. Written up after a full content review of all 13 starter
+**Partially complete — merged to `main` via [PR #95](https://github.com/niels-emmer/myace/pull/95)
+on 2026-08-14.** Everything marked ✅ below is done and live on `main`.
+Still open: `windsurf.py` (blocked on a naming decision), `amazon_q.py`'s
+native custom-agent enhancement, and items 1/2/4/5 from the "Proposed
+approach" list (YAML-error strictness, a regression test suite for the
+collision class of bug, description/Purpose redundancy in skills, and
+`target_compatibility`'s fate) — none of those four have been started.
+
+Written up after a full content review of all 13 starter
 collections (`collections/base/`, `collections/additional/`) and a same-day
 fix pass that resolved the review's concrete findings (factual error, three
 cross-collection name collisions, a stale model reference, a missing
