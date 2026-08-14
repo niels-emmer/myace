@@ -1,14 +1,14 @@
 # MyACE Documentation
 
-This directory is the deep-dive documentation for MyACE — written for both
-humans and AI coding agents working on the codebase. It complements, rather
-than repeats, two other documents you should already know about:
+This is the deep-dive documentation for MyACE — written for both humans and
+AI coding agents working on the codebase. It complements, rather than
+repeats, two other documents you should already know about:
 
 | Document | Audience | Purpose |
 |---|---|---|
 | [`README.md`](../README.md) | Humans, first visit | What MyACE is, screenshots, how to install/run it |
 | [`AGENTS.md`](../AGENTS.md) / `CLAUDE.md` | AI coding agents | Terse, enforceable rules and known gotchas — read before editing code |
-| **`docs/`** (this directory) | Humans and agents, deep dives | *Why* the system is built this way, not just *what* the rules are |
+| **`docs/`** (this documentation) | Humans and agents, deep dives | *Why* the system is built this way, not just *what* the rules are |
 
 If `AGENTS.md` is the "don't do this" list, `docs/` is the "here's the whole
 picture" reference. When a rule in `AGENTS.md` references a concept in more
