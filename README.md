@@ -14,7 +14,7 @@ picking one tool and losing the rest.
 
 > **MyACE is under heavy development and changes near daily. Use at your own
 > risk.** Currently supporting **12 coding environments**, with a community
-> store holding **13 starter agent profiles** (3 base + 10 specializations).
+> store holding **15 starter agent profiles** (3 base + 12 specializations).
 
 <table>
   <tr>
@@ -57,11 +57,12 @@ demand — from a web UI, or with a one-line CLI pull.
   immediately, browse and import collections published by other users. This
   is self-serve, not admin-moderated.
 - **Starter packs out of the box** — every fresh install seeds itself with 3
-  base collections (Vibecoder, Software Engineer, Data Scientist) and 10
+  base collections (Vibecoder, Software Engineer, Data Scientist) and 12
   specializations (Frontend, Backend, Infrastructure as Code Expert, Security
   Auditor, Documentation Editor, Full-Stack Developer, DevOps/Platform
-  Engineer, Java/Spring Developer, iOS Developer, Android Developer), so
-  there's real, opinionated content to build a first profile from on day one.
+  Engineer, Java/Spring Developer, iOS Developer, Android Developer,
+  Spec-Driven Development, AI/LLM Engineering), so there's real, opinionated
+  content to build a first profile from on day one.
   This is a fixed, code-reviewed set maintained in
   [`collections/`](collections/) — separate from user-published community
   collections, and not affected by them.
@@ -573,6 +574,21 @@ MyACE is built on [FastAPI](https://fastapi.tiangolo.com/),
 [Vite](https://vitejs.dev/), [TanStack Query](https://tanstack.com/query),
 [Tailwind CSS](https://tailwindcss.com/), and [Typer](https://typer.tiangolo.com/).
 Thanks to the maintainers of all of them.
+
+Some starter-pack collection content draws on patterns and principles from
+the wider open-source agentic-coding community, credited here rather than
+copied verbatim into the artifacts themselves:
+
+- The `spec-driven-dev` collection adapts the spec → clarify → plan → tasks
+  → analyze → implement workflow popularized by GitHub's
+  [spec-kit](https://github.com/github/spec-kit) (MIT).
+- The `ai-engineering` collection's `agent-design-principles` skill is
+  grounded in [12-factor-agents](https://github.com/humanlayer/12-factor-agents)
+  (HumanLayer, Apache-2.0).
+- Gap analysis for both collections cross-referenced
+  [wshobson/agents](https://github.com/wshobson/agents) (MIT) and
+  [VoltAgent/awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents)
+  (MIT) against this repo's existing agent/skill lineup.
 
 Logo: <a href="https://www.flaticon.com/free-icons/layers" title="layers icons">Layers icons created by Good Ware - Flaticon</a>.
 
