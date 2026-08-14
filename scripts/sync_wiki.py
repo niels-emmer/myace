@@ -188,8 +188,10 @@ def sync_to_remote(remote: str, work_dir: Path) -> None:
     # (e.g. "main") — relying on `git clone`'s implicit checkout to land on
     # the right branch is not reliable. Init + fetch + explicit checkout of
     # `origin/master` by name sidesteps that entirely; if `origin/master`
-    # doesn't exist yet (brand new wiki), `cloned` stays False and we just
-    # start from an empty tree — the first push creates the repo.
+    # doesn't exist yet (an enabled-but-truly-empty wiki, zero pages ever
+    # created through the web UI), `cloned` stays False and we push from an
+    # empty tree — see the note on the final push below for why that alone
+    # isn't always enough to bootstrap a wiki repo that doesn't exist yet.
     run(["git", "init"], cwd=work_dir)
     run(["git", "remote", "add", "origin", remote], cwd=work_dir)
     fetch = subprocess.run(["git", "fetch", "origin"], cwd=work_dir)
@@ -223,7 +225,26 @@ def sync_to_remote(remote: str, work_dir: Path) -> None:
         cwd=work_dir,
     )
     run(["git", "commit", "-m", f"sync from {sha}"], cwd=work_dir)
-    run(["git", "push", "origin", "HEAD:master"], cwd=work_dir)
+
+    push = subprocess.run(
+        ["git", "push", "origin", "HEAD:master"], cwd=work_dir, capture_output=True, text=True
+    )
+    if push.returncode != 0:
+        if "not found" in push.stderr.lower() or "not found" in push.stdout.lower():
+            print(
+                "\nThe Wiki repo doesn't exist yet. Enabling has_wiki=true is not "
+                "enough — GitHub only provisions a repo's Wiki git backend once a "
+                "page has been saved through the web UI at least once. No git "
+                "push (from CI or otherwise) can create it first.\n\n"
+                f"Fix: open https://github.com/{REPO_SLUG}/wiki, click "
+                '"Create the first page", save anything (even a placeholder), '
+                "then re-run this workflow — it will overwrite that page with "
+                "the real generated content.\n",
+                file=sys.stderr,
+            )
+        else:
+            print(push.stderr, file=sys.stderr)
+        sys.exit(1)
     print("Wiki synced.")
 
 

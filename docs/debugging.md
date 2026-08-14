@@ -346,3 +346,25 @@ directive elsewhere in the config, use the same variable pattern — a bare
 **If you're running an older nginx.conf without the variable fix:** restart
 the frontend container after any backend restart:
 `docker compose restart frontend`.
+
+## Wiki Sync Action fails with `repository '....wiki.git' not found`
+
+**Symptom:** `.github/workflows/wiki-sync.yml` (`scripts/sync_wiki.py`) fails
+on `git push` with `remote: Repository not found.` / `fatal: repository
+'https://github.com/<owner>/<repo>.wiki.git/' not found`, even though the
+repo's Wiki is enabled (`has_wiki: true`) and the workflow's `GITHUB_TOKEN`
+has `contents: write`.
+
+**Cause:** enabling the Wiki feature flag does not provision its git
+backend. GitHub only creates a repo's `<repo>.wiki.git` repository the first
+time a page is saved through the web UI's page editor. Before that, the
+repo genuinely doesn't exist server-side — no `git push`, from CI or
+otherwise, with any token, can create it first. This is a one-time,
+UI-only bootstrap step; there's no REST/GraphQL API for it.
+
+**Fix:** open `https://github.com/<owner>/<repo>/wiki`, click "Create the
+first page," and save anything (even a one-line placeholder). Then re-run
+the workflow (`workflow_dispatch`, or push another `docs/` change) — it
+overwrites that placeholder with the real generated content. `sync_wiki.py`
+detects this specific failure and prints this fix inline rather than a raw
+traceback.
