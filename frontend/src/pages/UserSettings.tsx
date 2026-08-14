@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   User, Lock, Key, Plus, Trash2, Copy, Check, ExternalLink,
-  Sun, Moon, Monitor, Smartphone, Shield, AlertTriangle, QrCode,
+  Sun, Moon, Monitor, Smartphone, Shield, AlertTriangle, QrCode, Github,
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -47,6 +47,17 @@ export default function UserSettings() {
   const { data: tokens, isLoading: tokensLoading } = useQuery({
     queryKey: ['tokens'],
     queryFn: () => authApi.listTokens(),
+  });
+
+  const { data: latestRelease } = useQuery({
+    queryKey: ['github-latest-release'],
+    queryFn: async () => {
+      const res = await fetch('https://api.github.com/repos/niels-emmer/myace/releases/latest');
+      if (!res.ok) throw new Error('Failed to fetch latest release');
+      return res.json() as Promise<{ tag_name: string }>;
+    },
+    staleTime: 60 * 60 * 1000,
+    retry: 1,
   });
 
   // Profile mutation
@@ -581,6 +592,21 @@ export default function UserSettings() {
             )}
           </div>
         )}
+      </div>
+
+      {/* App Info */}
+      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <span>MyACE v{latestRelease?.tag_name?.replace(/^v/, '') ?? '—'}</span>
+        <span>|</span>
+        <a
+          href="https://github.com/niels-emmer/myace"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+        >
+          <Github className="h-3.5 w-3.5" />
+          GitHub repository
+        </a>
       </div>
     </div>
   );
