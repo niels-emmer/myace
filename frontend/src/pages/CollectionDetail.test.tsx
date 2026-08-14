@@ -67,6 +67,13 @@ const mockArtifacts = [
   },
 ];
 
+const mockMixedArtifacts = [
+  { ...mockArtifacts[0], id: 'art-rule-1', artifact_type: 'rule', name: 'Rule One' },
+  { ...mockArtifacts[0], id: 'art-skill-1', artifact_type: 'skill', name: 'Skill One' },
+  { ...mockArtifacts[0], id: 'art-skill-2', artifact_type: 'skill', name: 'Skill Two' },
+  { ...mockArtifacts[0], id: 'art-agent-1', artifact_type: 'agent', name: 'Agent One' },
+];
+
 function renderCollectionDetail() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -268,6 +275,49 @@ describe('CollectionDetail — action buttons', () => {
       expect(screen.queryByRole('button', { name: /Delete/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Share/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Publish to Community/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Category counts', () => {
+    // Regression test for #51: the artifact list must be fetched once,
+    // unfiltered, and counted client-side — refetching per-type would make
+    // every non-active category show (0) after selecting a filter.
+    it('keeps every category count correct after selecting a filter, and after returning to All', async () => {
+      (collectionsApi.getArtifacts as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockMixedArtifacts
+      );
+      renderCollectionDetail();
+
+      const allBtn = await screen.findByRole('button', { name: /All\(4\)/ });
+      const rulesBtn = screen.getByRole('button', { name: /Rules\(1\)/ });
+      const skillsBtn = screen.getByRole('button', { name: /Skills\(2\)/ });
+      const agentsBtn = screen.getByRole('button', { name: /Agents\(1\)/ });
+      expect(allBtn).toBeInTheDocument();
+
+      fireEvent.click(skillsBtn);
+
+      expect(screen.getByRole('button', { name: /All\(4\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Rules\(1\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Skills\(2\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Agents\(1\)/ })).toBeInTheDocument();
+
+      fireEvent.click(rulesBtn);
+
+      expect(screen.getByRole('button', { name: /All\(4\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Rules\(1\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Skills\(2\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Agents\(1\)/ })).toBeInTheDocument();
+
+      fireEvent.click(agentsBtn);
+
+      expect(screen.getByRole('button', { name: /All\(4\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Rules\(1\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Skills\(2\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Agents\(1\)/ })).toBeInTheDocument();
+
+      // Only a single API fetch should ever happen — counts come from
+      // client-side filtering, not per-tab refetches.
+      expect(collectionsApi.getArtifacts).toHaveBeenCalledTimes(1);
     });
   });
 });
