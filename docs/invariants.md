@@ -60,8 +60,12 @@ names where it's enforced so you can verify it hasn't regressed.
 
 9. **Adapters are stateless and pure.** `translate(artifacts) -> {filename:
    content}` must not touch the database, the filesystem outside its return
-   value, or any other adapter. This is what makes `cli/myace_cli/adapters/`
-   a safe offline fallback copy of `backend/app/adapters/` — see
+   value, or any other adapter. This is what would make `cli/myace_cli/adapters/`
+   a safe local-rendering copy of `backend/app/adapters/` *if* anything in
+   the CLI called it — as of this writing, `myace pull`
+   (`cli/myace_cli/sync.py`) always calls the backend's `/profiles/compile`
+   endpoint directly and has no fallback path, so this package is
+   maintained but currently unused. See
    [extending.md](extending.md#adding-a-target-adapter).
 
 10. **Import and export must stay symmetric.** `scan_directory()`

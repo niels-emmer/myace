@@ -1,10 +1,21 @@
-"""CLI-side Cursor adapter."""
+"""CLI-side Cursor adapter — mirrors backend/app/adapters/cursor.py.
+
+Verified against cursor.com/docs/rules (Aug 2026): Cursor's real, current
+rule mechanism is exclusively .cursor/rules/*.mdc files with YAML
+frontmatter (description, globs, alwaysApply). The legacy root .cursorrules
+file no longer appears anywhere in current docs. Cursor has no documented
+"workflow" or "model config" file concept, so those artifact types fold
+into the same .cursor/rules/*.mdc format, using Agent Requested mode
+(alwaysApply: false with a description).
+"""
+
+import yaml
 
 from myace_cli.adapters.base import BaseAdapter
 
 
 class CursorAdapter(BaseAdapter):
-    """CLI-side adapter for Cursor — generates .cursorrules and .mdc files."""
+    """CLI-side adapter for Cursor — generates .cursor/rules/*.mdc files."""
 
     def adapter_name(self) -> str:
         return "cursor"
@@ -14,30 +25,22 @@ class CursorAdapter(BaseAdapter):
 
     def translate(self, artifacts: list[dict]) -> dict[str, str]:
         files: dict[str, str] = {}
-        rules: list[str] = []
-        idx = 0
 
         for artifact in artifacts:
             atype = artifact.get("artifact_type", "rule")
+            if atype not in ("rule", "skill", "agent", "workflow"):
+                continue
             name = artifact.get("name", "unnamed")
             body = artifact.get("body", "")
             desc = artifact.get("description", "")
-            priority = artifact.get("priority", 50)
 
-            if atype == "rule":
-                rules.append(f"- **{name}** (priority {priority}): {desc}\n  {body}\n")
-            elif atype in ("skill", "agent"):
-                files[f".cursor/rules/rule_{idx:03d}.mdc"] = (
-                    f"---\ntitle: {name}\ndescription: {desc}\ntype: {atype}\n"
-                    f"priority: {priority}\n---\n{body}\n"
-                )
-                idx += 1
-            elif atype == "workflow":
-                files[f".cursor/workflows/{name}.mdc"] = (
-                    f"---\ntitle: {name}\ndescription: {desc}\ntype: workflow\n---\n{body}\n"
-                )
-
-        if rules:
-            files[".cursorrules"] = "# Cursor Rules\n\n" + "\n".join(rules)
+            frontmatter: dict[str, object] = {
+                "description": desc,
+                "alwaysApply": atype == "rule",
+            }
+            yaml_text = yaml.safe_dump(
+                frontmatter, sort_keys=False, default_flow_style=False
+            ).strip()
+            files[f".cursor/rules/{name}.mdc"] = f"---\n{yaml_text}\n---\n{body.strip()}\n"
 
         return files
