@@ -3,7 +3,7 @@ name: Android Testing
 description: JUnit + Robolectric unit tests, Compose UI tests, screenshot tests, and Espresso for legacy views.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [android, testing, junit]
 ---
 ## Purpose
@@ -14,10 +14,10 @@ Test Android apps at the right level — fast unit tests for ViewModels, UI test
 
 - **Unit tests (JUnit + Robolectric)**: test ViewModels, repositories, and data transformation logic. Robolectric simulates the Android framework for fast test execution.
 - **Compose UI tests**: use `ComposeTestRule` to test composable rendering and interaction. Cover default, empty, and error states.
-- **Screenshot tests**: use `papaya` or equivalent for Compose screenshot testing. Catch visual regressions.
+- **Screenshot tests**: use `Paparazzi` or equivalent for Compose screenshot testing. Catch visual regressions.
 - **Espresso tests**: for legacy XML-based UI. Don't use for new Compose UI.
 - **Room DAO tests**: use an in-memory Room database instance. Test queries, migrations, and type converters.
-- **Test independence**: each test sets up its own state. Use `TestCoroutineDispatcher` for coroutine-based code.
+- **Test independence**: each test sets up its own state. Use `StandardTestDispatcher`/`UnconfinedTestDispatcher` (`kotlinx-coroutines-test`) for coroutine-based code.
 
 ## Expected output
 

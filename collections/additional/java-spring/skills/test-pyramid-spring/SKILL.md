@@ -3,7 +3,7 @@ name: Spring Test Pyramid
 description: Unit, integration, slice, and E2E test patterns for Spring Boot applications.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [java, spring, testing]
 ---
 ## Purpose

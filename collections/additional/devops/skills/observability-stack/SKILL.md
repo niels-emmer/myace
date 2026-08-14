@@ -3,7 +3,7 @@ name: Observability Stack
 description: Structured logging, RED/USE metrics, distributed tracing, and alerting thresholds for production services.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [devops, observability, monitoring]
 ---
 ## Purpose

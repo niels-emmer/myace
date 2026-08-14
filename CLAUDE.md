@@ -11,10 +11,16 @@ genuinely Claude-Code-specific notes belong below; don't duplicate
 
 - **Don't confuse this file with the `claude_code` adapter's output.**
   `backend/app/adapters/claude_code.py` *generates* a `CLAUDE.md` +
-  `.claude/agents/*.md` + `.claude/workflows/*.md` file set as one of
-  MyACE's compile targets — that's a MyACE user's compiled profile output,
-  unrelated to this file, which guides Claude Code while it works on the
-  MyACE codebase itself.
+  `.claude/agents/*.md` + `.claude/skills/*/SKILL.md` +
+  `.claude/commands/*.md` file set as one of MyACE's compile targets —
+  that's a MyACE user's compiled profile output, unrelated to this file,
+  which guides Claude Code while it works on the MyACE codebase itself.
+  (As of Aug 2026: real Claude Code has no `.claude/workflows/` directory —
+  commands were merged into skills, and `.claude/skills/*/SKILL.md` is the
+  on-demand-loaded current format; `.claude/commands/*.md` still works as
+  a legacy slash-command path. The adapter targets both correctly as of
+  this note; see `docs/plans/starter-collections-improvements.md` for the
+  audit that caught this.)
 - `.claude/launch.json` defines the `frontend-dev` preview-server config
   (`npm --prefix frontend run dev`, port 5173) that Claude Code's
   Browser/preview tooling uses to open a live preview. It expects the

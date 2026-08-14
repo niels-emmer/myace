@@ -3,7 +3,7 @@ name: Incident Response
 description: Severity classification, runbook creation, blameless postmortem, and communication channels for production incidents.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [devops, incidents, sre]
 ---
 ## Purpose

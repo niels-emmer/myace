@@ -112,10 +112,10 @@ class BaseAdapter(ABC):
 
 Adapters are stateless — all the interesting logic (resolution, merging,
 priority) happens before `translate()` is called; the adapter's only job is
-"canonical artifacts in, framework-specific files out." Twelve are
+"canonical artifacts in, framework-specific files out." Eleven are
 registered today (`backend/app/adapters/__init__.py`): `claude_code`,
 `opencode`, `cursor`, `codex_cli`, `copilot_cli`, `cline`, `windsurf`,
-`aider`, `continue_dev`, `goose`, `cody`, `amazon_q`. The CLI's
+`aider`, `continue_dev`, `goose`, `amazon_q`. The CLI's
 offline fallback (`cli/myace_cli/adapters/`) still only mirrors the
 original three. See
 [extending.md#adding-a-target-adapter](extending.md#adding-a-target-adapter)

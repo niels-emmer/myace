@@ -3,7 +3,7 @@ name: Data Classification Guide
 description: Public / internal / sensitive data tiers and what's allowed to touch an AI prompt, a log line, or a committed file at each tier.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [security, data-classification, privacy]
 ---
 ## Purpose
@@ -12,7 +12,7 @@ Give reviewers a shared, concrete way to decide how carefully a piece of data ne
 
 ## When to use it
 
-Whenever a review needs to answer "is it OK for this data to end up here" — in an AI prompt or context window, in an application or access log, in a committed file (including test fixtures and example config), or in an error message returned to a client. Use it alongside `security-checklist`'s injection/output-handling items and the `Data Classification Awareness` rule.
+Whenever a review needs to answer "is it OK for this data to end up here" — in an AI prompt or context window, in an application or access log, in a committed file (including test fixtures and example config), or in an error message returned to a client. Use it alongside `security-audit-checklist`'s injection/output-handling items and the `Data Classification Awareness` rule.
 
 ## The three tiers
 
@@ -42,7 +42,7 @@ When a piece of data's tier isn't obvious, classify it at the higher (more restr
 
 ## Expected output
 
-A short list of `data → tier → destination → verdict` lines, feeding into the same PASS/FAIL/N-A structure as the rest of a review:
+A short list of `data → tier → destination → verdict` lines, feeding into the same PASS/FAIL/N/A structure as the rest of a review:
 
 ```
 Data: user email address — Tier: Sensitive (PII)

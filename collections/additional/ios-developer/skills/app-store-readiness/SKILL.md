@@ -3,7 +3,7 @@ name: App Store Readiness
 description: Privacy manifest, code signing, capability declarations, screenshot automation, and review guideline checks.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [ios, app-store, release]
 ---
 ## Purpose

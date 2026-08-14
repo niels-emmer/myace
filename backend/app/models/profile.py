@@ -84,6 +84,6 @@ class ProfileCompileRequest(SQLModel):
     profile_id: uuid.UUID
     target: Literal[
         "claude-code", "opencode", "cursor", "codex-cli", "copilot-cli", "cline", "windsurf",
-        "aider", "continue", "goose", "cody", "amazon-q",
+        "aider", "continue", "goose", "amazon-q",
     ] = "opencode"
     include_disabled: bool = False

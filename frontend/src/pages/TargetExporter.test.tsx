@@ -36,6 +36,13 @@ const mockAdapter: AdapterInfo = {
   enabled: true,
 };
 
+const mockAdapterTwo: AdapterInfo = {
+  name: 'goose',
+  description: 'Goose adapter',
+  targets: ['goose'],
+  enabled: true,
+};
+
 const mockCompileResult: CompileResult = {
   profile_id: 'profile-1',
   profile_name: 'my-defaults',
@@ -115,6 +122,41 @@ describe('TargetExporter zip download', () => {
     expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
 
     clickSpy.mockRestore();
+  });
+
+  it('downloads the zip for the compiled result, not the live target dropdown, if the dropdown changes after Compile', async () => {
+    // Regression test: the download previously read `selectedTarget` (live
+    // dropdown state) instead of `result.target` (what was actually
+    // compiled and is displayed). Changing the dropdown after compiling —
+    // without recompiling — must not change what the zip download requests.
+    vi.mocked(adaptersApi.list).mockResolvedValue([mockAdapter, mockAdapterTwo]);
+
+    const blob = new Blob(['fake zip bytes'], { type: 'application/zip' });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: () => Promise.resolve(blob),
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    renderWithQueryClient();
+    await selectProfile();
+
+    // result.target is 'opencode' (from mockCompileResult). Now change the
+    // target dropdown to 'goose' WITHOUT clicking Compile again.
+    const targetSelect = screen.getAllByRole('combobox')[1];
+    fireEvent.change(targetSelect, { target: { value: 'goose' } });
+    await waitFor(() => expect(targetSelect).toHaveValue('goose'));
+
+    fireEvent.click(await screen.findByRole('button', { name: /Download as \.zip/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/profiles/compile/zip',
+      expect.objectContaining({
+        body: JSON.stringify({ profile_id: 'profile-1', target: 'opencode' }),
+      })
+    );
   });
 
   it('shows an error message when the zip download fails', async () => {

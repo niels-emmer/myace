@@ -2,7 +2,7 @@
 description: Read-only reviewer for layered architecture compliance, DI correctness, annotation usage, and test coverage.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 ---
 Read-only Spring reviewer. Check layering, DI, annotations, and test coverage.

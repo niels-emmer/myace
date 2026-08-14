@@ -3,7 +3,7 @@ name: Full-Stack Error Handling
 description: Error propagation patterns — backend error shape to API response to frontend fetch wrapper to UI state.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [fullstack, errors, error-handling]
 ---
 ## Purpose

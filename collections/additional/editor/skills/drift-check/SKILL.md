@@ -3,7 +3,7 @@ name: Agent Instruction Drift Check
 description: Procedure for comparing an agent-facing instruction doc (AGENTS.md/CLAUDE.md-style) against the actual current code and configuration to find and flag mismatches.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [documentation, drift, review, agents-md]
 ---
 

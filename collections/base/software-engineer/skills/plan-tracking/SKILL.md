@@ -3,7 +3,7 @@ name: Plan Tracking
 description: Keep a running, visible record of task/plan state across a multi-step session so nothing silently gets dropped or forgotten.
 version: "1.0.0"
 priority: 45
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [planning, process, session-management]
 ---
 ## Purpose

@@ -3,7 +3,7 @@ name: Model Evaluation
 description: Evaluation methodology — split strategy, metric selection, baseline comparison, failure mode analysis.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [ml, evaluation, metrics]
 ---
 ## Purpose

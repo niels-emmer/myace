@@ -3,7 +3,7 @@ name: Architecture Review
 description: When a design needs a second look before implementation starts, and what to actually evaluate when giving it one.
 version: "1.0.0"
 priority: 45
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [architecture, design, review]
 ---
 ## Purpose

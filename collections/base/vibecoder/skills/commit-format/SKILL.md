@@ -3,7 +3,7 @@ name: Commit Format
 description: A simple Conventional Commits style for clear, scannable commit history.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [git, commits]
 ---
 ## Purpose

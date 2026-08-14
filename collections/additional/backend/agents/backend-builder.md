@@ -2,7 +2,7 @@
 description: Implements API and service changes end to end — schema, migration, endpoint logic, and tests land together, with boundary validation and idempotency treated as part of the feature, not an afterthought.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 ---
 Hands-on-keyboard agent for backend/API work. Own a change from request shape to database.

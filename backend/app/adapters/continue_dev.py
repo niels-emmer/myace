@@ -1,18 +1,23 @@
 """Continue adapter — translates Canonical IR into Continue's real on-disk format.
 
-Verified against https://docs.continue.dev/customize/rules and
-https://docs.continue.dev/reference: `config.json` is deprecated in favor
-of `config.yaml` (a "Migrating Config to YAML" guide covers the move), so
-this adapter targets `config.yaml` rather than the legacy JSON format.
-Rules are Markdown files with YAML frontmatter (`name`, `globs`,
-`description`, `alwaysApply`) under `.continue/rules/`. Continue's legacy
-custom-slash-command format — a `.prompt` file with a small frontmatter
-block plus a template body — is still how this adapter renders `workflow`
-artifacts, since `config.yaml`'s `prompts:` list has no equivalent
-per-file granularity. `models` and `mcpServers` are merged into a single
-root `config.yaml`, mirroring how `model_config` artifacts already get
-merged for the OpenCode adapter (`model:<name>` tagged `provider:<provider>`,
-and `mcp:<name>`, per the scanner's encoding).
+Verified against https://docs.continue.dev/customize/rules,
+https://docs.continue.dev/customize/deep-dives/prompts, and
+https://docs.continue.dev/reference (Aug 2026): `config.json` is deprecated
+in favor of `config.yaml`, so this adapter targets `config.yaml` rather than
+the legacy JSON format. Rules are Markdown files with YAML frontmatter
+(`name`, `globs`, `description`, `alwaysApply`) under `.continue/rules/`.
+The legacy standalone `.prompt` file extension this adapter used to emit
+for `workflow` artifacts no longer appears in current docs — prompts are
+now Markdown+frontmatter files with an `invokable: true` field to make them
+slash commands, referenced from a `prompts:` list in `config.yaml`. This
+adapter emits the corrected file (`.md`, `invokable: true`) but does not
+yet add the corresponding `config.yaml` `prompts:` entry — the exact
+reference schema (`uses:`-style Hub block reference vs. a local file path)
+wasn't confirmed with full confidence; treat that half as a follow-up, not
+as verified. `models` and `mcpServers` are merged into a single root
+`config.yaml`, mirroring how `model_config` artifacts already get merged
+for the OpenCode adapter (`model:<name>` tagged `provider:<provider>`, and
+`mcp:<name>`, per the scanner's encoding).
 """
 
 import json
@@ -46,7 +51,7 @@ class ContinueAdapter(BaseAdapter):
             elif artifact.artifact_type == "agent":
                 files[f".continue/rules/agent-{artifact.name}.md"] = self._format_rule(artifact)
             elif artifact.artifact_type == "workflow":
-                files[f".continue/prompts/{artifact.name}.prompt"] = self._format_prompt(artifact)
+                files[f".continue/prompts/{artifact.name}.md"] = self._format_prompt(artifact)
             elif artifact.artifact_type == "model_config":
                 self._collect_model_config(artifact, provider_models, mcp_servers)
 
@@ -67,7 +72,11 @@ class ContinueAdapter(BaseAdapter):
         return f"---\n{yaml_text}\n---\n\n{artifact.body.strip()}\n"
 
     def _format_prompt(self, artifact: CanonicalArtifact) -> str:
-        frontmatter = {"name": artifact.name, "description": artifact.description}
+        frontmatter = {
+            "name": artifact.name,
+            "description": artifact.description,
+            "invokable": True,
+        }
         yaml_text = yaml.safe_dump(frontmatter, sort_keys=False, default_flow_style=False).strip()
         return f"---\n{yaml_text}\n---\n{artifact.body.strip()}\n"
 

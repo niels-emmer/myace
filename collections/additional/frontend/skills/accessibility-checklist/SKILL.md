@@ -3,7 +3,7 @@ name: Accessibility Checklist
 description: A concrete, checklist-driven pass for semantic HTML, ARIA, keyboard navigation, contrast, alt text, and focus management.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [frontend, accessibility, a11y]
 ---
 ## Purpose

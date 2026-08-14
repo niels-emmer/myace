@@ -42,15 +42,19 @@ export default function TargetExporter() {
   };
 
   const handleDownloadZip = async () => {
-    if (!selectedProfile || !result) return;
+    if (!result) return;
     setDownloading(true);
     setDownloadError(null);
     try {
+      // Use result.profile_id/target — the values that actually produced the
+      // displayed preview — not the live dropdown state. The dropdowns can
+      // change after Compile is clicked (e.g. comparing targets) without
+      // triggering a recompile, and the zip must match what's on screen.
       const res = await fetch('/api/v1/profiles/compile/zip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ profile_id: selectedProfile, target: selectedTarget }),
+        body: JSON.stringify({ profile_id: result.profile_id, target: result.target }),
       });
       if (!res.ok) {
         throw new Error(`Download failed (${res.status})`);
