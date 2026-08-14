@@ -2,9 +2,10 @@
 
 ## Status
 
-**Complete.** Both new `additional/` starter collections and the one
+**Complete — merged to `main` via [PR #101](https://github.com/niels-emmer/myace/pull/101)
+on 2026-08-14.** Both new `additional/` starter collections and the one
 base-collection cherry-pick described below are implemented, seeded,
-tested, and merged to `main`. Nothing from this plan was deferred.
+tested, and live. Nothing from this plan was deferred.
 
 ## Why
 
