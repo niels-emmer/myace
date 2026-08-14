@@ -251,6 +251,18 @@ Concretely, before you consider a change done:
 
 If you're an AI agent and you're not sure whether a change is "documentation-worthy," err toward writing the one or two sentences — it's cheap now and expensive to reconstruct later.
 
+- **The GitHub Wiki is a generated mirror of `docs/`, never a second copy to
+  maintain by hand.** `.github/workflows/wiki-sync.yml` runs
+  `scripts/sync_wiki.py` on every push to `main` that touches `docs/**`,
+  republishing the human-facing subset of `docs/` (architecture, data model,
+  invariants, extending, debugging, ADRs, adapter research — see the page
+  map in `scripts/sync_wiki.py`) as Wiki pages with rewritten links/images.
+  `docs/plans/*.md`, `AGENTS.md`, and `CLAUDE.md` are deliberately excluded
+  — they're design records and agent rules, not visitor-facing reference
+  docs. **Never edit a Wiki page directly** — it will be silently
+  overwritten by the next sync; edit the source file in `docs/` instead and
+  let CI republish it, same as every other doc in this rule.
+
 ### 15. Soft-Delete Rule
 
 - **Never hard-delete user data.** Artifacts, profiles, and doc cache entries
