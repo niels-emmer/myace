@@ -262,6 +262,11 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   docs. **Never edit a Wiki page directly** — it will be silently
   overwritten by the next sync; edit the source file in `docs/` instead and
   let CI republish it, same as every other doc in this rule.
+- **A repo's Wiki git backend doesn't exist until a page has been created
+  through the web UI at least once**, even with `has_wiki: true` — no
+  amount of `git push` (including this sync) can bootstrap it first. See
+  [debugging.md](docs/debugging.md#wiki-sync-action-fails-with-repository--wikigit-not-found)
+  if the sync Action fails with `repository '....wiki.git' not found`.
 
 ### 15. Soft-Delete Rule
 
