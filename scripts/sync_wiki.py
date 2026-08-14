@@ -44,7 +44,7 @@ PAGE_MAP: dict[str, str] = {
     "invariants.md": "Invariants",
     "extending.md": "Extending-MyACE",
     "debugging.md": "Debugging",
-    "ADAPTERS_RESEARCH.md": "Adapter-Research",
+    "adapters-research.md": "Adapter-Research",
     "adr/README.md": "ADR-Index",
 }
 
