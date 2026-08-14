@@ -144,6 +144,26 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "Play Store readiness, and lifecycle-aware architecture."
             ),
         },
+        "spec-driven-dev": {
+            "name": "Spec-Driven Development",
+            "category": "Process & Methodology",
+            "description": (
+                "Spec → clarify → plan → tasks → analyze → implement workflow "
+                "for underspecified feature requests, adapted from GitHub's "
+                "spec-kit — a living project constitution, testable acceptance "
+                "criteria, and a cross-check gate before implementation starts."
+            ),
+        },
+        "ai-engineering": {
+            "name": "AI / LLM Engineering",
+            "category": "AI/LLM Engineering",
+            "description": (
+                "Prompt iteration backed by evals, LLM-integrated feature "
+                "development that treats model output as untrusted input, and "
+                "deliberate context-window curation — grounded in the "
+                "12-factor-agents principles."
+            ),
+        },
     },
 }
 
