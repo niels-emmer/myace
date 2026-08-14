@@ -21,7 +21,6 @@ class TestAdapterRegistry:
         assert "aider" in names
         assert "continue" in names
         assert "goose" in names
-        assert "cody" in names
         assert "amazon-q" in names
 
     def test_get_adapter(self):
@@ -69,15 +68,28 @@ class TestClaudeCodeAdapter:
         result = self.adapter.translate(self.artifacts)
         assert isinstance(result, dict)
 
-    def test_translate_creates_claude_md(self):
-        """Should generate CLAUDE.md with rules and skills."""
+    def test_translate_creates_claude_md_with_rules_only(self):
+        """CLAUDE.md should contain rules; skills are loaded on demand, not inlined."""
         result = self.adapter.translate(self.artifacts)
         assert "CLAUDE.md" in result
         assert "test-rule" in result["CLAUDE.md"]
-        assert "test-skill" in result["CLAUDE.md"]
+        assert "test-skill" not in result["CLAUDE.md"]
 
-    def test_translate_agent_creates_separate_file(self):
-        """Agent artifacts should become separate files."""
+    def test_translate_skill_creates_on_demand_skill_file(self):
+        """Skills should become .claude/skills/<name>/SKILL.md with name+description frontmatter."""
+        result = self.adapter.translate(self.artifacts)
+        path = ".claude/skills/test-skill/SKILL.md"
+        assert path in result
+        content = result[path]
+        assert content.startswith("---\n")
+        import yaml
+        frontmatter = yaml.safe_load(content.split("---\n")[1])
+        assert frontmatter["name"] == "test-skill"
+        assert frontmatter["description"] == "A test skill"
+        assert "How to write tests." in content
+
+    def test_translate_agent_creates_separate_file_with_required_frontmatter(self):
+        """Agent artifacts need name+description frontmatter to register as a real subagent."""
         agent = CanonicalArtifact(
             artifact_type="agent",
             name="code-reviewer",
@@ -89,7 +101,30 @@ class TestClaudeCodeAdapter:
             body="Review all PRs.",
         )
         result = self.adapter.translate([agent])
-        assert ".claude/agents/code-reviewer.md" in result
+        path = ".claude/agents/code-reviewer.md"
+        assert path in result
+        content = result[path]
+        import yaml
+        frontmatter = yaml.safe_load(content.split("---\n")[1])
+        assert frontmatter["name"] == "code-reviewer"
+        assert frontmatter["description"] == "Code review agent"
+
+    def test_translate_workflow_creates_command_file(self):
+        """Workflows map to the legacy-but-supported .claude/commands/*.md slash command format."""
+        workflow = CanonicalArtifact(
+            artifact_type="workflow", name="ship", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="Ship it", body="1. Test.\n2. Push.",
+        )
+        result = self.adapter.translate([workflow])
+        assert ".claude/commands/ship.md" in result
+
+    def test_translate_model_config_skipped(self):
+        """No repo-committed model-config file convention exists in Claude Code."""
+        mc = CanonicalArtifact(
+            artifact_type="model_config", name="sonnet", version="1.0.0",
+            target_compatibility=[], priority=50, tags=[], description="", body="{}",
+        )
+        assert self.adapter.translate([mc]) == {}
 
 
 class TestOpenCodeAdapter:
@@ -255,8 +290,8 @@ class TestCursorAdapter:
     def setup_method(self):
         self.adapter = get_adapter("cursor")
 
-    def test_translate_rule_creates_cursorrules(self):
-        """Rules should become .cursorrules entries."""
+    def test_translate_rule_creates_named_mdc_with_always_apply(self):
+        """Rules become .cursor/rules/<name>.mdc with alwaysApply: true."""
         rule = CanonicalArtifact(
             artifact_type="rule",
             name="lint-before-commit",
@@ -268,11 +303,16 @@ class TestCursorAdapter:
             body="Run linter.",
         )
         result = self.adapter.translate([rule])
-        assert ".cursorrules" in result
-        assert "lint-before-commit" in result[".cursorrules"]
+        path = ".cursor/rules/lint-before-commit.mdc"
+        assert path in result
+        content = result[path]
+        import yaml
+        frontmatter = yaml.safe_load(content.split("---\n")[1])
+        assert frontmatter["description"] == "Lint before commit"
+        assert frontmatter["alwaysApply"] is True
 
-    def test_translate_skill_creates_mdc(self):
-        """Skills should become .mdc files."""
+    def test_translate_skill_creates_named_mdc_agent_requested(self):
+        """Skills become .cursor/rules/<name>.mdc with alwaysApply: false (Agent Requested)."""
         skill = CanonicalArtifact(
             artifact_type="skill",
             name="debugging",
@@ -284,8 +324,21 @@ class TestCursorAdapter:
             body="Use breakpoints.",
         )
         result = self.adapter.translate([skill])
-        mdc_files = [k for k in result if k.endswith(".mdc")]
-        assert len(mdc_files) > 0
+        path = ".cursor/rules/debugging.mdc"
+        assert path in result
+        content = result[path]
+        import yaml
+        frontmatter = yaml.safe_load(content.split("---\n")[1])
+        assert frontmatter["alwaysApply"] is False
+
+    def test_translate_does_not_emit_legacy_cursorrules(self):
+        """.cursorrules is no longer a real Cursor convention."""
+        rule = CanonicalArtifact(
+            artifact_type="rule", name="x", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="x", body="x",
+        )
+        result = self.adapter.translate([rule])
+        assert ".cursorrules" not in result
 
 
 class TestCodexCliAdapter:
@@ -326,8 +379,8 @@ class TestCodexCliAdapter:
         assert ".agents/skills/testing/SKILL.md" in result
         assert "Write tests first." in result[".agents/skills/testing/SKILL.md"]
 
-    def test_translate_agent_creates_separate_file(self):
-        """Agent artifacts should become separate .md files."""
+    def test_translate_agent_creates_toml_file(self):
+        """Custom subagents are TOML under .codex/agents/, not Markdown."""
         agent = CanonicalArtifact(
             artifact_type="agent",
             name="reviewer",
@@ -339,10 +392,24 @@ class TestCodexCliAdapter:
             body="Review all PRs.",
         )
         result = self.adapter.translate([agent])
-        assert ".agents/agents/reviewer.md" in result
+        path = ".codex/agents/reviewer.toml"
+        assert path in result
+        content = result[path]
+        assert 'name = "reviewer"' in content
+        assert 'description = "Code review agent"' in content
+        assert "developer_instructions" in content
+        assert "Review all PRs." in content
 
-    def test_translate_model_config_creates_toml(self):
-        """Model configs should become .codex/config.toml."""
+    def test_translate_workflow_is_skipped(self):
+        """No 'workflow' concept exists in Codex CLI — nothing should be emitted for it."""
+        workflow = CanonicalArtifact(
+            artifact_type="workflow", name="ship", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="Ship it", body="Ship it.",
+        )
+        assert self.adapter.translate([workflow]) == {}
+
+    def test_translate_model_config_creates_real_toml_schema(self):
+        """config.toml should use the real schema: top-level `model` + [model_providers.<id>]."""
         mc = CanonicalArtifact(
             artifact_type="model_config",
             name="gpt-4o",
@@ -354,9 +421,10 @@ class TestCodexCliAdapter:
             body='{"provider": "openai", "model": "gpt-4o"}',
         )
         result = self.adapter.translate([mc])
-        assert ".codex/config.toml" in result
-        assert "gpt-4o" in result[".codex/config.toml"]
-        assert "[models]" in result[".codex/config.toml"]
+        content = result[".codex/config.toml"]
+        assert 'model = "gpt-4o"' in content
+        assert "[model_providers.openai]" in content
+        assert "[models]" not in content
 
 
 class TestCopilotCliAdapter:
@@ -451,7 +519,8 @@ class TestClineAdapter:
         )
         result = self.adapter.translate([skill])
         assert ".clinerules/skill-testing.md" in result
-        assert "type: skill" in result[".clinerules/skill-testing.md"]
+        assert "Testing guide" in result[".clinerules/skill-testing.md"]
+        assert "Write tests." in result[".clinerules/skill-testing.md"]
 
     def test_translate_agent_creates_clinerules_file(self):
         """Agent artifacts should become agent-prefixed .clinerules files."""
@@ -467,7 +536,16 @@ class TestClineAdapter:
         )
         result = self.adapter.translate([agent])
         assert ".clinerules/agent-reviewer.md" in result
-        assert "type: agent" in result[".clinerules/agent-reviewer.md"]
+        assert "Review agent" in result[".clinerules/agent-reviewer.md"]
+
+    def test_translate_does_not_emit_unrecognized_frontmatter(self):
+        """Cline only recognizes a `paths` field; no invented frontmatter should be emitted."""
+        rule = CanonicalArtifact(
+            artifact_type="rule", name="x", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="x", body="x",
+        )
+        result = self.adapter.translate([rule])
+        assert not result[".clinerules/x.md"].startswith("---")
 
 
 class TestWindsurfAdapter:
@@ -655,9 +733,13 @@ class TestContinueAdapter:
             body="Run tests, then commit.",
         )
         result = self.adapter.translate([workflow])
-        path = ".continue/prompts/ship.prompt"
+        path = ".continue/prompts/ship.md"
         assert path in result
-        assert "Run tests, then commit." in result[path]
+        content = result[path]
+        assert "Run tests, then commit." in content
+        import yaml
+        frontmatter = yaml.safe_load(content.split("---\n")[1])
+        assert frontmatter["invokable"] is True
 
     def test_translate_skill_and_agent_create_prefixed_rule_files(self):
         skill = CanonicalArtifact(
@@ -721,7 +803,7 @@ class TestGooseAdapter:
     def setup_method(self):
         self.adapter = get_adapter("goose")
 
-    def test_translate_rule_creates_goosehints_file(self):
+    def test_translate_rule_creates_agents_md_file(self):
         rule = CanonicalArtifact(
             artifact_type="rule",
             name="type-safety",
@@ -733,9 +815,9 @@ class TestGooseAdapter:
             body="Use strict typing.",
         )
         result = self.adapter.translate([rule])
-        assert ".goosehints" in result
-        assert "type-safety" in result[".goosehints"]
-        assert "Use strict typing." in result[".goosehints"]
+        assert "AGENTS.md" in result
+        assert "type-safety" in result["AGENTS.md"]
+        assert "Use strict typing." in result["AGENTS.md"]
 
     def test_translate_multiple_artifact_types_merge_into_one_file(self):
         rule = CanonicalArtifact(
@@ -748,8 +830,8 @@ class TestGooseAdapter:
         )
         result = self.adapter.translate([rule, skill])
         assert len(result) == 1
-        assert "Rule body." in result[".goosehints"]
-        assert "Skill body." in result[".goosehints"]
+        assert "Rule body." in result["AGENTS.md"]
+        assert "Skill body." in result["AGENTS.md"]
 
     def test_translate_model_config_skipped(self):
         mc = CanonicalArtifact(
@@ -760,78 +842,6 @@ class TestGooseAdapter:
 
     def test_translate_empty_artifacts_returns_empty_dict(self):
         assert self.adapter.translate([]) == {}
-
-
-class TestCodyAdapter:
-    """Test Sourcegraph Cody adapter translation."""
-
-    def setup_method(self):
-        self.adapter = get_adapter("cody")
-
-    def test_translate_rule_creates_sourcegraph_rule_md(self):
-        rule = CanonicalArtifact(
-            artifact_type="rule",
-            name="naming-convention",
-            version="1.0.0",
-            target_compatibility=[],
-            priority=70,
-            tags=[],
-            description="Naming rules",
-            body="Use snake_case.",
-        )
-        result = self.adapter.translate([rule])
-        path = ".sourcegraph/naming-convention.rule.md"
-        assert path in result
-        content = result[path]
-        assert content.startswith("---\n")
-        import yaml
-        frontmatter = yaml.safe_load(content.split("---\n")[1])
-        assert frontmatter["description"] == "Naming rules"
-        assert "Use snake_case." in content
-
-    def test_translate_skill_agent_workflow_use_prefixed_paths(self):
-        skill = CanonicalArtifact(
-            artifact_type="skill", name="testing", version="1.0.0", target_compatibility=[],
-            priority=50, tags=[], description="Testing", body="Write tests.",
-        )
-        agent = CanonicalArtifact(
-            artifact_type="agent", name="reviewer", version="1.0.0", target_compatibility=[],
-            priority=50, tags=[], description="Reviews", body="Review code.",
-        )
-        workflow = CanonicalArtifact(
-            artifact_type="workflow", name="ship", version="1.0.0", target_compatibility=[],
-            priority=50, tags=[], description="Ships", body="Ship it.",
-        )
-        result = self.adapter.translate([skill, agent, workflow])
-        assert ".sourcegraph/skill-testing.rule.md" in result
-        assert ".sourcegraph/agent-reviewer.rule.md" in result
-        assert ".sourcegraph/workflow-ship.rule.md" in result
-
-    def test_translate_model_config_skipped(self):
-        mc = CanonicalArtifact(
-            artifact_type="model_config", name="gpt-4o", version="1.0.0",
-            target_compatibility=[], priority=50, tags=[], description="", body="{}",
-        )
-        assert self.adapter.translate([mc]) == {}
-
-    def test_translate_description_with_colon_produces_valid_yaml(self):
-        """A raw f-string frontmatter would break on 'key: value' text in
-        the description; safe_dump must escape it correctly."""
-        rule = CanonicalArtifact(
-            artifact_type="rule",
-            name="weird",
-            version="1.0.0",
-            target_compatibility=[],
-            priority=50,
-            tags=[],
-            description="Note: this contains a colon",
-            body="Body.",
-        )
-        result = self.adapter.translate([rule])
-        import yaml
-        content = result[".sourcegraph/weird.rule.md"]
-        frontmatter = yaml.safe_load(content.split("---\n")[1])
-        assert frontmatter["description"] == "Note: this contains a colon"
 
 
 class TestAmazonQAdapter:

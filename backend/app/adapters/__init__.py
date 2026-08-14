@@ -20,7 +20,6 @@ from app.adapters.base import BaseAdapter
 from app.adapters.claude_code import ClaudeCodeAdapter
 from app.adapters.cline import ClineAdapter
 from app.adapters.codex_cli import CodexCliAdapter
-from app.adapters.cody import CodyAdapter
 from app.adapters.continue_dev import ContinueAdapter
 from app.adapters.copilot_cli import CopilotCliAdapter
 from app.adapters.cursor import CursorAdapter
@@ -57,5 +56,4 @@ register_adapter(WindsurfAdapter())
 register_adapter(AiderAdapter())
 register_adapter(ContinueAdapter())
 register_adapter(GooseAdapter())
-register_adapter(CodyAdapter())
 register_adapter(AmazonQAdapter())

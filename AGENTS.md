@@ -521,3 +521,39 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   Query keys — `CollectionDetail.tsx` scopes to `['collection', id]` /
   `['artifacts', id, typeFilter]` rather than the shared `['collections']`/
   `['profiles']` keys used elsewhere.
+
+### 29. Starter-Collection Artifact Names Must Be Unique Across Collections, Not Just Within One
+
+- **`compile_profile()` deduplicates artifacts by name alone, across every
+  collection in the profile, with later collections silently overriding
+  earlier ones** (`backend/app/services/compiler.py`, step 4 of
+  `compile_profile()`'s docstring). An agent, skill, or rule that shares
+  its name with one in another collection doesn't merge or conflict
+  loudly — one copy just vanishes from the compiled output, with no
+  warning surfaced anywhere in the API response or the UI.
+- This matters most for `additional/` collections, since they're
+  explicitly designed to layer onto a `base/` collection in the same
+  profile. Before adding or renaming an agent/skill/rule in
+  `collections/`, check it isn't reusing a name already used by another
+  starter collection likely to be composed with it — run:
+  ```bash
+  grep -rn "^name:" collections/*/*/skills/*/SKILL.md | sort -t: -k3
+  ```
+  for skills (name comes from the frontmatter `name:` field — see
+  `_parse_skill_file` in `backend/app/services/scanner.py`), or compare
+  filenames under `agents/` (agent name is the file stem — see
+  `_parse_agent_file`) and `##` headings in `AGENTS.md` (rule name is the
+  heading text — see `_parse_agents_md`).
+- `additional/auditor`'s `security-compliance-auditor` agent and
+  `security-audit-checklist` skill are named the way they are
+  specifically to avoid colliding with `base/software-engineer`'s
+  `security-auditor` agent and `security-checklist` skill when the two
+  collections are composed (a very natural pairing — `software-engineer`
+  is the most commonly-chosen base). Likewise `additional/editor`'s
+  `technical-writer` agent avoids colliding with
+  `base/software-engineer`'s `docs-writer`, whose handoff chain and
+  `memory-system` skill integration `editor`'s agent doesn't share. Follow
+  this pattern — rename the `additional/` side, not the `base/` side,
+  since base collections' internal pipelines (e.g. `orchestrator.md`'s
+  hardcoded stage routing) are more expensive to keep consistent than an
+  additional collection's own naming.

@@ -1,11 +1,27 @@
-"""Cline adapter — translates Canonical IR into Cline rules format."""
+"""Cline adapter — translates Canonical IR into Cline rules format.
+
+Verified against docs.cline.bot/customization/cline-rules (Aug 2026): Cline
+does parse YAML frontmatter on .clinerules/*.md files, but the only
+documented/recognized field is `paths` (an array of glob patterns for
+conditional activation) — "rules without frontmatter are always active."
+Canonical IR has no natural per-artifact glob/path-scoping concept to map
+onto `paths`, so this adapter emits no frontmatter at all rather than
+fields Cline doesn't recognize (title/type/priority/tags/globs were never
+real fields; if frontmatter parsing fails on unrecognized content Cline
+"fails open" and shows it as raw text, which is at best noise and at worst
+confusing, not a functional risk — but there's no reason to emit it when
+plain files work correctly and are the documented default-active behavior).
+"""
 
 from app.adapters.base import BaseAdapter
 from app.models.artifact import CanonicalArtifact
 
+_KIND_LABELS = {"rule": "Rule", "skill": "Skill", "agent": "Agent", "workflow": "Workflow"}
+_FILENAME_PREFIXES = {"rule": "", "skill": "skill-", "agent": "agent-", "workflow": "workflow-"}
+
 
 class ClineAdapter(BaseAdapter):
-    """Adapter for Cline — generates .clinerules/ files with YAML frontmatter."""
+    """Adapter for Cline — generates .clinerules/ files, no frontmatter."""
 
     def adapter_name(self) -> str:
         return "cline"
@@ -17,44 +33,16 @@ class ClineAdapter(BaseAdapter):
         files: dict[str, str] = {}
 
         for artifact in artifacts:
-            if artifact.artifact_type == "rule":
-                files[f".clinerules/{artifact.name}.md"] = self._format_rule(artifact)
-            elif artifact.artifact_type == "skill":
-                files[f".clinerules/skill-{artifact.name}.md"] = self._format_skill(artifact)
-            elif artifact.artifact_type == "agent":
-                files[f".clinerules/agent-{artifact.name}.md"] = self._format_agent(artifact)
-            elif artifact.artifact_type == "workflow":
-                files[f".clinerules/workflow-{artifact.name}.md"] = self._format_workflow(artifact)
+            prefix = _FILENAME_PREFIXES.get(artifact.artifact_type)
+            label = _KIND_LABELS.get(artifact.artifact_type)
+            if prefix is None or label is None:
+                continue
+            files[f".clinerules/{prefix}{artifact.name}.md"] = self._format_file(artifact, label)
 
         return files
 
-    def _yaml_frontmatter(self, artifact: CanonicalArtifact, subtype: str) -> str:
-        tags_str = ", ".join(artifact.tags) if artifact.tags else ""
-        return (
-            f"---\n"
-            f"title: {artifact.name}\n"
-            f"description: {artifact.description}\n"
-            f"type: {subtype}\n"
-            f"priority: {artifact.priority}\n"
-            f"tags: [{tags_str}]\n"
-            f"globs: {self._targets_to_globs(artifact.target_compatibility)}\n"
-            f"---\n"
-        )
-
-    def _format_rule(self, artifact: CanonicalArtifact) -> str:
-        return self._yaml_frontmatter(artifact, "rule") + artifact.body.strip() + "\n"
-
-    def _format_skill(self, artifact: CanonicalArtifact) -> str:
-        return self._yaml_frontmatter(artifact, "skill") + artifact.body.strip() + "\n"
-
-    def _format_agent(self, artifact: CanonicalArtifact) -> str:
-        return self._yaml_frontmatter(artifact, "agent") + artifact.body.strip() + "\n"
-
-    def _format_workflow(self, artifact: CanonicalArtifact) -> str:
-        return self._yaml_frontmatter(artifact, "workflow") + artifact.body.strip() + "\n"
-
-    def _targets_to_globs(self, targets: list[str]) -> str:
-        if not targets:
-            return "['**/*']"
-        items = [f"'**/*.{t}'" for t in targets if not t.startswith("*")]
-        return "[" + ", ".join(items) + "]" if items else "['**/*']"
+    def _format_file(self, artifact: CanonicalArtifact, label: str) -> str:
+        header = f"# {artifact.name} ({label})\n\n"
+        if artifact.description:
+            header += f"{artifact.description}\n\n"
+        return header + artifact.body.strip() + "\n"

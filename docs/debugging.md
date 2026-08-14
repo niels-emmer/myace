@@ -368,3 +368,66 @@ the workflow (`workflow_dispatch`, or push another `docs/` change) — it
 overwrites that placeholder with the real generated content. `sync_wiki.py`
 detects this specific failure and prints this fix inline rather than a raw
 traceback.
+
+## A compiled profile is missing a rule/skill/agent that's definitely enabled in one of its collections
+
+**Symptom:** a profile combining a `base/` collection with one or more
+`additional/` collections compiles successfully, but a specific agent,
+skill, or rule you know is enabled just isn't in the output — no error, no
+warning, it's simply absent.
+
+**Cause:** `compile_profile()` (`backend/app/services/compiler.py`)
+deduplicates artifacts **by name alone**, across every collection in the
+profile at once: `seen_names[canonical.name] = canonical`, iterated in
+`[base_id] + additional_ids` order, so a later collection's artifact
+silently replaces an earlier one that happens to share its exact name. Two
+starter collections can define, say, an agent both named `security-auditor`
+with materially different behavior (different handoff targets, different
+scope) — compose them into one profile and only one survives, with nothing
+in the API response or UI indicating the other was dropped.
+
+**Fix:** check for a name collision first — compare the artifact's name
+(skill: frontmatter `name:`; agent/workflow: file stem; rule: `AGENTS.md`
+`##` heading text) against every other collection in the profile:
+
+```bash
+grep -rn "^name:" collections/*/*/skills/*/SKILL.md | sort -t: -k3
+```
+
+If two collections do collide, rename the artifact in whichever collection
+is the `additional/` one (see rule 29 in `AGENTS.md`) rather than the
+`base/` one — base collections' own agents tend to be referenced by name
+from other files in the same collection (e.g. `orchestrator.md`'s hardcoded
+pipeline routing), so renaming there has a wider blast radius. This is also
+why the shipped starter packs use `security-compliance-auditor` /
+`security-audit-checklist` (in `additional/auditor`) and `technical-writer`
+(in `additional/editor`) instead of names that would collide with
+`base/software-engineer`'s `security-auditor` / `security-checklist` /
+`docs-writer`.
+
+## The Compile Profile zip download doesn't match the on-screen preview
+
+**Symptom:** `/compile` (TargetExporter.tsx) shows a compiled profile with
+several files — e.g. `CLAUDE.md`, `.claude/agents/*.md`,
+`.claude/skills/*/SKILL.md` — but clicking "Download as .zip" produces an
+archive containing a single, often much larger, file (commonly `AGENTS.md`
+from the Goose or OpenCode adapters, which merge everything into one file).
+
+**Cause:** `handleDownloadZip()` in `frontend/src/pages/TargetExporter.tsx`
+used to build its `POST /profiles/compile/zip` request body from the *live*
+`selectedProfile`/`selectedTarget` dropdown state, not from `result.profile_id`/
+`result.target` — the values that actually produced the on-screen preview.
+Changing either dropdown after clicking Compile (e.g. comparing two target
+frameworks) without clicking Compile again leaves the preview showing the
+old result while silently changing what the zip endpoint gets asked to
+compile, since the "Download as .zip" button stays enabled as long as
+`result` is non-null — it doesn't require re-compiling first.
+
+**Fix:** `handleDownloadZip()` now reads `result.profile_id` and
+`result.target` for the request body, guaranteeing the zip always matches
+what's rendered on screen regardless of subsequent dropdown changes. See
+`TargetExporter.test.tsx`'s "downloads the zip for the compiled result, not
+the live target dropdown" test, which reproduces the exact scenario (compile
+with one target, switch the dropdown, download, assert the original target
+was used) — any future change to this component should keep that test
+passing rather than relying on manual reproduction.

@@ -3,7 +3,7 @@ name: Container Build
 description: Multi-stage builds, distroless base images, layer caching, and vulnerability scanning for production containers.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [devops, docker, containers]
 ---
 ## Purpose

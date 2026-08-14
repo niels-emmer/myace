@@ -16,6 +16,6 @@ Before submission: app signing configured, keystore secured, API level targeting
 
 Every coroutine launched in a ViewModel is scoped to `viewModelScope`. Every composable that observes a `Flow` or `LiveData` uses `collectAsStateWithLifecycle()` to respect the UI lifecycle. Never launch coroutines in composables — use `LaunchedEffect` for one-shot operations and `rememberCoroutineScope` for user-initiated ones.
 
-## Offline-First
+## Android Offline-First
 
 Design for offline as the default state. Use Room for local persistence, WorkManager for background sync, and `NetworkBoundResource` or equivalent pattern for cache-then-network reads. Show cached data immediately, update when network responds.

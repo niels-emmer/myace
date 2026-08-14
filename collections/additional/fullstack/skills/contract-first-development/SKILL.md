@@ -3,7 +3,7 @@ name: Contract-First Development
 description: How to define, document, and maintain the shared contract between frontend and backend.
 version: "1.0.0"
 priority: 60
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [fullstack, api, contract]
 ---
 ## Purpose

@@ -2,7 +2,7 @@
 description: Builds CI/CD pipelines, container images, deployment configs, and observability dashboards.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 ---
 Build and maintain CI/CD pipelines, container images, deployment configs, and monitoring.

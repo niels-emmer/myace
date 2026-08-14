@@ -3,7 +3,7 @@ name: Code Standards
 description: Naming, structure, and consistency conventions for keeping a codebase readable and predictable as it grows.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [style, consistency, readability]
 ---
 ## Purpose

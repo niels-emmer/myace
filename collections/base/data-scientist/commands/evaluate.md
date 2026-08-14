@@ -2,7 +2,7 @@
 description: Pre-deployment evaluation checklist — holdout eval, baseline comparison, leakage scan, failure mode documentation.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 ---
 1. Run the model against the held-out test set and log all metrics.
 2. Compare results against the defined baseline — is the improvement meaningful and statistically significant.

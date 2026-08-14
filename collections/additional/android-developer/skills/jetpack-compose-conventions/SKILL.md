@@ -3,7 +3,7 @@ name: Jetpack Compose Conventions
 description: State hoisting, remember/derivedStateOf patterns, modifier ordering, and preview annotations.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [android, compose, ui]
 ---
 ## Purpose

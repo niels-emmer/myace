@@ -2,7 +2,7 @@
 description: Builds Jetpack Compose UI, ViewModels, Room database, WorkManager tasks, and Firebase integration.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 ---
 Build Android app code: Compose UI, ViewModels, Room, WorkManager, Firebase.

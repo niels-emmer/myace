@@ -2,7 +2,7 @@
 description: Builds SwiftUI views, view models, networking layer, and local storage following iOS conventions.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 ---
 Build iOS app code: SwiftUI views, view models, networking, local storage.

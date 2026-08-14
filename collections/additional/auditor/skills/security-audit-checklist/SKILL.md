@@ -1,9 +1,9 @@
 ---
-name: Security Checklist
-description: A PASS/FAIL/N-A checklist covering injection, authorization, secrets handling, dependency risk, and input validation for reviewing a diff or codebase.
+name: Security Audit Checklist
+description: A PASS/FAIL/N/A checklist covering injection, authorization, secrets handling, dependency risk, and input validation for reviewing a diff or codebase.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [security, review, checklist, owasp]
 ---
 ## Purpose
@@ -12,7 +12,7 @@ Give a security review a fixed, repeatable shape so two different reviewers chec
 
 ## When to use it
 
-Any time you're reviewing a diff, a pull request, or a codebase specifically for security issues — whether that's the `security-auditor` agent doing a full pass or a quick self-check before a change ships. Run through every category below; mark items N/A with a one-line reason rather than silently skipping them.
+Any time you're reviewing a diff, a pull request, or a codebase specifically for security issues — whether that's the `security-compliance-auditor` agent doing a full pass or a quick self-check before a change ships. Run through every category below; mark items N/A with a one-line reason rather than silently skipping them.
 
 ## Checklist
 

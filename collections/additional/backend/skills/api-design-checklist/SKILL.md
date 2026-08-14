@@ -3,7 +3,7 @@ name: API Design Checklist
 description: Naming, status-code, error-shape, and versioning conventions for keeping an API internally consistent as it grows.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [api, rest, design]
 ---
 ## Purpose

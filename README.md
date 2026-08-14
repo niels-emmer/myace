@@ -404,25 +404,33 @@ Markdown body with the actual rule/instruction content...
 
 | Adapter | Target Frameworks | Output |
 |---------|------------------|--------|
-| Claude Code | `claude-code`, `claude` | `CLAUDE.md`, `.claude/agents/*.md`, `.claude/workflows/*.md` |
+| Claude Code | `claude-code`, `claude` | `CLAUDE.md`, `.claude/agents/*.md`, `.claude/skills/*/SKILL.md`, `.claude/commands/*.md` |
 | OpenCode | `opencode`, `open-code` | `.opencode/skills/*/SKILL.md`, `.opencode/agents/*.md`, `.opencode/commands/*.md`, `AGENTS.md`, `opencode.json` |
-| Cursor | `cursor`, `cursor-editor` | `.cursorrules`, `.cursor/rules/*.mdc`, `.cursor/workflows/*.mdc` |
-| Codex CLI | `codex-cli`, `codex`, `openai-codex` | `AGENTS.md`, `.agents/skills/*/SKILL.md`, `.agents/agents/*.md`, `.codex/config.toml` |
+| Cursor | `cursor`, `cursor-editor` | `.cursor/rules/*.mdc` |
+| Codex CLI | `codex-cli`, `codex`, `openai-codex` | `AGENTS.md`, `.agents/skills/*/SKILL.md`, `.codex/agents/*.toml`, `.codex/config.toml` |
 | GitHub Copilot CLI | `copilot-cli`, `copilot`, `github-copilot` | `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md` |
 | Cline | `cline`, `clinerules` | `.clinerules/*.md` |
 | Windsurf | `windsurf`, `codeium-windsurf` | `.windsurf/rules/*.md` |
 | Aider | `aider` | `CONVENTIONS.md`, `.aider.conf.yml` |
-| Continue | `continue`, `continue-dev` | `.continue/rules/*.md`, `.continue/prompts/*.prompt`, `config.yaml` |
-| Goose | `goose` | `.goosehints` |
-| Sourcegraph Cody | `cody`, `sourcegraph-cody` | `.sourcegraph/*.rule.md` |
+| Continue | `continue`, `continue-dev` | `.continue/rules/*.md`, `.continue/prompts/*.md`, `config.yaml` |
+| Goose | `goose` | `AGENTS.md` |
 | Amazon Q Developer | `amazon-q`, `amazonq` | `.amazonq/rules/*.md` |
+
+The table above shows output *paths* only. For each adapter's actual
+frontmatter fields/config schema — and doc citations for every field —
+see [ADAPTERS_RESEARCH.md](docs/ADAPTERS_RESEARCH.md), which every adapter
+was re-verified against as of Aug 2026 (six needed corrections; see that
+doc's "Aug 2026 documentation audit" note for the full list).
 
 Roo Code was evaluated but deliberately not built: its extension was shut
 down and its repo archived on 2026-05-15 (see
-[ADAPTERS_RESEARCH.md](docs/ADAPTERS_RESEARCH.md)). Sourcegraph
-Cody's current public docs don't list a dedicated rules capability matching
-`.sourcegraph/*.rule.md`; that adapter uses a conservative best-effort
-format pending confirmation (see `backend/app/adapters/cody.py`).
+[ADAPTERS_RESEARCH.md](docs/ADAPTERS_RESEARCH.md)). Sourcegraph Cody was
+built and later retired (Aug 2026): a documentation audit confirmed both
+that its target format (`.sourcegraph/*.rule.md`) was never a real Cody
+capability and that Cody Free/Pro were discontinued in July 2025, leaving
+only Cody Enterprise — see
+[`docs/plans/starter-collections-improvements.md`](docs/plans/starter-collections-improvements.md)
+for the audit findings.
 
 Only the first three are mirrored in the CLI's offline fallback adapters
 (`cli/myace_cli/adapters/`) — the rest are backend/web-UI-only for now.
@@ -526,7 +534,7 @@ gunzip -c backups/myace-<date>.sql.gz | \
 │   │   ├── core/                # Config, DB session, OIDC/security, crypto (encrypted admin secrets), deps (auth), authz (ownership checks)
 │   │   ├── models/               # SQLModel schemas (User, Collection, Artifact, Profile, ApiToken, DocCache, SystemSettings)
 │   │   ├── api/                  # Routes: auth, collections, profiles, adapters, doc_cache, admin
-│   │   ├── adapters/             # Canonical IR → target translators (12: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Cody, Amazon Q)
+│   │   ├── adapters/             # Canonical IR → target translators (11: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q)
 │   │   └── services/             # Compiler, doc verifier, scanner (local + git), github_export, seed_collections,
 │   │                              #   email (SMTP send), effective_settings (DB-override-vs-env resolver)
 │   └── tests/                    # pytest suite

@@ -3,7 +3,7 @@ name: CI/CD Pipeline Design
 description: Stage isolation, caching, secret injection, artifact promotion, and rollback strategy for CI/CD pipelines.
 version: "1.0.0"
 priority: 60
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [devops, ci-cd, pipelines]
 ---
 ## Purpose

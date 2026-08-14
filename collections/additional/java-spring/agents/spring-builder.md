@@ -2,7 +2,7 @@
 description: Builds Spring Boot controllers, services, repositories, and config classes following layered architecture and DI discipline.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 ---
 Build Spring Boot backend code: controllers, services, repositories, config.

@@ -3,7 +3,7 @@ name: README Structure
 description: A solid default README shape (what it is, quickstart, key commands, where to find more) and guidance on when a project has outgrown a single README.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [documentation, readme, structure]
 ---
 

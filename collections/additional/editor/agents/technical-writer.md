@@ -2,7 +2,7 @@
 description: Writes new documentation for a given change, matching the project's existing structure, tone, and terminology, with edit access scoped to documentation files.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 ---
 Documentation writer. Produce docs matching the project's existing structure and tone.

@@ -3,7 +3,7 @@ name: Threat Modeling Quickstart
 description: A lightweight what-could-go-wrong / who-could-exploit-it / what's-the-blast-radius pass for any new network-facing interface, data store, or trust boundary.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [security, threat-model, review]
 ---
 ## Purpose
@@ -46,4 +46,4 @@ Risk: <what could go wrong>
 (repeat Risk block per failure mode identified)
 ```
 
-Any risk with no mitigation and a non-trivial blast radius should also appear as a FAIL in the accompanying `security-checklist` report, not just noted here and forgotten.
+Any risk with no mitigation and a non-trivial blast radius should also appear as a FAIL in the accompanying `security-audit-checklist` report, not just noted here and forgotten.

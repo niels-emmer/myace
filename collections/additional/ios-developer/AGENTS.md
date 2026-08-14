@@ -12,7 +12,7 @@ Use `@State` for local view state, `@Binding` for child-to-parent communication,
 
 Before submission: privacy manifest complete, code signing valid, all required capabilities declared, screenshot automation covers all device sizes, no hardcoded App Store review credentials. See the `app-store-readiness` skill for the full checklist.
 
-## Offline-First
+## iOS Offline-First
 
 Design for offline as the default state, not an edge case. Cache network responses locally (CoreData, SwiftData, or file-based). Show stale data with a "last updated" indicator rather than a blank loading state. Queue writes made offline and sync when connectivity returns.
 

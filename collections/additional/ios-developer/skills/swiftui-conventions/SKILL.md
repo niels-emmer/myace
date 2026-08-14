@@ -1,9 +1,9 @@
 ---
 name: SwiftUI Conventions
-description: @State/@Binding/@ObservedObject usage, view composition, preview-driven development.
+description: "@State/@Binding/@ObservedObject usage, view composition, preview-driven development."
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [ios, swiftui, ui]
 ---
 ## Purpose

@@ -2,7 +2,7 @@
 description: Scaffold a new tracked experiment — create notebook, set up tracking, log baseline, define success criteria.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 ---
 1. Create experiment notebook with a descriptive name following the run naming convention.
 2. Initialize experiment tracker connection and log the environment (git hash, dependency versions).

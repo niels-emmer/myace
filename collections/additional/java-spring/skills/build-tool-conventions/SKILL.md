@@ -3,7 +3,7 @@ name: Build Tool Conventions
 description: Maven/Gradle standard layout, dependency management, plugin versioning, and reproducible builds.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [java, build, maven, gradle]
 ---
 ## Purpose

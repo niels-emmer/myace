@@ -3,7 +3,7 @@ name: Play Store Readiness
 description: App signing, keystore management, API level targeting, privacy policy, and review guideline checks.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, cody, amazon-q]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 tags: [android, play-store, release]
 ---
 ## Purpose
