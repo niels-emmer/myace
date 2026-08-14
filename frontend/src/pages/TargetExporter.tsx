@@ -67,7 +67,12 @@ export default function TargetExporter() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(url);
+      // Revoking synchronously right after click() races Safari's native
+      // "Save As" dialog: WebKit defers reading the blob until the user
+      // responds, and an immediately-revoked object URL can make that read
+      // fail or save a truncated/empty file. Give the browser a tick to
+      // start consuming the blob before invalidating the URL.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error('Zip download failed:', err);
       setDownloadError('Could not download the zip. Try again.');

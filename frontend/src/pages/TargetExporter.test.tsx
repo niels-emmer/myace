@@ -119,7 +119,11 @@ describe('TargetExporter zip download', () => {
 
     await waitFor(() => expect(clickSpy).toHaveBeenCalled());
     expect(globalThis.URL.createObjectURL).toHaveBeenCalledWith(blob);
-    expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+    // Revocation is deferred (see TargetExporter.tsx) so Safari's native
+    // "Save As" dialog has time to read the blob before the URL dies.
+    await waitFor(() => expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url'), {
+      timeout: 2000,
+    });
 
     clickSpy.mockRestore();
   });
