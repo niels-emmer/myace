@@ -40,7 +40,7 @@ class CodexCliAdapter(BaseAdapter):
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         files: dict[str, str] = {}
         rules_sections: list[str] = []
-        model_configs: list[dict] = []
+        model_configs: list[dict[str, object]] = []
 
         for artifact in artifacts:
             if artifact.artifact_type == "rule":
@@ -82,13 +82,13 @@ class CodexCliAdapter(BaseAdapter):
         lines = [
             f"name = {self._toml_string(artifact.name)}",
             f"description = {self._toml_string(artifact.description)}",
-            f'developer_instructions = """',
+            'developer_instructions = """',
             artifact.body.strip(),
             '"""',
         ]
         return "\n".join(lines) + "\n"
 
-    def _parse_model_config(self, artifact: CanonicalArtifact) -> dict:
+    def _parse_model_config(self, artifact: CanonicalArtifact) -> dict[str, object]:
         try:
             parsed = json.loads(artifact.body)
             if isinstance(parsed, dict):
@@ -103,17 +103,17 @@ class CodexCliAdapter(BaseAdapter):
         escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
         return f'"{escaped}"'
 
-    def _render_toml(self, model_configs: list[dict]) -> str:
+    def _render_toml(self, model_configs: list[dict[str, object]]) -> str:
         """Render the real Codex CLI config.toml shape: a top-level `model`
         selector plus one [model_providers.<id>] table per distinct
         provider. The first model_config encountered becomes the active
         `model`, since config.toml has no equivalent of a model *list*."""
         active_model = model_configs[0].get("model", model_configs[0]["name"])
-        lines = [f"model = {self._toml_string(active_model)}", ""]
+        lines = [f"model = {self._toml_string(str(active_model))}", ""]
 
-        providers: dict[str, dict] = {}
+        providers: dict[str, dict[str, object]] = {}
         for mc in model_configs:
-            provider_id = mc.get("provider", "openai")
+            provider_id = str(mc.get("provider", "openai"))
             entry = providers.setdefault(provider_id, {"name": provider_id})
             extra = {k: v for k, v in mc.items() if k not in ("name", "provider", "model")}
             entry.update(extra)

@@ -85,6 +85,6 @@ class ClaudeCodeAdapter(BaseAdapter):
             {"description": artifact.description}
         ) + artifact.body.strip() + "\n"
 
-    def _frontmatter_block(self, fields: dict) -> str:
+    def _frontmatter_block(self, fields: dict[str, str]) -> str:
         yaml_text = yaml.safe_dump(fields, sort_keys=False, default_flow_style=False).strip()
         return f"---\n{yaml_text}\n---\n"

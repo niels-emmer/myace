@@ -49,7 +49,7 @@ class CursorAdapter(BaseAdapter):
         return files
 
     def _format_mdc(self, artifact: CanonicalArtifact) -> str:
-        frontmatter: dict = {
+        frontmatter: dict[str, object] = {
             "description": artifact.description,
             "alwaysApply": artifact.artifact_type == "rule",
         }
