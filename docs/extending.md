@@ -7,8 +7,8 @@ Task-oriented guides for common changes. Each one assumes you've read
 ## Adding a target adapter
 
 To support a new framework (say, "pi.dev" — see
-[ADAPTERS_RESEARCH.md](ADAPTERS_RESEARCH.md) for other unbuilt candidates;
-don't reuse one of the 12 already shipped in
+[adapters-research.md](adapters-research.md) for other unbuilt candidates;
+don't reuse one of the 11 already shipped in
 `backend/app/adapters/__init__.py`):
 
 1. **Backend**: create `backend/app/adapters/pi_dev.py` implementing

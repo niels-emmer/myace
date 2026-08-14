@@ -418,17 +418,15 @@ Markdown body with the actual rule/instruction content...
 
 The table above shows output *paths* only. For each adapter's actual
 frontmatter fields/config schema — and doc citations for every field —
-see [ADAPTERS_RESEARCH.md](docs/ADAPTERS_RESEARCH.md), which every adapter
-was re-verified against as of Aug 2026 (six needed corrections; see that
-doc's "Aug 2026 documentation audit" note for the full list).
+see [adapters-research.md](docs/adapters-research.md), which every adapter
+was re-verified against as of Aug 2026.
 
 Roo Code was evaluated but deliberately not built: its extension was shut
-down and its repo archived on 2026-05-15 (see
-[ADAPTERS_RESEARCH.md](docs/ADAPTERS_RESEARCH.md)). Sourcegraph Cody was
-built and later retired (Aug 2026): a documentation audit confirmed both
-that its target format (`.sourcegraph/*.rule.md`) was never a real Cody
-capability and that Cody Free/Pro were discontinued in July 2025, leaving
-only Cody Enterprise — see
+down and its repo archived on 2026-05-15. Sourcegraph Cody was built and
+later retired (Aug 2026): a documentation audit confirmed both that its
+target format (`.sourcegraph/*.rule.md`) was never a real Cody capability
+and that Cody Free/Pro were discontinued in July 2025, leaving only Cody
+Enterprise — see
 [`docs/plans/starter-collections-improvements.md`](docs/plans/starter-collections-improvements.md)
 for the audit findings.
 
