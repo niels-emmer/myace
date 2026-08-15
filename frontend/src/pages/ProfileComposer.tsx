@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { SlidersHorizontal, Save, Download } from 'lucide-react';
+import { Plus, SlidersHorizontal, Save, Download } from 'lucide-react';
 import { adaptersApi, collectionsApi, profilesApi } from '../lib/api';
 import ProfileFormFields from '../components/ProfileForm';
 import type { Profile, ProfileCreate } from '../types';
@@ -102,6 +102,16 @@ export default function ProfileComposer() {
           </Link>{' '}
           to produce the actual files for a target framework.
         </p>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={openNewProfileForm}
+          className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Add profile
+        </button>
       </div>
 
       {/* Create Form */}

@@ -171,7 +171,7 @@ function CollectionCard({ collection }: { collection: Collection }) {
           <h3 className="font-semibold text-card-foreground group-hover:text-brand-600 transition-colors">
             {collection.name}
           </h3>
-          <p className="text-sm text-muted-foreground mt-0.5 truncate">
+          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
             {collection.description || 'No description'}
           </p>
         </div>
@@ -222,7 +222,7 @@ function CommunityCollectionCard({ collection }: { collection: Collection }) {
           <h3 className="font-semibold text-card-foreground group-hover:text-brand-600 transition-colors">
             {collection.name}
           </h3>
-          <p className="text-sm text-muted-foreground mt-0.5 truncate">
+          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
             {collection.description || 'No description'}
           </p>
         </div>

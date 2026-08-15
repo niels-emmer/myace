@@ -18,8 +18,6 @@ import {
   AlertTriangle,
   FolderOutput,
   Trash2,
-  Github,
-  ExternalLink,
   Share2,
   BookOpen,
 } from 'lucide-react';
@@ -68,15 +66,6 @@ export default function CollectionDetail() {
   const [newCollName, setNewCollName] = useState('');
   const [newCollDesc, setNewCollDesc] = useState('');
   const [newCollType, setNewCollType] = useState<CollectionType>('base');
-
-  // GitHub export
-  const [showGithubModal, setShowGithubModal] = useState(false);
-  const [ghRepo, setGhRepo] = useState('');
-  const [ghBaseBranch, setGhBaseBranch] = useState('main');
-  const [ghNewBranch, setGhNewBranch] = useState('');
-  const [ghPrTitle, setGhPrTitle] = useState('');
-  const [ghPrBody, setGhPrBody] = useState('');
-  const [ghToken, setGhToken] = useState('');
 
   // Publish to community
   const [showPublishModal, setShowPublishModal] = useState(false);
@@ -180,18 +169,6 @@ export default function CollectionDetail() {
     },
   });
 
-  const githubExportMutation = useMutation({
-    mutationFn: () =>
-      collectionsApi.exportToGithub(id!, {
-        repo: ghRepo.trim(),
-        base_branch: ghBaseBranch.trim() || 'main',
-        new_branch: ghNewBranch.trim(),
-        pr_title: ghPrTitle.trim(),
-        pr_body: ghPrBody.trim(),
-        github_token: ghToken,
-      }),
-  });
-
   const publishMutation = useMutation({
     mutationFn: () =>
       collectionsApi.publish(id!, {
@@ -281,17 +258,6 @@ export default function CollectionDetail() {
 
   const canConfirmExport =
     exportMode === 'existing' ? !!exportTargetId : newCollName.trim().length > 0;
-
-  const openGithubModal = () => {
-    githubExportMutation.reset();
-    setGhRepo('');
-    setGhBaseBranch('main');
-    setGhNewBranch('');
-    setGhPrTitle(`Export "${collection.name}" from MyACE`);
-    setGhPrBody('');
-    setGhToken('');
-    setShowGithubModal(true);
-  };
 
   const openShareModal = () => {
     setShareVisibility(collection.visibility);
@@ -447,14 +413,6 @@ export default function CollectionDetail() {
             </>
           ) : (
             <>
-              <button
-                onClick={openGithubModal}
-                title="Export this collection's enabled artifacts to a GitHub branch + PR"
-                className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-foreground hover:bg-accent transition-colors"
-              >
-                <Github className="h-3.5 w-3.5" />
-                Export to GitHub
-              </button>
               <button
                 onClick={openShareModal}
                 className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-foreground hover:bg-accent transition-colors"
@@ -737,148 +695,6 @@ export default function CollectionDetail() {
                 {bulkDeleteMutation.isPending ? 'Deleting...' : 'Delete'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* GitHub Export Modal */}
-      {showGithubModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
-              <Github className="h-5 w-5" />
-              Export to GitHub
-            </h2>
-            <p className="text-sm text-muted-foreground -mt-2">
-              Pushes this collection's enabled artifacts as canonical files on a new branch
-              and opens a pull request. Model configs aren't round-trippable and are skipped.
-            </p>
-
-            {githubExportMutation.isSuccess ? (
-              <div className="space-y-4">
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
-                  Opened PR #{githubExportMutation.data.pr_number} with{' '}
-                  {githubExportMutation.data.files_exported} file
-                  {githubExportMutation.data.files_exported === 1 ? '' : 's'} on branch{' '}
-                  <code className="bg-green-100 px-1 rounded">{githubExportMutation.data.branch}</code>
-                  {githubExportMutation.data.skipped_model_configs > 0 && (
-                    <> ({githubExportMutation.data.skipped_model_configs} model_config artifact
-                    {githubExportMutation.data.skipped_model_configs === 1 ? '' : 's'} skipped)</>
-                  )}
-                  .
-                </div>
-                <a
-                  href={githubExportMutation.data.pr_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium transition-colors"
-                >
-                  View Pull Request
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setShowGithubModal(false)}
-                    className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Repository</label>
-                  <input
-                    type="text"
-                    value={ghRepo}
-                    onChange={(e) => setGhRepo(e.target.value)}
-                    placeholder="owner/repo or https://github.com/owner/repo"
-                    className={`${inputClass} font-mono`}
-                    autoFocus
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Base branch</label>
-                    <input
-                      type="text"
-                      value={ghBaseBranch}
-                      onChange={(e) => setGhBaseBranch(e.target.value)}
-                      placeholder="main"
-                      className={`${inputClass} font-mono`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">
-                      New branch <span className="text-muted-foreground font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={ghNewBranch}
-                      onChange={(e) => setGhNewBranch(e.target.value)}
-                      placeholder="auto-generated"
-                      className={`${inputClass} font-mono`}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">PR title</label>
-                  <input
-                    type="text"
-                    value={ghPrTitle}
-                    onChange={(e) => setGhPrTitle(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    PR description <span className="text-muted-foreground font-normal">(optional)</span>
-                  </label>
-                  <textarea
-                    value={ghPrBody}
-                    onChange={(e) => setGhPrBody(e.target.value)}
-                    rows={2}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">GitHub Token</label>
-                  <input
-                    type="password"
-                    value={ghToken}
-                    onChange={(e) => setGhToken(e.target.value)}
-                    placeholder="ghp_..."
-                    className={`${inputClass} font-mono`}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Needs `repo` scope. Used only for this request — never stored.
-                  </p>
-                </div>
-
-                {githubExportMutation.isError && (
-                  <p className="text-sm text-destructive">
-                    {(githubExportMutation.error as Error).message}
-                  </p>
-                )}
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    onClick={() => setShowGithubModal(false)}
-                    className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => githubExportMutation.mutate()}
-                    disabled={!ghRepo.trim() || !ghToken.trim() || githubExportMutation.isPending}
-                    className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
-                  >
-                    {githubExportMutation.isPending ? 'Opening PR...' : 'Open Pull Request'}
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}

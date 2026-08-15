@@ -31,18 +31,21 @@ export default function Dashboard() {
       value: collections?.length ?? 0,
       icon: FolderGit2,
       color: 'text-blue-600 bg-blue-50',
+      href: '/collections',
     },
     {
       label: 'Profiles',
       value: profiles?.length ?? 0,
       icon: SlidersHorizontal,
       color: 'text-purple-600 bg-purple-50',
+      href: '/profiles',
     },
     {
       label: 'Target Adapters',
       value: adapters?.length ?? 0,
       icon: Download,
       color: 'text-green-600 bg-green-50',
+      href: '/compile',
     },
   ];
 
@@ -58,9 +61,10 @@ export default function Dashboard() {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat) => (
-          <div
+          <Link
             key={stat.label}
-            className="bg-card rounded-xl border border-border p-6 flex items-center gap-4"
+            to={stat.href}
+            className="bg-card rounded-xl border border-border p-6 flex items-center gap-4 hover:shadow-sm hover:border-input transition-shadow"
           >
             <div className={`p-3 rounded-lg ${stat.color}`}>
               <stat.icon className="h-6 w-6" />
@@ -69,7 +73,7 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">{stat.label}</p>
               <p className="text-2xl font-bold text-card-foreground">{stat.value}</p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
