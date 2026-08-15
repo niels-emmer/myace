@@ -152,10 +152,10 @@ it's done:
    collections), each one needs its own check —
    [invariants.md #6](invariants.md#authorization).
 
-Add a row to the API table in `README.md`, and if the route is
-security-relevant, a scenario to the verification list this project has
-used historically (ask in your PR if you're not sure where that lives for
-your change — see [`CONTRIBUTING.md`](../CONTRIBUTING.md)).
+If the route is security-relevant, add a scenario to the verification list
+this project has used historically (ask in your PR if you're not sure
+where that lives for your change — see
+[`CONTRIBUTING.md`](../CONTRIBUTING.md)).
 
 ## Adding a bulk/cross-resource operation
 

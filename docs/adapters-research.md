@@ -299,6 +299,20 @@ contribution:
   `.amazonq/cli-agents/*.json` agent format instead of falling back to a
   plain rules file.
 
+**Retired or rejected candidates** — researched and deliberately not built,
+so they don't get re-proposed:
+
+- **Roo Code** — evaluated but not built: its VS Code extension was shut
+  down and its GitHub repo archived on 2026-05-15.
+- **Sourcegraph Cody** — was built (`cody.py`) and later retired. A
+  documentation audit found its target format (`.sourcegraph/*.rule.md`)
+  was never a real Cody capability, and separately that Cody Free/Pro were
+  discontinued on 2025-07-23, leaving only Cody Enterprise
+  ($59/user/month). The adapter was deleted and fully deregistered rather
+  than left as dead code — see the `cody.py` entry in
+  [`docs/plans/starter-collections-improvements.md`](plans/starter-collections-improvements.md)
+  for the full audit.
+
 ---
 
 ## Key Insight: AGENTS.md as a Universal Format

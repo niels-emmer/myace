@@ -6,6 +6,8 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](backend/pyproject.toml)
 [![Node 20+](https://img.shields.io/badge/node-20%2B-green)](frontend/package.json)
 
+## What it is
+
 **MyACE makes your AI coding agent's rules, skills, and workflows portable.**
 Write them once, keep them in one place, and compile them into whatever
 format Claude Code, OpenCode, Cursor (and whatever comes next) actually
@@ -13,7 +15,7 @@ expects — instead of hand-maintaining N slightly-different copies, or
 picking one tool and losing the rest.
 
 > **MyACE is under heavy development and changes near daily. Use at your own
-> risk.** Currently supporting **12 coding environments**, with a community
+> risk.** Currently supporting **11 coding environments**, with a community
 > store holding **15 starter agent profiles** (3 base + 12 specializations).
 
 <table>
@@ -27,7 +29,7 @@ picking one tool and losing the rest.
   </tr>
 </table>
 
-## Why this exists
+## How it works
 
 If you've built up a set of coding conventions, review rubrics, or agent
 personas you like, you've probably hit this: every framework wants them in
@@ -39,7 +41,37 @@ Claude Code wants `CLAUDE.md` plus `.claude/agents/*.md`. Cursor wants
 
 MyACE stores the content once, as Markdown with YAML frontmatter (the
 **Canonical IR**), and translates it into each framework's native layout on
-demand — from a web UI, or with a one-line CLI pull.
+demand — from a web UI, or with a one-line CLI pull:
+
+```yaml
+---
+type: rule | skill | agent | workflow | model_config
+name: my-rule
+version: 1.0.0
+target_compatibility: [opencode, claude-code, cursor]
+priority: 50
+tags: [python, type-safety]
+description: Enforces strict type annotations
+---
+# Rule Content
+
+Markdown body — the actual instruction content.
+```
+
+```mermaid
+flowchart LR
+    Browser["Browser"] -->|HTTPS| Frontend["Frontend<br/>React SPA / nginx"]
+    Frontend -->|"/api/* proxy"| Backend["Backend<br/>FastAPI"]
+    CLI["CLI (myace)"] -->|Bearer token| Backend
+    Backend --> DB[("PostgreSQL")]
+    Backend -->|push branch + PR| GitHub[("GitHub")]
+```
+
+A FastAPI backend owns the data and does all the real work; the React
+frontend and the CLI are both thin clients of the same API. See
+[docs/architecture.md](docs/architecture.md) for the full picture, including
+the compilation pipeline, the Canonical IR's exact schema, and the auth
+model.
 
 ## Features
 
@@ -51,6 +83,8 @@ demand — from a web UI, or with a one-line CLI pull.
   off — a named recipe you compile per target, not a duplicated file tree.
 - **Compile to any supported framework** — one click (or `myace pull`) turns
   a profile into the exact files Claude Code, OpenCode, or Cursor expect.
+  See [Architecture](#architecture) below for the full list of 11 supported
+  frameworks.
 - **Community collections** — publish your collections to make them public
   immediately, browse and import collections published by other users. This
   is self-serve, not admin-moderated.
@@ -65,11 +99,14 @@ demand — from a web UI, or with a one-line CLI pull.
   [`collections/`](collections/) — separate from user-published community
   collections, and not affected by them.
 - **A real CLI** — `myace login`, `myace pull`, `myace import --push`. Script
-  it, put it in a dotfiles repo, run it on a fresh machine.
+  it, put it in a dotfiles repo, run it on a fresh machine. See
+  [docs/cli.md](docs/cli.md) for the full command reference.
 - **Real multi-user auth** — email+password (with email-based password
   reset) or OIDC/GitHub/Google SSO, private-by-default collections and
   profiles with an explicit public/private flag, and an admin role for
-  oversight. Not a toy single-user hack.
+  oversight. Not a toy single-user hack. See
+  [docs/invariants.md#authorization](docs/invariants.md#authorization) for
+  the exact rules.
 - **Admin controls in the UI, no redeploy needed** — configure SMTP and
   OAuth provider credentials (Client ID/Secret, redirect URLs, a
   connectivity test button) from System Settings instead of editing `.env`;
@@ -77,23 +114,7 @@ demand — from a web UI, or with a one-line CLI pull.
 - **Responsive** — the web UI works on a phone-width screen (a slide-out
   drawer replaces the sidebar below ~1024px), not just desktop.
 
-## How it works
-
-```mermaid
-flowchart LR
-    Browser["Browser"] -->|HTTPS| Frontend["Frontend<br/>React SPA / nginx"]
-    Frontend -->|"/api/* proxy"| Backend["Backend<br/>FastAPI"]
-    CLI["CLI (myace)"] -->|Bearer token| Backend
-    Backend --> DB[("PostgreSQL")]
-    Backend -->|push branch + PR| GitHub[("GitHub")]
-```
-
-A FastAPI backend owns the data and does all the real work; the React
-frontend and the CLI are both thin clients of the same API. See
-[`docs/architecture.md`](docs/architecture.md) for the full picture,
-including the compilation pipeline and the auth model.
-
-## Quick Start
+## Getting Started
 
 ### Prerequisites
 
@@ -101,7 +122,7 @@ including the compilation pipeline and the auth model.
 - Python 3.12+ (for the CLI)
 - Node.js 20+ (for frontend development)
 
-### Clone and run it
+### Quick Start
 
 ```bash
 git clone https://github.com/niels-emmer/myace.git
@@ -125,123 +146,17 @@ docker compose exec backend alembic upgrade head
 cd frontend && npm run dev   # starts on :5173, proxies /api to :8000
 ```
 
-The first person to register an account automatically becomes an admin,
-as long as `ADMIN_BOOTSTRAP_ENABLED` is still `true` (the default) — see
-step 1 below for why you should turn it off again once that's you.
+The first person to register an account automatically becomes an admin, as
+long as `ADMIN_BOOTSTRAP_ENABLED` is still `true` (the default). If you're
+planning to expose this beyond localhost, do that registration and then
+turn `ADMIN_BOOTSTRAP_ENABLED` off before anyone else can — see
+[docs/deployment.md](docs/deployment.md#fork-it-and-make-it-yours).
 
-### Fork it and make it yours
+### Installing the CLI
 
-MyACE is designed to be forked and self-hosted, not run as someone else's
-SaaS. After forking:
-
-1. Update `.env` before exposing it beyond localhost:
-   - Set a real random `APP_SECRET_KEY` (it signs session cookies; the app
-     **refuses to start** in production if you leave the default — it's a
-     `RuntimeError`, not a warning). Generate with `openssl rand -hex 32`.
-   - Set `DEBUG=false` (the default, `true`, exposes `/docs`/`/redoc`
-     publicly and disables secure-only cookies).
-   - Change `POSTGRES_PASSWORD` from the shipped default.
-   - Register your own account, then set `ADMIN_BOOTSTRAP_ENABLED=false` and
-     restart — otherwise the *next* person to register on a public
-     deployment becomes an admin too, not just the first.
-   - Set `CORS_ORIGINS` to your real domain(s), and **`TRUSTED_HOSTS`** too
-     (required in production — the app refuses to start without it, to
-     prevent Host-header injection attacks).
-   - Set `SETTINGS_ENCRYPTION_KEY` if you plan to save SMTP or OAuth
-     provider secrets from the System Settings UI (rather than only via
-     `.env`) — required before those forms can save; generate with
-     `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
-     See [ADR-0006](docs/adr/0006-encrypted-admin-editable-secrets.md).
-2. Optionally configure OIDC/GitHub/Google SSO — via `.env`
-   ([`.env.example`](.env.example)) or from System Settings → Authentication
-   Providers in the admin UI. See
-   [`docs/extending.md#adding-an-sso-provider`](docs/extending.md#adding-an-sso-provider).
-3. Optionally configure SMTP for password-reset emails, the same way — via
-   `.env` or System Settings → Email (SMTP), with a "Send Test Email"
-   button to verify it. See
-   [`docs/extending.md#configuring-smtp-for-password-reset`](docs/extending.md#configuring-smtp-for-password-reset).
-4. Deploy with `docker-compose.prod.yml` behind your own reverse proxy — see
-   [Production deployment](#production-vps-behind-a-reverse-proxy) below.
-
-### Production (single machine)
-
-```bash
-docker compose up -d --build
-# Access at http://localhost:80
-```
-
-### Production (VPS behind a reverse proxy)
-
-```bash
-# 1. Create an external Docker network for your proxy:
-docker network create my-proxy-net
-
-# 2. Set the network name in .env:
-echo "PROXY_NETWORK=my-proxy-net" >> .env
-
-# 3. Start the stack (no host ports exposed):
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-
-# 4. Configure your proxy to forward:
-#    http://frontend:80   → your domain (SPA)
-#    http://backend:8000  → api.your-domain.com (API)
-```
-
-#### Using nginx-proxy-manager
-
-1. In `.env`, set `PROXY_NETWORK` to whatever Docker network your
-   nginx-proxy-manager container is attached to (check with
-   `docker network ls` / `docker inspect <npm-container>`), then
-   `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`.
-   `frontend` and `backend` will join that network and be reachable by
-   container name from NPM, with no host ports of their own.
-2. Add two Proxy Hosts in NPM:
-   - Your main domain (e.g. `myace.example.com`) → Forward Hostname/IP
-     `frontend`, Forward Port `80`.
-   - An API subdomain (e.g. `api.myace.example.com`) → Forward Hostname/IP
-     `backend`, Forward Port `8000`.
-3. On both Proxy Hosts: enable **Force SSL** (request a cert via NPM's Let's
-   Encrypt integration) and leave "Websockets Support" off — this app
-   doesn't use any. NPM forwards `X-Forwarded-Proto`/`X-Forwarded-For` by
-   default, which pairs with the backend's `--proxy-headers` uvicorn flag
-   (`backend/Dockerfile`) to make OIDC redirect URIs resolve to `https://`
-   correctly.
-4. Set `CORS_ORIGINS=https://myace.example.com` in `.env` (the frontend
-   domain, not the API one) and restart the backend.
-5. `SessionMiddleware`'s cookie has no explicit `domain=` set, so it's
-   scoped to whichever host actually issues it — fine as shipped, since the
-   frontend proxies `/api/*` through its own origin (path-based, same
-   domain). You'd only need `domain=".example.com"` added in
-   `backend/app/main.py` if you instead split the frontend and API onto
-   different subdomains and called the API directly from browser JS.
-
-### Quick install (binary, no Python required)
-
-Download the binary for your platform from the
-[latest release](https://github.com/niels-emmer/myace/releases):
-
-```bash
-# Linux (x86_64)
-curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-linux-x86_64 -o myace
-chmod +x ./myace
-sudo mv ./myace /usr/local/bin/
-
-# macOS (Intel)
-curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-macos-x86_64 -o myace
-chmod +x ./myace
-sudo mv ./myace /usr/local/bin/
-
-# macOS (Apple Silicon)
-curl -fsSL https://github.com/niels-emmer/myace/releases/latest/download/myace-macos-arm64 -o myace
-chmod +x ./myace
-sudo mv ./myace /usr/local/bin/
-```
-
-**Windows:** Download `myace-windows-x86_64.exe` from the
-[releases page](https://github.com/niels-emmer/myace/releases) and place it
-somewhere in your `PATH`.
-
-Then authenticate and start using it:
+The CLI ships as a standalone binary (no Python required) or via `pip`.
+Full install instructions, the command reference, and the `myace import` /
+`myace serve` workflows are in [docs/cli.md](docs/cli.md). The short version:
 
 ```bash
 myace login --server <your-server-url> --token <your-api-token>
@@ -250,156 +165,41 @@ myace --help
 
 Create an API token from the web UI's Settings page.
 
-> **Note for macOS users:** The binary is not signed with an Apple Developer
-> certificate. The first time you run it, Gatekeeper may block it. To bypass:
-> open **System Settings → Privacy & Security**, scroll to the security
-> section, and click **Allow Anyway** next to the `myace` entry. Or remove the
-> quarantine attribute manually: `xattr -d com.apple.quarantine /usr/local/bin/myace`.
+### Deploying it for real
 
-### CLI setup (via pip)
+Running it in production (single machine or behind a reverse proxy),
+hardening a fresh fork, and configuring SSO/SMTP are all covered in
+[docs/deployment.md](docs/deployment.md). Database backups are covered in
+[docs/backups.md](docs/backups.md).
 
-If you prefer to install via pip (requires Python 3.12+):
+## Architecture
 
-```bash
-cd cli
-pip install -e .
-myace login --server http://localhost:8000 --token <your-api-token>
-myace --help
+```mermaid
+flowchart LR
+    Browser["Browser<br/>(you)"] -->|HTTPS| Frontend["Frontend<br/>React SPA, served by nginx<br/>:80"]
+    Frontend -->|"/api/* proxy"| Backend["Backend<br/>FastAPI<br/>:8000"]
+    CLI["CLI (myace)<br/>Typer"] -->|"Bearer token"| Backend
+    Backend --> DB[("PostgreSQL<br/>:5432")]
+    Backend -->|"push branch + PR"| GitHub[("GitHub<br/>REST API")]
 ```
 
-## Documentation
+- **`backend/`** — FastAPI + SQLModel API. Owns the database, the canonical
+  IR, authentication, and the compilation pipeline (Postgres in prod, SQLite
+  for tests).
+- **`frontend/`** — React + Vite + TailwindCSS SPA, served by nginx in
+  production, proxying `/api/*` to the backend.
+- **`cli/`** — Python Typer CLI (`myace`) that pulls compiled profiles from
+  the server and can scan local config directories to import them.
 
-| Document | What it covers |
-|---|---|
-| [`docs/architecture.md`](docs/architecture.md) | Components, compilation pipeline, canonical IR, auth model |
-| [`docs/data-model.md`](docs/data-model.md) | Every table, its columns, and how they relate |
-| [`docs/invariants.md`](docs/invariants.md) | Rules the system must never violate, and where they're enforced |
-| [`docs/extending.md`](docs/extending.md) | How to add an adapter, artifact type, SSO provider, or route |
-| [`docs/debugging.md`](docs/debugging.md) | Known gotchas — symptom, cause, fix |
-| [`docs/adr/`](docs/adr/) | Architecture Decision Records — why the non-obvious choices were made |
-| [`AGENTS.md`](AGENTS.md) / `CLAUDE.md` | Rules and conventions for AI coding agents working in this repo |
+None of the three talk to Postgres directly except the backend — the
+frontend and CLI only ever see the HTTP API. Two roles exist: **user**
+(full access to their own data, read-only on anything another user marked
+public) and **admin** (bypasses ownership, for oversight). See
+[docs/architecture.md](docs/architecture.md) for the full components
+breakdown, the compilation pipeline, and the auth model, and
+[docs/data-model.md](docs/data-model.md) for the database schema.
 
-`docs/` is written for both humans and AI coding agents — start there for
-anything deeper than "how do I run this."
-
-## Contributing
-
-Bug reports, feature requests, and PRs are welcome — see
-[`CONTRIBUTING.md`](CONTRIBUTING.md) for the development setup, conventions,
-and PR process. Please read [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) too.
-
-Found a security issue? Please don't open a public issue — see
-[`SECURITY.md`](SECURITY.md) for how to report it privately.
-
-## Maintaining & updating
-
-- **Schema changes** ship as Alembic migrations
-  (`docker compose exec backend alembic upgrade head` to apply). Every
-  migration has a working `downgrade()` — see
-  [`AGENTS.md`](AGENTS.md#2-database-migration-rules).
-- **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs
-  lint, type-check, and tests for the backend, CLI, and frontend on every
-  PR, plus a Docker build check.
-- **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)) opens
-  weekly PRs for backend/CLI (pip), frontend (npm), Docker base images, and
-  GitHub Actions themselves. Minor/patch bumps within each ecosystem are
-  grouped into one PR for convenience; major-version bumps are deliberately
-  left ungrouped so each lands as its own reviewable PR instead of getting
-  bundled with everything else (a grouped major-version PR previously
-  bundled React 18→19, Tailwind 3→4, Vite 5→8, and more into one unmergeable
-  PR — see [`docs/debugging.md`](docs/debugging.md) if you hit something
-  similar).
-- **Documentation** is expected to move in the same PR as the code it
-  describes — see [`AGENTS.md`](AGENTS.md#14-documentation-maintenance).
-
-## CLI Reference
-
-| Command | Description |
-|---------|-------------|
-| `myace login --server <url> --token <key>` | Store API credentials |
-| `myace logout` | Remove stored credentials |
-| `myace status` | Show auth status |
-| `myace pull --profile <name> --target <fw> [--path <dir>]` | Fetch and write compiled profile |
-| `myace list-profiles` | List profiles from server |
-| `myace import --path <dir> --name <name> [--push]` | Scan local config dir and convert to canonical artifacts |
-| `myace serve [--port <port>]` | Run a local companion server so the web UI's Import page can scan this machine (needs `pip install "myace-cli[serve]"`) |
-
-### Import command
-
-The `import` command scans an existing local configuration directory (e.g.,
-`~/.config/opencode`, `~/.claude`, `~/.cursor`) and converts everything to
-Canonical IR:
-
-```bash
-# Scan and export to a local directory
-myace import --path ~/.config/opencode --name "my-config" --output ./my-collection
-
-# Scan and push to the MyACE server
-myace login --server http://localhost:8000 --token <token>
-myace import --path ~/.config/opencode --name "my-config" --push
-```
-
-**What it discovers:**
-
-| Source | Artifact Type |
-|--------|--------------|
-| `skills/<name>/SKILL.md` | `skill` |
-| `agents/<name>.md` | `agent` |
-| `commands/<name>.md` | `workflow` |
-| `AGENTS.md` (## sections) | `rule` |
-| `opencode.json` (models + MCP) | `model_config` |
-
-(The web UI's Import page additionally supports scanning a GitHub
-repository directly — see [`docs/architecture.md`](docs/architecture.md).)
-
-### Local companion server (`myace serve`)
-
-The web UI's Import page can't read your filesystem directly — a browser
-has no API to silently walk `~/.claude`, `~/.cursor`, etc. To scan your own
-machine from the browser (rather than running `myace import` by hand), run:
-
-```bash
-# Binary users (serve is already included):
-myace login --server <your-myace-server-url> --token <token-from-Settings>
-myace serve
-
-# pip users (need the serve extras):
-# pip install "myace-cli[serve]"
-# myace login --server <your-myace-server-url> --token <token-from-Settings>
-# myace serve
-```
-
-The Import page auto-detects it (polling `http://127.0.0.1:8765/health`)
-and switches to a live scan-and-select flow once it's running. It binds to
-loopback only and only accepts requests from the exact origin you logged
-into — see `cli/myace_cli/local_server.py` for the full security model.
-
-## Canonical Intermediate Representation (IR)
-
-All configurations are stored as Markdown files with structured YAML
-frontmatter:
-
-```yaml
----
-type: rule | skill | agent | workflow | model_config
-name: my-rule
-version: 1.0.0
-target_compatibility:
-  - opencode
-  - claude-code
-  - cursor
-priority: 50
-tags:
-  - python
-  - type-safety
-description: Enforces strict type annotations
----
-# Rule Content
-
-Markdown body with the actual rule/instruction content...
-```
-
-## Target Adapters
+### Target adapters
 
 | Adapter | Target Frameworks | Output |
 |---------|------------------|--------|
@@ -416,97 +216,10 @@ Markdown body with the actual rule/instruction content...
 | Amazon Q Developer | `amazon-q`, `amazonq` | `.amazonq/rules/*.md` |
 
 The table above shows output *paths* only. For each adapter's actual
-frontmatter fields/config schema — and doc citations for every field —
-see [adapters-research.md](docs/adapters-research.md), which every adapter
-was re-verified against as of Aug 2026.
-
-Roo Code was evaluated but deliberately not built: its extension was shut
-down and its repo archived on 2026-05-15. Sourcegraph Cody was built and
-later retired (Aug 2026): a documentation audit confirmed both that its
-target format (`.sourcegraph/*.rule.md`) was never a real Cody capability
-and that Cody Free/Pro were discontinued in July 2025, leaving only Cody
-Enterprise — see
-[`docs/plans/starter-collections-improvements.md`](docs/plans/starter-collections-improvements.md)
-for the audit findings.
-
-The first three (Claude Code, OpenCode, Cursor) have a kept-in-sync copy in
-`cli/myace_cli/adapters/` for local rendering — but `myace pull` doesn't
-call into it yet, so today it always needs a reachable server regardless of
-target; see [docs/architecture.md](docs/architecture.md#adapters).
-
-An admin can disable any adapter system-wide from System Settings →
-Adapter Registry — disabled adapters disappear from the Compile page's
-target picker and are rejected server-side if requested directly (e.g. via
-`myace pull`).
-
-## Authentication & Roles
-
-Every API route requires an authenticated user — either a browser session
-(set by `/auth/login` or an OIDC/GitHub/Google callback) or a Bearer API
-token (what the CLI uses). Email + password is the always-available
-baseline; OIDC/GitHub/Google are optional extra sign-in methods, registered
-only if their client ID/secret env vars are set. A "Forgot password?" link
-on the login page sends a one-hour, single-use reset link by email, once
-SMTP is configured — see
-[`docs/extending.md#configuring-smtp-for-password-reset`](docs/extending.md#configuring-smtp-for-password-reset).
-
-Two roles: **user** (default — full access to their own collections/
-profiles/tokens, read-only access to anything another user marked
-`visibility: public` / `is_public: true`) and **admin** (bypasses ownership
-entirely — can read/write everyone's data, for oversight). The first person
-to ever register becomes admin automatically; `ADMIN_EMAILS`
-(comma-separated) promotes specific emails on register/login going forward.
-Admins can also disable, re-enable, or remove another user's account from
-System Settings → Users (soft-delete, same as the self-service account
-deletion in Settings — never a hard delete). See
-[`docs/invariants.md#authorization`](docs/invariants.md#authorization) for
-the exact rules.
-
-## Compose Files
-
-| File | Command | Use Case | Access |
-|------|---------|----------|--------|
-| `docker-compose.yml` | `docker compose up -d` | Single-machine prod | `http://localhost:80` |
-| `+ docker-compose.dev.yml` | `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d` | Development | Frontend `:80`, API `:8000`, home dir mounted at `/host-home` |
-| `+ docker-compose.prod.yml` | `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` | VPS behind proxy | No host ports; attach via `PROXY_NETWORK` env var |
-
-## Backups
-
-A `postgres-backup` sidecar container runs alongside Postgres in the same
-stack (`docker-compose.yml`), wrapping `pg_dump` on a daily schedule with
-built-in retention. It uses the
-[`prodrigestivill/postgres-backup-local`](https://github.com/prodrigestivill/docker-postgres-backup-local)
-image and writes compressed `.sql.gz` dumps to `./backups/` on the host.
-
-**Retention defaults** (configurable via environment overrides in the compose
-file or `.env`):
-
-| Setting | Default | Meaning |
-|---------|---------|---------|
-| `SCHEDULE` | `@daily` | Cron expression or `@daily`/`@weekly`/`@monthly` |
-| `BACKUP_KEEP_DAYS` | `7` | Daily dumps kept for 7 days |
-| `BACKUP_KEEP_WEEKS` | `4` | Weekly dumps kept for 4 weeks |
-| `BACKUP_KEEP_MONTHS` | `6` | Monthly dumps kept for 6 months |
-
-**Offsite copy** is not automated by this stack — the dumps live on the same
-host disk as the database, so a host failure loses both. For production
-deployments, add a host-level cron job to copy `./backups/` off-box (e.g.
-`rclone sync` to Backblaze B2 or S3, or `rsync` to another machine).
-
-### Restore
-
-```bash
-# List available backups
-ls -lh backups/
-
-# Restore a specific dump
-gunzip -c backups/myace-<date>.sql.gz | \
-  docker compose exec -T postgres psql -U myace myace
-```
-
-> **Test your restore procedure before you need it.** Run the restore against
-> a scratch database on a separate Postgres instance to confirm the dump is
-> valid end-to-end. An untested backup is not a backup.
+frontmatter fields/config schema — and doc citations for every field — see
+[docs/adapters-research.md](docs/adapters-research.md), which every adapter
+was re-verified against as of Aug 2026. An admin can disable any adapter
+system-wide from System Settings → Adapter Registry.
 
 ## Project Structure
 
@@ -564,7 +277,81 @@ gunzip -c backups/myace-<date>.sql.gz | \
 └── .github/                      # Issue/PR templates, CI workflow, Dependabot config
 ```
 
-## Credits
+### Documentation map
+
+| Document | What it covers |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | Components, compilation pipeline, canonical IR, auth model |
+| [`docs/data-model.md`](docs/data-model.md) | Every table, its columns, and how they relate |
+| [`docs/invariants.md`](docs/invariants.md) | Rules the system must never violate, and where they're enforced |
+| [`docs/extending.md`](docs/extending.md) | How to add an adapter, artifact type, SSO provider, or route |
+| [`docs/deployment.md`](docs/deployment.md) | Forking, hardening, and running in production (single machine or behind a reverse proxy) |
+| [`docs/cli.md`](docs/cli.md) | Installing and using `myace`: commands, `import`, the local companion server |
+| [`docs/backups.md`](docs/backups.md) | Database backup retention, offsite copy, and restore procedure |
+| [`docs/debugging.md`](docs/debugging.md) | Known gotchas — symptom, cause, fix |
+| [`docs/adapters-research.md`](docs/adapters-research.md) | Every adapter's confirmed file format, doc citations, and unbuilt candidates |
+| [`docs/adr/`](docs/adr/) | Architecture Decision Records — why the non-obvious choices were made |
+| [`AGENTS.md`](AGENTS.md) / `CLAUDE.md` | Rules and conventions for AI coding agents working in this repo |
+
+`docs/` is written for both humans and AI coding agents — start there for
+anything deeper than "how do I run this."
+
+## Roadmap
+
+MyACE doesn't yet cover every AI coding tool, and a couple of pieces of the
+existing pipeline are known to be incomplete:
+
+- **More adapters** — pi.dev, Zed AI, and CodeGPT are viable, unbuilt
+  candidates; Windsurf's adapter still targets its legacy path rather than
+  the Devin Desktop rebrand, and Amazon Q Developer could emit its newer
+  native agent format. Full detail (plus what's already been evaluated and
+  rejected — Roo Code, Sourcegraph Cody) is in
+  [docs/adapters-research.md#future-plans](docs/adapters-research.md#future-plans).
+- **`myace pull` has no offline fallback** — three adapters are mirrored
+  client-side in `cli/myace_cli/adapters/`, but `myace pull` doesn't call
+  into them yet, so it always needs a reachable server today. See
+  [docs/architecture.md#adapters](docs/architecture.md#adapters).
+
+If you use a framework not listed above, or want to pick up an open item,
+see [Contributing](#contributing-and-forking) below — an issue or PR is
+the way to propose it.
+
+## Contributing and Forking
+
+Bug reports, feature requests, and PRs are welcome — see
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the development setup, conventions,
+and PR process. Please read [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) too.
+
+Found a security issue? Please don't open a public issue — see
+[`SECURITY.md`](SECURITY.md) for how to report it privately.
+
+MyACE is equally designed to be **forked and self-hosted**, not run as
+someone else's SaaS — see [docs/deployment.md](docs/deployment.md) for the
+checklist to work through before exposing a fork beyond localhost.
+
+A few things worth knowing as either a contributor or an operator running
+their own fork:
+
+- **Schema changes** ship as Alembic migrations
+  (`docker compose exec backend alembic upgrade head` to apply). Every
+  migration has a working `downgrade()` — see
+  [`AGENTS.md`](AGENTS.md#2-database-migration-rules).
+- **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs
+  lint, type-check, and tests for the backend, CLI, and frontend on every
+  PR, plus a Docker build check.
+- **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)) opens
+  weekly PRs for backend/CLI (pip), frontend (npm), Docker base images, and
+  GitHub Actions themselves, grouping minor/patch bumps but leaving each
+  major-version bump as its own PR (see
+  [docs/debugging.md](docs/debugging.md) for why that split matters).
+- **Documentation moves in the same PR as the code it describes** — see
+  [`AGENTS.md`](AGENTS.md#14-documentation-maintenance).
+
+## License
+
+[MIT](LICENSE) © 2026 [Niels Emmer](https://github.com/niels-emmer)
+
+## Acknowledgements
 
 MyACE is built on [FastAPI](https://fastapi.tiangolo.com/),
 [SQLModel](https://sqlmodel.tiangolo.com/), [Alembic](https://alembic.sqlalchemy.org/),
@@ -595,7 +382,3 @@ infrastructure config — was written by AI coding agents:
 [Claude Code / Sonnet 5](https://docs.anthropic.com/en/docs/claude-code/overview)
 and [OpenCode / DeepSeek V4-Flash](https://github.com/niels-emmer/opencode).
 The human (Niels) reviewed, directed, and shipped it.
-
-## License
-
-[MIT](LICENSE) © 2026 [Niels Emmer](https://github.com/niels-emmer)

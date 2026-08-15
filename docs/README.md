@@ -27,6 +27,13 @@ depth, it links here.
 - **[extending.md](extending.md)** — task-oriented guides for common
   extensions: adding a target adapter, adding an artifact type, adding an
   auth provider, adding an API route.
+- **[deployment.md](deployment.md)** — forking and hardening a fresh
+  install, and running it in production (single machine, or behind a
+  reverse proxy — including an nginx-proxy-manager walkthrough).
+- **[cli.md](cli.md)** — installing `myace` (binary or pip), the full
+  command reference, and the `import`/`serve` workflows.
+- **[backups.md](backups.md)** — database backup retention defaults,
+  offsite copy guidance, and the restore procedure.
 - **[debugging.md](debugging.md)** — known gotchas with concrete symptoms,
   root causes, and fixes. If something is behaving strangely, check here
   before spending an hour on it.
