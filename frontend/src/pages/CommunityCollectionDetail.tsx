@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -47,15 +47,24 @@ export default function CommunityCollectionDetail() {
     enabled: !!id,
   });
 
+  // Fetch the full artifact list once, unfiltered. Refetching per-type
+  // (queryKey including typeFilter) would make the per-category counts below
+  // — derived from this same list — see only the active category's artifacts
+  // and show (0) for every other tab. Same bug, same fix as PR #51 on the
+  // owned-collection page; keep both pages filtering client-side.
   const { data: artifacts, isLoading: loadingArtifacts } = useQuery({
-    queryKey: ['community-artifacts', id, typeFilter],
-    queryFn: () =>
-      collectionsApi.getArtifacts(id!, {
-        type: typeFilter === 'all' ? undefined : typeFilter,
-        include_disabled: true,
-      }),
+    queryKey: ['community-artifacts', id],
+    queryFn: () => collectionsApi.getArtifacts(id!, { include_disabled: true }),
     enabled: !!id,
   });
+
+  const visibleArtifacts = useMemo(
+    () =>
+      typeFilter === 'all'
+        ? (artifacts ?? [])
+        : (artifacts ?? []).filter((a) => a.artifact_type === typeFilter),
+    [artifacts, typeFilter]
+  );
 
   const importMutation = useMutation({
     mutationFn: () => collectionsApi.importCommunity(id!),
@@ -202,9 +211,9 @@ export default function CommunityCollectionDetail() {
       {/* Artifact List */}
       {loadingArtifacts ? (
         <div className="text-center py-12 text-muted-foreground">Loading artifacts...</div>
-      ) : artifacts && artifacts.length > 0 ? (
+      ) : visibleArtifacts.length > 0 ? (
         <div className="bg-card rounded-xl border border-border divide-y divide-border">
-          {artifacts.map((artifact) => (
+          {visibleArtifacts.map((artifact) => (
             <ArtifactRow
               key={artifact.id}
               artifact={artifact}
