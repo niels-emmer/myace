@@ -500,12 +500,16 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 
 ### 28. Frontend Structure Gotchas
 
-- **Two different things are called "export" — don't conflate them.**
-  `TargetExporter.tsx` (`/compile`) compiles a **Profile** into a target
-  framework's files (copy-paste, zip download, or CLI pull).
-  `CollectionDetail.tsx`'s "Export to GitHub" button pushes a
-  **Collection**'s canonical artifacts to a real GitHub branch + PR. They
-  share no code path.
+- **`CollectionDetail.tsx` no longer has an "Export to GitHub" button.** It
+  was removed — publishing a collection now goes exclusively through
+  "Publish to Community" (rule 18). The backing
+  `POST /collections/{id}/export/github` endpoint and
+  `backend/app/services/github_export.py` (rules 8, 10) are untouched and
+  still reachable by direct API use; nothing in the frontend surfaces them
+  anymore. Don't reintroduce the button — if GitHub export needs a UI again,
+  get explicit product direction first. `TargetExporter.tsx` (`/compile`)
+  remains a separate, unrelated concept: it compiles a **Profile** into a
+  target framework's files (copy-paste, zip download, or CLI pull).
 - `ImportPage.tsx`'s Local Machine / GitHub Repository source toggle
   shares one scan → select → import flow, but Local Machine scans hit the
   `myace serve` companion server (rule 24), not the backend.

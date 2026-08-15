@@ -51,8 +51,6 @@ demand — from a web UI, or with a one-line CLI pull.
   off — a named recipe you compile per target, not a duplicated file tree.
 - **Compile to any supported framework** — one click (or `myace pull`) turns
   a profile into the exact files Claude Code, OpenCode, or Cursor expect.
-- **Export back out** — push a collection to a new GitHub branch and open a
-  PR, so your canonical source of truth can live in its own repo.
 - **Community collections** — publish your collections to make them public
   immediately, browse and import collections published by other users. This
   is self-serve, not admin-moderated.
