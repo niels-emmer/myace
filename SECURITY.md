@@ -66,8 +66,10 @@ A few things worth knowing if you're self-hosting:
   exposing a deployment beyond localhost — the default placeholder is
   intentionally obvious and the app refuses to start (`RuntimeError`) if
   it's still in use outside development.
-- **GitHub tokens used for the "Export to GitHub" feature are per-request
-  only.** They are never persisted to the database or logged.
+- **GitHub tokens used for the collection-export-to-GitHub API endpoint
+  (`POST /collections/{id}/export/github`) are per-request only.** They
+  are never persisted to the database or logged. The endpoint has no
+  frontend UI — it's reachable by direct API use only.
 - **API tokens are bcrypt-hashed at rest** and shown to the user exactly
   once, at creation time.
 
