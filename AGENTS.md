@@ -49,7 +49,7 @@ cp .env.example .env
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 docker compose exec backend alembic upgrade head
 ```
-Dev stack: frontend on `:80`, backend on `:8000` directly, home dir mounted at `/host-home` (needed for the scanner to reach host config dirs like `~/.claude`, `~/.config/opencode`). See the compose file table in [README.md](README.md#compose-files) for the dev/prod override layering.
+Dev stack: frontend on `:80`, backend on `:8000` directly, home dir mounted at `/host-home` (needed for the scanner to reach host config dirs like `~/.claude`, `~/.config/opencode`). See the compose file table in [docs/deployment.md](docs/deployment.md#compose-files) for the dev/prod override layering.
 
 ## Repository Architecture Rules
 
@@ -265,7 +265,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 - **A repo's Wiki git backend doesn't exist until a page has been created
   through the web UI at least once**, even with `has_wiki: true` — no
   amount of `git push` (including this sync) can bootstrap it first. See
-  [debugging.md](docs/debugging.md#wiki-sync-action-fails-with-repository--wikigit-not-found)
+  [debugging.md](docs/debugging.md#wiki-sync-action-fails-with-repository-wikigit-not-found)
   if the sync Action fails with `repository '....wiki.git' not found`.
 
 ### 15. Soft-Delete Rule

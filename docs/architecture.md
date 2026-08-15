@@ -176,13 +176,9 @@ See [invariants.md](invariants.md#authorization) for the exact rules and
 
 ## Deployment shapes
 
-Three Compose files layer on top of each other:
-
-| File | Purpose |
-|---|---|
-| `docker-compose.yml` | Base — single-machine prod on `:80` |
-| `+ docker-compose.dev.yml` | Dev — adds `:8000` for direct backend access, mounts `~/` to `/host-home/` (so the scanner can reach host config dirs), CORS for Vite |
-| `+ docker-compose.prod.yml` | VPS behind a reverse proxy — no host ports, attaches an external Docker network via `PROXY_NETWORK` |
-
-See the [README's Quick Start](../README.md#quick-start) for the exact
-commands.
+Three Compose files layer on top of each other — base (single-machine
+prod), `+dev` (direct backend port, host dir mounted for the scanner, CORS
+for Vite), and `+prod` (VPS behind a reverse proxy, no host ports). See
+[deployment.md](deployment.md) for the full table, the exact commands for
+each shape, and the fork-hardening checklist to work through before
+exposing any of them beyond localhost.

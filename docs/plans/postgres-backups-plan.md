@@ -2,8 +2,15 @@
 
 ## Status
 
-Not implemented. This is a plan for future work, written up after an audit
-found no backup mechanism exists anywhere in the stack.
+**Shipped.** The `postgres-backup` sidecar described below is live in the
+base `docker-compose.yml` (not `docker-compose.prod.yml`-only, resolving
+the last open question), using the exact defaults proposed here. See
+[docs/backups.md](../backups.md) for the current retention table and
+restore procedure. The offsite-copy step (§2) remains unautomated by the
+stack itself, as noted there. Kept here as historical design record, not a
+live task list.
+
+Original problem statement, for context:
 
 ## Problem
 
@@ -113,8 +120,10 @@ the same as not having one.
 
 Once implemented:
 
-- Add a short "Backups & Restore" section to `README.md` (near the
-  [Compose Files](../../README.md#compose-files) table).
+- Add a short "Backups & Restore" section to `README.md` (near the Compose
+  Files table). *(Actual outcome: a dedicated [docs/backups.md](../backups.md),
+  linked from README's Getting Started, with the Compose Files table living
+  in [docs/deployment.md](../deployment.md#compose-files).)*
 - Add the restore command and troubleshooting to `docs/debugging.md` or a
   new `docs/ops.md`, whichever this repo settles on as the home for
   operational (not architectural) docs.
