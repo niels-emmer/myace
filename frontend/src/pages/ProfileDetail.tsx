@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Copy,
@@ -13,10 +13,23 @@ import {
   Globe,
   Lock,
   FolderGit2,
+  Layers,
+  Target,
 } from 'lucide-react';
 import { adaptersApi, collectionsApi, profilesApi } from '../lib/api';
 import ProfileFormFields from '../components/ProfileForm';
-import type { ProfileCreate } from '../types';
+import type { ArtifactType, ProfileCreate } from '../types';
+
+// Display order + labels for the combined-resources overview. Mirrors the
+// type ordering used on the community collection detail page.
+const TYPE_ORDER: ArtifactType[] = ['rule', 'workflow', 'agent', 'skill', 'model_config'];
+const TYPE_LABELS: Record<ArtifactType, string> = {
+  rule: 'Rules',
+  workflow: 'Workflows',
+  agent: 'Agents',
+  skill: 'Skills',
+  model_config: 'Model Configs',
+};
 
 export default function ProfileDetail() {
   const { id } = useParams<{ id: string }>();
@@ -46,6 +59,39 @@ export default function ProfileDetail() {
   const baseCollections = collections?.filter((c) => c.collection_type === 'base') ?? [];
   const additionalCollections = collections?.filter((c) => c.collection_type === 'additional') ?? [];
   const collectionName = (cid: string) => collections?.find((c) => c.id === cid)?.name ?? cid;
+
+  // Combined-resources overview: fetch each collection's enabled artifacts
+  // and combine them the same way compile_profile() does — later
+  // collections (additional, in order) override earlier ones by name, and
+  // the profile's own disabled_artifact_ids are excluded.
+  const resourceCollectionIds = profile
+    ? [profile.base_collection_id, ...profile.additional_collection_ids]
+    : [];
+  const artifactQueries = useQueries({
+    queries: resourceCollectionIds.map((cid) => ({
+      queryKey: ['artifacts', cid],
+      queryFn: () => collectionsApi.getArtifacts(cid),
+      enabled: !!profile,
+    })),
+  });
+  const resourcesLoading = artifactQueries.some((q) => q.isLoading);
+  let resourceCounts: Partial<Record<ArtifactType, number>> | null = null;
+  let resourceTotal = 0;
+  if (profile && !resourcesLoading) {
+    const disabledSet = new Set(profile.disabled_artifact_ids);
+    const seen = new Map<string, ArtifactType>();
+    for (const q of artifactQueries) {
+      for (const artifact of q.data ?? []) {
+        if (disabledSet.has(artifact.id)) continue;
+        seen.set(artifact.name, artifact.artifact_type);
+      }
+    }
+    resourceCounts = {};
+    for (const type of seen.values()) {
+      resourceCounts[type] = (resourceCounts[type] ?? 0) + 1;
+    }
+    resourceTotal = seen.size;
+  }
 
   const updateMutation = useMutation({
     mutationFn: (data: ProfileCreate) => profilesApi.update(id!, data),
@@ -229,11 +275,59 @@ export default function ProfileDetail() {
             )}
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <h2 className="text-sm font-medium text-muted-foreground mb-2">Default Target</h2>
+              <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-muted text-foreground text-sm w-fit">
+                <Target className="h-4 w-4 text-muted-foreground" />
+                {profile.target_framework || 'None'}
+              </div>
+            </div>
+            <div>
+              <h2 className="text-sm font-medium text-muted-foreground mb-2">Visibility</h2>
+              <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-muted text-foreground text-sm w-fit">
+                {profile.is_public ? <Globe className="h-4 w-4 text-muted-foreground" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
+                {profile.is_public ? 'Public' : 'Private'}
+              </div>
+            </div>
+          </div>
+
           {profile.disabled_artifact_ids.length > 0 && (
             <p className="text-xs text-muted-foreground">
               {profile.disabled_artifact_ids.length} individually-disabled artifact
               {profile.disabled_artifact_ids.length === 1 ? '' : 's'} carried over from collection edits.
             </p>
+          )}
+        </div>
+      )}
+
+      {/* Combined resources overview */}
+      {!isEditing && (
+        <div className="bg-card rounded-xl border border-border p-6 space-y-3">
+          <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Layers className="h-4 w-4" />
+            Combined Resources
+          </h2>
+          {resourcesLoading || !resourceCounts ? (
+            <p className="text-sm text-muted-foreground">Loading resource overview...</p>
+          ) : (
+            <>
+              <p className="text-sm text-foreground">
+                This profile's stack offers{' '}
+                <span className="font-semibold">{resourceTotal}</span> component
+                {resourceTotal === 1 ? '' : 's'} once compiled.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {TYPE_ORDER.filter((type) => resourceCounts?.[type]).map((type) => (
+                  <span
+                    key={type}
+                    className="px-3 py-1.5 rounded-lg bg-muted text-sm text-foreground"
+                  >
+                    {resourceCounts?.[type]} {TYPE_LABELS[type]}
+                  </span>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}

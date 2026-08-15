@@ -25,7 +25,6 @@ vi.mock('../lib/api', () => ({
     delete: vi.fn(),
     bulkDeleteArtifacts: vi.fn(),
     bulkExportArtifacts: vi.fn(),
-    exportToGithub: vi.fn(),
     updateArtifact: vi.fn(),
   },
 }));

@@ -33,6 +33,14 @@ const typeColors: Record<string, string> = {
   model_config: 'bg-rose-50 text-rose-700',
 };
 
+// Display order for artifact types: rules (from AGENTS.md), workflows,
+// agents, skills, then anything else (e.g. model configs).
+const TYPE_ORDER: ArtifactType[] = ['rule', 'workflow', 'agent', 'skill', 'model_config'];
+const typeRank = (type: ArtifactType): number => {
+  const idx = TYPE_ORDER.indexOf(type);
+  return idx === -1 ? TYPE_ORDER.length : idx;
+};
+
 export default function CommunityCollectionDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -58,13 +66,17 @@ export default function CommunityCollectionDetail() {
     enabled: !!id,
   });
 
-  const visibleArtifacts = useMemo(
-    () =>
+  const visibleArtifacts = useMemo(() => {
+    const filtered =
       typeFilter === 'all'
         ? (artifacts ?? [])
-        : (artifacts ?? []).filter((a) => a.artifact_type === typeFilter),
-    [artifacts, typeFilter]
-  );
+        : (artifacts ?? []).filter((a) => a.artifact_type === typeFilter);
+    return [...filtered].sort(
+      (a, b) =>
+        typeRank(a.artifact_type) - typeRank(b.artifact_type) ||
+        a.name.localeCompare(b.name)
+    );
+  }, [artifacts, typeFilter]);
 
   const importMutation = useMutation({
     mutationFn: () => collectionsApi.importCommunity(id!),
