@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from sqlalchemy import Text
 from sqlmodel import Boolean, Column, DateTime, Field, SQLModel, String
@@ -23,6 +24,9 @@ class User(SQLModel, table=True):
     avatar_url: str | None = Field(default=None, sa_column=Column("avatar_url", Text))
     is_active: bool = Field(default=True, sa_column=Column("is_active", Boolean, default=True))
     is_admin: bool = Field(default=False, sa_column=Column("is_admin", Boolean, default=False))
+    role: str = Field(
+        default="user", sa_column=Column("role", String(32), nullable=False, default="user")
+    )
     mfa_enabled: bool = Field(
         default=False, sa_column=Column("mfa_enabled", Boolean, default=False)
     )
@@ -66,6 +70,7 @@ class UserRead(SQLModel):
     avatar_url: str | None = None
     is_active: bool
     is_admin: bool
+    role: Literal["user", "moderator", "admin"] = "user"
     created_at: datetime
 
 
@@ -86,6 +91,11 @@ class UserUpdate(SQLModel):
     """Schema for updating user profile."""
     display_name: str | None = None
     email: str | None = None
+
+
+class UserRoleUpdate(SQLModel):
+    """Schema for an admin changing another user's role."""
+    role: Literal["user", "moderator", "admin"]
 
 
 class PasswordChange(SQLModel):
