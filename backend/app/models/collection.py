@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from sqlalchemy import ForeignKey, Text, Uuid
-from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String
+from sqlmodel import Boolean, Column, DateTime, Field, Float, Integer, SQLModel, String
 
 
 class Collection(SQLModel, table=True):
@@ -39,6 +39,8 @@ class Collection(SQLModel, table=True):
     is_starter_pack: bool = Field(
         default=False, sa_column=Column("is_starter_pack", Boolean, nullable=False, default=False)
     )
+    avg_rating: float = Field(default=0.0, sa_column=Column("avg_rating", Float, default=0.0))
+    rating_count: int = Field(default=0, sa_column=Column("rating_count", Integer, default=0))
     moderation_status: str = Field(
         default="draft",
         sa_column=Column("moderation_status", String(32), nullable=False, default="draft"),
@@ -109,6 +111,8 @@ class CollectionRead(SQLModel):
     published: bool = False
     category: str | None = None
     is_starter_pack: bool = False
+    avg_rating: float = 0.0
+    rating_count: int = 0
     moderation_status: Literal["draft", "submitted", "approved", "denied"] = "draft"
     moderation_reason: str | None = None
     submitted_at: datetime | None = None

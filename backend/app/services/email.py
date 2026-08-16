@@ -81,3 +81,13 @@ def build_moderation_denied_email(collection_name: str, reason: str) -> tuple[st
         f"You can edit the collection and resubmit it for another review."
     )
     return subject, body
+
+
+def build_comment_notification_email(collection_name: str, commenter_name: str) -> tuple[str, str]:
+    """Return (subject, text_body) for a new-comment notification email."""
+    subject = f'New comment on "{collection_name}"'
+    body = (
+        f'{commenter_name} left a comment on your collection "{collection_name}" '
+        f"in the {settings.app_name} community collections."
+    )
+    return subject, body
