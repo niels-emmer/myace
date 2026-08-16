@@ -14,6 +14,7 @@ import ProfileDetail from './pages/ProfileDetail';
 import ImportPage from './pages/ImportPage';
 import TargetExporter from './pages/TargetExporter';
 import SyncDashboard from './pages/SyncDashboard';
+import OrchestrationGallery from './pages/OrchestrationGallery';
 import UserSettings from './pages/UserSettings';
 import SystemSettings from './pages/SystemSettings';
 import ModerationQueue from './pages/ModerationQueue';
@@ -98,6 +99,7 @@ export default function App() {
           <Route path="/compile" element={<TargetExporter />} />
           <Route path="/export" element={<Navigate to="/compile" replace />} />
           <Route path="/sync" element={<SyncDashboard />} />
+          <Route path="/orchestration" element={<OrchestrationGallery />} />
           <Route path="/settings" element={<UserSettings />} />
           <Route element={<RequireModerator />}>
             <Route path="/moderation" element={<ModerationQueue />} />

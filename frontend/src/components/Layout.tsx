@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Menu,
   X,
+  Workflow,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -20,6 +21,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/collections', icon: FolderGit2, label: 'Collections' },
   { to: '/profiles', icon: SlidersHorizontal, label: 'Profiles' },
+  { to: '/orchestration', icon: Workflow, label: 'Orchestration' },
   { to: '/import', icon: Upload, label: 'Import' },
   { to: '/compile', icon: Download, label: 'Compile' },
   { to: '/sync', icon: RefreshCw, label: 'Sync' },
