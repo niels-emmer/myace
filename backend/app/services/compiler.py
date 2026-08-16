@@ -31,9 +31,9 @@ async def compile_profile(
     3. Sort by priority (highest first)
     4. Deduplicate by name (later collections override earlier); emit a
        `name_collision` ValidationIssue warning whenever that override
-       actually happens across two different source collections (AGENTS.md
-       rule 29/32 — this is the automated version of the manual `grep`
-       workaround described there)
+       actually happens across two different source collections (see
+       AGENTS.md rule 29 for the dedup itself and rule 32 for this
+       warnings mechanism)
     5. Translate via the target adapter
     """
     # Resolve collection IDs

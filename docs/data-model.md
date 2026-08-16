@@ -233,6 +233,25 @@ references (see the documented gap in
 supports soft-delete — profiles are never physically removed from the
 database.
 
+### Compile-time validation warnings (response-only — no table)
+
+`POST /profiles/compile`'s response carries a `warnings` field
+(`list[ValidationIssue]`, each `{level: "warning", code: str, message:
+str}` — `app/models/profile.py`), additive to the pre-existing
+`{profile_id, profile_name, target, artifact_count, files}` shape.
+`compile_profile()` (`app/services/compiler.py`) computes these fresh on
+every call, in the same step that deduplicates artifacts by name — nothing
+here is persisted to the database, there's no `validation_issues` table,
+and no migration was needed to add it. `POST /profiles/compile/zip` can't
+embed this JSON alongside the zip's binary response, so it instead appends
+a `_myace_warnings.txt` file inside the archive when there are any
+warnings to report. See [AGENTS.md rule 32](../AGENTS.md) for the
+name-collision rule this currently powers, and the architecture note in
+`docs/plans/platform-enhancements.md`'s Phase 1 section for why this is
+deliberately kept generic (`code`/`message`, not a name-collision-specific
+shape) — a later phase reuses the same `warnings` field for a
+dangling-agent-handoff check.
+
 ### `api_tokens`
 
 CLI authentication. The raw key is generated once, split into an 8-char
