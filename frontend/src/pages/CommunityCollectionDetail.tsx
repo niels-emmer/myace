@@ -12,9 +12,15 @@ import {
   Check,
   Loader2,
   ExternalLink,
+  Pencil,
 } from 'lucide-react';
-import { collectionsApi } from '../lib/api';
+import { collectionsApi, moderationApi } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import type { Artifact, ArtifactType } from '../types';
+
+const inputClass =
+  'w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm ' +
+  'focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 const ARTIFACT_TYPES: { value: ArtifactType | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -45,9 +51,16 @@ export default function CommunityCollectionDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [typeFilter, setTypeFilter] = useState<ArtifactType | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [showMetaEditModal, setShowMetaEditModal] = useState(false);
+  const [metaName, setMetaName] = useState('');
+  const [metaDescription, setMetaDescription] = useState('');
+  const [metaCategory, setMetaCategory] = useState('');
+
+  const canEditMeta = user?.role === 'moderator' || user?.role === 'admin';
 
   const { data: collection, isLoading: loadingCollection } = useQuery({
     queryKey: ['community-collection', id],
@@ -86,6 +99,28 @@ export default function CommunityCollectionDetail() {
       queryClient.invalidateQueries({ queryKey: ['community-collections'] });
     },
   });
+
+  const updateMetaMutation = useMutation({
+    mutationFn: () =>
+      moderationApi.updateMeta(id!, {
+        name: metaName.trim(),
+        description: metaDescription.trim(),
+        category: metaCategory.trim(),
+      }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['community-collection', id], updated);
+      queryClient.invalidateQueries({ queryKey: ['community-collections'] });
+      setShowMetaEditModal(false);
+    },
+  });
+
+  const openMetaEditModal = () => {
+    updateMetaMutation.reset();
+    setMetaName(collection?.name ?? '');
+    setMetaDescription(collection?.description ?? '');
+    setMetaCategory(collection?.category ?? '');
+    setShowMetaEditModal(true);
+  };
 
   if (loadingCollection) {
     return (
@@ -151,8 +186,17 @@ export default function CommunityCollectionDetail() {
           </div>
         </div>
 
-        {/* Import button */}
-        <div className="flex-shrink-0">
+        {/* Import + moderator actions */}
+        <div className="flex-shrink-0 flex items-center gap-2">
+          {canEditMeta && (
+            <button
+              onClick={openMetaEditModal}
+              className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-foreground hover:bg-accent transition-colors"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit metadata
+            </button>
+          )}
           {importSuccess ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-green-600 font-medium flex items-center gap-1">
@@ -244,6 +288,72 @@ export default function CommunityCollectionDetail() {
               ? 'This collection has no artifacts.'
               : `No ${typeFilter} artifacts in this collection.`}
           </p>
+        </div>
+      )}
+
+      {/* Edit Metadata Modal (moderator/admin only) */}
+      {showMetaEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
+            <h2 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+              <Pencil className="h-5 w-5" />
+              Edit Metadata
+            </h2>
+            <p className="text-sm text-muted-foreground -mt-2">
+              Moderator edit — only name, description, and category. Artifact content isn't
+              affected.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Name</label>
+              <input
+                type="text"
+                value={metaName}
+                onChange={(e) => setMetaName(e.target.value)}
+                className={inputClass}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Description</label>
+              <textarea
+                value={metaDescription}
+                onChange={(e) => setMetaDescription(e.target.value)}
+                rows={3}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Category</label>
+              <input
+                type="text"
+                value={metaCategory}
+                onChange={(e) => setMetaCategory(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            {updateMetaMutation.isError && (
+              <p className="text-sm text-destructive">
+                {(updateMetaMutation.error as Error).message}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowMetaEditModal(false)}
+                className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => updateMetaMutation.mutate()}
+                disabled={!metaName.trim() || updateMetaMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
+              >
+                {updateMetaMutation.isPending ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

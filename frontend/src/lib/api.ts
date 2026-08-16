@@ -330,4 +330,13 @@ export const moderationApi = {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
+
+  updateMeta: (
+    collectionId: string,
+    data: { name?: string; description?: string; category?: string },
+  ) =>
+    request<import('@/types').Collection>(`/moderation/${collectionId}/meta`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 };
