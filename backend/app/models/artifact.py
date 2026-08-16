@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from sqlalchemy import ForeignKey, Text, Uuid
 from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String
@@ -55,9 +56,15 @@ class Artifact(SQLModel, table=True):
 
 
 class ArtifactCreate(SQLModel):
-    """Schema for creating an artifact."""
-    collection_id: uuid.UUID
-    artifact_type: str
+    """Schema for creating an artifact via `POST /collections/{collection_id}/artifacts`.
+
+    `collection_id` is deliberately not a field here — it's the path
+    parameter on that route, the single source of truth for which
+    collection the artifact belongs to (same reasoning as rule 13's
+    ownership-from-path-or-current_user convention, not a client-supplied
+    body field).
+    """
+    artifact_type: Literal["rule", "skill", "agent", "workflow", "model_config"]
     name: str
     version: str = "1.0.0"
     priority: int = 50

@@ -14,7 +14,13 @@ from sqlmodel import select
 from app.core.authz import authorize_access, owner_or_public_clause
 from app.core.database import get_session
 from app.core.deps import get_current_user
-from app.models.artifact import Artifact, ArtifactRead, ArtifactUpdate, CanonicalArtifact
+from app.models.artifact import (
+    Artifact,
+    ArtifactCreate,
+    ArtifactRead,
+    ArtifactUpdate,
+    CanonicalArtifact,
+)
 from app.models.collection import Collection, CollectionCreate, CollectionRead, CollectionUpdate
 from app.models.user import User
 
@@ -279,6 +285,54 @@ async def list_collection_artifacts(
 
     result = await session.execute(query)
     return [_artifact_to_read(a) for a in result.scalars().all()]
+
+
+@router.post(
+    "/{collection_id}/artifacts",
+    response_model=ArtifactRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_artifact(
+    collection_id: uuid.UUID,
+    artifact_data: ArtifactCreate,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ArtifactRead:
+    """Create a single artifact directly in a collection.
+
+    Unlike bulk-import/scan-derived import, this creates exactly one
+    artifact in an existing collection the caller owns — e.g. the
+    generated orchestrator agent from the pipeline composition wizard
+    (Epic 3.4).
+    """
+    collection = await _get_collection_or_404(session, collection_id)
+    authorize_access(
+        owner_id=collection.owner_id, current_user=current_user,
+        write=True, resource_name="Collection",
+    )
+
+    artifact = Artifact(
+        collection_id=collection_id,
+        artifact_type=artifact_data.artifact_type,
+        name=artifact_data.name,
+        version=artifact_data.version,
+        priority=artifact_data.priority,
+        target_compatibility=json.dumps(artifact_data.target_compatibility),
+        tags=json.dumps(artifact_data.tags),
+        description=artifact_data.description,
+        body=artifact_data.body,
+        file_path=artifact_data.file_path,
+        handoff_to=(
+            json.dumps(artifact_data.handoff_to) if artifact_data.handoff_to is not None else None
+        ),
+    )
+    session.add(artifact)
+
+    collection.artifact_count += 1
+
+    await session.commit()
+    await session.refresh(artifact)
+    return _artifact_to_read(artifact)
 
 
 @router.get("/{collection_id}/artifacts/{artifact_id}", response_model=ArtifactRead)

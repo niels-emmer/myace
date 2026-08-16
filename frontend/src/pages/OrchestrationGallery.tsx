@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
-import { ReactFlow, Background, Controls, Position, MarkerType } from '@xyflow/react';
-import type { Node, Edge, NodeProps } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import { Workflow, GitBranch, ArrowLeft, HelpCircle, FolderGit2 } from 'lucide-react';
+import { Workflow, GitBranch, ArrowLeft, FolderGit2, Wrench } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { collectionsApi } from '../lib/api';
+import {
+  formatAgentName,
+  layoutPipeline,
+  PipelineFlowDiagram,
+  type PipelineNodeSpec,
+  type PipelineEdgeSpec,
+} from '../components/PipelineFlow';
 import type { Artifact, Collection } from '../types';
 
 // ─── Recipe discovery ───────────────────────────────────────────
@@ -22,13 +27,6 @@ interface Recipe {
   collectionName: string;
   primary: Artifact;
   agentsByName: Map<string, Artifact>;
-}
-
-function formatAgentName(name: string): string {
-  return name
-    .split(/[-_]/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
 }
 
 function buildRecipes(
@@ -65,15 +63,10 @@ function buildRecipes(
 // renders as a node, just visually marked "not found" rather than
 // silently dropped.
 
-interface FlowGraph {
-  nodes: Node[];
-  edges: Edge[];
-}
-
-function buildFlowGraph(recipe: Recipe): FlowGraph {
+function buildFlowGraph(recipe: Recipe) {
   const levelOf = new Map<string, number>();
   const edgeSet = new Set<string>();
-  const edges: Edge[] = [];
+  const edgeSpecs: PipelineEdgeSpec[] = [];
   const queue: string[] = [recipe.primary.name];
   const expanded = new Set<string>();
   levelOf.set(recipe.primary.name, 0);
@@ -88,14 +81,7 @@ function buildFlowGraph(recipe: Recipe): FlowGraph {
       const edgeKey = `${current}->${target}`;
       if (!edgeSet.has(edgeKey)) {
         edgeSet.add(edgeKey);
-        edges.push({
-          id: edgeKey,
-          source: current,
-          target,
-          animated: false,
-          markerEnd: { type: MarkerType.ArrowClosed },
-          style: { stroke: 'var(--xf-edge-stroke, #94a3b8)', strokeWidth: 1.5 },
-        });
+        edgeSpecs.push({ id: edgeKey, source: current, target });
       }
       if (!levelOf.has(target)) {
         levelOf.set(target, currentLevel + 1);
@@ -106,79 +92,22 @@ function buildFlowGraph(recipe: Recipe): FlowGraph {
     }
   }
 
-  // Group by level for a simple layered layout (no dagre dependency —
-  // pipelines here are small enough that this reads fine).
-  const byLevel = new Map<number, string[]>();
-  for (const [name, level] of levelOf) {
-    const bucket = byLevel.get(level) ?? [];
-    bucket.push(name);
-    byLevel.set(level, bucket);
-  }
+  const nodeSpecs: PipelineNodeSpec[] = Array.from(levelOf.entries()).map(([name, level]) => {
+    const agent = recipe.agentsByName.get(name);
+    return {
+      id: name,
+      level,
+      label: formatAgentName(name),
+      description: agent?.description,
+      isPrimary: name === recipe.primary.name,
+      isMissing: !agent,
+    };
+  });
 
-  const nodes: Node[] = [];
-  for (const [level, names] of byLevel) {
-    names.forEach((name, index) => {
-      const agent = recipe.agentsByName.get(name);
-      nodes.push({
-        id: name,
-        type: 'pipelineNode',
-        position: {
-          x: level * 240,
-          y: index * 110 - ((names.length - 1) * 110) / 2,
-        },
-        data: {
-          label: formatAgentName(name),
-          description: agent?.description,
-          isPrimary: name === recipe.primary.name,
-          isMissing: !agent,
-        },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-      });
-    });
-  }
-
-  return { nodes, edges };
+  return layoutPipeline(nodeSpecs, edgeSpecs);
 }
 
 // ─── UI ────────────────────────────────────────────────────────
-
-interface PipelineNodeData {
-  label: string;
-  description?: string;
-  isPrimary: boolean;
-  isMissing: boolean;
-  [key: string]: unknown;
-}
-
-function PipelineNode({ data }: NodeProps) {
-  const { label, description, isPrimary, isMissing } = data as PipelineNodeData;
-  return (
-    <div
-      className={`rounded-lg border px-3 py-2 shadow-sm min-w-[140px] max-w-[200px] ${
-        isMissing
-          ? 'border-dashed border-destructive/50 bg-destructive/5'
-          : isPrimary
-          ? 'border-brand-300 bg-brand-50'
-          : 'border-border bg-card'
-      }`}
-      title={description || (isMissing ? `${label} is not defined in this collection` : undefined)}
-    >
-      <div className={`text-sm font-medium truncate ${isMissing ? 'text-destructive' : 'text-card-foreground'}`}>
-        {label}
-      </div>
-      {isMissing ? (
-        <div className="text-xs text-destructive/80 flex items-center gap-1 mt-0.5">
-          <HelpCircle className="h-3 w-3" /> not found
-        </div>
-      ) : description ? (
-        <div className="text-xs text-muted-foreground truncate mt-0.5">{description}</div>
-      ) : null}
-    </div>
-  );
-}
-
-const nodeTypes = { pipelineNode: PipelineNode };
 
 function RecipeCard({ recipe, onSelect }: { recipe: Recipe; onSelect: () => void }) {
   const stageCount = recipe.primary.handoff_to?.length ?? 0;
@@ -274,39 +203,31 @@ export default function OrchestrationGallery() {
             routing back to the builder).
           </p>
         </div>
-        <div className="bg-card border border-border rounded-xl h-[520px]">
-          <ReactFlow
-            nodes={flowGraph.nodes}
-            edges={flowGraph.edges}
-            nodeTypes={nodeTypes}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            elementsSelectable={false}
-            panOnScroll
-            zoomOnScroll={false}
-            fitView
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background gap={20} />
-            <Controls showInteractive={false} />
-          </ReactFlow>
-        </div>
+        <PipelineFlowDiagram nodes={flowGraph.nodes} edges={flowGraph.edges} />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Workflow className="h-6 w-6 text-muted-foreground" />
-          Orchestration Gallery
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Multi-agent pipelines declared across your collections and the community — a primary
-          agent that routes work to a sequence of specialists via <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">handoff_to</code>.
-          Select one to see how it routes.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Workflow className="h-6 w-6 text-muted-foreground" />
+            Orchestration Gallery
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Multi-agent pipelines declared across your collections and the community — a primary
+            agent that routes work to a sequence of specialists via <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">handoff_to</code>.
+            Select one to see how it routes.
+          </p>
+        </div>
+        <Link
+          to="/orchestration/build"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors flex-shrink-0"
+        >
+          <Wrench className="h-4 w-4" /> Compose your pipeline
+        </Link>
       </div>
 
       {isLoading ? (
@@ -324,7 +245,7 @@ export default function OrchestrationGallery() {
           and a non-empty <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">handoff_to</code>{' '}
           list — the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">software-engineer</code> starter
           collection's <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">orchestrator</code> agent is
-          a good example.
+          a good example, or use "Compose your pipeline" above to build your own.
         </p>
       )}
     </div>
