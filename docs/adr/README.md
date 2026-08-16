@@ -33,3 +33,4 @@ ADR-00XX`.
 | [0006](0006-encrypted-admin-editable-secrets.md) | Encrypted admin-editable secrets in the database | Accepted |
 | [0007](0007-additive-user-role-column.md) | Additive `role` column alongside `is_admin` | Accepted |
 | [0008](0008-collection-moderation-state-machine.md) | Collection moderation state machine replaces self-serve publish | Accepted |
+| [0009](0009-manifest-based-drift-detection.md) | Local manifest file, not new server state, for drift detection | Accepted |

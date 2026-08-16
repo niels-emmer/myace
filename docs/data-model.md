@@ -252,6 +252,39 @@ future compile-time check (e.g. a dangling agent-handoff reference) can
 append its own `code` to the same `warnings` list without a schema change
 or a second parallel warnings mechanism.
 
+The same response also now carries `compiled_hash: str` — a sha256 over a
+deterministic serialization of `files` (`compute_compiled_hash()`, same
+codebase). This, too, is response-only: nothing is persisted, and it's
+recomputed fresh on every compile. `GET /profiles/{id}/compile-status`
+returns just `{compiled_hash, updated_at}` for the same profile+target
+without the full `files` payload — see
+[ADR-0009](adr/0009-manifest-based-drift-detection.md) for why this
+exists (cheap polling for the CLI's `check`/`watch` commands) and its
+honestly-documented cost trade-off (it still resolves artifacts and runs
+`translate()`; it only saves the client the transfer cost of file
+content, not the server's compute cost).
+
+### `sync_statuses`
+
+Opt-in only — a row here exists exclusively because a user ran `myace
+check --report` or `myace watch --report` from some machine; nothing is
+written here automatically by `pull`, `check`, or `watch` in their default
+form (see [ADR-0009](adr/0009-manifest-based-drift-detection.md)).
+`user_id` and `profile_id` are real foreign keys; `target` and
+`machine_label` are free strings (the latter defaults to the reporting
+machine's hostname but is otherwise arbitrary user-supplied text, not
+validated against anything). `locally_modified_files` is a JSON-encoded
+`Text` column, same pattern as `Artifact.tags` (AGENTS.md rule 11) — always
+converted through `SyncStatusRead` before leaving a route, never returned
+as a raw row. A unique constraint on `(user_id, profile_id, target,
+machine_label)` makes `POST /sync/report` an upsert: a second report for
+the same triple updates `in_sync`/`locally_modified_files`/
+`last_checked_at` on the existing row rather than inserting a duplicate.
+`GET /sync/status` only ever returns the caller's own rows — there is no
+cross-user visibility here, not even for admins (this is personal local-
+machine state, not a community feature); see
+[invariants.md](invariants.md).
+
 ### `api_tokens`
 
 CLI authentication. The raw key is generated once, split into an 8-char

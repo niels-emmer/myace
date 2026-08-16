@@ -8,7 +8,7 @@ a file was hand-edited locally after the pull, or the server's compiled
 output has changed since (`stale`). See
 [ADR-0009](adr/0009-manifest-based-drift-detection.md) for the manifest/hash
 mechanism this is built on, and [`AGENTS.md` rule
-33](../AGENTS.md#33-cli-sync-manifest-format-and-the-compile-statuss-cost-trade-off)
+33](../AGENTS.md#33-cli-sync-manifest-format-and-the-compile-status-endpoints-cost-trade-off)
 for the manifest file format.
 
 This action is **not** wired into MyACE's own CI. This repository's
