@@ -280,6 +280,19 @@ def _parse_command_file(path: Path) -> dict | None:
 
 def _parse_agents_md(path: Path) -> list[dict]:
     content = path.read_text(encoding="utf-8")
+    return _parse_agents_md_content(content)
+
+
+def _parse_agents_md_content(content: str) -> list[dict]:
+    """Split AGENTS.md-style markdown into individual rule artifacts (one
+    per top-level '##' section).
+
+    Split out from `_parse_agents_md()` so callers with in-memory markdown
+    and no file on disk — currently just the public demo compile endpoint
+    (`app/api/demo.py`) — can reuse the exact same parsing logic without
+    writing a temp file first. Same behavior, same output shape; nothing
+    about the directory-scanning callers above changed.
+    """
     artifacts = []
     sections = re.split(r"\n(?=## )", content)
     for section in sections:

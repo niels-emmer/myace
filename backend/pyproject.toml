@@ -25,6 +25,7 @@ dependencies = [
     "greenlet>=3.0.0",
     "aiosmtplib>=3.0.0",
     "cryptography>=43.0.0",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]

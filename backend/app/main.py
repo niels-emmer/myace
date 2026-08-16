@@ -5,8 +5,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from app.api import (
     adapters,
@@ -14,12 +18,14 @@ from app.api import (
     auth,
     collections,
     comments,
+    demo,
     doc_cache,
     moderation,
     profiles,
     ratings,
     sync,
 )
+from app.api.demo import limiter as demo_limiter
 from app.core.config import settings
 from app.core.database import get_session_factory, init_db
 from app.services.seed_collections import seed_starter_collections
@@ -79,6 +85,27 @@ app = FastAPI(
     redoc_url="/redoc" if settings.debug else None,
 )
 
+# Rate limiter state + exception handler for app.api.demo's @limiter.limit(...)
+# decorator — this is app-wide *plumbing* slowapi requires to raise 429s at
+# all, not app-wide rate limiting. No route other than POST /demo/compile
+# carries the decorator, so no other route is actually rate-limited by this.
+app.state.limiter = demo_limiter
+
+
+def _handle_rate_limit_exceeded(request: Request, exc: Exception) -> Response:
+    """Typed wrapper around slowapi's own handler — Starlette's
+    add_exception_handler() expects `Callable[[Request, Exception],
+    Response]`, but slowapi's handler is typed narrower
+    (`RateLimitExceeded`, not `Exception`); Starlette only ever calls this
+    for a registered `RateLimitExceeded`, so the isinstance check just
+    narrows the type for mypy rather than guarding real runtime behavior.
+    """
+    assert isinstance(exc, RateLimitExceeded)
+    return _rate_limit_exceeded_handler(request, exc)
+
+
+app.add_exception_handler(RateLimitExceeded, _handle_rate_limit_exceeded)
+
 # Trusted hosts — always enforce. In development, allow all hosts (safe
 # default for local testing). In production, the operator MUST set
 # TRUSTED_HOSTS to their real domain(s); the app will fail at startup
@@ -118,6 +145,7 @@ app.add_middleware(
 # Register routers
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(demo.router, prefix="/api/v1/demo", tags=["Demo"])
 app.include_router(collections.router, prefix="/api/v1/collections", tags=["Collections"])
 app.include_router(ratings.router, prefix="/api/v1/collections", tags=["Ratings"])
 app.include_router(comments.router, prefix="/api/v1/collections", tags=["Comments"])
