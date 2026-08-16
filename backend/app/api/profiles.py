@@ -176,6 +176,15 @@ async def compile_profile_zip_endpoint(
         for filename, content in compiled["files"].items():
             zf.writestr(filename, content)
 
+        # The JSON /compile route can return warnings alongside files in the
+        # same response body; a zip's HTTP response has no room for a second
+        # payload, so warnings ride along as an extra file inside the archive
+        # instead, only when there are any to report.
+        warnings = compiled.get("warnings") or []
+        if warnings:
+            warnings_text = "\n".join(f"[{w.code}] {w.message}" for w in warnings)
+            zf.writestr("_myace_warnings.txt", warnings_text + "\n")
+
     # Sanitize into the Content-Disposition header — profile.name is
     # user-controlled (including on public profiles owned by someone else),
     # so an unescaped value here would be a header-injection vector.

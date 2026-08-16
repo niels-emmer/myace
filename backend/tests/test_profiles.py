@@ -47,14 +47,46 @@ async def _create_collection_with_artifact(client: AsyncClient, db_session: Asyn
 
 
 async def _create_profile(
-    client: AsyncClient, collection_id: str, name: str = "zip-test-profile"
+    client: AsyncClient,
+    collection_id: str,
+    name: str = "zip-test-profile",
+    additional_collection_ids: list[str] | None = None,
 ) -> str:
     res = await client.post(
         "/api/v1/profiles",
-        json={"name": name, "base_collection_id": collection_id},
+        json={
+            "name": name,
+            "base_collection_id": collection_id,
+            "additional_collection_ids": additional_collection_ids or [],
+        },
     )
     assert res.status_code == 201
     return res.json()["id"]
+
+
+async def _create_collection_with_named_artifact(
+    client: AsyncClient, db_session: AsyncSession, collection_name: str, artifact_name: str
+) -> str:
+    res = await client.post(
+        "/api/v1/collections",
+        json={"name": collection_name, "git_url": "https://example.com/repo.git"},
+    )
+    assert res.status_code == 201
+    collection_id = res.json()["id"]
+
+    db_session.add(
+        Artifact(
+            collection_id=uuid.UUID(collection_id),
+            artifact_type="rule",
+            name=artifact_name,
+            priority=50,
+            body="Some rule body.",
+            file_path=f"rules/{artifact_name}.md",
+        )
+    )
+    await db_session.commit()
+
+    return collection_id
 
 
 @pytest.mark.asyncio
@@ -156,6 +188,91 @@ async def test_compile_accepts_every_registered_adapter(
     )
     assert res.status_code == 200
     assert "error" not in res.json()
+
+
+@pytest.mark.asyncio
+async def test_compile_reports_no_warnings_when_no_collision(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _register(async_client)
+    collection_id = await _create_collection_with_artifact(async_client, db_session)
+    profile_id = await _create_profile(async_client, collection_id)
+
+    res = await async_client.post(
+        "/api/v1/profiles/compile",
+        json={"profile_id": profile_id, "target": "claude-code"},
+    )
+    assert res.status_code == 200
+    assert res.json()["warnings"] == []
+
+
+@pytest.mark.asyncio
+async def test_compile_reports_name_collision_warning(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Two collections in one profile sharing an artifact name must produce
+    exactly one name_collision warning naming both collections."""
+    await _register(async_client)
+    base_id = await _create_collection_with_named_artifact(
+        async_client, db_session, "base-collection", "shared-rule"
+    )
+    additional_id = await _create_collection_with_named_artifact(
+        async_client, db_session, "additional-collection", "shared-rule"
+    )
+    profile_id = await _create_profile(
+        async_client, base_id, additional_collection_ids=[additional_id]
+    )
+
+    res = await async_client.post(
+        "/api/v1/profiles/compile",
+        json={"profile_id": profile_id, "target": "claude-code"},
+    )
+    assert res.status_code == 200
+    warnings = res.json()["warnings"]
+    assert len(warnings) == 1
+    warning = warnings[0]
+    assert warning["level"] == "warning"
+    assert warning["code"] == "name_collision"
+    assert "base-collection" in warning["message"]
+    assert "additional-collection" in warning["message"]
+    assert "shared-rule" in warning["message"]
+
+
+@pytest.mark.asyncio
+async def test_compile_zip_includes_warnings_file_only_when_present(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _register(async_client)
+    base_id = await _create_collection_with_named_artifact(
+        async_client, db_session, "zip-base-collection", "zip-shared-rule"
+    )
+    additional_id = await _create_collection_with_named_artifact(
+        async_client, db_session, "zip-additional-collection", "zip-shared-rule"
+    )
+    colliding_profile_id = await _create_profile(
+        async_client, base_id, name="zip-colliding-profile", additional_collection_ids=[additional_id]
+    )
+    clean_profile_id = await _create_profile(async_client, base_id, name="zip-clean-profile")
+
+    colliding_res = await async_client.post(
+        "/api/v1/profiles/compile/zip",
+        json={"profile_id": colliding_profile_id, "target": "claude-code"},
+    )
+    assert colliding_res.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(colliding_res.content)) as zf:
+        assert "_myace_warnings.txt" in zf.namelist()
+        warnings_text = zf.read("_myace_warnings.txt").decode("utf-8")
+        assert "name_collision" in warnings_text
+        assert "zip-base-collection" in warnings_text
+        assert "zip-additional-collection" in warnings_text
+
+    clean_res = await async_client.post(
+        "/api/v1/profiles/compile/zip",
+        json={"profile_id": clean_profile_id, "target": "claude-code"},
+    )
+    assert clean_res.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(clean_res.content)) as zf:
+        assert "_myace_warnings.txt" not in zf.namelist()
 
 
 @pytest.mark.asyncio

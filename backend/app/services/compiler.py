@@ -9,7 +9,7 @@ from sqlmodel import select
 from app.adapters import get_adapter, list_adapters
 from app.models.artifact import Artifact, CanonicalArtifact
 from app.models.collection import Collection
-from app.models.profile import Profile
+from app.models.profile import Profile, ValidationIssue
 from app.models.system_settings import SystemSettings
 
 
@@ -29,7 +29,11 @@ async def compile_profile(
     1. Resolve base collection + additional collections
     2. Collect all artifacts, respecting disabled list
     3. Sort by priority (highest first)
-    4. Deduplicate by name (later collections override earlier)
+    4. Deduplicate by name (later collections override earlier); emit a
+       `name_collision` ValidationIssue warning whenever that override
+       actually happens across two different source collections (AGENTS.md
+       rule 29/32 — this is the automated version of the manual `grep`
+       workaround described there)
     5. Translate via the target adapter
     """
     # Resolve collection IDs
@@ -54,6 +58,7 @@ async def compile_profile(
     # Collect artifacts from all collections
     seen_names: dict[str, CanonicalArtifact] = {}
     all_artifacts: list[CanonicalArtifact] = []
+    warnings: list[ValidationIssue] = []
 
     for cid in all_collection_ids:
         if cid not in collection_map:
@@ -73,7 +78,25 @@ async def compile_profile(
                 continue
 
             canonical = _db_to_canonical(db_artifact, collection)
-            # Deduplicate by name — later collections override
+            # Deduplicate by name — later collections override earlier ones
+            # (AGENTS.md rule 29). When the override crosses a collection
+            # boundary, surface it as a name_collision warning instead of
+            # letting it vanish silently.
+            existing = seen_names.get(canonical.name)
+            if existing is not None:
+                other_collection = existing.source_collection_name
+                winning_collection = canonical.source_collection_name
+                if other_collection != winning_collection:
+                    warnings.append(
+                        ValidationIssue(
+                            code="name_collision",
+                            message=(
+                                f"Artifact '{canonical.name}' ({canonical.artifact_type}) is "
+                                f"defined in both '{other_collection}' and '{winning_collection}'; "
+                                f"'{winning_collection}' wins."
+                            ),
+                        )
+                    )
             seen_names[canonical.name] = canonical
 
     # Sort by priority descending
@@ -103,6 +126,7 @@ async def compile_profile(
         "target": target,
         "artifact_count": len(all_artifacts),
         "files": files,
+        "warnings": warnings,
     }
 
 

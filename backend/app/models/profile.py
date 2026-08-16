@@ -87,3 +87,35 @@ class ProfileCompileRequest(SQLModel):
         "aider", "continue", "goose", "amazon-q",
     ] = "opencode"
     include_disabled: bool = False
+
+
+class ValidationIssue(SQLModel):
+    """A non-fatal problem surfaced during compilation (e.g. an artifact name
+    collision across composed collections). Additive to the compile response —
+    never blocks compilation, just flags something worth a human look.
+
+    `level` is a `Literal["warning"]` today because compile-time validation only
+    ever emits warnings; a future error-level check would be a deliberate,
+    reviewed addition to this Literal, not an implicit widening.
+    """
+    level: Literal["warning"] = "warning"
+    code: str
+    message: str
+
+
+class ProfileCompileResponse(SQLModel):
+    """Response schema for POST /profiles/compile.
+
+    Documents the shape `compile_profile()` returns; not wired as the route's
+    `response_model` because `compile_profile()` also has an unreachable-in-
+    practice error-dict branch (`{"error": ..., "available_targets": [...]}`)
+    for an unregistered target — unreachable since `ProfileCompileRequest.target`
+    is a `Literal` covering every registered adapter, but enforcing this schema
+    at the route would turn that dead branch into a 500 if it ever did fire.
+    """
+    profile_id: str
+    profile_name: str
+    target: str
+    artifact_count: int
+    files: dict[str, str]
+    warnings: list[ValidationIssue] = []
