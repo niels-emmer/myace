@@ -1,0 +1,90 @@
+name: "MyACE Drift Check"
+description: >-
+  Installs myace-cli and runs `myace check --all --json` against a repo's
+  committed compiled output, failing the job if any target has drifted
+  (locally hand-edited files, or a stale compile vs. the MyACE server).
+  See docs/ci-drift-check.md for how to add this to another repo's own
+  workflows — this action is distributed for *other* repos to consume, it
+  is not wired into MyACE's own CI (this repo's collections/ directory is
+  canonical source, not compiled output, so there is nothing to check it
+  against here).
+
+inputs:
+  server-url:
+    description: "MyACE server URL (e.g. https://myace.example.com)"
+    required: true
+  token:
+    description: >-
+      MyACE API token (from the web UI's Settings > CLI Setup, or
+      `myace login`). Pass this from a repository secret — never hardcode
+      it in the workflow file.
+    required: true
+  working-directory:
+    description: >-
+      Directory containing the .myace/*.manifest.json manifests written by
+      `myace pull` (i.e. the directory the compiled output was pulled
+      into). Defaults to the repository root.
+    required: false
+    default: "."
+  target:
+    description: >-
+      Check only this target's manifest instead of every .myace/*.manifest.json
+      manifest in working-directory. Leave unset to check all of them.
+    required: false
+    default: ""
+  python-version:
+    description: "Python version used to install myace-cli"
+    required: false
+    default: "3.12"
+  myace-cli-version:
+    description: >-
+      myace-cli version constraint to install (e.g. "==1.6.0", ">=1.6").
+      Leave empty to install the latest published release.
+    required: false
+    default: ""
+
+outputs:
+  result:
+    description: '"in-sync" or "drift" — the overall result of the check.'
+    value: ${{ steps.check.outputs.result }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install myace-cli
+      shell: bash
+      run: pip install "myace-cli${{ inputs.myace-cli-version }}"
+
+    - name: Authenticate with the MyACE server
+      shell: bash
+      run: myace login --server "${{ inputs.server-url }}" --token "${{ inputs.token }}"
+
+    - name: Run drift check
+      id: check
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        if [ -n "${{ inputs.target }}" ]; then
+          TARGET_FLAG="--target ${{ inputs.target }}"
+        else
+          TARGET_FLAG="--all"
+        fi
+
+        set +e
+        myace check $TARGET_FLAG --json | tee myace-check-result.json
+        exit_code=$?
+        set -e
+
+        if [ "$exit_code" -eq 0 ]; then
+          echo "result=in-sync" >> "$GITHUB_OUTPUT"
+        else
+          echo "result=drift" >> "$GITHUB_OUTPUT"
+          echo "::error::myace check reported drift — see the JSON output above for which target(s) and file(s)."
+        fi
+
+        exit $exit_code

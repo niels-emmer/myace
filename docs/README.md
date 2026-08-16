@@ -31,7 +31,10 @@ depth, it links here.
   install, and running it in production (single machine, or behind a
   reverse proxy — including an nginx-proxy-manager walkthrough).
 - **[cli.md](cli.md)** — installing `myace` (binary or pip), the full
-  command reference, and the `import`/`serve` workflows.
+  command reference, and the `import`/`serve`/`check`/`watch` workflows.
+- **[ci-drift-check.md](ci-drift-check.md)** — the distributable
+  `myace-check` GitHub Action other repos use to fail CI on sync drift
+  against a MyACE server.
 - **[backups.md](backups.md)** — database backup retention defaults,
   offsite copy guidance, and the restore procedure.
 - **[debugging.md](debugging.md)** — known gotchas with concrete symptoms,

@@ -103,6 +103,12 @@ model.
 - **A real CLI** — `myace login`, `myace pull`, `myace import --push`. Script
   it, put it in a dotfiles repo, run it on a fresh machine. See
   [docs/cli.md](docs/cli.md) for the full command reference.
+- **Sync & drift detection** — `myace pull` writes a local manifest so
+  `myace check`/`myace watch` can tell you whether a pulled-down profile has
+  been hand-edited locally or gone stale against the server, with an opt-in
+  `--report` to a personal Sync Dashboard in the web UI. A distributable
+  [CI Action](docs/ci-drift-check.md) lets any repo that vendors compiled
+  output fail its build on drift.
 - **Real multi-user auth** — email+password (with email-based password
   reset) or OIDC/GitHub/Google SSO, private-by-default collections and
   profiles with an explicit public/private flag, and an admin role for
