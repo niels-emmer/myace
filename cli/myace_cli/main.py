@@ -13,7 +13,7 @@ from rich.table import Table
 
 from myace_cli.auth import AuthManager
 from myace_cli.scanner import export_to_collection, scan_directory
-from myace_cli.sync import SyncEngine
+from myace_cli.sync import SyncEngine, write_manifest
 
 app = typer.Typer(
     name="myace",
@@ -255,6 +255,7 @@ def pull(
         # Write files
         written = 0
         skipped = 0
+        written_filenames: list[str] = []
         for filename, content in files.items():
             # Prevent path traversal: reject filenames with path separators or
             # parent-dir references. The server's compile response is derived from
@@ -274,13 +275,51 @@ def pull(
                 )
                 if not overwrite:
                     skipped += 1
+                    written_filenames.append(filename)
                     continue
 
             file_path.write_text(content)
             written += 1
+            written_filenames.append(filename)
 
         rprint(f"\n[green]✓[/green] {written} files written, {skipped} skipped.")
         rprint(f"   Location: [bold]{output_path}[/bold]")
+
+        # Local sync manifest — records a hash per file *as it actually ended
+        # up on disk* (so a file the user declined to overwrite keeps its old
+        # hash, not one implying it matches the server) plus the server's
+        # compiled_hash, for `myace check`/`watch` to diff against later.
+        # Unsafe/rejected filenames above are excluded — they were never
+        # written and aren't real paths under output_path.
+        compiled_hash = result.get("compiled_hash")
+        if compiled_hash:
+            final_contents = {
+                filename: (output_path / filename).read_text()
+                for filename in written_filenames
+                if (output_path / filename).exists()
+            }
+            manifest_path = write_manifest(
+                output_path,
+                profile_id=result.get("profile_id", ""),
+                profile_name=result.get("profile_name", profile),
+                target=target,
+                compiled_hash=compiled_hash,
+                files=final_contents,
+            )
+            rprint(f"   Sync manifest: [bold]{manifest_path}[/bold]")
+            rprint(
+                "   [dim]Tip: add .myace/ to your .gitignore if you don't want to commit "
+                "sync manifests.[/dim]"
+            )
+        else:
+            # Older servers predating the compile-status/manifest feature
+            # won't send compiled_hash — skip manifest writing rather than
+            # writing one with a missing/None hash that `check` couldn't
+            # meaningfully diff against.
+            rprint(
+                "   [yellow]![/yellow] Server did not return a compiled_hash; "
+                "skipping sync manifest (drift detection needs a newer server)."
+            )
 
     # --strict flags a pull that succeeded but has warnings worth a look —
     # it never *prevents* the pull. In the real-write path above, files are
