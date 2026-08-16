@@ -137,6 +137,14 @@ async def compile_profile(
     # Sort by priority descending
     all_artifacts = sorted(seen_names.values(), key=lambda a: a.priority, reverse=True)
 
+    # Whole-profile validation pass, deliberately separate from the
+    # per-collection dedup loop above (AGENTS.md rule 32/Epic 3.1): a
+    # handoff_to target may live in *any* collection in the profile, so it
+    # can only be checked once the final deduplicated artifact set is known
+    # — unlike name_collision, which is pairwise/streaming and correctly
+    # lives inside the loop.
+    warnings.extend(_check_dangling_handoffs(all_artifacts))
+
     # Reject a system-wide-disabled adapter before translating — this is
     # the single choke point both /profiles/compile and /profiles/compile/zip
     # funnel through, so it can't be bypassed via either route.
@@ -192,6 +200,36 @@ async def compute_compile_status(
     return compiled.compiled_hash
 
 
+def _check_dangling_handoffs(all_artifacts: list[CanonicalArtifact]) -> list[ValidationIssue]:
+    """Flag `handoff_to` entries that don't name any artifact in the final,
+    deduplicated compiled set.
+
+    Whole-profile check, run once after dedup (see the call site above for
+    why this can't be folded into the per-collection loop): a `handoff_to`
+    target on an agent from one collection may legitimately live in a
+    completely different collection of the same profile, so the full
+    resolved name set has to exist first.
+    """
+    warnings: list[ValidationIssue] = []
+    known_names = {a.name for a in all_artifacts}
+    for artifact in all_artifacts:
+        if artifact.artifact_type != "agent" or not artifact.handoff_to:
+            continue
+        for target_name in artifact.handoff_to:
+            if target_name not in known_names:
+                warnings.append(
+                    ValidationIssue(
+                        code="dangling_handoff",
+                        message=(
+                            f"Agent '{artifact.name}' declares handoff_to "
+                            f"'{target_name}', which is not present in the "
+                            f"compiled artifact set."
+                        ),
+                    )
+                )
+    return warnings
+
+
 def _collection_label(artifact: CanonicalArtifact) -> str:
     """Human-readable, disambiguated label for a warning message.
 
@@ -214,6 +252,7 @@ def _db_to_canonical(db_artifact: Artifact, collection: Collection) -> Canonical
         tags=json.loads(db_artifact.tags),
         description=db_artifact.description or "",
         body=db_artifact.body,
+        handoff_to=json.loads(db_artifact.handoff_to) if db_artifact.handoff_to else None,
         source_collection_id=collection.id,
         source_collection_name=collection.name,
     )

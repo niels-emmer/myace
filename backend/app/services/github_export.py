@@ -46,6 +46,11 @@ def _frontmatter(artifact: CanonicalArtifact) -> str:
         "tags": artifact.tags,
         "description": artifact.description,
     }
+    if artifact.handoff_to is not None:
+        # Round-trips the scanner's optional handoff_to frontmatter key
+        # (app/services/scanner.py::_parse_agent_file) — only emitted when
+        # present, since non-agent artifact types never carry it.
+        fm["handoff_to"] = artifact.handoff_to
     return yaml.safe_dump(fm, sort_keys=False).strip()
 
 

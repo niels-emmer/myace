@@ -33,6 +33,10 @@ class Artifact(SQLModel, table=True):
     description: str | None = Field(default=None, sa_column=Column("description", Text))
     body: str = Field(sa_column=Column("body", Text, nullable=False))
     file_path: str = Field(sa_column=Column("file_path", Text, nullable=False))
+    handoff_to: str | None = Field(
+        default=None,
+        sa_column=Column("handoff_to", Text, nullable=True),
+    )
     is_enabled: bool = Field(default=True, sa_column=Column("is_enabled", Boolean, default=True))
     deleted_at: datetime | None = Field(
         default=None, sa_column=Column("deleted_at", DateTime(timezone=True)),
@@ -62,6 +66,7 @@ class ArtifactCreate(SQLModel):
     description: str | None = None
     body: str
     file_path: str
+    handoff_to: list[str] | None = None
 
 
 class ArtifactRead(SQLModel):
@@ -77,6 +82,7 @@ class ArtifactRead(SQLModel):
     description: str | None = None
     body: str
     file_path: str
+    handoff_to: list[str] | None = None
     is_enabled: bool
     created_at: datetime
     updated_at: datetime
@@ -93,6 +99,7 @@ class ArtifactUpdate(SQLModel):
     description: str | None = None
     body: str | None = None
     file_path: str | None = None
+    handoff_to: list[str] | None = None
     is_enabled: bool | None = None
 
 
@@ -109,5 +116,6 @@ class CanonicalArtifact(SQLModel):
     tags: list[str]
     description: str
     body: str  # Markdown content
+    handoff_to: list[str] | None = None
     source_collection_id: uuid.UUID | None = None
     source_collection_name: str | None = None

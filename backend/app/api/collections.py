@@ -35,6 +35,7 @@ def _artifact_to_read(artifact: Artifact) -> ArtifactRead:
         description=artifact.description,
         body=artifact.body,
         file_path=artifact.file_path,
+        handoff_to=json.loads(artifact.handoff_to) if artifact.handoff_to else None,
         is_enabled=artifact.is_enabled,
         created_at=artifact.created_at,
         updated_at=artifact.updated_at,
@@ -52,6 +53,7 @@ def _artifact_to_canonical(artifact: Artifact) -> CanonicalArtifact:
         tags=json.loads(artifact.tags),
         description=artifact.description or "",
         body=artifact.body,
+        handoff_to=json.loads(artifact.handoff_to) if artifact.handoff_to else None,
     )
 
 
@@ -339,6 +341,9 @@ async def update_artifact(
         update_dict["target_compatibility"] = json.dumps(update_dict["target_compatibility"])
     if "tags" in update_dict:
         update_dict["tags"] = json.dumps(update_dict["tags"])
+    if "handoff_to" in update_dict:
+        value = update_dict["handoff_to"]
+        update_dict["handoff_to"] = json.dumps(value) if value is not None else None
 
     for field, value in update_dict.items():
         setattr(artifact, field, value)
@@ -792,6 +797,7 @@ class BulkImportItem(BaseModel):
     description: str = ""
     body: str = ""
     file_path: str = ""
+    handoff_to: list[str] | None = None
 
 
 class BulkImportRequest(BaseModel):
@@ -837,6 +843,7 @@ async def bulk_import(
             description=item.description,
             body=item.body,
             file_path=item.file_path,
+            handoff_to=json.dumps(item.handoff_to) if item.handoff_to is not None else None,
         )
         session.add(artifact)
         created += 1

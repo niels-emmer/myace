@@ -241,6 +241,12 @@ def _parse_agent_file(path: Path) -> dict | None:
         tags.append(f"mode:{frontmatter['mode']}")
     if frontmatter.get("model"):
         tags.append(f"model:{frontmatter['model']}")
+    # Optional machine-readable pipeline-routing field (AGENTS.md rule 32's
+    # sibling for orchestration UX) — the list of agent names this agent may
+    # hand work off to. None (key absent from frontmatter) is distinct from
+    # an empty list: None means "no routing metadata declared", [] means
+    # "declared, terminal — never hands off".
+    handoff_to = frontmatter.get("handoff_to")
     return {
         "artifact_type": "agent",
         "name": name,
@@ -251,6 +257,7 @@ def _parse_agent_file(path: Path) -> dict | None:
         "description": frontmatter.get("description", ""),
         "body": body,
         "file_path": str(path.relative_to(path.parent) if path.parent else path.name),
+        "handoff_to": list(handoff_to) if handoff_to is not None else None,
     }
 
 
