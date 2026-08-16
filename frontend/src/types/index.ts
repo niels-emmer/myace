@@ -35,6 +35,8 @@ export interface Collection {
   download_count: number;
   published: boolean;
   category?: string;
+  avg_rating: number;
+  rating_count: number;
   moderation_status: ModerationStatus;
   moderation_reason?: string;
   submitted_at?: string;

@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
+  Star,
 } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
 import type { Collection } from '../types';
@@ -217,17 +218,30 @@ function CommunityCollectionCard({ collection }: { collection: Collection }) {
           <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-brand-600 transition-colors" />
         </div>
       </div>
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-        {collection.category && (
-          <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-            {collection.category}
+      <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-4 min-w-0">
+          {collection.category && (
+            <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium flex-shrink-0">
+              {collection.category}
+            </span>
+          )}
+          <span className="flex items-center gap-1 flex-shrink-0">
+            <Download className="h-3 w-3" />
+            {collection.download_count} downloads
           </span>
-        )}
-        <span className="flex items-center gap-1">
-          <Download className="h-3 w-3" />
-          {collection.download_count} downloads
+          <span className="flex-shrink-0">{collection.artifact_count} artifacts</span>
+        </div>
+        <span className="flex items-center gap-1 flex-shrink-0">
+          <Star
+            className={`h-3 w-3 ${
+              collection.rating_count > 0
+                ? 'fill-amber-400 text-amber-400'
+                : 'text-muted-foreground/40'
+            }`}
+          />
+          {collection.avg_rating.toFixed(1)}
+          <span className="text-muted-foreground/70">({collection.rating_count})</span>
         </span>
-        <span>{collection.artifact_count} artifacts</span>
       </div>
     </Link>
   );
