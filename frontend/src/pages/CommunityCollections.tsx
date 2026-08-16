@@ -15,17 +15,27 @@ import type { Collection } from '../types';
 
 const PAGE_SIZE = 10;
 
+type SortOption = 'downloads' | 'rating' | 'alpha';
+
+const SORT_LABELS: Record<SortOption, string> = {
+  downloads: 'Most downloaded',
+  rating: 'Highest rated',
+  alpha: 'Name (A–Z)',
+};
+
 export default function CommunityCollections() {
   const [collectionType, setCollectionType] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortOption>('downloads');
   const [page, setPage] = useState(0);
 
   const offset = page * PAGE_SIZE;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['community-collections', collectionType, page],
+    queryKey: ['community-collections', { type: collectionType, sort, page }],
     queryFn: () =>
       collectionsApi.listCommunity({
         ...(collectionType ? { type: collectionType } : {}),
+        sort,
         offset,
         limit: PAGE_SIZE,
       }),
@@ -37,6 +47,11 @@ export default function CommunityCollections() {
 
   const handleTypeChange = (type: string | null) => {
     setCollectionType(type);
+    setPage(0);
+  };
+
+  const handleSortChange = (value: SortOption) => {
+    setSort(value);
     setPage(0);
   };
 
@@ -62,8 +77,9 @@ export default function CommunityCollections() {
         </div>
       </div>
 
-      {/* Collection type filter */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Collection type filter + sort */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => handleTypeChange(null)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
@@ -94,6 +110,19 @@ export default function CommunityCollections() {
         >
           Additional
         </button>
+        </div>
+
+        <select
+          value={sort}
+          onChange={(e) => handleSortChange(e.target.value as SortOption)}
+          className="px-3 py-1.5 bg-background text-foreground border border-input rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+        >
+          {(Object.keys(SORT_LABELS) as SortOption[]).map((key) => (
+            <option key={key} value={key}>
+              {SORT_LABELS[key]}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Collection list */}

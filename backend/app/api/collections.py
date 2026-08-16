@@ -119,10 +119,27 @@ class CommunityCollectionsResponse(BaseModel):
     total: int
 
 
+def _community_order_by(sort: Literal["rating", "downloads", "alpha"]):
+    """Shared sort-column resolution for community listing endpoints."""
+    if sort == "rating":
+        return (Collection.avg_rating.desc(),)
+    if sort == "alpha":
+        # 'additional' < 'base' alphabetically, so use a CASE expression to
+        # force the correct order: base → 0, additional → 1, then name.
+        type_order = case(
+            (Collection.collection_type == "base", 0),
+            (Collection.collection_type == "additional", 1),
+            else_=2,
+        )
+        return (type_order, Collection.name.asc())
+    return (Collection.download_count.desc(),)
+
+
 @router.get("/community", response_model=CommunityCollectionsResponse)
 async def list_community_collections(
     collection_type: str | None = Query(None, alias="type"),
     category: str | None = None,
+    sort: Literal["rating", "downloads", "alpha"] = "downloads",
     offset: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -130,7 +147,8 @@ async def list_community_collections(
 ):
     """List published community collections, with optional filters and pagination.
 
-    Results are sorted alphabetically by name. Supports filtering by
+    Sortable by rating, downloads (default), or alphabetically (base
+    collections before additional, then by name). Supports filtering by
     collection_type ('base'/'additional') and/or category.
     """
     base_query = select(Collection).where(
@@ -147,17 +165,9 @@ async def list_community_collections(
     count_result = await session.execute(count_query)
     total = count_result.scalar() or 0
 
-    # Fetch page — base collections first, then additional, both alphabetically.
-    # 'additional' < 'base' alphabetically, so use a CASE expression to force
-    # the correct order: base → 0, additional → 1.
-    type_order = case(
-        (Collection.collection_type == "base", 0),
-        (Collection.collection_type == "additional", 1),
-        else_=2,
-    )
     query = (
         base_query
-        .order_by(type_order, Collection.name.asc())
+        .order_by(*_community_order_by(sort))
         .offset(offset)
         .limit(limit)
     )

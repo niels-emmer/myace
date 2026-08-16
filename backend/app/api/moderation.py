@@ -9,6 +9,7 @@ machine (see app.models.collection) must prevent. Owners never self-approve.
 import logging
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -70,18 +71,30 @@ async def _notify_owner(
         logger.exception("Failed to send moderation-decision email to a collection owner.")
 
 
+def _queue_order_by(sort: Literal["rating", "downloads", "alpha", "submitted_at"]):
+    if sort == "rating":
+        return (Collection.avg_rating.desc(),)
+    if sort == "downloads":
+        return (Collection.download_count.desc(),)
+    if sort == "alpha":
+        return (Collection.name.asc(),)
+    return (Collection.submitted_at.asc(),)
+
+
 @router.get("/queue", response_model=list[ModerationQueueItem])
 async def get_moderation_queue(
+    sort: Literal["rating", "downloads", "alpha", "submitted_at"] = "submitted_at",
     current_user: User = Depends(require_moderator_or_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    """List collections awaiting review, oldest-submitted-first (a review
-    queue should surface the longest-waiting submission first)."""
+    """List collections awaiting review. Defaults to oldest-submitted-first
+    (the sane default for a review queue), but accepts the same rating/
+    downloads/alpha values as the community listing as an override."""
     result = await session.execute(
         select(Collection, User.email, User.display_name)
         .join(User, User.id == Collection.owner_id)
         .where(Collection.moderation_status == "submitted")
-        .order_by(Collection.submitted_at.asc())
+        .order_by(*_queue_order_by(sort))
     )
     return [
         ModerationQueueItem(**collection.model_dump(), owner_email=email, owner_display_name=name)

@@ -9,6 +9,15 @@ const inputClass =
   'w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm ' +
   'focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
+type SortOption = 'submitted_at' | 'rating' | 'downloads' | 'alpha';
+
+const SORT_LABELS: Record<SortOption, string> = {
+  submitted_at: 'Oldest submitted first',
+  rating: 'Highest rated',
+  downloads: 'Most downloaded',
+  alpha: 'Name (A–Z)',
+};
+
 function formatDate(value?: string): string {
   if (!value) return '—';
   return new Date(value).toLocaleString();
@@ -18,10 +27,11 @@ export default function ModerationQueue() {
   const queryClient = useQueryClient();
   const [denyTarget, setDenyTarget] = useState<ModerationQueueItem | null>(null);
   const [denyReason, setDenyReason] = useState('');
+  const [sort, setSort] = useState<SortOption>('submitted_at');
 
   const { data: queue, isLoading } = useQuery({
-    queryKey: ['moderation-queue'],
-    queryFn: () => moderationApi.getQueue(),
+    queryKey: ['moderation-queue', { sort }],
+    queryFn: () => moderationApi.getQueue(sort),
   });
 
   const approveMutation = useMutation({
@@ -56,9 +66,23 @@ export default function ModerationQueue() {
           Moderation Queue
         </h1>
         <p className="text-muted-foreground mt-1">
-          Collections submitted for community publishing, oldest first. Approving makes a
-          collection public immediately; denying requires a reason the submitter will see.
+          Collections submitted for community publishing. Approving makes a collection public
+          immediately; denying requires a reason the submitter will see.
         </p>
+      </div>
+
+      <div className="flex justify-end">
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortOption)}
+          className="px-3 py-1.5 bg-background text-foreground border border-input rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+        >
+          {(Object.keys(SORT_LABELS) as SortOption[]).map((key) => (
+            <option key={key} value={key}>
+              {SORT_LABELS[key]}
+            </option>
+          ))}
+        </select>
       </div>
 
       {isLoading ? (

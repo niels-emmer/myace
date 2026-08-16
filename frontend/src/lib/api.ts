@@ -95,10 +95,17 @@ export const collectionsApi = {
       body: JSON.stringify(data),
     }),
 
-  listCommunity: (params?: { type?: string; category?: string; offset?: number; limit?: number }) => {
+  listCommunity: (params?: {
+    type?: string;
+    category?: string;
+    sort?: 'rating' | 'downloads' | 'alpha';
+    offset?: number;
+    limit?: number;
+  }) => {
     const searchParams = new URLSearchParams();
     if (params?.type) searchParams.set('type', params.type);
     if (params?.category) searchParams.set('category', params.category);
+    if (params?.sort) searchParams.set('sort', params.sort);
     if (params?.offset !== undefined) searchParams.set('offset', String(params.offset));
     if (params?.limit !== undefined) searchParams.set('limit', String(params.limit));
     const qs = searchParams.toString();
@@ -317,8 +324,10 @@ export const adminApi = {
 // ─── Moderation API ──────────────────────────────────────────
 
 export const moderationApi = {
-  getQueue: () =>
-    request<import('@/types').ModerationQueueItem[]>('/moderation/queue'),
+  getQueue: (sort?: 'rating' | 'downloads' | 'alpha' | 'submitted_at') =>
+    request<import('@/types').ModerationQueueItem[]>(
+      `/moderation/queue${sort ? `?sort=${sort}` : ''}`,
+    ),
 
   approve: (collectionId: string) =>
     request<import('@/types').Collection>(`/moderation/${collectionId}/approve`, {
