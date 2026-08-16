@@ -60,6 +60,12 @@ export const collectionsApi = {
   getArtifact: (collectionId: string, artifactId: string) =>
     request<import('@/types').Artifact>(`/collections/${collectionId}/artifacts/${artifactId}`),
 
+  createArtifact: (collectionId: string, data: import('@/types').ArtifactCreate) =>
+    request<import('@/types').Artifact>(`/collections/${collectionId}/artifacts`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   updateArtifact: (collectionId: string, artifactId: string, data: import('@/types').ArtifactUpdate) =>
     request<import('@/types').Artifact>(`/collections/${collectionId}/artifacts/${artifactId}`, {
       method: 'PATCH',

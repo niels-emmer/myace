@@ -468,6 +468,25 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `collections/{base,additional}/<slug>/` in the scanner's format, then
   add an entry to `STARTER_COLLECTIONS` in `seed_collections.py` with its
   display `name`/`category`/`description` — no migration needed.
+- **A content-only edit to an already-shipped starter-pack file (no new
+  collection, no new `STARTER_COLLECTIONS` entry) will NOT reach an
+  already-seeded deployment on its own.** The `(name, is_starter_pack)`
+  idempotency check above is collection-level, and it short-circuits
+  before any artifact is looked at — `if existing.scalar_one_or_none() is
+  not None: continue` skips the whole collection, including
+  re-scanning its files, the moment a same-named starter collection
+  already exists. Restarting (or redeploying) an install that already
+  seeded `software-engineer` will not pick up a changed
+  `orchestrator.md`, an added `handoff_to:` field, or any other
+  in-place edit to that collection's source files — only a *new*
+  collection (new slug/name) is ever picked up automatically. On an
+  existing deployment, an in-place content change needs a manual fix
+  (re-run seeding against a DB where that starter collection's rows have
+  been deleted first, or hand-edit the affected artifact rows directly)
+  — this is a known, unaddressed gap in the seeding mechanism itself, not
+  something to work around ad hoc per content change. See
+  [debugging.md](docs/debugging.md#my-starter-pack-content-edit-isnt-showing-up-on-an-existing-deployment)
+  for the concrete symptom/fix.
 
 ### 26. Session `user_id` Must Be Parsed Back Into a `uuid.UUID` Before Querying
 
@@ -711,3 +730,62 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   [docs/invariants.md](docs/invariants.md) and rule 13's ownership rule:
   `POST /sync/report` always upserts under `current_user.id`, never a
   client-supplied user id.
+
+### 34. Orchestration UX — `handoff_to` Is Advisory Metadata, Not Enforced Routing
+
+- **`Artifact.handoff_to: list[str] | None` is a nullable JSON-text
+  column, agent artifacts only** — same storage/conversion pattern as
+  `tags`/`target_compatibility` (rule 11), but `NULL` ("not declared") is
+  kept distinct from `[]` ("declared, terminal — never hands off")
+  rather than defaulting to `"[]"` like those two fields do, since most
+  agent rows never set this at all. See
+  [ADR-0010](docs/adr/0010-structured-handoff-field.md) for why this is
+  a plain name list on the existing table rather than a join table with
+  real foreign keys.
+- **References are by agent *name*, not artifact ID, and are never
+  enforced at write time.** A `handoff_to` entry can legitimately point
+  at an agent that only exists in a different collection than the one
+  being scanned/imported/created — resolution only happens at compile
+  time, once a specific profile's full, deduplicated artifact set is
+  known. `compile_profile()`'s `_check_dangling_handoffs()` pass (added
+  *after* the existing per-collection dedup loop, not inside it — see
+  rule 32's `name_collision` for the pairwise/streaming check that
+  correctly *is* loop-embedded, and why this one can't be) reuses the
+  same `warnings: list[ValidationIssue]` plumbing to emit a
+  `dangling_handoff` warning for anything that doesn't resolve. Like
+  `name_collision`, this never blocks compilation.
+- **Both scanners parse an optional `handoff_to:` frontmatter key on
+  agent files** (`_parse_agent_file` in both
+  `backend/app/services/scanner.py` and `cli/myace_cli/scanner.py`,
+  kept in sync per rule 8) — a plain YAML list, not the `mode`/`model` →
+  tag-string transformation those two fields get. The prose "##
+  Handoff" section in every hand-written starter-pack agent
+  (`collections/base/software-engineer/agents/*.md`) stays the
+  human-readable version of the same routing fact; frontmatter is the
+  machine-readable version. Nothing enforces the two stay consistent —
+  keep them that way by hand when editing either.
+- **`POST /{collection_id}/artifacts` (`backend/app/api/collections.py`)
+  is the only single-artifact-create route** — every other artifact
+  creation path (bulk-import, `/scan`-derived import) is bulk. It
+  follows the same `authorize_access(write=True)` convention as the
+  existing artifact PATCH/bulk-delete routes on this resource, and
+  updates `Collection.artifact_count` like every other artifact-mutating
+  route must (invariant 20). `ArtifactCreate` (`backend/app/models/
+  artifact.py`) is this route's request body and deliberately has no
+  `collection_id` field — the path parameter is the single source of
+  truth, not a client-supplied body field (same reasoning as rule 13).
+- **The Orchestration Gallery (`/orchestration`) and pipeline wizard
+  (`/orchestration/build`, `frontend/src/pages/OrchestratorBuilder.tsx`)
+  derive everything client-side from artifacts the API already
+  exposes — no dedicated backend endpoint for either beyond the create
+  route above.** A "recipe" is any agent with a `mode:primary` tag
+  (still encoded as a tag string, e.g. `"mode:primary"` — not a first-
+  class field) and a non-empty `handoff_to`. The gallery's diagram does
+  a real BFS over each visited agent's own `handoff_to` (so back-edges
+  like `verifier -> builder` render); the wizard's preview is a
+  synthetic straight-line chain matching the sequence being composed,
+  not the real graph — they intentionally show different things. Both
+  reuse the shared rendering/layout primitives in
+  `frontend/src/components/PipelineFlow.tsx` rather than duplicating
+  the `@xyflow/react` setup — extend that file, don't fork it, if a
+  third page ever needs to render a pipeline diagram.

@@ -126,6 +126,12 @@ def _parse_agent_file(path: Path) -> dict | None:
     if frontmatter.get("model"):
         tags.append(f"model:{frontmatter['model']}")
 
+    # Optional machine-readable pipeline-routing field — kept in sync with
+    # the backend scanner's app/services/scanner.py::_parse_agent_file
+    # per AGENTS.md rule 8. None (key absent) is distinct from an empty
+    # list (declared, but terminal — never hands off).
+    handoff_to = frontmatter.get("handoff_to")
+
     return {
         "artifact_type": "agent",
         "name": name,
@@ -136,6 +142,7 @@ def _parse_agent_file(path: Path) -> dict | None:
         "description": frontmatter.get("description", ""),
         "body": body,
         "file_path": str(path.relative_to(path.parent) if path.parent else path.name),
+        "handoff_to": list(handoff_to) if handoff_to is not None else None,
     }
 
 

@@ -14,7 +14,13 @@ from sqlmodel import select
 from app.core.authz import authorize_access, owner_or_public_clause
 from app.core.database import get_session
 from app.core.deps import get_current_user
-from app.models.artifact import Artifact, ArtifactRead, ArtifactUpdate, CanonicalArtifact
+from app.models.artifact import (
+    Artifact,
+    ArtifactCreate,
+    ArtifactRead,
+    ArtifactUpdate,
+    CanonicalArtifact,
+)
 from app.models.collection import Collection, CollectionCreate, CollectionRead, CollectionUpdate
 from app.models.user import User
 
@@ -35,6 +41,7 @@ def _artifact_to_read(artifact: Artifact) -> ArtifactRead:
         description=artifact.description,
         body=artifact.body,
         file_path=artifact.file_path,
+        handoff_to=json.loads(artifact.handoff_to) if artifact.handoff_to else None,
         is_enabled=artifact.is_enabled,
         created_at=artifact.created_at,
         updated_at=artifact.updated_at,
@@ -52,6 +59,7 @@ def _artifact_to_canonical(artifact: Artifact) -> CanonicalArtifact:
         tags=json.loads(artifact.tags),
         description=artifact.description or "",
         body=artifact.body,
+        handoff_to=json.loads(artifact.handoff_to) if artifact.handoff_to else None,
     )
 
 
@@ -279,6 +287,54 @@ async def list_collection_artifacts(
     return [_artifact_to_read(a) for a in result.scalars().all()]
 
 
+@router.post(
+    "/{collection_id}/artifacts",
+    response_model=ArtifactRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_artifact(
+    collection_id: uuid.UUID,
+    artifact_data: ArtifactCreate,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ArtifactRead:
+    """Create a single artifact directly in a collection.
+
+    Unlike bulk-import/scan-derived import, this creates exactly one
+    artifact in an existing collection the caller owns — e.g. the
+    generated orchestrator agent from the pipeline composition wizard
+    (Epic 3.4).
+    """
+    collection = await _get_collection_or_404(session, collection_id)
+    authorize_access(
+        owner_id=collection.owner_id, current_user=current_user,
+        write=True, resource_name="Collection",
+    )
+
+    artifact = Artifact(
+        collection_id=collection_id,
+        artifact_type=artifact_data.artifact_type,
+        name=artifact_data.name,
+        version=artifact_data.version,
+        priority=artifact_data.priority,
+        target_compatibility=json.dumps(artifact_data.target_compatibility),
+        tags=json.dumps(artifact_data.tags),
+        description=artifact_data.description,
+        body=artifact_data.body,
+        file_path=artifact_data.file_path,
+        handoff_to=(
+            json.dumps(artifact_data.handoff_to) if artifact_data.handoff_to is not None else None
+        ),
+    )
+    session.add(artifact)
+
+    collection.artifact_count += 1
+
+    await session.commit()
+    await session.refresh(artifact)
+    return _artifact_to_read(artifact)
+
+
 @router.get("/{collection_id}/artifacts/{artifact_id}", response_model=ArtifactRead)
 async def get_artifact(
     collection_id: uuid.UUID,
@@ -339,6 +395,9 @@ async def update_artifact(
         update_dict["target_compatibility"] = json.dumps(update_dict["target_compatibility"])
     if "tags" in update_dict:
         update_dict["tags"] = json.dumps(update_dict["tags"])
+    if "handoff_to" in update_dict:
+        value = update_dict["handoff_to"]
+        update_dict["handoff_to"] = json.dumps(value) if value is not None else None
 
     for field, value in update_dict.items():
         setattr(artifact, field, value)
@@ -792,6 +851,7 @@ class BulkImportItem(BaseModel):
     description: str = ""
     body: str = ""
     file_path: str = ""
+    handoff_to: list[str] | None = None
 
 
 class BulkImportRequest(BaseModel):
@@ -837,6 +897,7 @@ async def bulk_import(
             description=item.description,
             body=item.body,
             file_path=item.file_path,
+            handoff_to=json.dumps(item.handoff_to) if item.handoff_to is not None else None,
         )
         session.add(artifact)
         created += 1

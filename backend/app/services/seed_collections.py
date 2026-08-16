@@ -307,6 +307,11 @@ async def seed_starter_collections(session: AsyncSession) -> None:
                         description=item.get("description", ""),
                         body=item.get("body", ""),
                         file_path=item.get("file_path", ""),
+                        handoff_to=(
+                            json.dumps(item["handoff_to"])
+                            if item.get("handoff_to") is not None
+                            else None
+                        ),
                     )
                 )
 

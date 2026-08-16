@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
+handoff_to: [builder, security-auditor, code-reviewer]
 ---
 Independent verification agent. Run tests, build, and linters against a change and report pass/fail with evidence.
 

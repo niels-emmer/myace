@@ -1,6 +1,7 @@
 """Tests for profile compilation routes, including the browser zip download."""
 
 import io
+import json
 import uuid
 import zipfile
 
@@ -67,6 +68,38 @@ async def _create_collection_with_named_artifact(
             file_path=f"rules/{artifact_name}.md",
         )
     )
+    await db_session.commit()
+
+    return collection_id
+
+
+async def _create_collection_with_agent_artifacts(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    collection_name: str,
+    agents: list[tuple[str, list[str] | None]],
+) -> str:
+    """Create a collection with one or more `agent` artifacts, each with an
+    optional `handoff_to` list, for exercising the dangling_handoff check."""
+    res = await client.post(
+        "/api/v1/collections",
+        json={"name": collection_name, "git_url": "https://example.com/repo.git"},
+    )
+    assert res.status_code == 201
+    collection_id = res.json()["id"]
+
+    for name, handoff_to in agents:
+        db_session.add(
+            Artifact(
+                collection_id=uuid.UUID(collection_id),
+                artifact_type="agent",
+                name=name,
+                priority=50,
+                body=f"{name} body.",
+                file_path=f"agents/{name}.md",
+                handoff_to=json.dumps(handoff_to) if handoff_to is not None else None,
+            )
+        )
     await db_session.commit()
 
     return collection_id
@@ -297,6 +330,65 @@ async def test_compile_zip_includes_warnings_file_only_when_present(
     assert clean_res.status_code == 200
     with zipfile.ZipFile(io.BytesIO(clean_res.content)) as zf:
         assert "_myace_warnings.txt" not in zf.namelist()
+
+
+@pytest.mark.asyncio
+async def test_compile_reports_no_warning_for_valid_handoff_chain(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A handoff_to chain where every referenced agent name exists in the
+    compiled artifact set must not produce a dangling_handoff warning."""
+    await _register(async_client)
+    collection_id = await _create_collection_with_agent_artifacts(
+        async_client,
+        db_session,
+        "handoff-valid-collection",
+        [
+            ("orchestrator", ["builder", "verifier"]),
+            ("builder", ["verifier"]),
+            ("verifier", None),
+        ],
+    )
+    profile_id = await _create_profile(async_client, collection_id)
+
+    res = await async_client.post(
+        "/api/v1/profiles/compile",
+        json={"profile_id": profile_id, "target": "claude-code"},
+    )
+    assert res.status_code == 200
+    assert res.json()["warnings"] == []
+
+
+@pytest.mark.asyncio
+async def test_compile_reports_dangling_handoff_warning(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A handoff_to entry naming an agent absent from the compiled artifact
+    set must produce exactly one dangling_handoff warning."""
+    await _register(async_client)
+    collection_id = await _create_collection_with_agent_artifacts(
+        async_client,
+        db_session,
+        "handoff-dangling-collection",
+        [
+            ("orchestrator", ["builder", "nonexistent-agent"]),
+            ("builder", None),
+        ],
+    )
+    profile_id = await _create_profile(async_client, collection_id)
+
+    res = await async_client.post(
+        "/api/v1/profiles/compile",
+        json={"profile_id": profile_id, "target": "claude-code"},
+    )
+    assert res.status_code == 200
+    warnings = res.json()["warnings"]
+    assert len(warnings) == 1
+    warning = warnings[0]
+    assert warning["level"] == "warning"
+    assert warning["code"] == "dangling_handoff"
+    assert "orchestrator" in warning["message"]
+    assert "nonexistent-agent" in warning["message"]
 
 
 @pytest.mark.asyncio

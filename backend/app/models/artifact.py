@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from sqlalchemy import ForeignKey, Text, Uuid
 from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String
@@ -33,6 +34,10 @@ class Artifact(SQLModel, table=True):
     description: str | None = Field(default=None, sa_column=Column("description", Text))
     body: str = Field(sa_column=Column("body", Text, nullable=False))
     file_path: str = Field(sa_column=Column("file_path", Text, nullable=False))
+    handoff_to: str | None = Field(
+        default=None,
+        sa_column=Column("handoff_to", Text, nullable=True),
+    )
     is_enabled: bool = Field(default=True, sa_column=Column("is_enabled", Boolean, default=True))
     deleted_at: datetime | None = Field(
         default=None, sa_column=Column("deleted_at", DateTime(timezone=True)),
@@ -51,9 +56,15 @@ class Artifact(SQLModel, table=True):
 
 
 class ArtifactCreate(SQLModel):
-    """Schema for creating an artifact."""
-    collection_id: uuid.UUID
-    artifact_type: str
+    """Schema for creating an artifact via `POST /collections/{collection_id}/artifacts`.
+
+    `collection_id` is deliberately not a field here — it's the path
+    parameter on that route, the single source of truth for which
+    collection the artifact belongs to (same reasoning as rule 13's
+    ownership-from-path-or-current_user convention, not a client-supplied
+    body field).
+    """
+    artifact_type: Literal["rule", "skill", "agent", "workflow", "model_config"]
     name: str
     version: str = "1.0.0"
     priority: int = 50
@@ -62,6 +73,7 @@ class ArtifactCreate(SQLModel):
     description: str | None = None
     body: str
     file_path: str
+    handoff_to: list[str] | None = None
 
 
 class ArtifactRead(SQLModel):
@@ -77,6 +89,7 @@ class ArtifactRead(SQLModel):
     description: str | None = None
     body: str
     file_path: str
+    handoff_to: list[str] | None = None
     is_enabled: bool
     created_at: datetime
     updated_at: datetime
@@ -93,6 +106,7 @@ class ArtifactUpdate(SQLModel):
     description: str | None = None
     body: str | None = None
     file_path: str | None = None
+    handoff_to: list[str] | None = None
     is_enabled: bool | None = None
 
 
@@ -109,5 +123,6 @@ class CanonicalArtifact(SQLModel):
     tags: list[str]
     description: str
     body: str  # Markdown content
+    handoff_to: list[str] | None = None
     source_collection_id: uuid.UUID | None = None
     source_collection_name: str | None = None

@@ -11,6 +11,11 @@ export interface CanonicalArtifact {
   tags: string[];
   description: string;
   body: string;
+  // Optional pipeline-routing metadata for agent artifacts — the names of
+  // agents this one may hand work off to (see docs/adr/0010-structured-handoff-field.md).
+  // undefined/absent means "not declared"; distinct from an empty array
+  // ("declared, but terminal — never hands off").
+  handoff_to?: string[] | null;
   source_collection_id?: string;
   source_collection_name?: string;
 }
@@ -89,6 +94,7 @@ export interface Artifact {
   description?: string;
   body: string;
   file_path: string;
+  handoff_to?: string[] | null;
   is_enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -235,7 +241,23 @@ export interface ArtifactUpdate {
   description?: string;
   body?: string;
   file_path?: string;
+  handoff_to?: string[] | null;
   is_enabled?: boolean;
+}
+
+// ─── Artifact Create Type ─────────────────────────────────────
+
+export interface ArtifactCreate {
+  artifact_type: ArtifactType;
+  name: string;
+  version?: string;
+  priority?: number;
+  target_compatibility?: string[];
+  tags?: string[];
+  description?: string;
+  body: string;
+  file_path: string;
+  handoff_to?: string[] | null;
 }
 
 // ─── Auth Types ──────────────────────────────────────────────

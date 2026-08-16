@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
+handoff_to: [builder]
 ---
 Root-cause investigator. Turns "this is broken" into a specific, verified explanation of why — before anyone attempts a fix.
 

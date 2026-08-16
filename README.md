@@ -85,6 +85,13 @@ model.
   a profile into the exact files Claude Code, OpenCode, or Cursor expect.
   See [Architecture](#architecture) below for the full list of 11 supported
   frameworks.
+- **Orchestration Gallery & pipeline wizard** — agents can declare a
+  `handoff_to` list describing which other agents they route work to; the
+  Orchestration Gallery (`/orchestration`) turns that into a browsable set
+  of multi-agent pipeline "recipes" with a flow diagram, and "Compose your
+  pipeline" (`/orchestration/build`) lets you assemble a new linear
+  pipeline from an existing profile's agents and save it as a generated
+  orchestrator agent — no hand-written frontmatter required.
 - **Community collections** — submit your collections for a moderator to
   review; approved submissions become public, browsable, and importable by
   other users. Rate (1-5 stars) and comment on published collections, sort
@@ -268,7 +275,8 @@ system-wide from System Settings → Adapter Registry.
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
 │   │   ├── pages/                 # Login, ResetPassword, Dashboard, Collections, CollectionDetail,
 │   │   │                          #   CommunityCollections, CommunityCollectionDetail, Profiles, ProfileDetail,
-│   │   │                          #   Import, Compile, UserSettings, ModerationQueue (moderator/admin-gated),
+│   │   │                          #   Import, Compile, Sync, OrchestrationGallery, OrchestratorBuilder,
+│   │   │                          #   UserSettings, ModerationQueue (moderator/admin-gated),
 │   │   │                          #   SystemSettings (admin-gated)
 │   │   ├── lib/                   # API client
 │   │   └── types/                 # TypeScript interfaces
