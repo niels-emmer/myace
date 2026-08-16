@@ -479,6 +479,50 @@ why the shipped starter packs use `security-compliance-auditor` /
 `base/software-engineer`'s `security-auditor` / `security-checklist` /
 `docs-writer`.
 
+## My handoff_to reference doesn't resolve (dangling_handoff)
+
+**Symptom:** the compile response's `warnings` field carries a
+`dangling_handoff` `ValidationIssue`, e.g. `"Agent 'orchestrator'
+declares handoff_to 'reviewr', which is not present in the compiled
+artifact set."` — or, in the Orchestration Gallery
+(`frontend/src/pages/OrchestrationGallery.tsx`), a node in the flow
+diagram renders dashed/red with a "not found" badge instead of the
+agent's normal card.
+
+**Cause:** `handoff_to` (Epic 3.1/ADR-0010) is a plain list of agent
+*names* — a string, not a foreign key — same tradeoff as
+`Profile.additional_collection_ids` (see
+[data-model.md](data-model.md)). Nothing enforces referential integrity
+at write time: a typo in an agent's `handoff_to` frontmatter, a renamed
+or deleted target agent, or a `handoff_to` pointing at an agent that
+only exists in a collection *not* included in the current profile will
+all produce the same symptom. `compile_profile()`'s dangling-handoff
+pass (`backend/app/services/compiler.py::_check_dangling_handoffs`) only
+catches this once the final, deduplicated, whole-profile artifact set is
+known — the same reason it runs as a separate pass after the
+per-collection dedup loop rather than inline with it (see AGENTS.md rule
+32's extension for this field). A `handoff_to` target that's dangling
+*within this specific profile* may resolve cleanly in a different
+profile that happens to include the collection defining it.
+
+**Fix:** compare the referenced name against every agent name available
+across the collections you actually intend to compose into one profile
+(not just the one collection the referencing agent lives in):
+
+```bash
+grep -rln "handoff_to" collections/*/*/agents/*.md
+```
+
+then check each `handoff_to` entry against the target agent's actual
+file stem (agent name = file stem, same as `_parse_agent_file`). Like
+`name_collision`, this warning is advisory only — compilation still
+succeeds and produces every other file; only the file(s) whose
+`handoff_to` prose depends on the missing agent are affected in
+practice (nothing prevents the compiled output from shipping, since
+`handoff_to` isn't consumed by any adapter's `translate()` today — it's
+metadata for the Orchestration Gallery/wizard, not the compiled file
+content itself).
+
 ## The Compile Profile zip download doesn't match the on-screen preview
 
 **Symptom:** `/compile` (TargetExporter.tsx) shows a compiled profile with

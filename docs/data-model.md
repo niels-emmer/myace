@@ -64,6 +64,7 @@ erDiagram
         string name
         string target_compatibility "JSON-encoded list[str]"
         string tags "JSON-encoded list[str]"
+        string handoff_to "nullable — JSON-encoded list[str], agent artifacts only"
         int priority
         text body "markdown"
         bool is_enabled
@@ -186,6 +187,24 @@ responding (see
 `is_active` — a disabled artifact is skipped during compilation unless a
 profile explicitly asks to `include_disabled`. `deleted_at` supports
 soft-delete — artifacts are never physically removed from the database.
+
+`handoff_to` (nullable `Text`, JSON-encoded `list[str]`) is an optional
+pipeline-routing field on **agent** artifacts only — the names of other
+agents this one may hand work off to, machine-readable alongside the
+prose "## Handoff" section agent bodies already document by convention.
+`NULL` means "not declared"; `[]` (an empty JSON array) means "declared,
+but terminal — never hands off"; the two are kept distinct rather than
+collapsing to one falsy default the way `tags`/`target_compatibility` do.
+See [ADR-0010](adr/0010-structured-handoff-field.md) for why this is a
+field on the existing `artifacts` table rather than a new join table, and
+[debugging.md](debugging.md#my-handoff_to-reference-doesnt-resolve-dangling_handoff)
+for how `compile_profile()`'s `dangling_handoff` validation pass (reusing
+the compile-time warnings plumbing introduced for `name_collision`)
+surfaces a `handoff_to` entry naming an agent absent from the compiled
+artifact set, rather than silently accepting it.
+`POST /collections/{collection_id}/artifacts` (added alongside this
+field) is the only way to create a single artifact directly — every
+other creation path is bulk (import/scan-derived).
 
 ### `collection_ratings`
 

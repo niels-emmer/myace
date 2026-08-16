@@ -34,3 +34,4 @@ ADR-00XX`.
 | [0007](0007-additive-user-role-column.md) | Additive `role` column alongside `is_admin` | Accepted |
 | [0008](0008-collection-moderation-state-machine.md) | Collection moderation state machine replaces self-serve publish | Accepted |
 | [0009](0009-manifest-based-drift-detection.md) | Local manifest file, not new server state, for drift detection | Accepted |
+| [0010](0010-structured-handoff-field.md) | `handoff_to` field on agent artifacts, not a new join table | Accepted |
