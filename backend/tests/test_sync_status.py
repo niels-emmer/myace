@@ -172,6 +172,24 @@ async def test_status_list_never_shows_another_users_rows(
 
 
 @pytest.mark.asyncio
+async def test_report_rejects_unknown_target(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """`target` is a `CompileTarget` Literal (AGENTS.md rule 10) — an
+    unregistered target must 422 at the schema layer, not persist a garbage
+    string into the sync_statuses table."""
+    await _register(async_client)
+    collection_id = await _create_collection_with_artifact(async_client, db_session)
+    profile_id = await _create_profile(async_client, collection_id)
+
+    res = await async_client.post(
+        "/api/v1/sync/report",
+        json=_report_payload(profile_id, target="nonexistent-target"),
+    )
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_report_requires_auth(async_client: AsyncClient) -> None:
     res = await async_client.post(
         "/api/v1/sync/report", json=_report_payload(str(uuid.uuid4())),

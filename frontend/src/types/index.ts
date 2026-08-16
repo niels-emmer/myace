@@ -150,6 +150,10 @@ export interface CompileResult {
   compiled_hash: string;
 }
 
+// Mirrors backend ProfileCompileStatusResponse (GET /profiles/{id}/compile-status).
+// No frontend caller today — that endpoint is CLI-only (myace check/watch
+// poll it directly) — kept here for schema parity so a future web-UI
+// staleness indicator doesn't have to invent this shape from scratch.
 export interface CompileStatusResult {
   compiled_hash: string;
   updated_at: string;
@@ -168,6 +172,9 @@ export interface SyncStatus {
   last_checked_at: string;
 }
 
+// Mirrors backend SyncReportRequest (POST /sync/report). No frontend caller
+// today — reporting is CLI-only (`myace check --report`/`watch --report`);
+// kept for schema parity, same reasoning as CompileStatusResult above.
 export interface SyncReportRequest {
   profile_id: string;
   target: string;

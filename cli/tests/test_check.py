@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import httpx
 import pytest
 from pytest_httpx import HTTPXMock
 from typer.testing import CliRunner
@@ -110,6 +111,25 @@ def test_check_report_flag_calls_report_endpoint(
     assert result.exit_code == 0
     requests = httpx_mock.get_requests(url="http://testserver/api/v1/sync/report")
     assert len(requests) == 1
+
+
+def test_check_report_skipped_on_connectivity_error(
+    httpx_mock: HTTPXMock, logged_in: None, project_dir: Path
+) -> None:
+    """A connectivity failure against compile-status must not still POST a
+    misleading in_sync=False/no-local-edits report — that would show up on
+    the dashboard as "stale, run myace pull" instead of the actual
+    connectivity problem. No /sync/report mock is registered here; if
+    check() called it anyway, pytest-httpx would raise on the unmatched
+    request."""
+    _seed_manifest(project_dir)
+    httpx_mock.add_exception(httpx.ConnectError("connection refused"))
+
+    result = runner.invoke(app, ["check", "--target", "claude-code", "--report"])
+
+    assert result.exit_code == 1
+    requests = httpx_mock.get_requests(url="http://testserver/api/v1/sync/report")
+    assert len(requests) == 0
 
 
 def test_check_without_report_flag_never_calls_report_endpoint(

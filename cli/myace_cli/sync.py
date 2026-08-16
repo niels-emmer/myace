@@ -382,21 +382,31 @@ def run_watch_iteration(
             pulled = engine.pull_profile(server, token, manifest["profile_id"], manifest["target"])
             wrote = False
             if pulled and pulled.get("files"):
+                # Only the filenames actually written (same path-traversal
+                # guard as `pull`) go into the manifest — hashing the raw
+                # server response here would record a hash for a file that
+                # was never written (making `check` perpetually report it
+                # as locally-modified), or, if every filename were unsafe,
+                # let a completely unwritten pull look "in sync" on the
+                # next check.
+                written: dict[str, str] = {}
                 for filename, content in pulled["files"].items():
                     if "/" in filename or "\\" in filename or ".." in filename:
                         continue
                     (base / filename).write_text(content)
+                    written[filename] = content
+
                 compiled_hash = pulled.get("compiled_hash")
-                if compiled_hash:
+                if written and compiled_hash:
                     write_manifest(
                         base,
                         profile_id=pulled.get("profile_id", manifest.get("profile_id", "")),
                         profile_name=pulled.get("profile_name", manifest.get("profile_name", "")),
                         target=manifest.get("target", ""),
                         compiled_hash=compiled_hash,
-                        files=pulled["files"],
+                        files=written,
                     )
-                wrote = True
+                wrote = bool(written)
             result["pulled"] = wrote
 
         results.append(result)

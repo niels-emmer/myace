@@ -4,6 +4,7 @@ import getpass
 import json as json_module
 import socket
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 import typer
@@ -341,7 +342,29 @@ def pull(
         raise typer.Exit(1)
 
 
-def _print_check_table(results: list[dict]) -> None:
+def _report_results(creds: dict[str, str], results: list[dict[str, Any]]) -> None:
+    """Shared `--report` fan-out for `check` and `watch`. Skips any result
+    that has no `profile_id` (an unreadable manifest) or an `error` (the
+    server was unreachable this round) — reporting a connectivity failure
+    as `in_sync=False` with no locally-modified files would show up on the
+    dashboard as "stale, run myace pull," which is the wrong diagnosis for
+    "couldn't reach the server."
+    """
+    for result in results:
+        if not result.get("profile_id") or result.get("error"):
+            continue
+        reported = report_sync_status(
+            creds["server"], creds["token"],
+            profile_id=result["profile_id"],
+            target=result["target"],
+            machine_label=socket.gethostname(),
+            in_sync=result["in_sync"],
+            locally_modified_files=result["locally_modified"],
+        )
+        result["reported"] = reported
+
+
+def _print_check_table(results: list[dict[str, Any]]) -> None:
     """Rich table for `myace check`'s human-readable (non --json) output."""
     table = Table(show_header=True, header_style="bold")
     table.add_column("Target", style="cyan")
@@ -426,7 +449,7 @@ def check(
     base = Path.cwd()
     manifest_paths = _resolve_manifest_paths(base, target, all_targets)
 
-    results: list[dict] = []
+    results: list[dict[str, Any]] = []
     for path in manifest_paths:
         manifest = read_manifest(path)
         if manifest is None:
@@ -445,16 +468,8 @@ def check(
         result = check_target(base, manifest, creds["server"], creds["token"])
         results.append(result)
 
-        if report:
-            reported = report_sync_status(
-                creds["server"], creds["token"],
-                profile_id=result["profile_id"],
-                target=result["target"],
-                machine_label=socket.gethostname(),
-                in_sync=result["in_sync"],
-                locally_modified_files=result["locally_modified"],
-            )
-            result["reported"] = reported
+    if report:
+        _report_results(creds, results)
 
     if json_output:
         print(json_module.dumps(results, indent=2))
@@ -465,7 +480,7 @@ def check(
         raise typer.Exit(1)
 
 
-def _print_watch_iteration(results: list[dict]) -> None:
+def _print_watch_iteration(results: list[dict[str, Any]]) -> None:
     """Rich-formatted status line(s) for one `myace watch` iteration."""
     for r in results:
         target_label = rich_escape(r.get("target", "?"))
@@ -544,17 +559,7 @@ def watch(
         )
         _print_watch_iteration(results)
         if report:
-            for r in results:
-                if not r.get("profile_id"):
-                    continue
-                report_sync_status(
-                    creds["server"], creds["token"],
-                    profile_id=r["profile_id"],
-                    target=r["target"],
-                    machine_label=socket.gethostname(),
-                    in_sync=r["in_sync"],
-                    locally_modified_files=r["locally_modified"],
-                )
+            _report_results(creds, results)
 
     rprint(
         f"[green]✓[/green] Watching [bold]{base}[/bold] "

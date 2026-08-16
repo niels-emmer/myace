@@ -15,7 +15,7 @@ from typer.testing import CliRunner
 from myace_cli import main as main_module
 from myace_cli.auth import AuthManager
 from myace_cli.main import app
-from myace_cli.sync import decide_watch_action, run_watch_iteration, write_manifest
+from myace_cli.sync import decide_watch_action, run_watch_iteration, sha256_text, write_manifest
 
 runner = CliRunner()
 
@@ -154,6 +154,90 @@ def test_run_watch_iteration_auto_pull_writes_new_content(
     import json
     manifest = json.loads((project_dir / ".myace" / "claude-code.manifest.json").read_text())
     assert manifest["compiled_hash"] == "hash-v2"
+
+
+def test_run_watch_iteration_auto_pull_manifest_excludes_unsafe_filenames(
+    httpx_mock: HTTPXMock, project_dir: Path
+) -> None:
+    """Regression test: the auto-pull write loop must only hash the files it
+    actually wrote into the refreshed manifest, not the raw server response.
+    Hashing the unfiltered response would either (a) record a hash for a
+    filename that was never written, making `check` perpetually report a
+    nonexistent file as locally-modified, or (b) if *every* filename in the
+    response were unsafe, leave the manifest recording only the bogus
+    filename with the new compiled_hash — making the next `check` falsely
+    report `in_sync` even though on-disk content was never updated."""
+    manifest_path = _seed_manifest(project_dir, compiled_hash="hash-v1")
+    _mock_compile_status(httpx_mock, compiled_hash="hash-v2")
+    httpx_mock.add_response(
+        method="POST",
+        url="http://testserver/api/v1/profiles/compile",
+        json={
+            "profile_id": PROFILE_ID,
+            "profile_name": "demo-profile",
+            "target": "claude-code",
+            "artifact_count": 2,
+            "files": {
+                "CLAUDE.md": "updated server content",
+                "../../etc/passwd": "malicious",
+            },
+            "warnings": [],
+            "compiled_hash": "hash-v2",
+        },
+    )
+
+    results = run_watch_iteration(
+        project_dir, [manifest_path], "http://testserver", "tok", auto_pull=True,
+    )
+
+    assert results[0]["action"] == "auto_pull"
+    assert results[0]["pulled"] is True
+    assert (project_dir / "CLAUDE.md").read_text() == "updated server content"
+
+    import json
+    manifest = json.loads((project_dir / ".myace" / "claude-code.manifest.json").read_text())
+    assert manifest["compiled_hash"] == "hash-v2"
+    # Only the filename that was actually written is hashed — the unsafe
+    # one never appears in the manifest at all.
+    assert list(manifest["files"].keys()) == ["CLAUDE.md"]
+    assert manifest["files"]["CLAUDE.md"] == sha256_text("updated server content")
+
+
+def test_run_watch_iteration_auto_pull_all_unsafe_filenames_does_not_write_manifest(
+    httpx_mock: HTTPXMock, project_dir: Path
+) -> None:
+    """If every filename in the server response is unsafe, nothing was
+    actually written to disk — the manifest must not be refreshed at all
+    (refreshing it with only the bogus filename and the new compiled_hash
+    would make the next `check` falsely report in_sync)."""
+    manifest_path = _seed_manifest(project_dir, compiled_hash="hash-v1")
+    _mock_compile_status(httpx_mock, compiled_hash="hash-v2")
+    httpx_mock.add_response(
+        method="POST",
+        url="http://testserver/api/v1/profiles/compile",
+        json={
+            "profile_id": PROFILE_ID,
+            "profile_name": "demo-profile",
+            "target": "claude-code",
+            "artifact_count": 1,
+            "files": {"../../etc/passwd": "malicious"},
+            "warnings": [],
+            "compiled_hash": "hash-v2",
+        },
+    )
+
+    results = run_watch_iteration(
+        project_dir, [manifest_path], "http://testserver", "tok", auto_pull=True,
+    )
+
+    assert results[0]["action"] == "auto_pull"
+    assert results[0]["pulled"] is False
+
+    import json
+    manifest = json.loads((project_dir / ".myace" / "claude-code.manifest.json").read_text())
+    # Manifest is untouched — still the original pre-pull state.
+    assert manifest["compiled_hash"] == "hash-v1"
+    assert (project_dir / "CLAUDE.md").read_text() == "hello world"
 
 
 def test_run_watch_iteration_stale_without_auto_pull_does_not_write(

@@ -12,6 +12,8 @@ from datetime import UTC, datetime
 from sqlalchemy import ForeignKey, Text, UniqueConstraint, Uuid
 from sqlmodel import Boolean, Column, DateTime, Field, SQLModel, String
 
+from app.models.profile import CompileTarget
+
 
 class SyncStatus(SQLModel, table=True):
     """A single (user, profile, target, machine) drift-check report."""
@@ -50,7 +52,7 @@ class SyncReportRequest(SQLModel):
     ownership always comes from `current_user.id` (AGENTS.md rule 13), never
     a client-supplied field."""
     profile_id: uuid.UUID
-    target: str
+    target: CompileTarget
     machine_label: str
     in_sync: bool
     locally_modified_files: list[str] = []
