@@ -113,6 +113,22 @@ class TestApprove:
         assert res.status_code == 403
 
     @pytest.mark.asyncio
+    async def test_moderator_who_owns_the_collection_cannot_self_approve(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        """The self-approval block must hold even when the owner *is* a
+        moderator/admin — require_moderator_or_admin alone only checks
+        role, not ownership, so this needs its own explicit guard."""
+        await _create_user(db_session, "modowner@test.com", role="moderator")
+        collection_id = await _create_submitted_collection(
+            async_client, db_session, "modowner@test.com"
+        )
+
+        await _login(async_client, "modowner@test.com")
+        res = await async_client.post(f"/api/v1/moderation/{collection_id}/approve")
+        assert res.status_code == 403
+
+    @pytest.mark.asyncio
     async def test_double_approve_404s(self, async_client: AsyncClient, db_session: AsyncSession):
         await _create_user(db_session, "owner@test.com")
         await _create_user(db_session, "mod@test.com", role="moderator")
@@ -239,6 +255,21 @@ class TestDeny:
         )
         assert res.status_code == 403
 
+    @pytest.mark.asyncio
+    async def test_moderator_who_owns_the_collection_cannot_self_deny(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _create_user(db_session, "modowner@test.com", role="moderator")
+        collection_id = await _create_submitted_collection(
+            async_client, db_session, "modowner@test.com"
+        )
+
+        await _login(async_client, "modowner@test.com")
+        res = await async_client.post(
+            f"/api/v1/moderation/{collection_id}/deny", json={"reason": "self-review"}
+        )
+        assert res.status_code == 403
+
 
 class TestMetaEdit:
     @pytest.mark.asyncio
@@ -332,5 +363,31 @@ class TestMetaEdit:
 
         res = await async_client.patch(
             f"/api/v1/moderation/{uuid.uuid4()}/meta", json={"name": "Nope"}
+        )
+        assert res.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_never_submitted_draft_collection_404s(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        """A moderator has no standing reason to read or edit a collection
+        that's never been submitted to the queue — it's purely private to
+        its owner. moderation_status == 'draft' must 404 here even though
+        the collection genuinely exists."""
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+
+        await _login(async_client, "owner@test.com")
+        res = await async_client.post(
+            "/api/v1/collections",
+            json={"name": "private-draft", "git_url": "https://example.com/repo.git"},
+        )
+        draft_id = res.json()["id"]
+        assert res.json()["moderation_status"] == "draft"
+        await async_client.post("/api/v1/auth/logout")
+
+        await _login(async_client, "mod@test.com")
+        res = await async_client.patch(
+            f"/api/v1/moderation/{draft_id}/meta", json={"name": "Hijacked"}
         )
         assert res.status_code == 404

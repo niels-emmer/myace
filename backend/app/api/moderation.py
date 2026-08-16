@@ -51,6 +51,17 @@ async def _get_submitted_collection_or_404(
     return collection
 
 
+def _reject_self_moderation(collection: Collection, current_user: User) -> None:
+    """Owners never self-approve/deny — even a moderator/admin who happens
+    to also own the collection is blocked. `require_moderator_or_admin`
+    alone doesn't cover this case, since it only checks role, not
+    ownership."""
+    if collection.owner_id == current_user.id:
+        raise HTTPException(
+            status_code=403, detail="You cannot moderate your own collection"
+        )
+
+
 async def _notify_owner(
     session: AsyncSession, collection: Collection, subject_body: tuple[str, str]
 ) -> None:
@@ -111,6 +122,7 @@ async def approve_collection(
     """Approve a submitted collection — the only path that flips
     published/visibility to public."""
     collection = await _get_submitted_collection_or_404(session, collection_id)
+    _reject_self_moderation(collection, current_user)
 
     collection.moderation_status = "approved"
     collection.published = True
@@ -142,6 +154,7 @@ async def deny_collection(
         raise HTTPException(status_code=422, detail="reason is required")
 
     collection = await _get_submitted_collection_or_404(session, collection_id)
+    _reject_self_moderation(collection, current_user)
 
     collection.moderation_status = "denied"
     collection.moderation_reason = request.reason.strip()
@@ -173,13 +186,17 @@ async def update_collection_meta(
     session: AsyncSession = Depends(get_session),
 ):
     """Let a moderator/admin fix a community collection's name, description,
-    or category — regardless of moderation_status, so a typo can be fixed
-    on an already-approved collection too, not just mid-review. The
-    collection's own owner (if not also a moderator/admin) cannot use this
-    endpoint; they edit via their own existing PATCH /collections/{id}."""
+    or category, on any collection that has ever been through the
+    moderation queue (submitted/approved/denied) — so a typo can be fixed
+    on an already-approved collection too, not just mid-review. A `draft`
+    collection that's never been submitted is never in scope here: it's
+    purely private to its owner, and a moderator has no standing reason to
+    read or write it. The collection's own owner (if not also a
+    moderator/admin) cannot use this endpoint either way; they edit via
+    their own existing PATCH /collections/{id}."""
     result = await session.execute(select(Collection).where(Collection.id == collection_id))
     collection = result.scalar_one_or_none()
-    if not collection:
+    if not collection or collection.moderation_status == "draft":
         raise HTTPException(status_code=404, detail="Collection not found")
 
     if request.name is not None:
