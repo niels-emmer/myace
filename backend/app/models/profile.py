@@ -79,13 +79,16 @@ class ProfileRead(SQLModel):
     updated_at: datetime
 
 
+CompileTarget = Literal[
+    "claude-code", "opencode", "cursor", "codex-cli", "copilot-cli", "cline", "windsurf",
+    "aider", "continue", "goose", "amazon-q",
+]
+
+
 class ProfileCompileRequest(SQLModel):
     """Request schema for compiling a profile into target-specific files."""
     profile_id: uuid.UUID
-    target: Literal[
-        "claude-code", "opencode", "cursor", "codex-cli", "copilot-cli", "cline", "windsurf",
-        "aider", "continue", "goose", "amazon-q",
-    ] = "opencode"
+    target: CompileTarget = "opencode"
     include_disabled: bool = False
 
 
@@ -117,3 +120,14 @@ class ProfileCompileResponse(SQLModel):
     artifact_count: int
     files: dict[str, str]
     warnings: list[ValidationIssue] = []
+    compiled_hash: str
+
+
+class ProfileCompileStatusResponse(SQLModel):
+    """Return type of `GET /profiles/{id}/compile-status` — a cheap-to-transfer
+    hash + timestamp pair a client can diff against a previously stored
+    value (e.g. a CLI sync manifest, see `docs/adr/0009-manifest-based-drift-detection.md`)
+    to detect server-side staleness without pulling every file's content.
+    """
+    compiled_hash: str
+    updated_at: datetime

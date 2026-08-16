@@ -15,14 +15,21 @@ from app.core.database import get_session
 from app.core.deps import get_current_user
 from app.models.collection import Collection
 from app.models.profile import (
+    CompileTarget,
     Profile,
     ProfileCompileRequest,
     ProfileCompileResponse,
+    ProfileCompileStatusResponse,
     ProfileCreate,
     ProfileRead,
 )
 from app.models.user import User
-from app.services.compiler import AdapterDisabledError, UnknownAdapterError, compile_profile
+from app.services.compiler import (
+    AdapterDisabledError,
+    UnknownAdapterError,
+    compile_profile,
+    compute_compile_status,
+)
 from app.services.github_export import slugify
 
 router = APIRouter()
@@ -147,6 +154,42 @@ async def compile_profile_endpoint(
     except (AdapterDisabledError, UnknownAdapterError) as e:
         raise HTTPException(status_code=400, detail=str(e))
     return compiled
+
+
+@router.get("/{profile_id}/compile-status", response_model=ProfileCompileStatusResponse)
+async def compile_status_endpoint(
+    profile_id: uuid.UUID,
+    target: CompileTarget,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ProfileCompileStatusResponse:
+    """
+    Return just the current `compiled_hash` for a profile+target, without
+    the full `files` payload — a cheap poll target for `myace check`/`watch`
+    drift detection (see `docs/adr/0009-manifest-based-drift-detection.md`).
+
+    Same authorization as `/compile` (owner or public profile). Note the
+    cost trade-off documented on `compute_compile_status()`: this still
+    performs the same artifact-gathering and `translate()` work as a full
+    compile — it only saves the client the transfer/serialization cost of
+    every file's content, not the server-side compute cost.
+    """
+    profile = await _get_profile_or_404(session, profile_id)
+    authorize_access(
+        owner_id=profile.owner_id, current_user=current_user,
+        is_public=profile.is_public, resource_name="Profile",
+    )
+
+    try:
+        compiled_hash = await compute_compile_status(
+            session=session, profile=profile, target=target,
+        )
+    except (AdapterDisabledError, UnknownAdapterError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return ProfileCompileStatusResponse(
+        compiled_hash=compiled_hash, updated_at=profile.updated_at,
+    )
 
 
 @router.post("/compile/zip")
