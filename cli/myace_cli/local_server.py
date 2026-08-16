@@ -12,9 +12,9 @@ Security model — why this isn't an open port any website can read from:
   3. Only the logged-in server's origin is ever reflected in
      Access-Control-Allow-Origin — no wildcard, so no other page's JS can
      read a response even though the request can physically reach this port.
-  4. `/scan` additionally requires a custom `X-MyACE-Companion` header and
-     an exact `Origin` match, checked server-side (not just via CORS
-     response headers). A browser can't attach a custom header to a
+  4. `/scan` and `/audit` additionally require a custom `X-MyACE-Companion`
+     header and an exact `Origin` match, checked server-side (not just via
+     CORS response headers). A browser can't attach a custom header to a
      `no-cors` cross-origin request, so this also blocks the "blind POST
      that still causes a side effect" class of attack, not just response
      reading — and the server-side origin check means a non-browser client
@@ -22,13 +22,20 @@ Security model — why this isn't an open port any website can read from:
      defense as a CSRF token, sized to the actual threat: a malicious page
      open in the same browser, not a co-resident malicious process, which
      already has equivalent access to this user's files regardless).
+     `/audit` (the Setup Audit page's cross-target coverage/duplicate scan
+     — `myace_cli/audit.py`) reads more of the filesystem than `/scan` in
+     one call (every known target's expected paths, not one caller-chosen
+     directory), so it is not a weaker route than `/scan` — same gate,
+     same origin/header requirements, no shortcuts.
   5. Implements Chrome's Private Network Access preflight
      (`Access-Control-Allow-Private-Network`) — without it, an HTTPS page
      fetching a loopback address is blocked outright in current Chrome.
 """
 
+from pathlib import Path
 from typing import Any
 
+from myace_cli.audit import audit_directory
 from myace_cli.scanner import scan_directory
 
 COMPANION_HEADER = "x-myace-companion"
@@ -58,6 +65,9 @@ def build_app(allowed_origin: str) -> Any:
     class ScanRequestBody(BaseModel):
         path: str
         framework: str = "opencode"
+
+    class AuditRequestBody(BaseModel):
+        path: str
 
     class _CompanionCors(BaseHTTPMiddleware):
         async def dispatch(self, request: Request, call_next: Any) -> Response:
@@ -104,6 +114,32 @@ def build_app(allowed_origin: str) -> Any:
                 "artifacts": artifacts,
             }
         )
+
+    @app.post("/audit")
+    async def audit(request: Request, body: AuditRequestBody) -> JSONResponse:
+        """Cross-target local setup audit — same security gate as /scan
+        (rule 24): companion header + exact Origin match, both checked
+        server-side, not just via CORS response headers."""
+        if request.headers.get(COMPANION_HEADER) != "1":
+            raise HTTPException(status_code=400, detail="Missing X-MyACE-Companion header")
+        if request.headers.get("origin") != allowed_origin:
+            raise HTTPException(status_code=403, detail="Origin not allowed")
+
+        root = Path(body.path).expanduser()
+        if not root.exists():
+            try:
+                resolved = root.resolve(strict=False)
+                if resolved.exists():
+                    root = resolved
+            except (OSError, RuntimeError):
+                pass
+        if not root.exists():
+            raise HTTPException(status_code=404, detail=f"Directory not found: {root}")
+        if not root.is_dir():
+            raise HTTPException(status_code=400, detail=f"Not a directory: {root}")
+
+        result = audit_directory(root)
+        return JSONResponse(result)
 
     return app
 

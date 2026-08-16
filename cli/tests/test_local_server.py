@@ -109,3 +109,69 @@ def test_scan_missing_directory_returns_404(client: TestClient, tmp_path: Path) 
         headers={"Origin": ALLOWED_ORIGIN, "X-MyACE-Companion": "1"},
     )
     assert res.status_code == 404
+
+
+def test_audit_succeeds_with_correct_origin_and_header(client: TestClient, skill_dir: Path) -> None:
+    res = client.post(
+        "/audit",
+        json={"path": str(skill_dir)},
+        headers={"Origin": ALLOWED_ORIGIN, "X-MyACE-Companion": "1"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert "score" in data
+    assert "targets" in data
+    assert "gaps" in data
+    assert "duplicates" in data
+
+
+def test_audit_rejects_missing_companion_header(client: TestClient, skill_dir: Path) -> None:
+    res = client.post(
+        "/audit",
+        json={"path": str(skill_dir)},
+        headers={"Origin": ALLOWED_ORIGIN},
+    )
+    assert res.status_code == 400
+
+
+def test_audit_rejects_wrong_origin(client: TestClient, skill_dir: Path) -> None:
+    res = client.post(
+        "/audit",
+        json={"path": str(skill_dir)},
+        headers={"Origin": "https://evil.example.com", "X-MyACE-Companion": "1"},
+    )
+    assert res.status_code == 403
+
+
+def test_audit_rejects_missing_origin(client: TestClient, skill_dir: Path) -> None:
+    res = client.post(
+        "/audit",
+        json={"path": str(skill_dir)},
+        headers={"X-MyACE-Companion": "1"},
+    )
+    assert res.status_code == 403
+
+
+def test_audit_missing_directory_returns_404(client: TestClient, tmp_path: Path) -> None:
+    res = client.post(
+        "/audit",
+        json={"path": str(tmp_path / "does-not-exist")},
+        headers={"Origin": ALLOWED_ORIGIN, "X-MyACE-Companion": "1"},
+    )
+    assert res.status_code == 404
+
+
+def test_audit_preflight_allows_matching_origin_and_sets_private_network_header(
+    client: TestClient,
+) -> None:
+    res = client.options(
+        "/audit",
+        headers={
+            "Origin": ALLOWED_ORIGIN,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Private-Network": "true",
+        },
+    )
+    assert res.status_code == 200
+    assert res.headers["access-control-allow-origin"] == ALLOWED_ORIGIN
+    assert res.headers["access-control-allow-private-network"] == "true"

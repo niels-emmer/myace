@@ -38,6 +38,9 @@ class ContinueAdapter(BaseAdapter):
     def supported_targets(self) -> list[str]:
         return ["continue", "continue-dev"]
 
+    def expected_paths(self) -> list[str]:
+        return [".continue/rules/", ".continue/prompts/", "config.yaml"]
+
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         files: dict[str, str] = {}
         provider_models: list[dict[str, object]] = []

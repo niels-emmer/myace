@@ -36,6 +36,9 @@ class GooseAdapter(BaseAdapter):
     def supported_targets(self) -> list[str]:
         return ["goose"]
 
+    def expected_paths(self) -> list[str]:
+        return ["AGENTS.md"]
+
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         sections: list[str] = []
 

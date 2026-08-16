@@ -37,6 +37,9 @@ class CodexCliAdapter(BaseAdapter):
     def supported_targets(self) -> list[str]:
         return ["codex-cli", "codex", "openai-codex"]
 
+    def expected_paths(self) -> list[str]:
+        return ["AGENTS.md", ".agents/skills/", ".codex/agents/", ".codex/config.toml"]
+
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         files: dict[str, str] = {}
         rules_sections: list[str] = []
