@@ -140,6 +140,14 @@ export default function OrchestratorBuilder() {
     return layoutPipeline(nodeSpecs, edgeSpecs);
   }, [sequence, slug, agentsByName]);
 
+  // The generated orchestrator's own name becomes a node id in the preview
+  // (and the artifact's `name` on save) — if it matches one of the agents
+  // already in the sequence, the preview diagram collides two nodes onto
+  // the same id, and worse, a future compile_profile() dedup (rule 29)
+  // would silently drop one of the two same-named artifacts with no
+  // visibility into it here. Block save on that rather than let it ship.
+  const nameCollidesWithSequence = sequence.includes(slug);
+
   const createMutation = useMutation({
     mutationFn: (data: ArtifactCreate) => collectionsApi.createArtifact(targetCollectionId, data),
     onSuccess: (created) => {
@@ -151,7 +159,8 @@ export default function OrchestratorBuilder() {
     onError: (err: Error) => setSaveError(err.message),
   });
 
-  const canSave = sequence.length > 0 && !!targetCollectionId && slug.length > 0;
+  const canSave =
+    sequence.length > 0 && !!targetCollectionId && slug.length > 0 && !nameCollidesWithSequence;
 
   const handleSave = () => {
     if (!canSave) return;
@@ -314,9 +323,16 @@ export default function OrchestratorBuilder() {
                 onChange={(e) => setAgentName(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Saved as <code className="font-mono">{slug}</code>
-              </p>
+              {nameCollidesWithSequence ? (
+                <p className="text-xs text-destructive mt-1">
+                  <code className="font-mono">{slug}</code> is already in the sequence below — pick a
+                  different name for the new orchestrator.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Saved as <code className="font-mono">{slug}</code>
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">

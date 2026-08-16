@@ -146,6 +146,11 @@ export default function OrchestrationGallery() {
     queryFn: () => collectionsApi.list(),
   });
 
+  // No dedicated backend endpoint for "every collection with a recipe" per
+  // this epic's own no-new-endpoint constraint, so this scans up to 100
+  // approved community collections client-side. A deployment with more
+  // published collections than that would miss recipes beyond this page —
+  // an acceptable v1 scale caveat, not an oversight.
   const { data: communityCollections, isLoading: loadingCommunity } = useQuery({
     queryKey: ['community-collections', { limit: 100 }],
     queryFn: () => collectionsApi.listCommunity({ limit: 100 }),
@@ -158,22 +163,30 @@ export default function OrchestrationGallery() {
     return Array.from(byId.values());
   }, [ownedCollections, communityCollections]);
 
+  // A collection with zero artifacts can't possibly contain a recipe —
+  // skip it before the per-collection artifact fan-out fetch below rather
+  // than firing a request that's guaranteed to come back empty.
+  const collectionsWithArtifacts = useMemo(
+    () => allCollections.filter((c) => c.artifact_count > 0),
+    [allCollections],
+  );
+
   const agentQueries = useQueries({
-    queries: allCollections.map((c) => ({
+    queries: collectionsWithArtifacts.map((c) => ({
       queryKey: ['artifacts', c.id, 'agent'],
       queryFn: () => collectionsApi.getArtifacts(c.id, { type: 'agent' }),
-      enabled: allCollections.length > 0,
+      enabled: collectionsWithArtifacts.length > 0,
     })),
   });
   const agentsLoading = agentQueries.some((q) => q.isLoading);
 
   const recipes = useMemo(() => {
     const artifactsByCollection = new Map<string, Artifact[]>();
-    allCollections.forEach((c, index) => {
+    collectionsWithArtifacts.forEach((c, index) => {
       artifactsByCollection.set(c.id, agentQueries[index]?.data ?? []);
     });
-    return buildRecipes(allCollections, artifactsByCollection);
-  }, [allCollections, agentQueries]);
+    return buildRecipes(collectionsWithArtifacts, artifactsByCollection);
+  }, [collectionsWithArtifacts, agentQueries]);
 
   const selectedRecipe = recipes.find((r) => r.key === selectedKey) ?? null;
   const flowGraph = useMemo(

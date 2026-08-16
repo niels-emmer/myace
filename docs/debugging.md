@@ -435,6 +435,46 @@ overwrites that placeholder with the real generated content. `sync_wiki.py`
 detects this specific failure and prints this fix inline rather than a raw
 traceback.
 
+## My starter-pack content edit isn't showing up on an existing deployment
+
+**Symptom:** you edit a file under `collections/base/` or
+`collections/additional/` in this repo — e.g. add a `handoff_to:` field
+to an existing agent, fix a typo in `orchestrator.md`, change a skill's
+body — merge it, deploy, restart the backend... and the change is
+nowhere to be found on an install that had already seeded that starter
+collection before your change landed. A brand-new install (empty
+database) picks up the edit just fine.
+
+**Cause:** `seed_starter_collections()`
+(`backend/app/services/seed_collections.py`) is idempotent by `(name,
+is_starter_pack)` at the **collection** level only (AGENTS.md rule 25):
+`if existing.scalar_one_or_none() is not None: continue` skips the
+entire collection — including re-reading any of its source files — the
+moment a same-named starter collection row already exists. It was
+designed to make repeated startups/restarts/replicas safe (never
+duplicate a starter pack), not to propagate in-place content edits to
+files it already imported once. Adding a brand-new starter pack (a new
+slug/name in `STARTER_COLLECTIONS`) always works, because that's a
+collection that's never existed before; editing an *existing* one's
+files does not, because the collection row this check keys off of
+already exists from the previous seed.
+
+**Fix:** there is no automatic propagation path today — this is a known
+gap in the seeding mechanism, not a bug to patch around per edit. On an
+already-seeded deployment, either:
+
+1. Delete the affected starter collection's row (and its artifacts —
+   respect the `is_starter_pack=True` + owner filter so you don't touch
+   user data) from the database and restart the backend so
+   `seed_starter_collections()` re-imports it fresh, or
+2. Hand-edit the specific artifact row(s) directly (e.g. a one-off `UPDATE
+   artifacts SET handoff_to = '...' WHERE ...`) if a full reseed isn't
+   practical.
+
+A fresh install (or one where that specific starter collection has never
+been seeded before) always reflects the current state of `collections/`
+in this repo, since idempotency only ever short-circuits on a match.
+
 ## A compiled profile is missing a rule/skill/agent that's definitely enabled in one of its collections
 
 **Symptom:** a profile combining a `base/` collection with one or more

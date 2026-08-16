@@ -468,6 +468,25 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `collections/{base,additional}/<slug>/` in the scanner's format, then
   add an entry to `STARTER_COLLECTIONS` in `seed_collections.py` with its
   display `name`/`category`/`description` — no migration needed.
+- **A content-only edit to an already-shipped starter-pack file (no new
+  collection, no new `STARTER_COLLECTIONS` entry) will NOT reach an
+  already-seeded deployment on its own.** The `(name, is_starter_pack)`
+  idempotency check above is collection-level, and it short-circuits
+  before any artifact is looked at — `if existing.scalar_one_or_none() is
+  not None: continue` skips the whole collection, including
+  re-scanning its files, the moment a same-named starter collection
+  already exists. Restarting (or redeploying) an install that already
+  seeded `software-engineer` will not pick up a changed
+  `orchestrator.md`, an added `handoff_to:` field, or any other
+  in-place edit to that collection's source files — only a *new*
+  collection (new slug/name) is ever picked up automatically. On an
+  existing deployment, an in-place content change needs a manual fix
+  (re-run seeding against a DB where that starter collection's rows have
+  been deleted first, or hand-edit the affected artifact rows directly)
+  — this is a known, unaddressed gap in the seeding mechanism itself, not
+  something to work around ad hoc per content change. See
+  [debugging.md](docs/debugging.md#my-starter-pack-content-edit-isnt-showing-up-on-an-existing-deployment)
+  for the concrete symptom/fix.
 
 ### 26. Session `user_id` Must Be Parsed Back Into a `uuid.UUID` Before Querying
 

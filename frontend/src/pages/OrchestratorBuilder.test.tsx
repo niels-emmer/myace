@@ -176,4 +176,25 @@ describe('OrchestratorBuilder', () => {
 
     expect(await screen.findByRole('link', { name: /orchestration gallery/i })).toBeInTheDocument();
   });
+
+  it('blocks saving when the new agent name collides with a sequence member', async () => {
+    renderPage();
+
+    fireEvent.change(await screen.findByDisplayValue('Select a profile...'), {
+      target: { value: 'profile-1' },
+    });
+    // Add "builder" to the sequence.
+    fireEvent.click((await screen.findAllByText('Add'))[0]);
+
+    const nameInput = await screen.findByDisplayValue('pipeline-orchestrator');
+    fireEvent.change(nameInput, { target: { value: 'builder' } });
+
+    expect(
+      await screen.findByText(/is already in the sequence below/i)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /generate & save/i })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: /generate & save/i }));
+    expect(collectionsApi.createArtifact).not.toHaveBeenCalled();
+  });
 });
