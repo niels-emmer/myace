@@ -32,6 +32,14 @@ logger = logging.getLogger("myace")
 router = APIRouter()
 
 
+class ModerationQueueItem(CollectionRead):
+    """CollectionRead plus a minimal owner summary — the queue UI needs to
+    show who submitted each collection, which the bare owner_id doesn't
+    give it without a second round-trip per row."""
+    owner_email: str
+    owner_display_name: str
+
+
 async def _get_submitted_collection_or_404(
     session: AsyncSession, collection_id: uuid.UUID
 ) -> Collection:
@@ -62,18 +70,23 @@ async def _notify_owner(
         logger.exception("Failed to send moderation-decision email to a collection owner.")
 
 
-@router.get("/queue", response_model=list[CollectionRead])
+@router.get("/queue", response_model=list[ModerationQueueItem])
 async def get_moderation_queue(
     current_user: User = Depends(require_moderator_or_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    """List collections awaiting review, newest-submitted-first."""
+    """List collections awaiting review, oldest-submitted-first (a review
+    queue should surface the longest-waiting submission first)."""
     result = await session.execute(
-        select(Collection)
+        select(Collection, User.email, User.display_name)
+        .join(User, User.id == Collection.owner_id)
         .where(Collection.moderation_status == "submitted")
         .order_by(Collection.submitted_at.asc())
     )
-    return result.scalars().all()
+    return [
+        ModerationQueueItem(**collection.model_dump(), owner_email=email, owner_display_name=name)
+        for collection, email, name in result.all()
+    ]
 
 
 @router.post("/{collection_id}/approve", response_model=CollectionRead)

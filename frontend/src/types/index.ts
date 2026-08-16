@@ -19,6 +19,7 @@ export interface CanonicalArtifact {
 
 export type CollectionType = 'base' | 'additional';
 export type Visibility = 'private' | 'public';
+export type ModerationStatus = 'draft' | 'submitted' | 'approved' | 'denied';
 
 export interface Collection {
   id: string;
@@ -34,9 +35,19 @@ export interface Collection {
   download_count: number;
   published: boolean;
   category?: string;
+  moderation_status: ModerationStatus;
+  moderation_reason?: string;
+  submitted_at?: string;
+  moderated_at?: string;
+  moderated_by?: string;
   last_synced_at?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ModerationQueueItem extends Collection {
+  owner_email: string;
+  owner_display_name: string;
 }
 
 export interface CollectionUpdate {

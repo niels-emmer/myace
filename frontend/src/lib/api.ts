@@ -313,3 +313,21 @@ export const adminApi = {
       body: JSON.stringify(overrides ?? {}),
     }),
 };
+
+// ─── Moderation API ──────────────────────────────────────────
+
+export const moderationApi = {
+  getQueue: () =>
+    request<import('@/types').ModerationQueueItem[]>('/moderation/queue'),
+
+  approve: (collectionId: string) =>
+    request<import('@/types').Collection>(`/moderation/${collectionId}/approve`, {
+      method: 'POST',
+    }),
+
+  deny: (collectionId: string, reason: string) =>
+    request<import('@/types').Collection>(`/moderation/${collectionId}/deny`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+};

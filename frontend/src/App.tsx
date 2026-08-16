@@ -15,6 +15,7 @@ import ImportPage from './pages/ImportPage';
 import TargetExporter from './pages/TargetExporter';
 import UserSettings from './pages/UserSettings';
 import SystemSettings from './pages/SystemSettings';
+import ModerationQueue from './pages/ModerationQueue';
 
 function RequireAuth() {
   const { user, isLoading } = useAuth();
@@ -56,6 +57,28 @@ function RequireAdmin() {
   return <Outlet />;
 }
 
+function RequireModerator() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role !== 'moderator' && user.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Outlet />;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -74,6 +97,9 @@ export default function App() {
           <Route path="/compile" element={<TargetExporter />} />
           <Route path="/export" element={<Navigate to="/compile" replace />} />
           <Route path="/settings" element={<UserSettings />} />
+          <Route element={<RequireModerator />}>
+            <Route path="/moderation" element={<ModerationQueue />} />
+          </Route>
           <Route element={<RequireAdmin />}>
             <Route path="/admin/system" element={<SystemSettings />} />
           </Route>
