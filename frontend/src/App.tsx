@@ -12,6 +12,7 @@ import CommunityCollectionDetail from './pages/CommunityCollectionDetail';
 import ProfileComposer from './pages/ProfileComposer';
 import ProfileDetail from './pages/ProfileDetail';
 import ImportPage from './pages/ImportPage';
+import SetupAudit from './pages/SetupAudit';
 import TargetExporter from './pages/TargetExporter';
 import SyncDashboard from './pages/SyncDashboard';
 import OrchestrationGallery from './pages/OrchestrationGallery';
@@ -97,6 +98,7 @@ export default function App() {
           <Route path="/profiles" element={<ProfileComposer />} />
           <Route path="/profiles/:id" element={<ProfileDetail />} />
           <Route path="/import" element={<ImportPage />} />
+          <Route path="/setup-audit" element={<SetupAudit />} />
           <Route path="/compile" element={<TargetExporter />} />
           <Route path="/export" element={<Navigate to="/compile" replace />} />
           <Route path="/sync" element={<SyncDashboard />} />

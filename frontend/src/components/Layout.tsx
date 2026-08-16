@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Workflow,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -23,6 +24,7 @@ const navItems = [
   { to: '/profiles', icon: SlidersHorizontal, label: 'Profiles' },
   { to: '/orchestration', icon: Workflow, label: 'Orchestration' },
   { to: '/import', icon: Upload, label: 'Import' },
+  { to: '/setup-audit', icon: Search, label: 'Setup Audit' },
   { to: '/compile', icon: Download, label: 'Compile' },
   { to: '/sync', icon: RefreshCw, label: 'Sync' },
   { to: '/settings', icon: Settings, label: 'Settings' },
