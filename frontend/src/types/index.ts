@@ -143,6 +143,37 @@ export interface CompileResult {
   // problems surfaced at compile time, e.g. an artifact name collision across
   // composed collections; an empty/absent array means nothing to flag.
   warnings?: ValidationIssue[];
+  // sha256 over a deterministic serialization of `files` — see
+  // backend/app/services/compiler.py's compute_compiled_hash(). What the CLI's
+  // sync manifest and GET /profiles/{id}/compile-status compare against to
+  // detect server-side staleness (docs/adr/0009-manifest-based-drift-detection.md).
+  compiled_hash: string;
+}
+
+export interface CompileStatusResult {
+  compiled_hash: string;
+  updated_at: string;
+}
+
+// ─── Sync Dashboard ──────────────────────────────────────────
+
+export interface SyncStatus {
+  id: string;
+  profile_id: string;
+  profile_name: string;
+  target: string;
+  machine_label: string;
+  in_sync: boolean;
+  locally_modified_files: string[];
+  last_checked_at: string;
+}
+
+export interface SyncReportRequest {
+  profile_id: string;
+  target: string;
+  machine_label: string;
+  in_sync: boolean;
+  locally_modified_files: string[];
 }
 
 // ─── Bulk Artifact Operations ────────────────────────────────

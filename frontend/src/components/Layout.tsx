@@ -6,6 +6,7 @@ import {
   SlidersHorizontal,
   Upload,
   Download,
+  RefreshCw,
   Settings,
   LogOut,
   Shield,
@@ -21,6 +22,7 @@ const navItems = [
   { to: '/profiles', icon: SlidersHorizontal, label: 'Profiles' },
   { to: '/import', icon: Upload, label: 'Import' },
   { to: '/compile', icon: Download, label: 'Compile' },
+  { to: '/sync', icon: RefreshCw, label: 'Sync' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 

@@ -13,6 +13,7 @@ import ProfileComposer from './pages/ProfileComposer';
 import ProfileDetail from './pages/ProfileDetail';
 import ImportPage from './pages/ImportPage';
 import TargetExporter from './pages/TargetExporter';
+import SyncDashboard from './pages/SyncDashboard';
 import UserSettings from './pages/UserSettings';
 import SystemSettings from './pages/SystemSettings';
 import ModerationQueue from './pages/ModerationQueue';
@@ -96,6 +97,7 @@ export default function App() {
           <Route path="/import" element={<ImportPage />} />
           <Route path="/compile" element={<TargetExporter />} />
           <Route path="/export" element={<Navigate to="/compile" replace />} />
+          <Route path="/sync" element={<SyncDashboard />} />
           <Route path="/settings" element={<UserSettings />} />
           <Route element={<RequireModerator />}>
             <Route path="/moderation" element={<ModerationQueue />} />

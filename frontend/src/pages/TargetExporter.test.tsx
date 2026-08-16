@@ -49,6 +49,7 @@ const mockCompileResult: CompileResult = {
   target: 'opencode',
   artifact_count: 1,
   files: { 'AGENTS.md': '# Agents' },
+  compiled_hash: 'test-compiled-hash',
 };
 
 const mockCompileResultWithWarnings: CompileResult = {

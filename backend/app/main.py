@@ -18,6 +18,7 @@ from app.api import (
     moderation,
     profiles,
     ratings,
+    sync,
 )
 from app.core.config import settings
 from app.core.database import get_session_factory, init_db
@@ -124,6 +125,7 @@ app.include_router(moderation.router, prefix="/api/v1/moderation", tags=["Modera
 app.include_router(profiles.router, prefix="/api/v1/profiles", tags=["Profiles"])
 app.include_router(adapters.router, prefix="/api/v1/adapters", tags=["Adapters"])
 app.include_router(doc_cache.router, prefix="/api/v1/doc-cache", tags=["Documentation Cache"])
+app.include_router(sync.router, prefix="/api/v1/sync", tags=["Sync"])
 
 
 @app.get("/health")

@@ -368,6 +368,13 @@ export const ratingsApi = {
     }),
 };
 
+// ─── Sync Dashboard API ─────────────────────────────────────
+
+export const syncApi = {
+  getStatus: () =>
+    request<import('@/types').SyncStatus[]>('/sync/status'),
+};
+
 export const commentsApi = {
   list: (collectionId: string) =>
     request<import('@/types').CollectionComment[]>(`/collections/${collectionId}/comments`),
