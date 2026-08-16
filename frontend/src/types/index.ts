@@ -164,6 +164,8 @@ export interface ArtifactUpdate {
 
 // ─── Auth Types ──────────────────────────────────────────────
 
+export type Role = 'user' | 'moderator' | 'admin';
+
 export interface User {
   id: string;
   email: string;
@@ -171,6 +173,7 @@ export interface User {
   avatar_url?: string;
   is_active: boolean;
   is_admin: boolean;
+  role: Role;
   mfa_enabled?: boolean;
   created_at: string;
 }
@@ -260,6 +263,7 @@ export interface UserAdminInfo {
   display_name: string;
   is_admin: boolean;
   is_active: boolean;
+  role: Role;
   created_at: string;
 }
 

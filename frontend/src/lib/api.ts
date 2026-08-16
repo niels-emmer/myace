@@ -231,6 +231,12 @@ export const authApi = {
       { method: 'PATCH' },
     ),
 
+  setUserRole: (userId: string, role: import('@/types').Role) =>
+    request<{ id: string; role: import('@/types').Role; is_admin: boolean }>(
+      `/auth/users/${userId}/role`,
+      { method: 'PATCH', body: JSON.stringify({ role }) },
+    ),
+
   removeUser: (userId: string) =>
     request<{ message: string }>(`/auth/users/${userId}`, { method: 'DELETE' }),
 
