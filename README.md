@@ -128,6 +128,20 @@ model.
   enable/disable target adapters and other users' accounts system-wide.
 - **Responsive** — the web UI works on a phone-width screen (a slide-out
   drawer replaces the sidebar below ~1024px), not just desktop.
+- **Try it before you sign up** — the public `/welcome` landing page embeds
+  a live compile demo (paste or edit an `AGENTS.md`-style rules file, see
+  Claude Code/Cursor/OpenCode output side by side) with no account
+  required — see [ADR-0011](docs/adr/0011-public-demo-sandbox.md) for how
+  that stays safe as this codebase's one deliberate public route.
+- **Local setup audit** — the Setup Audit page uses the same local
+  companion server as Import to scan every supported target framework's
+  conventional config location on your own machine, then reports coverage
+  gaps and duplicate names across them with a rough 0-100 score. A
+  diagnostic, not a certified metric.
+- **Community collection freshness** — moderators can mark an approved
+  community collection as manually verified; cards and the detail page
+  show "Verified {date}" or "Needs re-check" once that goes stale
+  (default ~6 months), and a weekly digest email flags anything overdue.
 
 ## Getting Started
 
@@ -260,7 +274,7 @@ system-wide from System Settings → Adapter Registry.
 │   │   ├── main.py              # App entrypoint, CORS + session middleware
 │   │   ├── core/                # Config, DB session, OIDC/security, crypto (encrypted admin secrets), deps (auth), authz (ownership checks)
 │   │   ├── models/               # SQLModel schemas (User, Collection, Artifact, Profile, ApiToken, DocCache, SystemSettings)
-│   │   ├── api/                  # Routes: auth, collections, profiles, adapters, doc_cache, admin
+│   │   ├── api/                  # Routes: auth, collections, profiles, adapters, doc_cache, admin, demo (public), freshness
 │   │   ├── adapters/             # Canonical IR → target translators (11: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q)
 │   │   └── services/             # Compiler, doc verifier, scanner (local + git), github_export, seed_collections,
 │   │                              #   email (SMTP send), effective_settings (DB-override-vs-env resolver)
@@ -273,10 +287,10 @@ system-wide from System Settings → Adapter Registry.
 │   ├── src/
 │   │   ├── components/           # Layout (responsive sidebar/drawer), shared UI
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
-│   │   ├── pages/                 # Login, ResetPassword, Dashboard, Collections, CollectionDetail,
-│   │   │                          #   CommunityCollections, CommunityCollectionDetail, Profiles, ProfileDetail,
-│   │   │                          #   Import, Compile, Sync, OrchestrationGallery, OrchestratorBuilder,
-│   │   │                          #   UserSettings, ModerationQueue (moderator/admin-gated),
+│   │   ├── pages/                 # Landing (public /welcome), Login, ResetPassword, Dashboard, Collections,
+│   │   │                          #   CollectionDetail, CommunityCollections, CommunityCollectionDetail, Profiles,
+│   │   │                          #   ProfileDetail, Import, SetupAudit, Compile, Sync, OrchestrationGallery,
+│   │   │                          #   OrchestratorBuilder, UserSettings, ModerationQueue (moderator/admin-gated),
 │   │   │                          #   SystemSettings (admin-gated)
 │   │   ├── lib/                   # API client
 │   │   └── types/                 # TypeScript interfaces

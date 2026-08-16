@@ -35,3 +35,4 @@ ADR-00XX`.
 | [0008](0008-collection-moderation-state-machine.md) | Collection moderation state machine replaces self-serve publish | Accepted |
 | [0009](0009-manifest-based-drift-detection.md) | Local manifest file, not new server state, for drift detection | Accepted |
 | [0010](0010-structured-handoff-field.md) | `handoff_to` field on agent artifacts, not a new join table | Accepted |
+| [0011](0011-public-demo-sandbox.md) | A stateless, rate-limited public demo endpoint | Accepted |

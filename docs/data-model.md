@@ -56,6 +56,8 @@ erDiagram
         uuid moderated_by FK "nullable — the reviewing moderator/admin"
         int last_digest_download_count "digest-script watermark"
         datetime last_digest_sent_at "nullable"
+        date last_verified_at "nullable — manual moderator/admin freshness check"
+        uuid verified_by FK "nullable — the verifying moderator/admin"
     }
     ARTIFACT {
         uuid id PK
@@ -172,6 +174,8 @@ ever flipped to public by the approve action, never by submission itself.
 `last_digest_download_count`/`last_digest_sent_at` are watermark fields
 for the daily download-digest script
 (`app/scripts/send_download_digests.py`), not exposed via the API.
+`last_verified_at`/`verified_by` back manual freshness verification (Epic
+4.5) — see the "Freshness verification" section below.
 
 ### `artifacts`
 
@@ -282,6 +286,44 @@ exists (cheap polling for the CLI's `check`/`watch` commands) and its
 honestly-documented cost trade-off (it still resolves artifacts and runs
 `translate()`; it only saves the client the transfer cost of file
 content, not the server's compute cost).
+
+### Freshness verification
+
+`Collection.last_verified_at` (nullable `Date`) and `verified_by` (nullable
+FK to `users.id`) record that a moderator/admin manually looked at a
+collection recently and confirmed it's still good — not that anything was
+automatically checked against live tool documentation; the frontend badge
+copy (`FreshnessBadge.tsx`) and API docstrings both say so explicitly, to
+avoid the field implying more rigor than it has. `GET
+/admin/freshness-queue` (`app/api/freshness.py`, gated by
+`require_moderator_or_admin`) lists approved, active community collections
+where `last_verified_at IS NULL OR last_verified_at < today -
+settings.collection_freshness_threshold_days` (default ~6 months),
+never-verified first. `POST /collections/{id}/verify` (same gate) sets both
+fields to "today" / the calling moderator's id — there is no
+self-verification block the way moderation has a self-approval block
+(rule 30/AGENTS.md rule 36), since verifying is additive/non-destructive in
+a way approving a submission isn't.
+
+`app/scripts/check_collection_freshness.py` is a weekly cron script (same
+"no in-process scheduler" shape as `send_download_digests.py`, see
+`docs/deployment.md`) that emails every active moderator/admin a digest
+when the stale count is greater than zero, reusing the exact query the API
+route uses (`stale_collections_query()`) so the two can't drift apart on
+what counts as stale.
+
+### Public demo compile (no table, no persistence at all)
+
+`POST /demo/compile` (`app/api/demo.py`, see
+[ADR-0011](adr/0011-public-demo-sandbox.md)) is unrelated to every table on
+this page — it has no DB session dependency at all, so there's structurally
+nothing it could persist to even by accident. Caller-supplied markdown is
+parsed into ephemeral `CanonicalArtifact` objects that exist only for the
+duration of the request/response cycle. This is a stronger guarantee than
+the "response-only" compile-time-warnings feature above (which still runs
+inside the normal `/profiles/compile` pipeline, reading real `Collection`/
+`Artifact` rows even though it writes nothing new) — the demo endpoint
+touches the database in neither direction.
 
 ### `sync_statuses`
 
