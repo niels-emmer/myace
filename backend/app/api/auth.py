@@ -37,6 +37,7 @@ from app.models.user import (
     UserLogin,
     UserRead,
     UserRegister,
+    UserRoleUpdate,
     UserUpdate,
 )
 from app.services.effective_settings import get_effective_oauth_config, get_effective_smtp_config
@@ -97,6 +98,7 @@ async def register(
         display_name=data.display_name,
         password_hash=hash_password(data.password),
         is_admin=is_admin,
+        role="admin" if is_admin else "user",
     )
     session.add(user)
     await session.commit()
@@ -355,6 +357,7 @@ async def list_users(
             "display_name": u.display_name,
             "is_admin": u.is_admin,
             "is_active": u.is_active,
+            "role": u.role,
             "created_at": u.created_at.isoformat(),
         }
         for u in users
@@ -392,6 +395,40 @@ async def set_user_active(
     session.add(user)
     await session.commit()
     return {"id": str(user.id), "is_active": user.is_active}
+
+
+@router.patch("/users/{user_id}/role")
+async def set_user_role(
+    user_id: uuid.UUID,
+    body: UserRoleUpdate,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """Change another user's role (user/moderator/admin). Admin only.
+
+    Acting on your own account is rejected for the same admin-lockout
+    reason documented on set_user_active() above. `is_admin` is kept in
+    sync one-directionally from `role` in this same transaction — `role`
+    is the only field `require_moderator_or_admin` reads, but `is_admin`
+    must keep gating every existing `require_admin`/`authorize_access`
+    bypass unchanged.
+    """
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=400, detail="Use your own account settings to change your own role"
+        )
+
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.role = body.role
+    user.is_admin = body.role == "admin"
+    user.updated_at = datetime.now(UTC)
+    session.add(user)
+    await session.commit()
+    return {"id": str(user.id), "role": user.role, "is_admin": user.is_admin}
 
 
 @router.delete("/users/{user_id}")
@@ -580,13 +617,15 @@ async def auth_callback(
             user.oidc_provider = provider
         else:
             # Create new user
+            is_admin = await _is_bootstrap_admin(session, email)
             user = User(
                 email=email,
                 display_name=display_name,
                 oidc_sub=oidc_sub,
                 oidc_provider=provider,
                 avatar_url=avatar_url,
-                is_admin=await _is_bootstrap_admin(session, email),
+                is_admin=is_admin,
+                role="admin" if is_admin else "user",
             )
             session.add(user)
 

@@ -118,6 +118,25 @@ Three Compose files layer on top of each other:
 See [`AGENTS.md`](../AGENTS.md#9-compose-file-strategy) for what each
 override layer is responsible for.
 
+## Download-digest cron job
+
+Owners who opt into "notify me on downloads" (per-profile preference, see
+[README.md](../README.md)) get a daily digest email, not a per-download
+email. There is no in-process scheduler in this backend, so the digest is
+a standalone script — `backend/app/scripts/send_download_digests.py` —
+meant to be invoked once a day by the host's crontab, not run in-process
+or on multiple hosts concurrently (the watermark update it does isn't
+safe under concurrent runs).
+
+Add a crontab entry on the Docker host, e.g. once daily at 06:00:
+
+```cron
+0 6 * * * cd /path/to/myace && docker compose exec -T backend python -m app.scripts.send_download_digests >> /var/log/myace-digest.log 2>&1
+```
+
+The script is a no-op (logs a notice, exits 0) if SMTP isn't configured
+or enabled in System Settings — safe to add to cron before SMTP is set up.
+
 ## Backups
 
 Database backups (retention, restore procedure, offsite copy guidance) are

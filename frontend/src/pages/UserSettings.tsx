@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   User, Lock, Key, Plus, Trash2, Copy, Check, ExternalLink,
-  Sun, Moon, Monitor, Smartphone, Shield, AlertTriangle, QrCode, Github,
+  Sun, Moon, Monitor, Smartphone, Shield, AlertTriangle, QrCode, Github, Bell,
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -72,6 +72,15 @@ export default function UserSettings() {
       setProfileError(err.message);
       setProfileMessage(null);
     },
+  });
+
+  // Notification preferences — same profile-update endpoint, saved
+  // immediately on toggle rather than gated behind the profile form's
+  // Save button.
+  const notifyMutation = useMutation({
+    mutationFn: (data: { notify_on_download?: boolean; notify_on_comment?: boolean }) =>
+      authApi.updateProfile(data),
+    onSuccess: () => refresh(),
   });
 
   // Password mutation
@@ -256,6 +265,53 @@ export default function UserSettings() {
             {profileMutation.isPending ? 'Saving...' : 'Save Profile'}
           </button>
         </form>
+      </div>
+
+      {/* Notifications */}
+      <div className="bg-card rounded-xl border border-border p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Bell className="h-5 w-5 text-brand-600" />
+          <h2 className="text-lg font-semibold text-card-foreground">Notifications</h2>
+        </div>
+        <div className="space-y-3">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={user?.notify_on_download ?? false}
+              onChange={(e) => notifyMutation.mutate({ notify_on_download: e.target.checked })}
+              disabled={notifyMutation.isPending}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="block text-sm font-medium text-foreground">
+                Daily download digest
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Get a daily email summarizing new downloads on your published collections.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={user?.notify_on_comment ?? false}
+              onChange={(e) => notifyMutation.mutate({ notify_on_comment: e.target.checked })}
+              disabled={notifyMutation.isPending}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="block text-sm font-medium text-foreground">New comments</span>
+              <span className="block text-xs text-muted-foreground">
+                Get an email as soon as someone comments on your published collections.
+              </span>
+            </span>
+          </label>
+          {notifyMutation.isError && (
+            <p className="text-sm text-destructive">
+              {(notifyMutation.error as Error).message}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Password */}

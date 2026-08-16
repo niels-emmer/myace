@@ -57,6 +57,8 @@ async def init_db() -> None:
     from app.models import (  # noqa: F401 — ensure models are registered
         artifact,
         collection,
+        collection_comment,
+        collection_rating,
         doc_cache,
         profile,
         token,

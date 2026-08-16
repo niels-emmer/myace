@@ -12,9 +12,18 @@ import {
   Check,
   Loader2,
   ExternalLink,
+  Pencil,
+  Star,
+  Trash2,
+  MessageSquare,
 } from 'lucide-react';
-import { collectionsApi } from '../lib/api';
+import { collectionsApi, moderationApi, ratingsApi, commentsApi } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import type { Artifact, ArtifactType } from '../types';
+
+const inputClass =
+  'w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm ' +
+  'focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 const ARTIFACT_TYPES: { value: ArtifactType | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -45,14 +54,67 @@ export default function CommunityCollectionDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [typeFilter, setTypeFilter] = useState<ArtifactType | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [showMetaEditModal, setShowMetaEditModal] = useState(false);
+  const [metaName, setMetaName] = useState('');
+  const [metaDescription, setMetaDescription] = useState('');
+  const [metaCategory, setMetaCategory] = useState('');
+  const [commentDraft, setCommentDraft] = useState('');
+
+  const canEditMeta = user?.role === 'moderator' || user?.role === 'admin';
 
   const { data: collection, isLoading: loadingCollection } = useQuery({
     queryKey: ['community-collection', id],
     queryFn: () => collectionsApi.get(id!),
     enabled: !!id,
+  });
+
+  const isOwner = !!user && !!collection && user.id === collection.owner_id;
+
+  const { data: ratingSummary } = useQuery({
+    queryKey: ['community-collection-rating', id],
+    queryFn: () => ratingsApi.get(id!),
+    enabled: !!id,
+  });
+
+  const { data: comments, isLoading: loadingComments } = useQuery({
+    queryKey: ['community-collection-comments', id],
+    queryFn: () => commentsApi.list(id!),
+    enabled: !!id,
+  });
+
+  const rateMutation = useMutation({
+    mutationFn: (stars: number) => ratingsApi.rate(id!, stars),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['community-collection-rating', id], data);
+      queryClient.invalidateQueries({ queryKey: ['community-collections'] });
+    },
+  });
+
+  const removeRatingMutation = useMutation({
+    mutationFn: () => ratingsApi.remove(id!),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['community-collection-rating', id], data);
+      queryClient.invalidateQueries({ queryKey: ['community-collections'] });
+    },
+  });
+
+  const createCommentMutation = useMutation({
+    mutationFn: (body: string) => commentsApi.create(id!, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-collection-comments', id] });
+      setCommentDraft('');
+    },
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: (commentId: string) => commentsApi.remove(id!, commentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-collection-comments', id] });
+    },
   });
 
   // Fetch the full artifact list once, unfiltered. Refetching per-type
@@ -86,6 +148,28 @@ export default function CommunityCollectionDetail() {
       queryClient.invalidateQueries({ queryKey: ['community-collections'] });
     },
   });
+
+  const updateMetaMutation = useMutation({
+    mutationFn: () =>
+      moderationApi.updateMeta(id!, {
+        name: metaName.trim(),
+        description: metaDescription.trim(),
+        category: metaCategory.trim(),
+      }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['community-collection', id], updated);
+      queryClient.invalidateQueries({ queryKey: ['community-collections'] });
+      setShowMetaEditModal(false);
+    },
+  });
+
+  const openMetaEditModal = () => {
+    updateMetaMutation.reset();
+    setMetaName(collection?.name ?? '');
+    setMetaDescription(collection?.description ?? '');
+    setMetaCategory(collection?.category ?? '');
+    setShowMetaEditModal(true);
+  };
 
   if (loadingCollection) {
     return (
@@ -151,8 +235,17 @@ export default function CommunityCollectionDetail() {
           </div>
         </div>
 
-        {/* Import button */}
-        <div className="flex-shrink-0">
+        {/* Import + moderator actions */}
+        <div className="flex-shrink-0 flex items-center gap-2">
+          {canEditMeta && (
+            <button
+              onClick={openMetaEditModal}
+              className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-foreground hover:bg-accent transition-colors"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit metadata
+            </button>
+          )}
           {importSuccess ? (
             <div className="flex items-center gap-2">
               <span className="text-sm text-green-600 font-medium flex items-center gap-1">
@@ -244,6 +337,207 @@ export default function CommunityCollectionDetail() {
               ? 'This collection has no artifacts.'
               : `No ${typeFilter} artifacts in this collection.`}
           </p>
+        </div>
+      )}
+
+      {/* Rating */}
+      <div className="bg-card rounded-xl border border-border p-6 space-y-3">
+        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <Star className="h-5 w-5 text-muted-foreground" />
+          Rating
+        </h2>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Star
+                key={n}
+                className={`h-5 w-5 ${
+                  n <= Math.round(ratingSummary?.avg_rating ?? 0)
+                    ? 'fill-amber-400 text-amber-400'
+                    : 'text-muted-foreground'
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {(ratingSummary?.avg_rating ?? 0).toFixed(1)} ({ratingSummary?.rating_count ?? 0}{' '}
+            {ratingSummary?.rating_count === 1 ? 'rating' : 'ratings'})
+          </span>
+        </div>
+
+        {isOwner ? (
+          <p className="text-xs text-muted-foreground">
+            You can&rsquo;t rate your own collection.
+          </p>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Your rating:</span>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => rateMutation.mutate(n)}
+                  disabled={rateMutation.isPending}
+                  title={`Rate ${n} star${n > 1 ? 's' : ''}`}
+                  className="p-0.5 disabled:opacity-50"
+                >
+                  <Star
+                    className={`h-5 w-5 transition-colors ${
+                      ratingSummary?.my_rating && n <= ratingSummary.my_rating
+                        ? 'fill-amber-400 text-amber-400'
+                        : 'text-muted-foreground hover:text-amber-400'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+            {ratingSummary?.my_rating != null && (
+              <button
+                onClick={() => removeRatingMutation.mutate()}
+                disabled={removeRatingMutation.isPending}
+                className="text-xs text-muted-foreground hover:text-destructive ml-1"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Comments */}
+      <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-muted-foreground" />
+          Comments {comments && comments.length > 0 && `(${comments.length})`}
+        </h2>
+
+        <div className="flex gap-2">
+          <textarea
+            value={commentDraft}
+            onChange={(e) => setCommentDraft(e.target.value)}
+            rows={2}
+            maxLength={2000}
+            placeholder="Leave a comment..."
+            className={inputClass}
+          />
+          <button
+            onClick={() => createCommentMutation.mutate(commentDraft.trim())}
+            disabled={!commentDraft.trim() || createCommentMutation.isPending}
+            className="flex-shrink-0 self-end px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
+          >
+            Post
+          </button>
+        </div>
+        {createCommentMutation.isError && (
+          <p className="text-sm text-destructive">
+            {(createCommentMutation.error as Error).message}
+          </p>
+        )}
+
+        {loadingComments ? (
+          <p className="text-sm text-muted-foreground">Loading comments...</p>
+        ) : comments && comments.length > 0 ? (
+          <div className="space-y-4 pt-2">
+            {comments.map((c) => {
+              const canDelete =
+                !!user && (user.id === c.user_id || isOwner || canEditMeta);
+              return (
+                <div key={c.id} className="flex items-start justify-between gap-3 border-t border-border pt-3 first:border-0 first:pt-0">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-card-foreground">
+                        {c.author_display_name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(c.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-0.5 whitespace-pre-wrap break-words">
+                      {c.body}
+                    </p>
+                  </div>
+                  {canDelete && (
+                    <button
+                      onClick={() => deleteCommentMutation.mutate(c.id)}
+                      disabled={deleteCommentMutation.isPending}
+                      title="Delete comment"
+                      className="flex-shrink-0 p-1 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No comments yet.</p>
+        )}
+      </div>
+
+      {/* Edit Metadata Modal (moderator/admin only) */}
+      {showMetaEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
+            <h2 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+              <Pencil className="h-5 w-5" />
+              Edit Metadata
+            </h2>
+            <p className="text-sm text-muted-foreground -mt-2">
+              Moderator edit — only name, description, and category. Artifact content isn't
+              affected.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Name</label>
+              <input
+                type="text"
+                value={metaName}
+                onChange={(e) => setMetaName(e.target.value)}
+                className={inputClass}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Description</label>
+              <textarea
+                value={metaDescription}
+                onChange={(e) => setMetaDescription(e.target.value)}
+                rows={3}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Category</label>
+              <input
+                type="text"
+                value={metaCategory}
+                onChange={(e) => setMetaCategory(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            {updateMetaMutation.isError && (
+              <p className="text-sm text-destructive">
+                {(updateMetaMutation.error as Error).message}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowMetaEditModal(false)}
+                className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => updateMetaMutation.mutate()}
+                disabled={!metaName.trim() || updateMetaMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
+              >
+                {updateMetaMutation.isPending ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

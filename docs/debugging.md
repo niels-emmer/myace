@@ -181,6 +181,72 @@ are tracked. If you ever see `alembic/versions/` suspiciously empty on a
 clone that should have history, check `.gitignore` first before assuming
 the migrations were never written.
 
+## A new migration's `down_revision` guess is stale, or `alembic upgrade head` reports multiple heads
+
+**Symptom:** you write a new migration with `down_revision` set to what
+looks like the most recent file under `alembic/versions/` (by filename or
+by eyeballing recent git history), but `alembic upgrade head` either fails
+with "Multiple head revisions are present" or silently creates a second,
+disconnected chain that never gets applied.
+
+**Cause:** filenames and commit recency are not reliable indicators of the
+actual head — a merge migration, a branch that added a migration out of
+commit order, or simply miscounting recent files can all point you at a
+revision that already has a child. The only way to know the true head is
+to walk the `revision`/`down_revision` graph, not guess from the
+filesystem.
+
+**Fix:** before writing a new migration, get the actual head programmatically:
+
+```bash
+docker compose exec backend alembic current   # what the target DB thinks is current
+docker compose exec backend alembic heads     # what the migration files themselves resolve to
+```
+
+If you don't have a running DB to check `alembic current` against (e.g.
+planning a migration before any environment exists), reconstruct the chain
+yourself — for every file in `alembic/versions/`, extract `revision` and
+`down_revision`, then find the one revision that is never referenced as
+anyone else's `down_revision`:
+
+```bash
+cd backend
+for f in alembic/versions/*.py; do
+  rev=$(grep -m1 "^revision" "$f" | sed "s/.*= *//")
+  down=$(grep -m1 "^down_revision" "$f" | sed "s/.*= *//")
+  echo "$rev <- $down :: $f"
+done
+```
+
+This is exactly what caught a stale head guess during the
+community-enhancements plan's preflight — the plan's research had assumed
+`f6a7b8c9d0e1` was current, but two more migrations (`a7b8c9d0e1f2`,
+`b8c9d0e1f2a3`) had landed since, which only the graph walk revealed.
+
+## An upsert on a soft-deleted row 500s with a unique-constraint violation
+
+**Symptom:** a "find-or-create" upsert route works the first time, works
+after an update, but 500s (`IntegrityError` / `UniqueViolation`) the second
+time a user does create → delete → create again on the same logical
+resource.
+
+**Cause:** the upsert's lookup query filters on `deleted_at == None` (to
+only match "live" rows), finds nothing after a soft-delete, and falls
+through to an `INSERT` — but the table's unique constraint isn't scoped to
+live rows, so the soft-deleted row still occupies that key. This is exactly
+what `CollectionRating`'s `(collection_id, user_id)` constraint hit before
+it was fixed: `DELETE /collections/{id}/rating` correctly soft-deleted
+(rule 15 — never hard-delete), but the re-rate path only looked at
+non-deleted rows before deciding whether to `INSERT` or `UPDATE`.
+
+**Fix:** the lookup for an upsert against a soft-deletable table must
+ignore `deleted_at` entirely (find the row regardless of its deleted
+state), then either revive it (clear `deleted_at`, overwrite the mutable
+fields) or update it in place — never decide "not found" based on a
+`deleted_at`-filtered query when the table's uniqueness isn't similarly
+scoped. See `_get_rating_row()` in `backend/app/api/ratings.py` for the
+reference implementation, and rule 31 in `AGENTS.md`.
+
 ## The scanner can't find a path that clearly exists on the host
 
 **Symptom:** `POST /collections/scan` (local mode) 404s with "Directory not

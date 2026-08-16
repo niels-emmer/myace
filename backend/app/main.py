@@ -8,7 +8,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app.api import adapters, admin, auth, collections, doc_cache, profiles
+from app.api import (
+    adapters,
+    admin,
+    auth,
+    collections,
+    comments,
+    doc_cache,
+    moderation,
+    profiles,
+    ratings,
+)
 from app.core.config import settings
 from app.core.database import get_session_factory, init_db
 from app.services.seed_collections import seed_starter_collections
@@ -108,6 +118,9 @@ app.add_middleware(
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(collections.router, prefix="/api/v1/collections", tags=["Collections"])
+app.include_router(ratings.router, prefix="/api/v1/collections", tags=["Ratings"])
+app.include_router(comments.router, prefix="/api/v1/collections", tags=["Comments"])
+app.include_router(moderation.router, prefix="/api/v1/moderation", tags=["Moderation"])
 app.include_router(profiles.router, prefix="/api/v1/profiles", tags=["Profiles"])
 app.include_router(adapters.router, prefix="/api/v1/adapters", tags=["Adapters"])
 app.include_router(doc_cache.router, prefix="/api/v1/doc-cache", tags=["Documentation Cache"])

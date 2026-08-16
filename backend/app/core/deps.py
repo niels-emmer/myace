@@ -95,3 +95,17 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
             status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required"
         )
     return current_user
+
+
+def require_moderator_or_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Dependency variant for community-moderation routes.
+
+    Scoped to `role` only — moderators get no other admin capability, so
+    this must never be widened to accept `is_admin` alone or merged with
+    `require_admin`.
+    """
+    if current_user.role not in ("moderator", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Moderator or admin privileges required"
+        )
+    return current_user

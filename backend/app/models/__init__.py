@@ -1,6 +1,12 @@
 """SQLModel database models."""
 from app.models.artifact import Artifact, ArtifactCreate, ArtifactRead, CanonicalArtifact
 from app.models.collection import Collection, CollectionCreate, CollectionRead
+from app.models.collection_comment import (
+    CollectionComment,
+    CollectionCommentCreate,
+    CollectionCommentRead,
+)
+from app.models.collection_rating import CollectionRating, CollectionRatingRead
 from app.models.doc_cache import DocCacheEntry
 from app.models.profile import Profile, ProfileCompileRequest, ProfileCreate, ProfileRead
 from app.models.system_settings import SystemSettings, SystemSettingsRead, SystemSettingsUpdate
@@ -15,4 +21,6 @@ __all__ = [
     "SystemSettings", "SystemSettingsRead", "SystemSettingsUpdate",
     "ApiToken", "ApiTokenCreate", "ApiTokenRead",
     "DocCacheEntry",
+    "CollectionRating", "CollectionRatingRead",
+    "CollectionComment", "CollectionCommentCreate", "CollectionCommentRead",
 ]

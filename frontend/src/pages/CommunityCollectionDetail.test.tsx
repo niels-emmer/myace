@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CommunityCollectionDetail from './CommunityCollectionDetail';
+import { AuthProvider } from '../contexts/AuthContext';
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -18,6 +19,22 @@ vi.mock('../lib/api', () => ({
     get: vi.fn(),
     getArtifacts: vi.fn(),
     importCommunity: vi.fn(),
+  },
+  authApi: {
+    me: vi.fn().mockRejectedValue(new Error('not logged in')),
+  },
+  moderationApi: {
+    updateMeta: vi.fn(),
+  },
+  ratingsApi: {
+    get: vi.fn().mockResolvedValue({ avg_rating: 0, rating_count: 0, my_rating: null }),
+    rate: vi.fn(),
+    remove: vi.fn(),
+  },
+  commentsApi: {
+    list: vi.fn().mockResolvedValue([]),
+    create: vi.fn(),
+    remove: vi.fn(),
   },
 }));
 
@@ -69,7 +86,9 @@ function renderPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <CommunityCollectionDetail />
+        <AuthProvider>
+          <CommunityCollectionDetail />
+        </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>
   );

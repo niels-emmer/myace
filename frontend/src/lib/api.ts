@@ -95,10 +95,17 @@ export const collectionsApi = {
       body: JSON.stringify(data),
     }),
 
-  listCommunity: (params?: { type?: string; category?: string; offset?: number; limit?: number }) => {
+  listCommunity: (params?: {
+    type?: string;
+    category?: string;
+    sort?: 'rating' | 'downloads' | 'alpha';
+    offset?: number;
+    limit?: number;
+  }) => {
     const searchParams = new URLSearchParams();
     if (params?.type) searchParams.set('type', params.type);
     if (params?.category) searchParams.set('category', params.category);
+    if (params?.sort) searchParams.set('sort', params.sort);
     if (params?.offset !== undefined) searchParams.set('offset', String(params.offset));
     if (params?.limit !== undefined) searchParams.set('limit', String(params.limit));
     const qs = searchParams.toString();
@@ -231,6 +238,12 @@ export const authApi = {
       { method: 'PATCH' },
     ),
 
+  setUserRole: (userId: string, role: import('@/types').Role) =>
+    request<{ id: string; role: import('@/types').Role; is_admin: boolean }>(
+      `/auth/users/${userId}/role`,
+      { method: 'PATCH', body: JSON.stringify({ role }) },
+    ),
+
   removeUser: (userId: string) =>
     request<{ message: string }>(`/auth/users/${userId}`, { method: 'DELETE' }),
 
@@ -305,5 +318,68 @@ export const adminApi = {
     request<{ message: string }>(`/admin/settings/oauth/${provider}/test`, {
       method: 'POST',
       body: JSON.stringify(overrides ?? {}),
+    }),
+};
+
+// ─── Moderation API ──────────────────────────────────────────
+
+export const moderationApi = {
+  getQueue: (sort?: 'rating' | 'downloads' | 'alpha' | 'submitted_at') =>
+    request<import('@/types').ModerationQueueItem[]>(
+      `/moderation/queue${sort ? `?sort=${sort}` : ''}`,
+    ),
+
+  approve: (collectionId: string) =>
+    request<import('@/types').Collection>(`/moderation/${collectionId}/approve`, {
+      method: 'POST',
+    }),
+
+  deny: (collectionId: string, reason: string) =>
+    request<import('@/types').Collection>(`/moderation/${collectionId}/deny`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+
+  updateMeta: (
+    collectionId: string,
+    data: { name?: string; description?: string; category?: string },
+  ) =>
+    request<import('@/types').Collection>(`/moderation/${collectionId}/meta`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+};
+
+// ─── Ratings & Comments API ─────────────────────────────────────
+
+export const ratingsApi = {
+  get: (collectionId: string) =>
+    request<import('@/types').CollectionRatingSummary>(`/collections/${collectionId}/rating`),
+
+  rate: (collectionId: string, stars: number) =>
+    request<import('@/types').CollectionRatingSummary>(`/collections/${collectionId}/rating`, {
+      method: 'PUT',
+      body: JSON.stringify({ stars }),
+    }),
+
+  remove: (collectionId: string) =>
+    request<import('@/types').CollectionRatingSummary>(`/collections/${collectionId}/rating`, {
+      method: 'DELETE',
+    }),
+};
+
+export const commentsApi = {
+  list: (collectionId: string) =>
+    request<import('@/types').CollectionComment[]>(`/collections/${collectionId}/comments`),
+
+  create: (collectionId: string, body: string) =>
+    request<import('@/types').CollectionComment>(`/collections/${collectionId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    }),
+
+  remove: (collectionId: string, commentId: string) =>
+    request<{ message: string }>(`/collections/${collectionId}/comments/${commentId}`, {
+      method: 'DELETE',
     }),
 };

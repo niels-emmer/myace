@@ -42,6 +42,8 @@ const mockCollection = {
   visibility: 'private',
   is_active: true,
   artifact_count: 3,
+  published: false,
+  moderation_status: 'draft',
   last_synced_at: null,
   created_at: '2025-01-01T00:00:00Z',
   updated_at: '2025-01-01T00:00:00Z',
@@ -246,20 +248,23 @@ describe('CollectionDetail — action buttons', () => {
     });
   });
 
-  describe('Publish to Community button', () => {
-    it('renders a Publish to Community button', async () => {
+  describe('Submit for review button', () => {
+    it('renders a Submit for review button for a draft collection', async () => {
       renderCollectionDetail();
 
-      const publishBtn = await screen.findByRole('button', { name: /Publish to Community/i });
-      expect(publishBtn).toBeInTheDocument();
-      expect(publishBtn).not.toBeDisabled();
+      const submitBtn = await screen.findByRole('button', { name: /Submit for review/i });
+      expect(submitBtn).toBeInTheDocument();
+      expect(submitBtn).not.toBeDisabled();
     });
 
-    it('has a tooltip indicating the publish action', async () => {
+    it('has a tooltip indicating the submission action', async () => {
       renderCollectionDetail();
 
-      const publishBtn = await screen.findByRole('button', { name: /Publish to Community/i });
-      expect(publishBtn).toHaveAttribute('title', 'Publish to community collections');
+      const submitBtn = await screen.findByRole('button', { name: /Submit for review/i });
+      expect(submitBtn).toHaveAttribute(
+        'title',
+        'Submit to the moderation queue for community review',
+      );
     });
   });
 
@@ -273,7 +278,7 @@ describe('CollectionDetail — action buttons', () => {
       // Action buttons should be hidden during editing
       expect(screen.queryByRole('button', { name: /Delete/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Share/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Publish to Community/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Submit for review/i })).not.toBeInTheDocument();
     });
   });
 

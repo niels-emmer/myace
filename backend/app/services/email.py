@@ -59,3 +59,46 @@ def build_password_reset_email(reset_link: str) -> tuple[str, str]:
         f"If you didn't request this, you can safely ignore this email."
     )
     return subject, body
+
+
+def build_moderation_approved_email(collection_name: str) -> tuple[str, str]:
+    """Return (subject, text_body) for a submission-approved email."""
+    subject = f'Your collection "{collection_name}" was approved'
+    body = (
+        f'Good news — your submission "{collection_name}" has been reviewed and '
+        f"approved. It's now live in the {settings.app_name} community collections."
+    )
+    return subject, body
+
+
+def build_moderation_denied_email(collection_name: str, reason: str) -> tuple[str, str]:
+    """Return (subject, text_body) for a submission-denied email."""
+    subject = f'Your collection "{collection_name}" was not approved'
+    body = (
+        f'Your submission "{collection_name}" was reviewed and was not approved '
+        f"for the {settings.app_name} community collections.\n\n"
+        f"Reviewer's note:\n{reason}\n\n"
+        f"You can edit the collection and resubmit it for another review."
+    )
+    return subject, body
+
+
+def build_comment_notification_email(collection_name: str, commenter_name: str) -> tuple[str, str]:
+    """Return (subject, text_body) for a new-comment notification email."""
+    subject = f'New comment on "{collection_name}"'
+    body = (
+        f'{commenter_name} left a comment on your collection "{collection_name}" '
+        f"in the {settings.app_name} community collections."
+    )
+    return subject, body
+
+
+def build_download_digest_email(collection_name: str, download_delta: int) -> tuple[str, str]:
+    """Return (subject, text_body) for a daily download-digest email."""
+    plural = "download" if download_delta == 1 else "downloads"
+    subject = f'"{collection_name}" got {download_delta} new {plural}'
+    body = (
+        f'Your collection "{collection_name}" received {download_delta} new {plural} '
+        f"since your last digest."
+    )
+    return subject, body

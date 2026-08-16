@@ -9,6 +9,7 @@ import {
   Settings,
   LogOut,
   Shield,
+  ShieldCheck,
   Menu,
   X,
 } from 'lucide-react';
@@ -113,6 +114,21 @@ export default function Layout() {
               {item.label}
             </NavLink>
           ))}
+          {(user?.role === 'moderator' || user?.role === 'admin') && (
+            <NavLink
+              to="/moderation"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-brand-50 text-brand-700'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`
+              }
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Moderation
+            </NavLink>
+          )}
           {user?.is_admin && (
             <NavLink
               to="/admin/system"

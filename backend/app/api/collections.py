@@ -119,10 +119,27 @@ class CommunityCollectionsResponse(BaseModel):
     total: int
 
 
+def _community_order_by(sort: Literal["rating", "downloads", "alpha"]):
+    """Shared sort-column resolution for community listing endpoints."""
+    if sort == "rating":
+        return (Collection.avg_rating.desc(),)
+    if sort == "alpha":
+        # 'additional' < 'base' alphabetically, so use a CASE expression to
+        # force the correct order: base → 0, additional → 1, then name.
+        type_order = case(
+            (Collection.collection_type == "base", 0),
+            (Collection.collection_type == "additional", 1),
+            else_=2,
+        )
+        return (type_order, Collection.name.asc())
+    return (Collection.download_count.desc(),)
+
+
 @router.get("/community", response_model=CommunityCollectionsResponse)
 async def list_community_collections(
     collection_type: str | None = Query(None, alias="type"),
     category: str | None = None,
+    sort: Literal["rating", "downloads", "alpha"] = "downloads",
     offset: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -130,7 +147,8 @@ async def list_community_collections(
 ):
     """List published community collections, with optional filters and pagination.
 
-    Results are sorted alphabetically by name. Supports filtering by
+    Sortable by rating, downloads (default), or alphabetically (base
+    collections before additional, then by name). Supports filtering by
     collection_type ('base'/'additional') and/or category.
     """
     base_query = select(Collection).where(
@@ -147,17 +165,9 @@ async def list_community_collections(
     count_result = await session.execute(count_query)
     total = count_result.scalar() or 0
 
-    # Fetch page — base collections first, then additional, both alphabetically.
-    # 'additional' < 'base' alphabetically, so use a CASE expression to force
-    # the correct order: base → 0, additional → 1.
-    type_order = case(
-        (Collection.collection_type == "base", 0),
-        (Collection.collection_type == "additional", 1),
-        else_=2,
-    )
     query = (
         base_query
-        .order_by(type_order, Collection.name.asc())
+        .order_by(*_community_order_by(sort))
         .offset(offset)
         .limit(limit)
     )
@@ -583,20 +593,25 @@ async def publish_collection(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Publish a collection to the MyACE community collections store.
+    """Submit a collection for moderation review.
 
-    Self-serve and immediate: sets published=True and visibility="public" on
-    the caller's own row, which is all `GET /collections/community` and
-    `GET /collections/{id}` check. There is no admin approval step — the
-    starter-pack set in collections/ is a separate, code-reviewed artifact
-    maintained directly in this repo (see seed_collections.py), unrelated to
-    what a user publishes here.
+    This no longer publishes immediately — it moves the collection into the
+    `submitted` moderation queue for a moderator/admin to approve or deny
+    (see app.api.moderation). Only `published`/`visibility` flip is the
+    approve action; this endpoint never touches them. Allowed from `draft`
+    or `denied` only (409 otherwise — already submitted/approved).
     """
     collection = await _get_collection_or_404(session, collection_id)
     authorize_access(
         owner_id=collection.owner_id, current_user=current_user,
         write=True, resource_name="Collection",
     )
+
+    if collection.moderation_status not in ("draft", "denied"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Collection is already {collection.moderation_status}; cannot resubmit",
+        )
 
     if not request.category.strip():
         raise HTTPException(status_code=422, detail="category is required")
@@ -619,8 +634,8 @@ async def publish_collection(
     if request.publish_description is not None:
         collection.description = request.publish_description.strip()
     collection.category = request.category.strip()
-    collection.published = True
-    collection.visibility = "public"
+    collection.moderation_status = "submitted"
+    collection.submitted_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(collection)
 

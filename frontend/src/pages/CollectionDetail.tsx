@@ -20,6 +20,7 @@ import {
   Trash2,
   Share2,
   BookOpen,
+  Clock,
 } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
 import type { Artifact, ArtifactType, CollectionType, Visibility } from '../types';
@@ -420,19 +421,34 @@ export default function CollectionDetail() {
                 <Share2 className="h-3.5 w-3.5" />
                 Share
               </button>
-              <button
-                onClick={openPublishModal}
-                disabled={collection.published}
-                title={collection.published ? 'Already published' : 'Publish to community collections'}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  collection.published
-                    ? 'bg-green-50 text-green-700 border border-green-200 cursor-default'
-                    : 'bg-muted border border-border text-foreground hover:bg-accent'
-                }`}
-              >
-                <BookOpen className="h-3.5 w-3.5" />
-                {collection.published ? 'Published' : 'Publish to Community'}
-              </button>
+              {collection.moderation_status === 'approved' ? (
+                <button
+                  disabled
+                  title="Already approved and published"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200 cursor-default"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Published
+                </button>
+              ) : collection.moderation_status === 'submitted' ? (
+                <button
+                  disabled
+                  title="Awaiting moderator review"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200 cursor-default"
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  Pending review
+                </button>
+              ) : (
+                <button
+                  onClick={openPublishModal}
+                  title="Submit to the moderation queue for community review"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-muted border border-border text-foreground hover:bg-accent transition-colors"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  {collection.moderation_status === 'denied' ? 'Resubmit for review' : 'Submit for review'}
+                </button>
+              )}
               <button
                 onClick={() => setShowDeleteCollectionModal(true)}
                 className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
@@ -451,6 +467,22 @@ export default function CollectionDetail() {
           )}
         </div>
       </div>
+
+      {collection.moderation_status === 'denied' && (
+        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-red-800">Submission was not approved</p>
+            {collection.moderation_reason && (
+              <p className="text-sm text-red-700 mt-1">{collection.moderation_reason}</p>
+            )}
+            <p className="text-sm text-red-700 mt-1">
+              Edit the collection, then use &ldquo;Resubmit for review&rdquo; above to send it
+              back to the moderation queue.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Type Filter Bar */}
       <div className="flex flex-wrap items-center gap-2">
@@ -749,17 +781,17 @@ export default function CollectionDetail() {
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
               <BookOpen className="h-5 w-5" />
-              Publish to Community
+              Submit to Community
             </h2>
             <p className="text-sm text-muted-foreground -mt-2">
-              This makes the collection public and lists it immediately in Community
-              Collections, where any MyACE user can browse and import it.
+              This submits the collection to the moderation queue for review. It only
+              becomes public in Community Collections once a moderator approves it.
             </p>
 
             {publishMutation.isSuccess ? (
               <div className="space-y-4">
                 <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
-                  Collection published! It's now live in Community Collections.
+                  Submitted for review! A moderator will approve or deny it soon.
                 </div>
                 <div className="flex justify-end">
                   <button
@@ -857,7 +889,7 @@ export default function CollectionDetail() {
                     disabled={!publishCategory.trim() || publishMutation.isPending}
                     className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
                   >
-                    {publishMutation.isPending ? 'Publishing...' : 'Publish'}
+                    {publishMutation.isPending ? 'Submitting...' : 'Submit for review'}
                   </button>
                 </div>
               </>

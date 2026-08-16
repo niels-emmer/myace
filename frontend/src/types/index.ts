@@ -19,6 +19,7 @@ export interface CanonicalArtifact {
 
 export type CollectionType = 'base' | 'additional';
 export type Visibility = 'private' | 'public';
+export type ModerationStatus = 'draft' | 'submitted' | 'approved' | 'denied';
 
 export interface Collection {
   id: string;
@@ -34,9 +35,36 @@ export interface Collection {
   download_count: number;
   published: boolean;
   category?: string;
+  avg_rating: number;
+  rating_count: number;
+  moderation_status: ModerationStatus;
+  moderation_reason?: string;
+  submitted_at?: string;
+  moderated_at?: string;
+  moderated_by?: string;
   last_synced_at?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ModerationQueueItem extends Collection {
+  owner_email: string;
+  owner_display_name: string;
+}
+
+export interface CollectionRatingSummary {
+  avg_rating: number;
+  rating_count: number;
+  my_rating: number | null;
+}
+
+export interface CollectionComment {
+  id: string;
+  collection_id: string;
+  user_id: string;
+  author_display_name: string;
+  body: string;
+  created_at: string;
 }
 
 export interface CollectionUpdate {
@@ -164,6 +192,8 @@ export interface ArtifactUpdate {
 
 // ─── Auth Types ──────────────────────────────────────────────
 
+export type Role = 'user' | 'moderator' | 'admin';
+
 export interface User {
   id: string;
   email: string;
@@ -171,6 +201,9 @@ export interface User {
   avatar_url?: string;
   is_active: boolean;
   is_admin: boolean;
+  role: Role;
+  notify_on_download?: boolean;
+  notify_on_comment?: boolean;
   mfa_enabled?: boolean;
   created_at: string;
 }
@@ -260,6 +293,7 @@ export interface UserAdminInfo {
   display_name: string;
   is_admin: boolean;
   is_active: boolean;
+  role: Role;
   created_at: string;
 }
 
@@ -341,6 +375,8 @@ export interface OAuthTestOverrides {
 export interface UserUpdate {
   display_name?: string;
   email?: string;
+  notify_on_download?: boolean;
+  notify_on_comment?: boolean;
 }
 
 export interface PasswordChange {

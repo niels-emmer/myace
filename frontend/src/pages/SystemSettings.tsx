@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { adminApi, authApi, adaptersApi, docCacheApi } from '../lib/api';
-import type { UserAdminInfo, SystemSettings } from '@/types';
+import type { UserAdminInfo, SystemSettings, Role } from '@/types';
 
 const inputClass =
   'w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm ' +
@@ -311,6 +311,14 @@ export default function SystemSettings() {
   const setUserActiveMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       authApi.setUserActive(id, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+  });
+
+  const setUserRoleMutation = useMutation({
+    mutationFn: ({ id, role }: { id: string; role: Role }) =>
+      authApi.setUserRole(id, role),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
@@ -791,11 +799,29 @@ export default function SystemSettings() {
                       <td className="py-2 pr-4 text-card-foreground">{u.display_name || '—'}</td>
                       <td className="py-2 pr-4 text-muted-foreground">{u.email}</td>
                       <td className="py-2 pr-4">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          u.is_admin ? 'bg-purple-50 text-purple-700' : 'bg-muted text-muted-foreground'
-                        }`}>
-                          {u.is_admin ? 'Admin' : 'User'}
-                        </span>
+                        <select
+                          value={u.role}
+                          onChange={(e) =>
+                            setUserRoleMutation.mutate({ id: u.id, role: e.target.value as Role })
+                          }
+                          disabled={isSelf || setUserRoleMutation.isPending}
+                          title={
+                            isSelf
+                              ? 'Use your own account settings to change your own role'
+                              : 'Change role'
+                          }
+                          className={`px-2 py-0.5 rounded text-xs font-medium border-0 disabled:opacity-30 disabled:cursor-not-allowed ${
+                            u.role === 'admin'
+                              ? 'bg-purple-50 text-purple-700'
+                              : u.role === 'moderator'
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          <option value="user">User</option>
+                          <option value="moderator">Moderator</option>
+                          <option value="admin">Admin</option>
+                        </select>
                       </td>
                       <td className="py-2 pr-4">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${

@@ -11,7 +11,11 @@ erDiagram
     USER ||--o{ COLLECTION : owns
     USER ||--o{ PROFILE : owns
     USER ||--o{ API_TOKEN : owns
+    USER ||--o{ COLLECTION_RATING : rates
+    USER ||--o{ COLLECTION_COMMENT : writes
     COLLECTION ||--o{ ARTIFACT : contains
+    COLLECTION ||--o{ COLLECTION_RATING : "rated by"
+    COLLECTION ||--o{ COLLECTION_COMMENT : "commented on"
     PROFILE }o--|| COLLECTION : "base_collection_id"
     PROFILE }o--o{ COLLECTION : "additional_collection_ids (JSON list, not FK)"
 
@@ -24,6 +28,9 @@ erDiagram
         string oidc_provider "nullable"
         bool is_active
         bool is_admin
+        string role "user | moderator | admin"
+        bool notify_on_download "daily digest opt-in"
+        bool notify_on_comment "immediate email opt-in"
         bool mfa_enabled
         string totp_secret "nullable — set once MFA is enrolled"
     }
@@ -37,9 +44,18 @@ erDiagram
         bool is_active "soft-delete flag"
         int artifact_count "denormalized cache"
         int download_count "tracked for community collections"
-        bool published "true when submitted to community store"
+        bool published "true only once moderation_status = approved"
         string category "nullable — browse category"
         bool is_starter_pack "true for the seeded starter collections"
+        float avg_rating "denormalized cache of collection_ratings"
+        int rating_count "denormalized cache of collection_ratings"
+        string moderation_status "draft | submitted | approved | denied"
+        string moderation_reason "nullable — set on deny"
+        datetime submitted_at "nullable"
+        datetime moderated_at "nullable"
+        uuid moderated_by FK "nullable — the reviewing moderator/admin"
+        int last_digest_download_count "digest-script watermark"
+        datetime last_digest_sent_at "nullable"
     }
     ARTIFACT {
         uuid id PK
@@ -72,6 +88,22 @@ erDiagram
         datetime expires_at
         bool is_active
     }
+    COLLECTION_RATING {
+        uuid id PK
+        uuid collection_id FK
+        uuid user_id FK
+        int stars "1-5, CHECK constraint"
+        datetime created_at
+        datetime updated_at
+    }
+    COLLECTION_COMMENT {
+        uuid id PK
+        uuid collection_id FK
+        uuid user_id FK
+        text body "max 2000 chars"
+        datetime created_at
+        datetime deleted_at "nullable — soft-delete timestamp"
+    }
 ```
 
 `DOC_CACHE` (framework documentation cache for adapter compatibility rules)
@@ -100,6 +132,17 @@ the emailed token is stored, mirroring the API-token-hash pattern; the token
 is single-use (both fields are cleared on a successful reset) and expires
 after 1 hour.
 
+`role` (`user`/`moderator`/`admin`, default `user`) is additive alongside
+`is_admin` — see [ADR-0007](adr/0007-additive-user-role-column.md) for why
+there are two fields instead of one. `is_admin` still gates every
+pre-existing admin check; `role` is read only by the newer
+`require_moderator_or_admin` dependency that gates the community
+moderation routes. The two are kept in sync by
+`PATCH /auth/users/{id}/role` (admin-only), never independently.
+`notify_on_download`/`notify_on_comment` (both default `false`) are
+per-user, self-service opt-ins for community-collection notification
+emails — see the "Community collections" section below.
+
 ### `collections`
 
 A named bag of artifacts. `git_url` is a real repository URL for
@@ -117,7 +160,17 @@ artifact-mutating route, update it there too or the count will drift.
 `is_starter_pack` marks the collections seeded on every backend startup from
 `collections/base/` and `collections/additional/`, owned by a dedicated
 passwordless system account — see the "Starter packs" section in
-`CLAUDE.md`.
+`CLAUDE.md`. `avg_rating`/`rating_count` are a denormalized cache of
+`collection_ratings`, recomputed transactionally on every rating
+write/delete — see the `collection_ratings` section below.
+`moderation_status` (`draft`/`submitted`/`approved`/`denied`) is the
+single source of truth for the community-publishing lifecycle — see
+[ADR-0008](adr/0008-collection-moderation-state-machine.md) and the
+"Community collections" section below; `published`/`visibility` are only
+ever flipped to public by the approve action, never by submission itself.
+`last_digest_download_count`/`last_digest_sent_at` are watermark fields
+for the daily download-digest script
+(`app/scripts/send_download_digests.py`), not exposed via the API.
 
 ### `artifacts`
 
@@ -133,6 +186,33 @@ responding (see
 `is_active` — a disabled artifact is skipped during compilation unless a
 profile explicitly asks to `include_disabled`. `deleted_at` supports
 soft-delete — artifacts are never physically removed from the database.
+
+### `collection_ratings`
+
+One row per (collection, user) — enforced by a DB-level unique constraint
+(`uq_collection_ratings_collection_user`), not just upsert logic in the
+route handler. `stars` has a `CHECK (stars >= 1 AND stars <= 5)`
+constraint in addition to the 422 the API returns for an out-of-range
+value. `PUT /collections/{id}/rating` upserts the caller's own row and
+recomputes `Collection.avg_rating`/`rating_count` transactionally; `DELETE`
+removes it and recomputes again. Rating requires
+`Collection.moderation_status == "approved"` and blocks self-rating
+(`owner_id == current_user.id` → 400).
+
+### `collection_comments`
+
+Soft-deleted (`deleted_at`), never hard-deleted, per the soft-delete rule
+below. `body` is capped at 2000 characters, enforced at the Pydantic
+schema layer (`CollectionCommentCreate`), not just informally. Commenting
+requires `Collection.moderation_status == "approved"`, same gate as
+ratings. Deletion is allowed for the comment's own author, the
+collection's owner, or a moderator/admin — checked in the route handler,
+not by a DB constraint. `GET /collections/{id}/comments` still requires
+authentication like every other route in this API (see
+[invariants.md](invariants.md#authorization)) — the plan that introduced
+comments described this endpoint as public, but that would have been the
+first unauthenticated data route in the app, so it was kept consistent
+with the existing all-routes-require-auth convention instead.
 
 ### `profiles`
 
@@ -229,22 +309,47 @@ could be normalized into join tables. They're JSON-in-text instead because:
 
 ## Community collections
 
-Published collections have `published = True`, `visibility = "public"`, and
-a `category` string for browsing. `download_count` tracks how many times
-the collection has been imported. Publishing (`POST /{id}/publish`) is
-self-serve and immediate — it's a plain DB write on the caller's own row,
-with no GitHub involvement and no admin approval step. `GET
-/collections/community` lists anything with `published = True AND is_active
-= True`.
+Publishing goes through a moderation queue, not a self-serve DB write — see
+[ADR-0008](adr/0008-collection-moderation-state-machine.md) for the full
+state machine. `POST /collections/{id}/publish` moves a collection from
+`draft`/`denied` to `submitted`; only the moderator/admin-only
+`POST /moderation/{id}/approve` action flips `published = True` and
+`visibility = "public"`. `GET /collections/community` lists anything with
+`published = True AND is_active = True` (unchanged query, but now that
+predicate is only ever true for `moderation_status = "approved"` rows) and
+accepts `sort=rating|downloads|alpha` (default `downloads`).
+`GET /moderation/queue` (moderator/admin only) lists `submitted` rows,
+oldest-first by default, accepting the same three `sort` values as an
+override. `download_count` tracks how many times the collection has been
+imported; `category` is a free-text browse string.
+
+Denying (`POST /moderation/{id}/deny`, body `{reason}`) sets
+`moderation_status = "denied"` and `moderation_reason`, leaves
+`published = False`, and lets the owner edit and resubmit (back to
+`submitted`). A moderator/admin can also fix `name`/`description`/
+`category` directly via `PATCH /moderation/{id}/meta`, regardless of
+`moderation_status` — never `git_url`/`git_branch`/artifact content, and
+never available to the collection's own owner (they use their existing
+`PATCH /collections/{id}` instead).
 
 This is entirely separate from the seeded starter-pack set (`is_starter_pack
 = True`, owned by the system account — see the `collections` table above):
-starter packs are a fixed list maintained directly in this repo's
-`collections/` directory and shipped via the normal code-review/deploy
-pipeline, not something a user's publish action feeds into.
+starter packs are grandfathered straight to `moderation_status = "approved"`
+at seed time, never routed through the queue. The migration that introduced
+`moderation_status` did the same one-time grandfathering for every
+collection that was already `published = True AND is_active = True`,
+matching this exact query's filter — nothing already visible in the
+community disappeared or needed re-review.
 
 Importing a community collection creates a new user-owned `Collection` with
-copied `Artifact` rows and increments `download_count` on the source.
+copied `Artifact` rows and increments `download_count` on the source. If the
+source owner has `notify_on_download = True`, they get a daily digest
+email (not a per-download email) — see `last_digest_download_count`/
+`last_digest_sent_at` in the `collections` table above and
+`docs/deployment.md`'s cron entry for `app/scripts/send_download_digests.py`.
+Comment creation on an approved collection emails the owner immediately
+instead (comments are much lower-volume than downloads) if
+`notify_on_comment` is on and they have an email on file.
 
 If a future feature needs to query inside these lists (e.g. "find all public
 collections tagged `python`"), that's the point to normalize — don't
