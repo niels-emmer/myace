@@ -109,6 +109,106 @@ def compute_local_file_hashes(base: Path, filenames: Iterable[str]) -> dict[str,
     return hashes
 
 
+def check_target(
+    base: Path,
+    manifest: dict[str, Any],
+    server: str,
+    token: str,
+    timeout: float = 30.0,
+) -> dict[str, Any]:
+    """Diff one manifest against local disk state and the server's current
+    compile-status. Pure-ish (one network call) and side-effect-free beyond
+    that, so it's directly unit-testable without exercising `check`'s or
+    `watch`'s CLI/loop plumbing.
+
+    Returns a dict shaped:
+        {
+            "target": str,
+            "profile_id": str,
+            "profile_name": str,
+            "locally_modified": list[str],
+            "stale": bool | None,   # None if the server couldn't be reached
+            "in_sync": bool,
+            "error": str | None,
+        }
+    """
+    target = manifest.get("target", "")
+    profile_id = manifest.get("profile_id", "")
+    profile_name = manifest.get("profile_name", "")
+    manifest_files: dict[str, str] = manifest.get("files", {})
+
+    local_hashes = compute_local_file_hashes(base, manifest_files.keys())
+    locally_modified = sorted(
+        filename
+        for filename, stored_hash in manifest_files.items()
+        if local_hashes.get(filename) != stored_hash
+    )
+
+    stale: bool | None = None
+    error: str | None = None
+    try:
+        url = f"{server}/api/v1/profiles/{profile_id}/compile-status"
+        headers = {"Authorization": f"Bearer {token}"}
+        with httpx.Client(timeout=timeout) as client:
+            response = client.get(url, headers=headers, params={"target": target})
+            response.raise_for_status()
+            server_hash = response.json().get("compiled_hash")
+            stale = server_hash != manifest.get("compiled_hash")
+    except httpx.HTTPStatusError as e:
+        error = f"Server returned {e.response.status_code}"
+    except (httpx.ConnectError, httpx.TimeoutException) as e:
+        error = f"Could not reach server: {e}"
+
+    in_sync = not locally_modified and stale is False and error is None
+
+    return {
+        "target": target,
+        "profile_id": profile_id,
+        "profile_name": profile_name,
+        "locally_modified": locally_modified,
+        "stale": stale,
+        "in_sync": in_sync,
+        "error": error,
+    }
+
+
+def report_sync_status(
+    server: str,
+    token: str,
+    *,
+    profile_id: str,
+    target: str,
+    machine_label: str,
+    in_sync: bool,
+    locally_modified_files: list[str],
+    timeout: float = 30.0,
+) -> bool:
+    """POST a `myace check --report` result to `/api/v1/sync/report`.
+
+    Opt-in only — never called unless the user passes --report (see
+    docs/adr/0009-manifest-based-drift-detection.md for why silent
+    reporting-by-default would be a privacy regression). Returns True on
+    success, False on any failure (never raises — a failed report must not
+    fail the `check`/`watch` command that triggered it).
+    """
+    url = f"{server}/api/v1/sync/report"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    payload = {
+        "profile_id": profile_id,
+        "target": target,
+        "machine_label": machine_label,
+        "in_sync": in_sync,
+        "locally_modified_files": locally_modified_files,
+    }
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            response = client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            return True
+    except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError):
+        return False
+
+
 class SyncEngine:
     """Fetches compiled profiles from the MyACE API and writes files locally."""
 
