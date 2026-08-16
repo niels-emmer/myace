@@ -37,6 +37,9 @@ class CollectionRating(SQLModel, table=True):
             onupdate=lambda: datetime.now(UTC),
         ),
     )
+    deleted_at: datetime | None = Field(
+        default=None, sa_column=Column("deleted_at", DateTime(timezone=True), nullable=True)
+    )
 
 
 class CollectionRatingRead(SQLModel):

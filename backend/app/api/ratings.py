@@ -1,6 +1,7 @@
 """Collection ratings — 1-5 stars, one per user per collection."""
 
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -27,12 +28,29 @@ async def _get_approved_collection_or_404(
     return collection
 
 
+async def _get_rating_row(
+    session: AsyncSession, collection_id: uuid.UUID, user_id: uuid.UUID
+) -> CollectionRating | None:
+    """Look up a rating row regardless of deleted_at — the unique
+    constraint on (collection_id, user_id) isn't scoped to live rows, so a
+    soft-deleted row must be found and revived rather than colliding with
+    an INSERT of a fresh one."""
+    result = await session.execute(
+        select(CollectionRating).where(
+            CollectionRating.collection_id == collection_id,
+            CollectionRating.user_id == user_id,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def _recompute_rating(session: AsyncSession, collection: Collection) -> None:
     """Recompute the denormalized avg_rating/rating_count cache on
-    Collection from the CollectionRating rows (the source of truth)."""
+    Collection from the live CollectionRating rows (the source of truth)."""
     result = await session.execute(
         select(func.avg(CollectionRating.stars), func.count(CollectionRating.id)).where(
-            CollectionRating.collection_id == collection.id
+            CollectionRating.collection_id == collection.id,
+            CollectionRating.deleted_at == None,  # noqa: E711
         )
     )
     avg_stars, count = result.one()
@@ -56,18 +74,13 @@ async def get_rating(
     """Return the aggregate rating plus the caller's own rating, if any."""
     collection = await _get_approved_collection_or_404(session, collection_id)
 
-    my_result = await session.execute(
-        select(CollectionRating).where(
-            CollectionRating.collection_id == collection_id,
-            CollectionRating.user_id == current_user.id,
-        )
-    )
-    mine = my_result.scalar_one_or_none()
+    mine = await _get_rating_row(session, collection_id, current_user.id)
+    my_rating = mine.stars if mine and mine.deleted_at is None else None
 
     return CollectionRatingRead(
         avg_rating=collection.avg_rating,
         rating_count=collection.rating_count,
-        my_rating=mine.stars if mine else None,
+        my_rating=my_rating,
     )
 
 
@@ -79,7 +92,10 @@ async def rate_collection(
     session: AsyncSession = Depends(get_session),
 ):
     """Upsert the caller's rating for a collection. Self-rating is blocked;
-    only approved (public) collections can be rated."""
+    only approved (public) collections can be rated. Reviving a
+    previously-soft-deleted row rather than inserting a new one, since the
+    unique constraint on (collection_id, user_id) isn't scoped to live
+    rows only."""
     if request.stars < 1 or request.stars > 5:
         raise HTTPException(status_code=422, detail="stars must be between 1 and 5")
 
@@ -87,15 +103,10 @@ async def rate_collection(
     if collection.owner_id == current_user.id:
         raise HTTPException(status_code=400, detail="You cannot rate your own collection")
 
-    result = await session.execute(
-        select(CollectionRating).where(
-            CollectionRating.collection_id == collection_id,
-            CollectionRating.user_id == current_user.id,
-        )
-    )
-    rating = result.scalar_one_or_none()
+    rating = await _get_rating_row(session, collection_id, current_user.id)
     if rating:
         rating.stars = request.stars
+        rating.deleted_at = None
     else:
         rating = CollectionRating(
             collection_id=collection_id, user_id=current_user.id, stars=request.stars
@@ -118,18 +129,14 @@ async def delete_rating(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Remove the caller's own rating, if any."""
+    """Soft-delete the caller's own rating, if any (rule 15 — never
+    hard-delete)."""
     collection = await _get_approved_collection_or_404(session, collection_id)
 
-    result = await session.execute(
-        select(CollectionRating).where(
-            CollectionRating.collection_id == collection_id,
-            CollectionRating.user_id == current_user.id,
-        )
-    )
-    rating = result.scalar_one_or_none()
-    if rating:
-        await session.delete(rating)
+    rating = await _get_rating_row(session, collection_id, current_user.id)
+    if rating and rating.deleted_at is None:
+        rating.deleted_at = datetime.now(UTC)
+        session.add(rating)
         await session.commit()
         await _recompute_rating(session, collection)
         await session.refresh(collection)

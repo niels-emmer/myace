@@ -179,3 +179,65 @@ class TestRating:
             f"/api/v1/collections/{uuid.uuid4()}/rating", json={"stars": 3}
         )
         assert res.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_delete_is_soft_delete_not_hard_delete(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        """Rule 15 — never hard-delete. DELETE must set deleted_at, not
+        remove the row, so the CollectionRating table is the durable
+        source of truth even for withdrawn ratings."""
+        from sqlmodel import select
+
+        from app.models.collection_rating import CollectionRating
+
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "rater@test.com")
+        collection_id = await _create_approved_collection(async_client, db_session, "owner@test.com")
+
+        await _login(async_client, "rater@test.com")
+        await async_client.put(f"/api/v1/collections/{collection_id}/rating", json={"stars": 3})
+        res = await async_client.delete(f"/api/v1/collections/{collection_id}/rating")
+        assert res.status_code == 200
+
+        await db_session.rollback()
+        result = await db_session.execute(
+            select(CollectionRating).where(CollectionRating.collection_id == uuid.UUID(collection_id))
+        )
+        row = result.scalar_one()
+        assert row.deleted_at is not None
+        assert row.stars == 3  # row itself is untouched, just marked deleted
+
+    @pytest.mark.asyncio
+    async def test_rerating_after_delete_revives_the_row(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        """Re-rating after a soft-deleted rating must revive the same row
+        (clear deleted_at, overwrite stars) rather than colliding with the
+        (collection_id, user_id) unique constraint on an INSERT."""
+        from sqlmodel import select
+
+        from app.models.collection_rating import CollectionRating
+
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "rater@test.com")
+        collection_id = await _create_approved_collection(async_client, db_session, "owner@test.com")
+
+        await _login(async_client, "rater@test.com")
+        await async_client.put(f"/api/v1/collections/{collection_id}/rating", json={"stars": 2})
+        await async_client.delete(f"/api/v1/collections/{collection_id}/rating")
+
+        res = await async_client.put(f"/api/v1/collections/{collection_id}/rating", json={"stars": 5})
+        assert res.status_code == 200
+        data = res.json()
+        assert data["avg_rating"] == 5.0
+        assert data["rating_count"] == 1
+
+        await db_session.rollback()
+        result = await db_session.execute(
+            select(CollectionRating).where(CollectionRating.collection_id == uuid.UUID(collection_id))
+        )
+        rows = result.scalars().all()
+        assert len(rows) == 1  # revived, not a second row
+        assert rows[0].deleted_at is None
+        assert rows[0].stars == 5
