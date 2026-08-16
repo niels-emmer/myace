@@ -23,6 +23,9 @@ class AiderAdapter(BaseAdapter):
     def supported_targets(self) -> list[str]:
         return ["aider"]
 
+    def expected_paths(self) -> list[str]:
+        return ["CONVENTIONS.md", ".aider.conf.yml"]
+
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         files: dict[str, str] = {}
         sections: list[str] = []

@@ -168,6 +168,21 @@ def _parse_command_file(path: Path) -> dict | None:
 def _parse_agents_md(path: Path) -> list[dict]:
     """Parse AGENTS.md into individual rule artifacts (one per ## section)."""
     content = path.read_text(encoding="utf-8")
+    return _parse_agents_md_content(content)
+
+
+def _parse_agents_md_content(content: str) -> list[dict]:
+    """Split AGENTS.md-style markdown into individual rule artifacts (one
+    per top-level '##' section).
+
+    Split out from `_parse_agents_md()` so a caller with in-memory markdown
+    and no `AGENTS.md` file on disk — currently `myace_cli.audit`'s
+    `_parse_rule_sections()`, which also needs this same splitter for
+    CLAUDE.md/CONVENTIONS.md — can reuse the exact same parsing logic
+    instead of re-implementing the section-split regex a second time in
+    the same package. Mirrors the equivalent split on the backend side
+    (`backend/app/services/scanner.py::_parse_agents_md_content`).
+    """
     artifacts: list[dict] = []
 
     # Split by ## headers

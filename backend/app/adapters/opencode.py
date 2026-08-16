@@ -24,6 +24,12 @@ class OpenCodeAdapter(BaseAdapter):
     def supported_targets(self) -> list[str]:
         return ["opencode", "open-code"]
 
+    def expected_paths(self) -> list[str]:
+        return [
+            "AGENTS.md", "opencode.json",
+            ".opencode/skills/", ".opencode/agents/", ".opencode/commands/",
+        ]
+
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         """
         Translate artifacts into OpenCode format.

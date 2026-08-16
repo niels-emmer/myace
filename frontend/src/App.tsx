@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
@@ -12,6 +13,7 @@ import CommunityCollectionDetail from './pages/CommunityCollectionDetail';
 import ProfileComposer from './pages/ProfileComposer';
 import ProfileDetail from './pages/ProfileDetail';
 import ImportPage from './pages/ImportPage';
+import SetupAudit from './pages/SetupAudit';
 import TargetExporter from './pages/TargetExporter';
 import SyncDashboard from './pages/SyncDashboard';
 import OrchestrationGallery from './pages/OrchestrationGallery';
@@ -32,7 +34,7 @@ function RequireAuth() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/welcome" replace />;
   }
 
   return <Outlet />;
@@ -85,6 +87,7 @@ function RequireModerator() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/welcome" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<RequireAuth />}>
@@ -97,6 +100,7 @@ export default function App() {
           <Route path="/profiles" element={<ProfileComposer />} />
           <Route path="/profiles/:id" element={<ProfileDetail />} />
           <Route path="/import" element={<ImportPage />} />
+          <Route path="/setup-audit" element={<SetupAudit />} />
           <Route path="/compile" element={<TargetExporter />} />
           <Route path="/export" element={<Navigate to="/compile" replace />} />
           <Route path="/sync" element={<SyncDashboard />} />

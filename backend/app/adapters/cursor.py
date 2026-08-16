@@ -29,6 +29,9 @@ class CursorAdapter(BaseAdapter):
     def supported_targets(self) -> list[str]:
         return ["cursor", "cursor-editor"]
 
+    def expected_paths(self) -> list[str]:
+        return [".cursor/rules/"]
+
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         """
         Translate artifacts into Cursor format.

@@ -130,6 +130,13 @@ export const collectionsApi = {
     request<import('@/types').ImportCommunityResult>(`/collections/${collectionId}/import`, {
       method: 'POST',
     }),
+
+  // ─── Freshness verification (moderator/admin only) ──────
+
+  verify: (collectionId: string) =>
+    request<import('@/types').Collection>(`/collections/${collectionId}/verify`, {
+      method: 'POST',
+    }),
 };
 
 // ─── Profiles ────────────────────────────────────────────────
@@ -193,6 +200,16 @@ export const docCacheApi = {
 
   delete: (id: string) =>
     request<void>(`/doc-cache/${id}`, { method: 'DELETE' }),
+};
+
+// ─── Public Demo (no auth required — see AGENTS.md rule 13/35) ─
+
+export const demoApi = {
+  compile: (markdown: string) =>
+    request<import('@/types').DemoCompileResult>('/demo/compile', {
+      method: 'POST',
+      body: JSON.stringify({ markdown }),
+    }),
 };
 
 // ─── Auth ────────────────────────────────────────────────────

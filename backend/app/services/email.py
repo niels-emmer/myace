@@ -102,3 +102,19 @@ def build_download_digest_email(collection_name: str, download_delta: int) -> tu
         f"since your last digest."
     )
     return subject, body
+
+
+def build_freshness_digest_email(count: int) -> tuple[str, str]:
+    """Return (subject, text_body) for the weekly collection-freshness
+    digest sent to moderators/admins by
+    app/scripts/check_collection_freshness.py.
+    """
+    plural = "collection" if count == 1 else "collections"
+    subject = f"{count} community {plural} need a freshness re-check"
+    body = (
+        f"{count} approved community {plural} in {settings.app_name} either have never been "
+        f"manually verified or haven't been re-checked in over "
+        f"{settings.collection_freshness_threshold_days} days.\n\n"
+        f"Visit the Freshness Queue in the admin area to review and verify them."
+    )
+    return subject, body

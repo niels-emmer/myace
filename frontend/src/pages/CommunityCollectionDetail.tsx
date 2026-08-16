@@ -16,8 +16,10 @@ import {
   Star,
   Trash2,
   MessageSquare,
+  ShieldCheck,
 } from 'lucide-react';
 import { collectionsApi, moderationApi, ratingsApi, commentsApi } from '../lib/api';
+import { FreshnessBadge } from '../components/FreshnessBadge';
 import { useAuth } from '../contexts/AuthContext';
 import type { Artifact, ArtifactType } from '../types';
 
@@ -163,6 +165,14 @@ export default function CommunityCollectionDetail() {
     },
   });
 
+  const verifyMutation = useMutation({
+    mutationFn: () => collectionsApi.verify(id!),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['community-collection', id], updated);
+      queryClient.invalidateQueries({ queryKey: ['community-collections'] });
+    },
+  });
+
   const openMetaEditModal = () => {
     updateMetaMutation.reset();
     setMetaName(collection?.name ?? '');
@@ -218,6 +228,7 @@ export default function CommunityCollectionDetail() {
                 {collection.category}
               </span>
             )}
+            <FreshnessBadge lastVerifiedAt={collection.last_verified_at} />
           </div>
           <p className="text-muted-foreground mt-1">
             {collection.description || 'No description'}
@@ -237,6 +248,21 @@ export default function CommunityCollectionDetail() {
 
         {/* Import + moderator actions */}
         <div className="flex-shrink-0 flex items-center gap-2">
+          {canEditMeta && (
+            <button
+              onClick={() => verifyMutation.mutate()}
+              disabled={verifyMutation.isPending}
+              title="Confirm you've manually reviewed this collection and it's still good — not an automated check."
+              className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
+            >
+              {verifyMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-3.5 w-3.5" />
+              )}
+              Mark verified
+            </button>
+          )}
           {canEditMeta && (
             <button
               onClick={openMetaEditModal}

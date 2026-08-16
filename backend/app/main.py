@@ -5,8 +5,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 from app.api import (
     adapters,
@@ -14,12 +17,17 @@ from app.api import (
     auth,
     collections,
     comments,
+    demo,
     doc_cache,
+    freshness,
     moderation,
     profiles,
     ratings,
     sync,
 )
+from app.api.demo import DEMO_REQUEST_BODY_MAX_BYTES
+from app.api.demo import limiter as demo_limiter
+from app.core.body_limit import MaxBodySizeMiddleware
 from app.core.config import settings
 from app.core.database import get_session_factory, init_db
 from app.services.seed_collections import seed_starter_collections
@@ -79,6 +87,55 @@ app = FastAPI(
     redoc_url="/redoc" if settings.debug else None,
 )
 
+# Rate limiter state + exception handler for app.api.demo's @limiter.limit(...)
+# decorator — this is app-wide *plumbing* slowapi requires to raise 429s at
+# all, not app-wide rate limiting. No route other than POST /demo/compile
+# carries the decorator, so no other route is actually rate-limited by this.
+app.state.limiter = demo_limiter
+
+
+def _handle_rate_limit_exceeded(request: Request, exc: Exception) -> Response:
+    """Custom handler, not slowapi's own `_rate_limit_exceeded_handler` —
+    that one returns `{"error": "Rate limit exceeded: ..."}`, but every
+    other error response in this app (FastAPI's `HTTPException`) shapes
+    its body as `{"detail": ...}`, which is exactly what
+    `frontend/src/lib/api.ts`'s `request()` reads. Returning the
+    `{"error": ...}` shape here would silently degrade to a generic
+    "HTTP 429" in the UI instead of the real rate-limit message. Rebuilds
+    the same rate-limit headers slowapi's own handler injects, via the
+    same private `_inject_headers` helper it uses internally.
+
+    Starlette's `add_exception_handler()` expects `Callable[[Request,
+    Exception], Response]`, but this is only ever registered for
+    `RateLimitExceeded` — the `isinstance` check narrows the type for
+    mypy rather than guarding real runtime behavior.
+    """
+    assert isinstance(exc, RateLimitExceeded)
+    response = JSONResponse(
+        {"detail": f"Rate limit exceeded: {exc.detail}"}, status_code=429
+    )
+    # slowapi ships no py.typed marker, so mypy sees this call as returning
+    # `Any` despite its real (correctly-typed) runtime signature
+    # `(Response, ...) -> Response` — annotate the result explicitly
+    # rather than letting `Any` silently propagate as this function's
+    # declared `Response` return.
+    injected: Response = request.app.state.limiter._inject_headers(
+        response, request.state.view_rate_limit
+    )
+    return injected
+
+
+app.add_exception_handler(RateLimitExceeded, _handle_rate_limit_exceeded)
+
+# Transport-level body-size cap for the one fully-public route in this app
+# (POST /demo/compile) — see app.core.body_limit's module docstring for why
+# this can't be done inside a Pydantic validator alone. Scoped to exactly
+# this (method, path) pair; every other route is unaffected.
+app.add_middleware(
+    MaxBodySizeMiddleware,
+    limits={("POST", "/api/v1/demo/compile"): DEMO_REQUEST_BODY_MAX_BYTES},
+)
+
 # Trusted hosts — always enforce. In development, allow all hosts (safe
 # default for local testing). In production, the operator MUST set
 # TRUSTED_HOSTS to their real domain(s); the app will fail at startup
@@ -117,7 +174,9 @@ app.add_middleware(
 
 # Register routers
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
+app.include_router(freshness.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(demo.router, prefix="/api/v1/demo", tags=["Demo"])
 app.include_router(collections.router, prefix="/api/v1/collections", tags=["Collections"])
 app.include_router(ratings.router, prefix="/api/v1/collections", tags=["Ratings"])
 app.include_router(comments.router, prefix="/api/v1/collections", tags=["Comments"])

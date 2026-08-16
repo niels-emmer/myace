@@ -34,6 +34,9 @@ class ClaudeCodeAdapter(BaseAdapter):
     def supported_targets(self) -> list[str]:
         return ["claude-code", "claude"]
 
+    def expected_paths(self) -> list[str]:
+        return ["CLAUDE.md", ".claude/agents/", ".claude/skills/", ".claude/commands/"]
+
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         """
         Translate artifacts into Claude Code format.

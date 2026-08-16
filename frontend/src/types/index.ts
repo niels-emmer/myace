@@ -48,6 +48,12 @@ export interface Collection {
   moderated_at?: string;
   moderated_by?: string;
   last_synced_at?: string;
+  // Manual freshness verification (Epic 4.5) — a moderator/admin
+  // confirming this collection is still good, not an automated check
+  // against live tool documentation. last_verified_at is an ISO date
+  // string (YYYY-MM-DD), not a full timestamp.
+  last_verified_at?: string | null;
+  verified_by?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -353,6 +359,18 @@ export interface ImportCommunityResult {
   collection_id: string;
   collection_name: string;
   artifacts_imported: number;
+}
+
+// ─── Public Demo Types ────────────────────────────────────────
+
+// Mirrors backend DemoCompileResponse (POST /demo/compile) — the only
+// unauthenticated compile route in the API (AGENTS.md rule 13's
+// documented exception, see docs/adr/0011-public-demo-sandbox.md).
+// Nothing here is persisted; `targets` is a fixed, small subset of the
+// full adapter registry (claude-code, cursor, opencode).
+export interface DemoCompileResult {
+  artifact_count: number;
+  targets: Record<string, Record<string, string>>;
 }
 
 // ─── Admin Types ──────────────────────────────────────────────

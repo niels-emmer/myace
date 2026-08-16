@@ -84,10 +84,14 @@ class BaseAdapter(ABC):
     def adapter_name(self) -> str: ...
 
     @abstractmethod
+    def expected_paths(self) -> list[str]: ...
+
+    @abstractmethod
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]: ...
 ```
 
 - `translate()` returns a dict of `{filename: file_content}` for the target framework.
+- `expected_paths()` (added Phase 4, rule 35) returns this adapter's conventional local file/directory names, used by the local setup audit — must match what `translate()` actually writes.
 - Adapters are stateless — all state lives in the composition engine.
 
 ### 4. API Versioning
@@ -226,7 +230,7 @@ When two components fetch the same resource with different filters (e.g. an unfi
 
 ### 13. Authentication & Authorization
 
-- **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`. Everything else requires it.
+- **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`, and (Phase 4) `POST /demo/compile` — see rule 36 for why that last one is a deliberate, narrowly-scoped exception rather than a precedent for public routes in general. Everything else requires it.
 - **Authorization is ownership + visibility, not per-route roles.** Use `authorize_access()` (single resource) and `owner_or_public_clause()` (list endpoints) from `backend/app/core/authz.py` — don't hand-roll owner checks. `authorize_access` 404s (not 403s) on denial, matching the rest of the codebase's convention of not revealing a resource's existence to someone who can't see it. `current_user.is_admin` bypasses both.
 - **`Artifact` has no `owner_id` of its own.** Authorize against its parent `Collection` — load the collection first, call `authorize_access` on that, then proceed.
 - **Bulk/cross-resource operations need a check per resource touched.** `bulk_export_artifacts`'s target collection needs its own write-check independent of the source collection's read-check — don't assume checking one resource covers every resource an endpoint touches.
@@ -607,10 +611,13 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   admin. See [ADR-0007](docs/adr/0007-additive-user-role-column.md).
 - **`require_moderator_or_admin` (`backend/app/core/deps.py`) reads `role`
   only, never `is_admin`.** It gates every route under
-  `/api/v1/moderation/*` and nothing else. Never widen it to accept
-  `is_admin` alone, never merge it with `require_admin`, and never use
-  `authorize_access()`'s owner-bypass on a moderation route — a
-  collection's own owner must never be able to approve or deny their own
+  `/api/v1/moderation/*`, plus two Phase-4 additions under other URL
+  prefixes that are the same community-content-review capability in
+  substance — `GET /admin/freshness-queue` and
+  `POST /collections/{id}/verify` (rule 37) — and nothing else. Never
+  widen it to accept `is_admin` alone, never merge it with `require_admin`,
+  and never use `authorize_access()`'s owner-bypass on a route it gates —
+  a collection's own owner must never be able to approve or deny their own
   submission, including an owner who happens to also be a moderator or
   admin viewing the route through a different capability.
 - Moderator scope is deliberately narrow: review/approve/deny submissions,
@@ -789,3 +796,120 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `frontend/src/components/PipelineFlow.tsx` rather than duplicating
   the `@xyflow/react` setup — extend that file, don't fork it, if a
   third page ever needs to render a pipeline diagram.
+
+### 35. Local Setup Audit — `expected_paths()` Is a Hand-Maintained Contract, Not a Shared Import
+
+- **`BaseAdapter.expected_paths() -> list[str]`** (implemented by all 11
+  backend adapters, `backend/app/adapters/*.py`) returns each target
+  framework's conventional local file/directory names — directory entries
+  end with `/` (e.g. `.claude/agents/`), file entries don't (e.g.
+  `CLAUDE.md`). It must match what that adapter's `translate()` actually
+  writes; if you change one, check the other. Nothing enforces this at
+  runtime — no test cross-checks `expected_paths()` output against
+  `translate()` output — so keep them in sync by hand when editing either.
+- **The companion server's `POST /audit` route**
+  (`cli/myace_cli/local_server.py`, same security model as `/scan` — see
+  rule 24, unchanged) uses this to scan every detected target's
+  conventional location under a given root, via `cli/myace_cli/audit.py`'s
+  `audit_directory()`. It computes cross-target coverage gaps (an artifact
+  name present under one target's paths but absent from another's),
+  within-target duplicate names, and a documented, deliberately rough
+  0-100 score — say so in any UI surfacing it (`SetupAudit.tsx` does),
+  not just in code comments.
+- **`cli/myace_cli/audit.py`'s `ADAPTER_EXPECTED_PATHS` is a hand-maintained
+  mirror of the 11 backend adapters' `expected_paths()` values, not an
+  import.** The CLI package doesn't depend on the backend package (same
+  reasoning as the two parallel scanner implementations, rule 8) — if you
+  add a 12th adapter or change an existing one's `expected_paths()`,
+  update this dict too, or the audit will silently miss/misreport that
+  target.
+- **Two tiers of parsing fidelity inside `audit.py`'s `scan_target()`**,
+  and don't blur them: directories named `agents/`/`skills`/`commands/`
+  (Claude Code, OpenCode, Codex CLI) are handed to the *real*
+  `scan_directory()` parsers (pointed at the parent directory, since
+  that's what `scan_directory()` itself expects); every other directory
+  convention (Cursor/Windsurf/Amazon Q/Cline/Continue/Copilot's flat
+  rules-or-instructions folders) has no per-file parser here and falls
+  back to "one artifact per `.md`/`.mdc` file, named by filename stem." If
+  you add real per-file parsing for one of those frameworks, keep the
+  fallback for whichever frameworks still lack it — don't remove the
+  tiering assumption elsewhere in the module.
+
+### 36. Public Demo Compile Endpoint — the Auth-Exception + Rate-Limiter Pattern
+
+- **`POST /demo/compile` (`backend/app/api/demo.py`) is the only
+  fully-public *data* route in this backend beyond the auth-entry list in
+  rule 13** — see [ADR-0011](docs/adr/0011-public-demo-sandbox.md) for the
+  full reasoning. If a future feature seems to need another public route,
+  read that ADR first; it's a deliberate, narrowly-scoped exception, not
+  a precedent that public routes are now fine in general.
+- **The pattern to copy, if you ever add another one:** no
+  `Depends(get_current_user)` *and* no DB session dependency at all (so
+  there's structurally nothing to persist by accident — see invariant 22
+  in `docs/invariants.md`), a capped/validated input size, a fixed small
+  scope (3 adapters here, not all 11), and a per-route `slowapi`
+  `@limiter.limit(...)` decorator. Don't reach for session-based/anonymous
+  auth to gate a route like this — if there's genuinely nothing to own,
+  there's nothing an auth check would protect.
+- **`slowapi`'s `Limiter` + `RateLimitExceeded` exception handler are
+  registered once, globally, on the FastAPI app** (`app/main.py`:
+  `app.state.limiter` + `app.add_exception_handler(...)`). This is
+  required plumbing for `@limiter.limit(...)` to raise 429s at all — it is
+  **not** app-wide rate limiting. Only routes explicitly decorated with
+  `@limiter.limit(...)` are throttled; as of this writing that's `POST
+  /demo/compile` alone. Don't assume adding this registration protects any
+  other route, and don't remove it thinking it's dead weight — every
+  route that *does* carry the decorator depends on it.
+- **The rate limiter's storage is in-memory and per-process** — in a
+  multi-replica deployment the effective limit is `10 × replica_count`,
+  not a hard global 10. Acceptable for a demo-abuse deterrent today
+  (documented in ADR-0011's consequences); if MyACE grows a documented
+  multi-replica production shape, this needs a shared backend (e.g.
+  Redis), not a bigger in-memory number.
+
+### 37. Collection Freshness Verification — Manual, Honest, and Not a Live Check
+
+- **`Collection.last_verified_at`/`verified_by`** (nullable `Date`/FK to
+  `users.id`) record that a moderator/admin manually looked at a community
+  collection recently and confirmed it's still good. This is **not** an
+  automated check against live tool documentation — every surface that
+  shows it (API docstrings, `FreshnessBadge.tsx`'s tooltip copy) says so
+  explicitly. Don't let a future change make this look more automated than
+  it is (e.g. auto-setting it from a passing CI run) without a deliberate,
+  reviewed decision to change what "verified" means. See
+  [ADR-0012](docs/adr/0012-manual-collection-freshness-verification.md)
+  for why manual, not automated, was the deliberate choice here.
+- **`GET /admin/freshness-queue` and `POST /collections/{id}/verify`
+  (`backend/app/api/freshness.py`, `backend/app/api/collections.py`) are
+  both gated by `require_moderator_or_admin`, per rule 30's extended
+  scope** — not `authorize_access`, and not a self-verification block the
+  way moderation approval has a self-approval block (rule 18): verifying
+  is additive/non-destructive to the collection in a way approving a
+  submission isn't, so there's no equivalent risk in letting a
+  moderator/admin who also owns a collection verify it themselves.
+- **`freshness.py`'s `stale_collections_query()` is the single source of
+  truth for "what counts as stale."** Both the queue route and
+  `app/scripts/check_collection_freshness.py` (the weekly digest cron
+  script, same "no in-process scheduler" shape as
+  `send_download_digests.py` — see `docs/deployment.md`) call this one
+  function. If you change the staleness definition, change it there once
+  — don't let the route and the script hand-roll two copies of the same
+  `WHERE` clause that can drift apart.
+- **`settings.collection_freshness_threshold_days` (default 180, ~6
+  months) is not exposed via any API endpoint today.** The frontend
+  badge's own threshold (`frontend/src/components/FreshnessBadge.tsx`) is
+  a hardcoded mirror of that default, not read live from the server — an
+  admin-overridden threshold (there's currently no UI to override it
+  anyway; it's env/settings-only) won't be reflected in the badge. Known,
+  accepted gap for a "rough signal" feature; revisit if the threshold ever
+  becomes admin-editable via System Settings.
+- **A handful of `# type: ignore` comments in `freshness.py`/
+  `check_collection_freshness.py`** cover a genuine mypy/SQLAlchemy stub
+  gap specific to comparing a nullable `date`-typed column (`<`, wrapped
+  in `or_()`) — mypy resolves `Collection.last_verified_at` as a plain
+  `date | None` in that context rather than a SQLAlchemy `ColumnElement`,
+  unlike the `datetime`-typed nullable columns elsewhere in this codebase
+  (e.g. `Artifact.deleted_at == None`), which don't need one. Each ignore
+  is scoped to one line with a comment explaining why; don't blanket-ignore
+  the file, and don't be surprised if a `datetime` column doesn't need the
+  same treatment.

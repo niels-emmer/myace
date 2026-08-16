@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -13,7 +13,7 @@ from sqlmodel import select
 
 from app.core.authz import authorize_access, owner_or_public_clause
 from app.core.database import get_session
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_moderator_or_admin
 from app.models.artifact import (
     Artifact,
     ArtifactCreate,
@@ -698,6 +698,31 @@ async def publish_collection(
     await session.commit()
     await session.refresh(collection)
 
+    return collection
+
+
+@router.post("/{collection_id}/verify", response_model=CollectionRead)
+async def verify_collection_freshness(
+    collection_id: uuid.UUID,
+    current_user: User = Depends(require_moderator_or_admin),
+    session: AsyncSession = Depends(get_session),
+) -> Collection:
+    """Mark a collection as freshness-verified today by the calling
+    moderator/admin — sets last_verified_at/verified_by.
+
+    Gated by require_moderator_or_admin, not authorize_access — same
+    reasoning as the moderation queue (AGENTS.md rule 30/37): reviewing
+    community content is a moderator capability, not an ownership one.
+    "Verified" means a human looked at this collection recently and
+    confirmed it's still good, not that anything was automatically
+    checked against live tool documentation — see the frontend badge copy
+    for the same honesty (Epic 4.2/4.5).
+    """
+    collection = await _get_collection_or_404(session, collection_id)
+    collection.last_verified_at = date.today()
+    collection.verified_by = current_user.id
+    await session.commit()
+    await session.refresh(collection)
     return collection
 
 

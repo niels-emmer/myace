@@ -150,8 +150,14 @@ re-imported from that same repo should scan back to the same artifacts.
 
 ## Authentication & Authorization
 
-Every API route requires an authenticated user. Two mechanisms feed one
-dependency:
+Every API route requires an authenticated user, except a short, explicit
+public list: `/health`, the auth entry points (`/auth/register`,
+`/auth/login`, `/auth/login/{provider}`, `/auth/callback/{provider}`,
+`/auth/providers`), and — new in Phase 4 — `POST /demo/compile`, the
+stateless public demo endpoint behind the `/welcome` landing page (see
+[ADR-0011](adr/0011-public-demo-sandbox.md) and AGENTS.md rule 36 for why
+this one earns the exception). Everything else goes through one of two
+mechanisms feeding one dependency:
 
 - **Session cookie** — set after `/auth/login` (email+password) or an
   OIDC/GitHub/Google callback. This is what the web UI uses.

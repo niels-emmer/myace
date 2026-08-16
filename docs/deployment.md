@@ -137,6 +137,28 @@ Add a crontab entry on the Docker host, e.g. once daily at 06:00:
 The script is a no-op (logs a notice, exits 0) if SMTP isn't configured
 or enabled in System Settings — safe to add to cron before SMTP is set up.
 
+## Collection freshness digest cron job
+
+Moderators/admins get a weekly email digest when any approved community
+collection's manual freshness verification is missing or has aged past
+`COLLECTION_FRESHNESS_THRESHOLD_DAYS` (default 180, ~6 months) — see
+[data-model.md](data-model.md#freshness-verification) and
+[ADR-0012](adr/0012-manual-collection-freshness-verification.md) for why
+this is a manual signal, not an automated content check. Same
+"no in-process scheduler" shape as the download-digest script above:
+`backend/app/scripts/check_collection_freshness.py`, meant for the host's
+crontab, not run in-process.
+
+Add a crontab entry, e.g. once weekly on Monday at 07:00:
+
+```cron
+0 7 * * 1 cd /path/to/myace && docker compose exec -T backend python -m app.scripts.check_collection_freshness >> /var/log/myace-freshness-digest.log 2>&1
+```
+
+Also a no-op if SMTP isn't configured/enabled, and safe to add before SMTP
+is set up. Unlike the download-digest script, there's no watermark to
+protect — the script always recomputes today's stale count fresh each run.
+
 ## Backups
 
 Database backups (retention, restore procedure, offsite copy guidance) are

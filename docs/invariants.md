@@ -9,7 +9,11 @@ names where it's enforced so you can verify it hasn't regressed.
 
 1. **Every API route requires an authenticated user**, except the explicit
    public list: `/health`, `/auth/register`, `/auth/login`,
-   `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`.
+   `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`,
+   and `POST /demo/compile` (added in Phase 4 — see
+   [ADR-0011](adr/0011-public-demo-sandbox.md) and AGENTS.md rule 36 for
+   why this one earns the exception, and invariant 22 below for what makes
+   it safe to leave public).
    Enforced by `Depends(get_current_user)` — `backend/app/core/deps.py`.
    *If you add a route and forget this dependency, it's open to anyone.*
 
@@ -52,14 +56,17 @@ names where it's enforced so you can verify it hasn't regressed.
    "placeholder user" concept — see
    [ADR-0005](adr/0005-email-password-baseline-auth.md).
 
-8. **Moderator scope is community-only, and never mixes with `is_admin`'s
-   ownership bypass.** `require_moderator_or_admin`
-   (`backend/app/core/deps.py`) reads `current_user.role` only, gates
-   `/api/v1/moderation/*` exclusively, and grants no other admin
-   capability (user management, system settings, adapter toggles). Never
-   widen it to accept `is_admin` alone, never merge it with `require_admin`,
-   and never use `authorize_access()`'s owner-bypass on a moderation route
-   — see [ADR-0007](adr/0007-additive-user-role-column.md).
+8. **Moderator scope is community-content-only, and never mixes with
+   `is_admin`'s ownership bypass.** `require_moderator_or_admin`
+   (`backend/app/core/deps.py`) reads `current_user.role` only and grants
+   no `require_admin`-only capability (user management, system settings,
+   adapter toggles). It gates `/api/v1/moderation/*` plus two Phase-4
+   additions that are the same kind of community-content review capability
+   under a different URL prefix: `GET /admin/freshness-queue` and
+   `POST /collections/{id}/verify` (AGENTS.md rule 37) — never widen it to
+   accept `is_admin` alone, never merge it with `require_admin`, and never
+   use `authorize_access()`'s owner-bypass on any route it gates — see
+   [ADR-0007](adr/0007-additive-user-role-column.md).
 
 9. **A collection's own owner can never approve or deny their own
    submission, even if they're also a moderator or admin viewing it through
@@ -175,6 +182,17 @@ names where it's enforced so you can verify it hasn't regressed.
     their own machine, which is exactly the kind of thing this project
     doesn't expose without being asked (see
     [ADR-0009](adr/0009-manifest-based-drift-detection.md)).
+
+22. **`POST /demo/compile` never persists anything, in either direction.**
+    Unlike every other route in this API, it has no DB session dependency
+    at all — there is no `AsyncSession` in scope for its handler to write
+    (or even read) with. This is what makes invariant 1's public-route
+    exception for it safe: there's no ownership model to bypass because
+    there's no data being touched. Enforced structurally, not just by
+    convention, and covered by
+    `backend/tests/test_demo.py::test_demo_compile_creates_no_database_rows`,
+    which asserts zero `Collection`/`Artifact` rows exist after a compile
+    call. See [ADR-0011](adr/0011-public-demo-sandbox.md).
 
 ## A gap that's accepted, not fixed
 

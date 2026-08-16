@@ -15,6 +15,9 @@ class CopilotCliAdapter(BaseAdapter):
     def supported_targets(self) -> list[str]:
         return ["copilot-cli", "copilot", "github-copilot"]
 
+    def expected_paths(self) -> list[str]:
+        return [".github/copilot-instructions.md", ".github/instructions/"]
+
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         files: dict[str, str] = {}
         rules_entries: list[str] = []

@@ -28,6 +28,9 @@ class AmazonQAdapter(BaseAdapter):
     def supported_targets(self) -> list[str]:
         return ["amazon-q", "amazonq"]
 
+    def expected_paths(self) -> list[str]:
+        return [".amazonq/rules/"]
+
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         files: dict[str, str] = {}
 

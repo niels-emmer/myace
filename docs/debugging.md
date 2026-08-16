@@ -161,6 +161,20 @@ runs in CI as advisory, not blocking — see
 [extending.md](extending.md#improving-type-coverage) if you want to help
 close this gap for real).
 
+**A worse variant, specific to nullable `date`-typed columns:** comparing
+one with `<`/`>` (e.g. `Collection.last_verified_at < some_date`, wrapped
+in `or_(...)` with an `== None` check) gets mypy errors like `Unsupported
+operand types for > ("date" and "None")` and `Argument 1 to "or_" has
+incompatible type "bool"` — worse than the `.in_()` case because mypy
+resolves the column as a plain `date | None` here, not even an
+`InstrumentedAttribute`-shaped `Any`. Nullable `datetime`-typed columns
+(e.g. `Artifact.deleted_at == None`, used all over this codebase) don't
+have this problem — it's specific to `date`. `backend/app/api/freshness.py`
+has a working example of the fix: narrowly-scoped `# type: ignore[arg-type]`
+/ `# type: ignore[arg-type,operator]` / `# type: ignore[union-attr]`
+comments on exactly the affected sub-expressions, each with a one-line
+comment explaining why, rather than a blanket file-level ignore.
+
 ## `alembic upgrade head` does nothing on a fresh clone / migrations seem to not exist
 
 **Symptom:** a freshly cloned repo has `backend/alembic/versions/` with only
