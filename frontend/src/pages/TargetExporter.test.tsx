@@ -51,6 +51,19 @@ const mockCompileResult: CompileResult = {
   files: { 'AGENTS.md': '# Agents' },
 };
 
+const mockCompileResultWithWarnings: CompileResult = {
+  ...mockCompileResult,
+  warnings: [
+    {
+      level: 'warning',
+      code: 'name_collision',
+      message:
+        "Artifact 'security-checklist' is defined in both 'base-collection' and " +
+        "'additional-collection'; 'additional-collection' wins.",
+    },
+  ],
+};
+
 function renderWithQueryClient() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -128,6 +141,14 @@ describe('TargetExporter zip download', () => {
     clickSpy.mockRestore();
   });
 
+  it('shows no warnings panel when the compile response has no warnings', async () => {
+    renderWithQueryClient();
+    await selectProfile();
+
+    await screen.findByText(/Output — 1 artifacts/i);
+    expect(screen.queryByText(/warning/i)).not.toBeInTheDocument();
+  });
+
   it('downloads the zip for the compiled result, not the live target dropdown, if the dropdown changes after Compile', async () => {
     // Regression test: the download previously read `selectedTarget` (live
     // dropdown state) instead of `result.target` (what was actually
@@ -172,5 +193,45 @@ describe('TargetExporter zip download', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Download as \.zip/i }));
 
     expect(await screen.findByText(/Could not download the zip/i)).toBeInTheDocument();
+  });
+});
+
+describe('TargetExporter compile warnings panel', () => {
+  beforeEach(() => {
+    vi.mocked(profilesApi.list).mockResolvedValue([mockProfile]);
+    vi.mocked(adaptersApi.list).mockResolvedValue([mockAdapter]);
+  });
+
+  it('renders a dismissible warnings panel above the file output when warnings are present', async () => {
+    vi.mocked(profilesApi.compile).mockResolvedValue(mockCompileResultWithWarnings);
+
+    renderWithQueryClient();
+    await selectProfile();
+
+    expect(await screen.findByText(/1 warning from compilation/i)).toBeInTheDocument();
+    expect(screen.getByText(/base-collection/)).toBeInTheDocument();
+    expect(screen.getByText(/additional-collection/)).toBeInTheDocument();
+
+    const dismissButton = screen.getByRole('button', { name: /Dismiss warnings/i });
+    fireEvent.click(dismissButton);
+
+    expect(screen.queryByText(/1 warning from compilation/i)).not.toBeInTheDocument();
+    // Dismissing the panel must not remove the compiled output itself.
+    expect(screen.getByText('AGENTS.md')).toBeInTheDocument();
+  });
+
+  it('re-shows warnings on a fresh compile even after a previous dismissal', async () => {
+    vi.mocked(profilesApi.compile).mockResolvedValue(mockCompileResultWithWarnings);
+
+    renderWithQueryClient();
+    await selectProfile();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Dismiss warnings/i }));
+    expect(screen.queryByText(/1 warning from compilation/i)).not.toBeInTheDocument();
+
+    // Recompile (same button, now labeled "Compile" again since loading reset).
+    fireEvent.click(screen.getByRole('button', { name: /Compile/i }));
+
+    expect(await screen.findByText(/1 warning from compilation/i)).toBeInTheDocument();
   });
 });

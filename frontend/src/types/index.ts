@@ -127,12 +127,22 @@ export interface ProfileCompileRequest {
   include_disabled?: boolean;
 }
 
+export interface ValidationIssue {
+  level: 'warning';
+  code: string;
+  message: string;
+}
+
 export interface CompileResult {
   profile_id: string;
   profile_name: string;
   target: string;
   artifact_count: number;
   files: Record<string, string>;
+  // Optional — response-only, never persisted (see docs/data-model.md). Advisory
+  // problems surfaced at compile time, e.g. an artifact name collision across
+  // composed collections; an empty/absent array means nothing to flag.
+  warnings?: ValidationIssue[];
 }
 
 // ─── Bulk Artifact Operations ────────────────────────────────
