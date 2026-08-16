@@ -238,3 +238,99 @@ class TestDeny:
             f"/api/v1/moderation/{collection_id}/deny", json={"reason": "self-review"}
         )
         assert res.status_code == 403
+
+
+class TestMetaEdit:
+    @pytest.mark.asyncio
+    async def test_moderator_can_edit_meta_on_approved_collection(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        """A moderator should be able to fix a typo on an already-approved
+        collection too, not just mid-review."""
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+
+        await _login(async_client, "mod@test.com")
+        res = await async_client.post(f"/api/v1/moderation/{collection_id}/approve")
+        assert res.status_code == 200
+        assert res.json()["moderation_status"] == "approved"
+
+        res = await async_client.patch(
+            f"/api/v1/moderation/{collection_id}/meta",
+            json={"name": "Fixed Name", "category": "devops"},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert data["name"] == "Fixed Name"
+        assert data["category"] == "devops"
+        assert data["moderation_status"] == "approved"
+
+    @pytest.mark.asyncio
+    async def test_partial_update_only_touches_provided_fields(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+
+        await _login(async_client, "mod@test.com")
+        res = await async_client.patch(
+            f"/api/v1/moderation/{collection_id}/meta", json={"category": "new-category"}
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert data["category"] == "new-category"
+        assert data["name"] == "sub-me"  # unchanged
+
+    @pytest.mark.asyncio
+    async def test_admin_can_edit_meta(self, async_client: AsyncClient, db_session: AsyncSession):
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "admin@test.com", role="admin")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+
+        await _login(async_client, "admin@test.com")
+        res = await async_client.patch(
+            f"/api/v1/moderation/{collection_id}/meta", json={"description": "Better description"}
+        )
+        assert res.status_code == 200
+        assert res.json()["description"] == "Better description"
+
+    @pytest.mark.asyncio
+    async def test_plain_user_forbidden(self, async_client: AsyncClient, db_session: AsyncSession):
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "outsider@test.com")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+
+        await _login(async_client, "outsider@test.com")
+        res = await async_client.patch(
+            f"/api/v1/moderation/{collection_id}/meta", json={"name": "Hijacked"}
+        )
+        assert res.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_owner_who_is_not_moderator_forbidden(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        """The collection's own owner must use their existing
+        PATCH /collections/{id} route, not this moderator-only one."""
+        await _create_user(db_session, "owner@test.com")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+
+        await _login(async_client, "owner@test.com")
+        res = await async_client.patch(
+            f"/api/v1/moderation/{collection_id}/meta", json={"name": "Self Edit"}
+        )
+        assert res.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_unknown_collection_404(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _create_user(db_session, "mod@test.com", role="moderator")
+        await _login(async_client, "mod@test.com")
+
+        res = await async_client.patch(
+            f"/api/v1/moderation/{uuid.uuid4()}/meta", json={"name": "Nope"}
+        )
+        assert res.status_code == 404

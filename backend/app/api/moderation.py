@@ -142,3 +142,41 @@ async def deny_collection(
         build_moderation_denied_email(collection.name, collection.moderation_reason),
     )
     return collection
+
+
+class CollectionMetaUpdate(BaseModel):
+    """Body for PATCH /moderation/{collection_id}/meta — metadata only,
+    never git_url/git_branch/artifact content."""
+    name: str | None = None
+    description: str | None = None
+    category: str | None = None
+
+
+@router.patch("/{collection_id}/meta", response_model=CollectionRead)
+async def update_collection_meta(
+    collection_id: uuid.UUID,
+    request: CollectionMetaUpdate,
+    current_user: User = Depends(require_moderator_or_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """Let a moderator/admin fix a community collection's name, description,
+    or category — regardless of moderation_status, so a typo can be fixed
+    on an already-approved collection too, not just mid-review. The
+    collection's own owner (if not also a moderator/admin) cannot use this
+    endpoint; they edit via their own existing PATCH /collections/{id}."""
+    result = await session.execute(select(Collection).where(Collection.id == collection_id))
+    collection = result.scalar_one_or_none()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+
+    if request.name is not None:
+        collection.name = request.name
+    if request.description is not None:
+        collection.description = request.description
+    if request.category is not None:
+        collection.category = request.category
+    collection.updated_at = datetime.now(UTC)
+    await session.commit()
+    await session.refresh(collection)
+
+    return collection
