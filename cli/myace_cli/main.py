@@ -1,7 +1,10 @@
 """MyACE CLI entrypoint — Typer application with subcommands."""
 
 import getpass
+import json as json_module
+import socket
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 import typer
@@ -13,7 +16,16 @@ from rich.table import Table
 
 from myace_cli.auth import AuthManager
 from myace_cli.scanner import export_to_collection, scan_directory
-from myace_cli.sync import SyncEngine
+from myace_cli.sync import (
+    SyncEngine,
+    check_target,
+    find_manifests,
+    manifest_file_path,
+    read_manifest,
+    report_sync_status,
+    run_watch_iteration,
+    write_manifest,
+)
 
 app = typer.Typer(
     name="myace",
@@ -255,6 +267,7 @@ def pull(
         # Write files
         written = 0
         skipped = 0
+        written_filenames: list[str] = []
         for filename, content in files.items():
             # Prevent path traversal: reject filenames with path separators or
             # parent-dir references. The server's compile response is derived from
@@ -274,13 +287,51 @@ def pull(
                 )
                 if not overwrite:
                     skipped += 1
+                    written_filenames.append(filename)
                     continue
 
             file_path.write_text(content)
             written += 1
+            written_filenames.append(filename)
 
         rprint(f"\n[green]✓[/green] {written} files written, {skipped} skipped.")
         rprint(f"   Location: [bold]{output_path}[/bold]")
+
+        # Local sync manifest — records a hash per file *as it actually ended
+        # up on disk* (so a file the user declined to overwrite keeps its old
+        # hash, not one implying it matches the server) plus the server's
+        # compiled_hash, for `myace check`/`watch` to diff against later.
+        # Unsafe/rejected filenames above are excluded — they were never
+        # written and aren't real paths under output_path.
+        compiled_hash = result.get("compiled_hash")
+        if compiled_hash:
+            final_contents = {
+                filename: (output_path / filename).read_text()
+                for filename in written_filenames
+                if (output_path / filename).exists()
+            }
+            manifest_path = write_manifest(
+                output_path,
+                profile_id=result.get("profile_id", ""),
+                profile_name=result.get("profile_name", profile),
+                target=target,
+                compiled_hash=compiled_hash,
+                files=final_contents,
+            )
+            rprint(f"   Sync manifest: [bold]{manifest_path}[/bold]")
+            rprint(
+                "   [dim]Tip: add .myace/ to your .gitignore if you don't want to commit "
+                "sync manifests.[/dim]"
+            )
+        else:
+            # Older servers predating the compile-status/manifest feature
+            # won't send compiled_hash — skip manifest writing rather than
+            # writing one with a missing/None hash that `check` couldn't
+            # meaningfully diff against.
+            rprint(
+                "   [yellow]![/yellow] Server did not return a compiled_hash; "
+                "skipping sync manifest (drift detection needs a newer server)."
+            )
 
     # --strict flags a pull that succeeded but has warnings worth a look —
     # it never *prevents* the pull. In the real-write path above, files are
@@ -289,6 +340,245 @@ def pull(
     if strict and warnings:
         rprint(f"\n[red]✗[/red] --strict: {len(warnings)} warning(s) reported by the server.")
         raise typer.Exit(1)
+
+
+def _report_results(creds: dict[str, str], results: list[dict[str, Any]]) -> None:
+    """Shared `--report` fan-out for `check` and `watch`. Skips any result
+    that has no `profile_id` (an unreadable manifest) or an `error` (the
+    server was unreachable this round) — reporting a connectivity failure
+    as `in_sync=False` with no locally-modified files would show up on the
+    dashboard as "stale, run myace pull," which is the wrong diagnosis for
+    "couldn't reach the server."
+    """
+    for result in results:
+        if not result.get("profile_id") or result.get("error"):
+            continue
+        reported = report_sync_status(
+            creds["server"], creds["token"],
+            profile_id=result["profile_id"],
+            target=result["target"],
+            machine_label=socket.gethostname(),
+            in_sync=result["in_sync"],
+            locally_modified_files=result["locally_modified"],
+        )
+        result["reported"] = reported
+
+
+def _print_check_table(results: list[dict[str, Any]]) -> None:
+    """Rich table for `myace check`'s human-readable (non --json) output."""
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Target", style="cyan")
+    table.add_column("Profile")
+    table.add_column("Locally Modified")
+    table.add_column("Stale")
+    table.add_column("Status")
+
+    for r in results:
+        if r.get("error"):
+            status = "[red]✗ error[/red]"
+            stale_str = "?"
+        elif r["in_sync"]:
+            status = "[green]✓ in sync[/green]"
+            stale_str = "no"
+        else:
+            status = "[yellow]✗ drift[/yellow]"
+            stale_str = "yes" if r["stale"] else "no"
+
+        modified = ", ".join(r["locally_modified"]) if r["locally_modified"] else "—"
+        table.add_row(
+            rich_escape(r.get("target", "?")),
+            rich_escape(r.get("profile_name") or r.get("profile_id", "?")),
+            rich_escape(modified),
+            stale_str,
+            status,
+        )
+
+    console.print(table)
+
+    for r in results:
+        if r.get("error"):
+            rprint(f"  [red]![/red] {rich_escape(r.get('target', '?'))}: {rich_escape(r['error'])}")
+
+
+def _resolve_manifest_paths(base: Path, target: str | None, all_targets: bool) -> list[Path]:
+    """Shared `--target NAME | --all` resolution for `check` and `watch`.
+    Exits the process (via typer.Exit) on an unresolvable request, so
+    callers can treat the return value as always non-empty."""
+    if not target and not all_targets:
+        rprint("[red]✗[/red] Specify --target NAME or --all.")
+        raise typer.Exit(1)
+
+    if all_targets:
+        manifest_paths = find_manifests(base)
+        if not manifest_paths:
+            rprint(f"[yellow]![/yellow] No .myace/*.manifest.json manifests found in {base}.")
+            raise typer.Exit(1)
+        return manifest_paths
+
+    return [manifest_file_path(base, target)]  # type: ignore[list-item]
+
+
+@app.command()
+def check(
+    target: str | None = typer.Option(
+        None, "--target", "-t",
+        help="Check a specific target's manifest (.myace/<target>.manifest.json in the cwd)",
+    ),
+    all_targets: bool = typer.Option(
+        False, "--all",
+        help="Check every .myace/*.manifest.json manifest in the current directory",
+    ),
+    json_output: bool = typer.Option(
+        False, "--json",
+        help="Machine-readable JSON output (consumed by the CI drift-check Action)",
+    ),
+    report: bool = typer.Option(
+        False, "--report",
+        help="Also report results to the server's sync dashboard (opt-in — nothing is sent "
+        "to the server otherwise)",
+    ),
+):
+    """Check locally-pulled output for drift: hand-edited files (locally_modified)
+    and/or a stale compile vs. the server (stale). Exits 0 only if every checked
+    target is fully in sync, 1 otherwise."""
+    creds = auth_manager.load_credentials()
+    if not creds:
+        rprint("[red]✗[/red] Not authenticated. Run [bold]myace login[/bold] first.")
+        raise typer.Exit(1)
+
+    base = Path.cwd()
+    manifest_paths = _resolve_manifest_paths(base, target, all_targets)
+
+    results: list[dict[str, Any]] = []
+    for path in manifest_paths:
+        manifest = read_manifest(path)
+        if manifest is None:
+            inferred_target = target or path.name.removesuffix(".manifest.json")
+            results.append({
+                "target": inferred_target,
+                "profile_id": "",
+                "profile_name": "",
+                "locally_modified": [],
+                "stale": None,
+                "in_sync": False,
+                "error": f"No readable manifest at {path}",
+            })
+            continue
+
+        result = check_target(base, manifest, creds["server"], creds["token"])
+        results.append(result)
+
+    if report:
+        _report_results(creds, results)
+
+    if json_output:
+        print(json_module.dumps(results, indent=2))
+    else:
+        _print_check_table(results)
+
+    if not all(r["in_sync"] for r in results):
+        raise typer.Exit(1)
+
+
+def _print_watch_iteration(results: list[dict[str, Any]]) -> None:
+    """Rich-formatted status line(s) for one `myace watch` iteration."""
+    for r in results:
+        target_label = rich_escape(r.get("target", "?"))
+        action = r.get("action")
+        if action == "in_sync":
+            continue  # quiet when nothing changed — avoids log spam
+        if action == "error":
+            rprint(f"  [red]![/red] {target_label}: {rich_escape(r.get('error', 'unknown error'))}")
+        elif action == "locally_modified":
+            files = ", ".join(r["locally_modified"])
+            rprint(
+                f"  [yellow]![/yellow] {target_label}: locally modified "
+                f"({rich_escape(files)}) — not touching these, review manually."
+            )
+        elif action == "auto_pull":
+            if r.get("pulled"):
+                rprint(
+                    f"  [green]↻[/green] {target_label}: stale — auto-pulled the latest compile."
+                )
+            else:
+                rprint(f"  [red]![/red] {target_label}: stale, but auto-pull failed.")
+        elif action == "stale_notify":
+            rprint(
+                f"  [blue]![/blue] {target_label}: stale on the server. "
+                "Run [bold]myace pull[/bold] or re-run with --auto-pull."
+            )
+
+
+@app.command()
+def watch(
+    target: str | None = typer.Option(
+        None, "--target", "-t",
+        help="Watch a specific target's manifest (.myace/<target>.manifest.json in the cwd)",
+    ),
+    all_targets: bool = typer.Option(
+        False, "--all",
+        help="Watch every .myace/*.manifest.json manifest in the current directory",
+    ),
+    interval: int = typer.Option(
+        300, "--interval",
+        help="Minimum seconds between server polls for staleness, even with no local "
+        "filesystem activity",
+    ),
+    auto_pull: bool = typer.Option(
+        False, "--auto-pull",
+        help="Automatically re-pull a target when it's stale on the server. Never overwrites "
+        "locally hand-edited files, with or without this flag — those are always left alone "
+        "and only warned about.",
+    ),
+    report: bool = typer.Option(
+        False, "--report",
+        help="Also report each iteration's results to the server's sync dashboard (opt-in)",
+    ),
+):
+    """Continuously watch locally-pulled output for drift.
+
+    Filesystem events under the current directory trigger an immediate
+    recheck (catches local hand-edits promptly); a periodic poll every
+    --interval seconds also recheck even with no filesystem activity
+    (catches server-side changes, which aren't local fs events). Runs until
+    interrupted with Ctrl+C.
+    """
+    creds = auth_manager.load_credentials()
+    if not creds:
+        rprint("[red]✗[/red] Not authenticated. Run [bold]myace login[/bold] first.")
+        raise typer.Exit(1)
+
+    base = Path.cwd()
+    manifest_paths = _resolve_manifest_paths(base, target, all_targets)
+
+    import watchfiles
+
+    def _iterate() -> None:
+        results = run_watch_iteration(
+            base, manifest_paths, creds["server"], creds["token"], auto_pull=auto_pull,
+        )
+        _print_watch_iteration(results)
+        if report:
+            _report_results(creds, results)
+
+    rprint(
+        f"[green]✓[/green] Watching [bold]{base}[/bold] "
+        f"({len(manifest_paths)} target(s), poll every {interval}s). Ctrl+C to stop.\n"
+    )
+    _iterate()
+
+    try:
+        for _ in watchfiles.watch(
+            str(base), rust_timeout=interval * 1000, yield_on_timeout=True,
+        ):
+            # Fires on either a real filesystem change under `base` or the
+            # rust_timeout elapsing with no change — either way, re-run the
+            # same full check (which always re-polls the server too), so
+            # local edits are caught promptly and server-side staleness is
+            # caught at least once per --interval.
+            _iterate()
+    except KeyboardInterrupt:
+        rprint("\n[yellow]Stopped watching.[/yellow]")
 
 
 @app.command()

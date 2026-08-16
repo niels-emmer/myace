@@ -663,3 +663,51 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `warnings` list inside `compile_profile()`'s existing collection loop
   (or a clearly-marked follow-up pass over `all_artifacts` for
   whole-profile checks) instead.
+
+### 33. CLI Sync Manifest Format, and the compile-status Endpoint's Cost Trade-off
+
+- **`myace pull` writes `.myace/<target>.manifest.json`** next to the files
+  it just wrote (`cli/myace_cli/sync.py`'s `write_manifest()`), shaped
+  `{profile_id, profile_name, target, compiled_hash, pulled_at, files:
+  {filename: sha256(content)}}`. `files` records a hash of what actually
+  ended up on disk for each path — a file the user declined to overwrite
+  keeps its *old* on-disk hash, not the new server content's hash, or the
+  very next `check` would wrongly report it as in sync. Filenames rejected
+  by `pull`'s path-traversal guard are excluded entirely (never written,
+  not real paths). Re-running `pull` overwrites the manifest in place —
+  it never appends or merges with a previous run. See
+  [ADR-0009](docs/adr/0009-manifest-based-drift-detection.md) for why this
+  is a local file rather than new server-side state.
+- **`myace check`/`watch` diff two independent things per target**, both
+  implemented in `check_target()` (`cli/myace_cli/sync.py`): `locally_modified`
+  (recompute each manifest-tracked file's hash from disk right now,
+  zero network calls) and `stale` (one `GET
+  /profiles/{id}/compile-status?target=X` call, comparing its
+  `compiled_hash` against the manifest's stored value). A target is
+  `in_sync` only when both are clean and the network call succeeded.
+- **`compile-status` is transfer-cheap, not compute-cheap — don't oversell
+  it as free in code or docs.** `compute_compile_status()`
+  (`backend/app/services/compiler.py`) still resolves every artifact and
+  runs the adapter's `translate()` exactly like a full `/compile` call; it
+  only skips shipping the resulting file *content* back over the wire.
+  `myace watch`'s interval poll therefore still costs the server a full
+  compile per tick, per watched target, for every user running `watch`.
+  If that becomes a real load concern, the fix is a server-side cache of
+  compiled output keyed by a hash of the profile's resolved inputs — not
+  implemented yet, deliberately left as documented future work in
+  ADR-0009 rather than solved speculatively.
+- **`myace watch --auto-pull` must never overwrite a locally-modified
+  file, full stop.** The check-then-maybe-pull decision is a pure function,
+  `decide_watch_action()` — `locally_modified` always wins over `stale`
+  regardless of `--auto-pull`, and is the thing to unit-test directly
+  rather than the real `watchfiles` event loop (`run_watch_iteration()`
+  is the one-network-call-per-target orchestration around it; both are
+  exercised in `cli/tests/test_watch.py` without ever invoking
+  `watchfiles.watch()` itself).
+- **`myace check --report`/`myace watch --report` are the only things that
+  ever write a `SyncStatus` row, and only when that flag is passed.**
+  Nothing about `pull`, `check`, or `watch` reports to the server by
+  default — see invariant 21 in
+  [docs/invariants.md](docs/invariants.md) and rule 13's ownership rule:
+  `POST /sync/report` always upserts under `current_user.id`, never a
+  client-supplied user id.

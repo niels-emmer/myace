@@ -1,5 +1,6 @@
 """Profile compilation engine — resolves collections, merges artifacts, translates to target."""
 
+import hashlib
 import json
 import uuid
 
@@ -11,6 +12,26 @@ from app.models.artifact import Artifact, CanonicalArtifact
 from app.models.collection import Collection
 from app.models.profile import Profile, ProfileCompileResponse, ValidationIssue
 from app.models.system_settings import SystemSettings
+
+
+def compute_compiled_hash(files: dict[str, str]) -> str:
+    """Deterministic sha256 over a compiled-output `files` dict.
+
+    Sorts by filename (dict iteration order isn't guaranteed to be stable
+    across callers/serializations) and concatenates `filename\\0content\\0`
+    for each entry before hashing, so the same logical output always
+    produces the same hash regardless of dict construction order. Same
+    primitive as `DocCacheEntry.content_hash`
+    (`backend/app/services/doc_verifier.py`) — sha256 over encoded text —
+    applied to a whole `files` dict instead of a single string.
+    """
+    hasher = hashlib.sha256()
+    for filename in sorted(files):
+        hasher.update(filename.encode())
+        hasher.update(b"\0")
+        hasher.update(files[filename].encode())
+        hasher.update(b"\0")
+    return hasher.hexdigest()
 
 
 class AdapterDisabledError(Exception):
@@ -139,7 +160,36 @@ async def compile_profile(
         artifact_count=len(all_artifacts),
         files=files,
         warnings=warnings,
+        compiled_hash=compute_compiled_hash(files),
     )
+
+
+async def compute_compile_status(
+    session: AsyncSession,
+    profile: Profile,
+    target: str,
+    include_disabled: bool = False,
+) -> str:
+    """Compute just the `compiled_hash` for `GET /profiles/{id}/compile-status`.
+
+    Trade-off, documented honestly: this still gathers artifacts and
+    resolves the same overrides/dedup/collision logic as a full compile
+    (that work determines *which* files would exist and what they'd
+    contain, so there's no way around it without a second, divergent
+    source of truth) — it hands the same resolved artifact list to the
+    adapter's `translate()` exactly like a full compile does, then hashes
+    the result. In practice this endpoint saves callers the
+    request/response *serialization* size (the caller only gets a hash +
+    timestamp back, not every file's full content), not the server-side
+    computation cost — `watch`'s timer loop still triggers a real
+    `translate()` call per poll. A true no-`translate()`-cost variant
+    would require caching compiled output keyed by a hash of the
+    profile's resolved inputs, which is future work, not implemented here.
+    """
+    compiled = await compile_profile(
+        session=session, profile=profile, target=target, include_disabled=include_disabled,
+    )
+    return compiled.compiled_hash
 
 
 def _collection_label(artifact: CanonicalArtifact) -> str:

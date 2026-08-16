@@ -103,6 +103,12 @@ model.
 - **A real CLI** — `myace login`, `myace pull`, `myace import --push`. Script
   it, put it in a dotfiles repo, run it on a fresh machine. See
   [docs/cli.md](docs/cli.md) for the full command reference.
+- **Sync & drift detection** — `myace pull` writes a local manifest so
+  `myace check`/`myace watch` can tell you whether a pulled-down profile has
+  been hand-edited locally or gone stale against the server, with an opt-in
+  `--report` to a personal Sync Dashboard in the web UI. A distributable
+  [CI Action](docs/ci-drift-check.md) lets any repo that vendors compiled
+  output fail its build on drift.
 - **Real multi-user auth** — email+password (with email-based password
   reset) or OIDC/GitHub/Google SSO, private-by-default collections and
   profiles with an explicit public/private flag, and an admin role for
@@ -289,7 +295,8 @@ system-wide from System Settings → Adapter Registry.
 | [`docs/invariants.md`](docs/invariants.md) | Rules the system must never violate, and where they're enforced |
 | [`docs/extending.md`](docs/extending.md) | How to add an adapter, artifact type, SSO provider, or route |
 | [`docs/deployment.md`](docs/deployment.md) | Forking, hardening, and running in production (single machine or behind a reverse proxy) |
-| [`docs/cli.md`](docs/cli.md) | Installing and using `myace`: commands, `import`, the local companion server |
+| [`docs/cli.md`](docs/cli.md) | Installing and using `myace`: commands, `import`, `check`/`watch` drift detection, the local companion server |
+| [`docs/ci-drift-check.md`](docs/ci-drift-check.md) | The distributable `myace-check` GitHub Action for other repos to fail CI on sync drift |
 | [`docs/backups.md`](docs/backups.md) | Database backup retention, offsite copy, and restore procedure |
 | [`docs/debugging.md`](docs/debugging.md) | Known gotchas — symptom, cause, fix |
 | [`docs/adapters-research.md`](docs/adapters-research.md) | Every adapter's confirmed file format, doc citations, and unbuilt candidates |

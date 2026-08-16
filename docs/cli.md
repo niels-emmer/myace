@@ -70,9 +70,11 @@ created token.
 | `myace login --server <url> --token <key>` | Store API credentials |
 | `myace logout` | Remove stored credentials |
 | `myace status` | Show auth status |
-| `myace pull --profile <name> --target <fw> [--path <dir>]` | Fetch and write compiled profile |
+| `myace pull --profile <name> --target <fw> [--path <dir>]` | Fetch and write compiled profile; also writes a `.myace/<target>.manifest.json` sync manifest |
 | `myace list-profiles` | List profiles from server |
 | `myace import --path <dir> --name <name> [--push]` | Scan local config dir and convert to canonical artifacts |
+| `myace check [--target <fw> \| --all] [--json] [--report]` | Check a pulled target for local hand-edits or server-side staleness |
+| `myace watch [--target <fw> \| --all] [--interval <secs>] [--auto-pull] [--report]` | Continuously watch pulled output for drift |
 | `myace serve [--port <port>]` | Run a local companion server so the web UI's Import page can scan this machine (needs `pip install "myace-cli[serve]"`) |
 
 ## Import command
@@ -102,6 +104,48 @@ myace import --path ~/.config/opencode --name "my-config" --push
 
 (The web UI's Import page additionally supports scanning a GitHub
 repository directly — see [architecture.md](architecture.md#import-and-export-are-symmetric-on-purpose).)
+
+## Sync and drift detection (check and watch)
+
+Every `myace pull` writes a `.myace/<target>.manifest.json` file recording
+a hash of each file it wrote plus the server's compiled-output hash at that
+moment. `myace check` and `myace watch` use it to answer two questions
+without re-downloading anything: has this pulled output been hand-edited
+locally (`locally_modified`), and has the source profile changed on the
+server since (`stale`)? See
+[ADR-0009](adr/0009-manifest-based-drift-detection.md) for the full design
+and [`AGENTS.md` rule
+33](../AGENTS.md#33-cli-sync-manifest-format-and-the-compile-status-endpoints-cost-trade-off)
+for the manifest format.
+
+```bash
+# One-shot check of a specific target, or every manifest in the cwd
+myace check --target claude-code
+myace check --all --json          # machine-readable, for CI (see below)
+
+# Continuously watch: reacts to local file changes immediately, and
+# polls the server at least once every --interval seconds
+myace watch --all --interval 300
+
+# Automatically re-pull a target when it's stale on the server.
+# Locally hand-edited files are NEVER auto-pulled over, regardless of
+# this flag — they're always left alone and only warned about.
+myace watch --all --auto-pull
+```
+
+`.myace/` is created next to whatever `pull` just wrote. It's local
+tooling state, not something you're required to commit — `pull` suggests
+adding it to `.gitignore` after writing it — with one exception: a repo
+that deliberately vendors a compiled snapshot (see the [CI drift-check
+Action](ci-drift-check.md)) should commit `.myace/` on purpose, since that's
+exactly what CI diffs against.
+
+Both `check` and `watch` accept `--report`, which is **opt-in only** —
+nothing is ever sent to the server otherwise. With `--report`, each check's
+result is POSTed to `/api/v1/sync/report` and shows up on your own Sync
+Dashboard (`/sync` in the web UI) under a machine label (defaults to your
+hostname). Reports are always scoped to the reporting user — nobody else
+can see them, not even admins.
 
 ## Local companion server (`myace serve`)
 

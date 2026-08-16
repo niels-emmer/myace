@@ -34,7 +34,10 @@ flowchart LR
 - **`cli/`** — Python Typer CLI. Pulls compiled profiles down to a local
   directory (`myace pull`) and can push a local config directory up as a new
   collection (`myace import --push`). Authenticates with a long-lived Bearer
-  API token, not a browser session.
+  API token, not a browser session. `myace check`/`myace watch` detect
+  drift (local hand-edits, or a stale server-side compile) against a local
+  manifest `pull` writes — see [ADR-0009](adr/0009-manifest-based-drift-detection.md)
+  and [docs/cli.md](cli.md#sync-and-drift-detection-check-and-watch).
 
 None of the three talk to Postgres directly except the backend — the
 frontend and CLI only ever see the HTTP API.

@@ -1,6 +1,6 @@
 [project]
 name = "myace-cli"
-version = "1.5.0"
+version = "1.6.0"
 description = "MyACE CLI — Sync agentic coding environment profiles to your local machine"
 requires-python = ">=3.12"
 license = { text = "MIT" }
@@ -10,6 +10,7 @@ dependencies = [
     "httpx>=0.27.0",
     "pyyaml>=6.0.0",
     "pydantic>=2.8.0",
+    "watchfiles>=0.21.0",
 ]
 
 [project.optional-dependencies]

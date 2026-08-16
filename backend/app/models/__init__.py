@@ -9,6 +9,7 @@ from app.models.collection_comment import (
 from app.models.collection_rating import CollectionRating, CollectionRatingRead
 from app.models.doc_cache import DocCacheEntry
 from app.models.profile import Profile, ProfileCompileRequest, ProfileCreate, ProfileRead
+from app.models.sync_status import SyncReportRequest, SyncStatus, SyncStatusRead
 from app.models.system_settings import SystemSettings, SystemSettingsRead, SystemSettingsUpdate
 from app.models.token import ApiToken, ApiTokenCreate, ApiTokenRead
 from app.models.user import PasswordChange, User, UserCreate, UserRead, UserUpdate
@@ -23,4 +24,5 @@ __all__ = [
     "DocCacheEntry",
     "CollectionRating", "CollectionRatingRead",
     "CollectionComment", "CollectionCommentCreate", "CollectionCommentRead",
+    "SyncStatus", "SyncReportRequest", "SyncStatusRead",
 ]

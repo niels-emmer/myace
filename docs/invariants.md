@@ -160,6 +160,21 @@ names where it's enforced so you can verify it hasn't regressed.
     (bulk import, bulk delete, bulk export's target) must update it, or it
     silently drifts from the true count.
 
+21. **Sync-status reporting is always self-scoped to `current_user.id`, both
+    on write and on read.** `POST /sync/report` upserts on
+    `(current_user.id, profile_id, target, machine_label)` — the caller can
+    never write a row under another user's id, since `user_id` is never
+    accepted from the request body (`SyncReportRequest` has no such field;
+    see AGENTS.md rule 13). `GET /sync/status` filters on
+    `SyncStatus.user_id == current_user.id` with no admin bypass and no
+    "everyone's status" view anywhere in the API — unlike most other
+    resources in this app, there is no visibility flag that would make a
+    `SyncStatus` row visible to anyone but the user who reported it. This is
+    deliberate: a sync report reveals which files a user has hand-edited on
+    their own machine, which is exactly the kind of thing this project
+    doesn't expose without being asked (see
+    [ADR-0009](adr/0009-manifest-based-drift-detection.md)).
+
 ## A gap that's accepted, not fixed
 
 **Profile visibility doesn't cascade to its collections.** A profile marked
