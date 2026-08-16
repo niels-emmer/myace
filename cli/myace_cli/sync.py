@@ -172,6 +172,32 @@ def check_target(
     }
 
 
+def decide_watch_action(result: dict[str, Any], auto_pull: bool) -> str:
+    """Pure decision function for one `myace watch` iteration, given a
+    `check_target()` result. Deliberately side-effect-free and easy to unit
+    test directly, per the project's stated preference for testing this
+    decision rather than the real `watchfiles` event loop end-to-end.
+
+    Returns one of:
+      - "in_sync": nothing to do.
+      - "error": the server couldn't be reached; warn only.
+      - "locally_modified": local hand-edits exist. Always wins over
+        staleness and is *never* auto-pulled, regardless of `auto_pull` —
+        `watch --auto-pull` must never silently overwrite a local edit.
+      - "auto_pull": stale on the server, no local edits, and the caller
+        asked for --auto-pull — safe to re-pull automatically.
+      - "stale_notify": stale on the server, no local edits, but
+        --auto-pull was not requested — warn only.
+    """
+    if result.get("error"):
+        return "error"
+    if result.get("locally_modified"):
+        return "locally_modified"
+    if result.get("stale"):
+        return "auto_pull" if auto_pull else "stale_notify"
+    return "in_sync"
+
+
 def report_sync_status(
     server: str,
     token: str,
@@ -307,3 +333,72 @@ class SyncEngine:
                 return str(profile["id"])
 
         return None
+
+
+def run_watch_iteration(
+    base: Path,
+    manifest_paths: Iterable[Path],
+    server: str,
+    token: str,
+    *,
+    auto_pull: bool,
+    sync_engine: SyncEngine | None = None,
+) -> list[dict[str, Any]]:
+    """Run one full check-then-maybe-pull cycle over every given manifest —
+    the unit tested "single iteration" of `myace watch`'s loop (see
+    `decide_watch_action()` for the pure decision at its core). Never
+    exercises the real `watchfiles` event loop; callers (the CLI's `watch`
+    command) invoke this once per filesystem event or interval tick.
+
+    Each result dict adds an `"action"` key (see `decide_watch_action()`)
+    and, when `action == "auto_pull"`, a `"pulled"` bool for whether the
+    re-pull actually happened.
+    """
+    engine = sync_engine or SyncEngine()
+    results: list[dict[str, Any]] = []
+
+    for path in manifest_paths:
+        manifest = read_manifest(path)
+        if manifest is None:
+            results.append({
+                "target": path.name.removesuffix(".manifest.json"),
+                "profile_id": "",
+                "profile_name": "",
+                "locally_modified": [],
+                "stale": None,
+                "in_sync": False,
+                "error": f"No readable manifest at {path}",
+                "action": "error",
+            })
+            continue
+
+        result = check_target(base, manifest, server, token)
+        result["action"] = decide_watch_action(result, auto_pull)
+
+        if result["action"] == "auto_pull":
+            # Safe by construction: decide_watch_action() only returns
+            # "auto_pull" when locally_modified is empty, so this can never
+            # overwrite a hand-edited file.
+            pulled = engine.pull_profile(server, token, manifest["profile_id"], manifest["target"])
+            wrote = False
+            if pulled and pulled.get("files"):
+                for filename, content in pulled["files"].items():
+                    if "/" in filename or "\\" in filename or ".." in filename:
+                        continue
+                    (base / filename).write_text(content)
+                compiled_hash = pulled.get("compiled_hash")
+                if compiled_hash:
+                    write_manifest(
+                        base,
+                        profile_id=pulled.get("profile_id", manifest.get("profile_id", "")),
+                        profile_name=pulled.get("profile_name", manifest.get("profile_name", "")),
+                        target=manifest.get("target", ""),
+                        compiled_hash=compiled_hash,
+                        files=pulled["files"],
+                    )
+                wrote = True
+            result["pulled"] = wrote
+
+        results.append(result)
+
+    return results
