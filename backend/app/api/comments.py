@@ -39,12 +39,12 @@ async def _notify_owner_of_comment(
     session: AsyncSession, collection: Collection, commenter: User
 ) -> None:
     """Best-effort immediate notification — never blocks comment creation
-    on a send failure. Not yet gated by a user preference (that lands in
-    a later epic, which adds User.notify_on_comment); for now every
-    approved-collection comment notifies the owner if they have an email."""
+    on a send failure. Gated by the owner's notify_on_comment preference
+    (comments are low-volume, so this is sent immediately rather than
+    batched like the download digest)."""
     owner_result = await session.execute(select(User).where(User.id == collection.owner_id))
     owner = owner_result.scalar_one_or_none()
-    if not owner or not owner.email:
+    if not owner or not owner.email or not owner.notify_on_comment:
         return
 
     subject, body = build_comment_notification_email(collection.name, commenter.display_name)

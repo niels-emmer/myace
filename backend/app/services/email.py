@@ -91,3 +91,14 @@ def build_comment_notification_email(collection_name: str, commenter_name: str) 
         f"in the {settings.app_name} community collections."
     )
     return subject, body
+
+
+def build_download_digest_email(collection_name: str, download_delta: int) -> tuple[str, str]:
+    """Return (subject, text_body) for a daily download-digest email."""
+    plural = "download" if download_delta == 1 else "downloads"
+    subject = f'"{collection_name}" got {download_delta} new {plural}'
+    body = (
+        f'Your collection "{collection_name}" received {download_delta} new {plural} '
+        f"since your last digest."
+    )
+    return subject, body

@@ -62,6 +62,14 @@ class Collection(SQLModel, table=True):
         default=None,
         sa_column=Column("last_synced_at", DateTime(timezone=True)),
     )
+    last_digest_download_count: int = Field(
+        default=0,
+        sa_column=Column("last_digest_download_count", Integer, nullable=False, default=0),
+    )
+    last_digest_sent_at: datetime | None = Field(
+        default=None,
+        sa_column=Column("last_digest_sent_at", DateTime(timezone=True)),
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=Column("created_at", DateTime(timezone=True), nullable=False),

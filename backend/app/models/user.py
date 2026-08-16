@@ -27,6 +27,13 @@ class User(SQLModel, table=True):
     role: str = Field(
         default="user", sa_column=Column("role", String(32), nullable=False, default="user")
     )
+    notify_on_download: bool = Field(
+        default=False,
+        sa_column=Column("notify_on_download", Boolean, nullable=False, default=False),
+    )
+    notify_on_comment: bool = Field(
+        default=False, sa_column=Column("notify_on_comment", Boolean, nullable=False, default=False)
+    )
     mfa_enabled: bool = Field(
         default=False, sa_column=Column("mfa_enabled", Boolean, default=False)
     )
@@ -71,6 +78,8 @@ class UserRead(SQLModel):
     is_active: bool
     is_admin: bool
     role: Literal["user", "moderator", "admin"] = "user"
+    notify_on_download: bool = False
+    notify_on_comment: bool = False
     created_at: datetime
 
 
@@ -91,6 +100,8 @@ class UserUpdate(SQLModel):
     """Schema for updating user profile."""
     display_name: str | None = None
     email: str | None = None
+    notify_on_download: bool | None = None
+    notify_on_comment: bool | None = None
 
 
 class UserRoleUpdate(SQLModel):

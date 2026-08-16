@@ -13,13 +13,18 @@ from app.models.user import User
 
 
 async def _create_user(
-    db_session: AsyncSession, email: str, password: str = "userpass123", role: str = "user"
+    db_session: AsyncSession,
+    email: str,
+    password: str = "userpass123",
+    role: str = "user",
+    notify_on_comment: bool = False,
 ) -> uuid.UUID:
     from app.core.security import hash_password
 
     user = User(
         email=email, display_name=email.split("@")[0],
         password_hash=hash_password(password), is_admin=(role == "admin"), role=role,
+        notify_on_comment=notify_on_comment,
     )
     db_session.add(user)
     await db_session.commit()
@@ -123,10 +128,10 @@ class TestCreateComment:
         assert res.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_comment_notification_sent_when_owner_has_email(
+    async def test_comment_notification_sent_when_preference_on(
         self, async_client: AsyncClient, db_session: AsyncSession
     ):
-        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "owner@test.com", notify_on_comment=True)
         await _create_user(db_session, "commenter@test.com")
         collection_id = await _create_approved_collection(async_client, db_session, "owner@test.com")
 
@@ -149,7 +154,7 @@ class TestCreateComment:
     async def test_comment_creation_survives_email_failure(
         self, async_client: AsyncClient, db_session: AsyncSession
     ):
-        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "owner@test.com", notify_on_comment=True)
         await _create_user(db_session, "commenter@test.com")
         collection_id = await _create_approved_collection(async_client, db_session, "owner@test.com")
 
@@ -169,6 +174,22 @@ class TestCreateComment:
                     f"/api/v1/collections/{collection_id}/comments", json={"body": "hi"}
                 )
         assert res.status_code == 201
+
+    @pytest.mark.asyncio
+    async def test_no_notification_when_preference_off(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _create_user(db_session, "owner@test.com", notify_on_comment=False)
+        await _create_user(db_session, "commenter@test.com")
+        collection_id = await _create_approved_collection(async_client, db_session, "owner@test.com")
+
+        await _login(async_client, "commenter@test.com")
+        with patch("app.api.comments.send_email", new=AsyncMock()) as mock_send:
+            res = await async_client.post(
+                f"/api/v1/collections/{collection_id}/comments", json={"body": "hi"}
+            )
+        assert res.status_code == 201
+        mock_send.assert_not_called()
 
 
 class TestListComments:

@@ -85,6 +85,28 @@ class TestUpdateProfile:
         resp = await async_client.patch("/api/v1/auth/me", json={"display_name": "Hacker"})
         assert resp.status_code == 401
 
+    @pytest.mark.asyncio
+    async def test_update_notification_preferences(
+        self, db_session: AsyncSession, async_client: AsyncClient
+    ):
+        """Should update notify_on_download/notify_on_comment — self-service,
+        no admin needed, defaulting to False."""
+        email, password = await _create_user(db_session)
+        await async_client.post("/api/v1/auth/login", json={"email": email, "password": password})
+
+        resp = await async_client.get("/api/v1/auth/me")
+        assert resp.json()["notify_on_download"] is False
+        assert resp.json()["notify_on_comment"] is False
+
+        resp = await async_client.patch(
+            "/api/v1/auth/me",
+            json={"notify_on_download": True, "notify_on_comment": True},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["notify_on_download"] is True
+        assert data["notify_on_comment"] is True
+
 
 class TestChangePassword:
     """Test POST /api/v1/auth/me/password — change password."""

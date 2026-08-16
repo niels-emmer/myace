@@ -200,6 +200,8 @@ export interface User {
   is_active: boolean;
   is_admin: boolean;
   role: Role;
+  notify_on_download?: boolean;
+  notify_on_comment?: boolean;
   mfa_enabled?: boolean;
   created_at: string;
 }
@@ -371,6 +373,8 @@ export interface OAuthTestOverrides {
 export interface UserUpdate {
   display_name?: string;
   email?: string;
+  notify_on_download?: boolean;
+  notify_on_comment?: boolean;
 }
 
 export interface PasswordChange {
