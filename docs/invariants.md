@@ -21,8 +21,11 @@ names where it's enforced so you can verify it hasn't regressed.
    rule stays in one place.*
 
 3. **`current_user.is_admin` bypasses ownership and visibility entirely.**
-   Both functions in rule 2 check this first. There is no partial-admin or
-   per-resource role — it's a single global flag.
+   Both functions in rule 2 check this first. `is_admin` itself is a single
+   global flag with no per-resource variant. The one narrower role that
+   *does* exist — `moderator`, via `User.role` — is deliberately **not**
+   plugged into `authorize_access()`/`owner_or_public_clause()` at all; see
+   rule 8 and [ADR-0007](adr/0007-additive-user-role-column.md).
 
 4. **Denied access returns 404, not 403.** This is deliberate: a 403 tells
    an attacker the resource exists but they can't see it; a 404 doesn't.
@@ -49,16 +52,43 @@ names where it's enforced so you can verify it hasn't regressed.
    "placeholder user" concept — see
    [ADR-0005](adr/0005-email-password-baseline-auth.md).
 
+8. **Moderator scope is community-only, and never mixes with `is_admin`'s
+   ownership bypass.** `require_moderator_or_admin`
+   (`backend/app/core/deps.py`) reads `current_user.role` only, gates
+   `/api/v1/moderation/*` exclusively, and grants no other admin
+   capability (user management, system settings, adapter toggles). Never
+   widen it to accept `is_admin` alone, never merge it with `require_admin`,
+   and never use `authorize_access()`'s owner-bypass on a moderation route
+   — see [ADR-0007](adr/0007-additive-user-role-column.md).
+
+9. **A collection's own owner can never approve or deny their own
+   submission, even if they're also a moderator or admin viewing it through
+   a different capability.** `POST /moderation/{id}/approve` and `.../deny`
+   are gated by `require_moderator_or_admin` alone — there is no
+   ownership-based bypass on these two routes, unlike almost every other
+   route in the app. This is deliberate, not an oversight: it's the entire
+   point of moderation existing as a state machine — see
+   [ADR-0008](adr/0008-collection-moderation-state-machine.md).
+
+10. **Ratings and comments gate on `Collection.moderation_status ==
+    "approved"`, never on `published`/`visibility` alone.** Those two
+    fields are only ever set together with `moderation_status = "approved"`
+    today, but `moderation_status` is the field a future change should
+    check — `published` could in principle drift from it if a bug
+    elsewhere set it directly. Self-rating is additionally blocked
+    (`owner_id == current_user.id` → 400) regardless of
+    `moderation_status`.
+
 ## Canonical IR
 
-8. **The Canonical IR schema (`type`, `name`, `version`,
+11. **The Canonical IR schema (`type`, `name`, `version`,
    `target_compatibility`, `priority`, `tags`, `description`, `body`) is the
    single source of truth.** Every adapter's `translate()` reads only from
    `CanonicalArtifact` — never from a framework-specific shape. If a target
    framework needs a field the IR doesn't have, that's a schema change (with
    a migration), not a special case in one adapter.
 
-9. **Adapters are stateless and pure.** `translate(artifacts) -> {filename:
+12. **Adapters are stateless and pure.** `translate(artifacts) -> {filename:
    content}` must not touch the database, the filesystem outside its return
    value, or any other adapter. This is what would make `cli/myace_cli/adapters/`
    a safe local-rendering copy of `backend/app/adapters/` *if* anything in
@@ -68,7 +98,7 @@ names where it's enforced so you can verify it hasn't regressed.
    maintained but currently unused. See
    [extending.md](extending.md#adding-a-target-adapter).
 
-10. **Import and export must stay symmetric.** `scan_directory()`
+13. **Import and export must stay symmetric.** `scan_directory()`
     (`backend/app/services/scanner.py`) and `artifacts_to_files()`
     (`backend/app/services/github_export.py`) implement inverse
     transformations of the same directory layout. A collection exported to
@@ -76,7 +106,7 @@ names where it's enforced so you can verify it hasn't regressed.
     artifacts (`model_config` artifacts are the one documented exception —
     they don't round-trip into a single file and are skipped on export).
 
-11. **`tags` and `target_compatibility` are stored as JSON-encoded `Text`,
+14. **`tags` and `target_compatibility` are stored as JSON-encoded `Text`,
     not native list columns.** Any route returning `Artifact` data must
     decode them first (`_artifact_to_read()` in
     `backend/app/api/collections.py`, or `_db_to_canonical()` in
@@ -86,39 +116,46 @@ names where it's enforced so you can verify it hasn't regressed.
 
 ## Data integrity
 
-12. **All primary keys are UUIDs**, never auto-increment integers — across
+15. **All primary keys are UUIDs**, never auto-increment integers — across
     every table, no exceptions. This is a hard rule, not a default; don't
     add a table that deviates from it.
 
-13. **Every schema change ships an Alembic migration with a working
+16. **Every schema change ships an Alembic migration with a working
     `downgrade()`.** Never edit a migration that's already been committed —
     write a new one. See `AGENTS.md` rule 2.
 
-14. **No cascade delete on `artifacts.collection_id`.** The foreign key has
+17. **No cascade delete on `artifacts.collection_id`.** The foreign key has
     no `ondelete` configured, and collection deletion in the app is a
     *soft* delete (`Collection.is_active = False` — `delete_collection` in
     `backend/app/api/collections.py`), so this is rarely exercised. If you
     ever add a hard-delete path for collections, you must delete or reassign
     their artifacts first, or the `DELETE` will fail on the FK constraint.
 
-15. **Artifacts, profiles, and doc_cache entries use soft-delete, not hard
-    delete.** `session.delete()` is never called on these models — instead,
-    `deleted_at` is set to `datetime.now(UTC)`. Every list/get query filters
-    on `deleted_at == None` to exclude soft-deleted rows. This matches the
-    existing pattern for collections (`is_active = False`) and API tokens
-    (`is_active = False`). Enforced in `backend/app/api/collections.py`
-    (`bulk_delete_artifacts`), `backend/app/api/profiles.py`
-    (`delete_profile`), and `backend/app/api/doc_cache.py`
-    (`delete_cache_entry`).
+18. **Artifacts, profiles, doc_cache entries, collection comments, and
+    collection ratings use soft-delete, not hard delete.**
+    `session.delete()` is never called on these models — instead,
+    `deleted_at` is set to `datetime.now(UTC)`. Every list/get/aggregate
+    query filters on `deleted_at == None` to exclude soft-deleted rows.
+    This matches the existing pattern for collections (`is_active =
+    False`) and API tokens (`is_active = False`). Enforced in
+    `backend/app/api/collections.py` (`bulk_delete_artifacts`),
+    `backend/app/api/profiles.py` (`delete_profile`),
+    `backend/app/api/doc_cache.py` (`delete_cache_entry`),
+    `backend/app/api/comments.py` (`delete_comment`), and
+    `backend/app/api/ratings.py` (`delete_rating`). `CollectionRating`'s
+    unique constraint is on `(collection_id, user_id)` only, not scoped to
+    live rows — re-rating after a soft-deleted rating revives the same row
+    (clears `deleted_at`, overwrites `stars`) rather than erroring on the
+    constraint or leaving an orphaned soft-deleted duplicate.
 
-16. **`Profile.additional_collection_ids` and `disabled_artifact_ids` are
+19. **`Profile.additional_collection_ids` and `disabled_artifact_ids` are
     JSON UUID lists, not real foreign keys.** The database will not stop you
     from storing a reference to a collection that's later deleted or made
     private. `compile_profile()` resolves these at request time and
     silently skips anything it can't find — it does not error. Don't assume
     referential integrity here that the schema doesn't actually provide.
 
-17. **`Collection.artifact_count` is a denormalized cache**, not a computed
+20. **`Collection.artifact_count` is a denormalized cache**, not a computed
     value. Every route that adds or removes artifacts from a collection
     (bulk import, bulk delete, bulk export's target) must update it, or it
     silently drifts from the true count.

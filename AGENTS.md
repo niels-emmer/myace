@@ -295,28 +295,36 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   add another import-like operation for community collections, update the
   counter there too.
 
-### 18. Publish Is Self-Serve, Not a GitHub PR — and Is Unrelated to Starter Packs
+### 18. Publish Goes Through Moderation, Not a GitHub PR — and Is Unrelated to Starter Packs
 
-- **`POST /{collection_id}/publish` is a pure DB write, immediate and
-  ungated.** It sets `published=True` and `visibility="public"` (and, if
-  provided, overwrites `name`/`description` with `publish_name`/
-  `publish_description`) on the caller's own `Collection` row. That's the
-  entire operation — no GitHub call, no `github_token`, no PR, no admin
-  approval step. `GET /collections/community` lists anything with
-  `published=True AND is_active=True`; there's nothing else to satisfy.
-- **This used to open a GitHub PR against this repo's `collections/`
-  folder** (`app/services/publish.py`, removed) with UI copy promising "an
-  admin will review and approve." It didn't actually gate anything — the DB
-  flag flipped regardless of the PR's fate — so the review step was fake.
-  Don't reintroduce a PR-based publish flow; if a real moderation gate is
-  wanted, add an explicit `review_status`-style field enforced in
-  `list_community_collections()`, not a side-channel GitHub PR.
+- **`POST /{collection_id}/publish` only submits for review — it is not a
+  self-serve publish anymore.** It moves `Collection.moderation_status`
+  from `draft`/`denied` to `submitted` (409 otherwise) and never touches
+  `published`/`visibility`. The *only* code path that sets
+  `published=True`/`visibility="public"` is
+  `POST /moderation/{collection_id}/approve` (moderator/admin only, via
+  `require_moderator_or_admin` — never `authorize_access`, whose
+  owner-bypass would let an owner approve their own submission).
+  `GET /collections/community` still filters on
+  `published=True AND is_active=True`, but that predicate is only ever
+  true for `moderation_status="approved"` rows now. See
+  [ADR-0008](docs/adr/0008-collection-moderation-state-machine.md) for the
+  full state machine and rule 30 below for the role that gates it.
+- **This still isn't a GitHub PR.** The old self-serve flow described in a
+  previous version of this rule (`app/services/publish.py`, removed) opened
+  a GitHub PR against this repo's `collections/` folder with UI copy
+  promising "an admin will review and approve" — it didn't actually gate
+  anything, the DB flag flipped regardless of the PR's fate, so that
+  review step was fake. The moderation queue described above is the real
+  version of that promise: an actual DB-state gate, enforced server-side,
+  with no GitHub involvement. Don't reintroduce a PR-based publish flow.
 - **The starter-pack set (rule 25) is a completely separate, one-directional
   thing.** It's a fixed list hand-maintained in this repo's `collections/`
   directory, changed via the normal branch → PR → CI → merge → deploy
   workflow (by a human or an agent working in this repo), and picked up by
-  `seed_starter_collections()` on backend boot. Nothing a user publishes
-  through the API ever flows into it automatically.
+  `seed_starter_collections()` on backend boot — seeded straight to
+  `moderation_status="approved"`, never routed through the queue. Nothing
+  a user publishes through the API ever flows into it automatically.
 
 ### 19. Admin-Editable Secrets Must Go Through `app/core/crypto.py`
 
@@ -561,3 +569,55 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   since base collections' internal pipelines (e.g. `orchestrator.md`'s
   hardcoded stage routing) are more expensive to keep consistent than an
   additional collection's own naming.
+
+### 30. Moderator Role — Additive, Community-Scoped, Never Merged With `require_admin`
+
+- **`User.role: Literal["user", "moderator", "admin"]` is additive
+  alongside `is_admin`, not a replacement.** `is_admin` still gates every
+  pre-existing `require_admin`/`authorize_access` bypass unchanged. The
+  two are kept in sync one-directionally: `PATCH /auth/users/{id}/role`
+  (admin-only) sets `is_admin = (role == "admin")` in the same
+  transaction whenever `role` changes. Any other code path that creates or
+  mutates a `User` with `is_admin=True` (registration/OIDC bootstrap-admin
+  paths in `app/api/auth.py`) must set `role="admin"` alongside it, or
+  that admin will fail `require_moderator_or_admin` despite being a real
+  admin. See [ADR-0007](docs/adr/0007-additive-user-role-column.md).
+- **`require_moderator_or_admin` (`backend/app/core/deps.py`) reads `role`
+  only, never `is_admin`.** It gates every route under
+  `/api/v1/moderation/*` and nothing else. Never widen it to accept
+  `is_admin` alone, never merge it with `require_admin`, and never use
+  `authorize_access()`'s owner-bypass on a moderation route — a
+  collection's own owner must never be able to approve or deny their own
+  submission, including an owner who happens to also be a moderator or
+  admin viewing the route through a different capability.
+- Moderator scope is deliberately narrow: review/approve/deny submissions,
+  edit collection metadata (`PATCH /moderation/{id}/meta`), delete
+  comments. No user management, system settings, or adapter toggles.
+  Widening it is a deliberate, reviewed decision, not a drive-by change.
+
+### 31. Ratings and Comments Gate on `moderation_status`, Soft-Delete, Block Self-Rating
+
+- **Rating and commenting both require `Collection.moderation_status ==
+  "approved"`, not `published`/`visibility` alone.** Those two fields are
+  only ever set together with `moderation_status="approved"` today (see
+  rule 18), but a future change should still check `moderation_status`
+  directly rather than assume that invariant holds.
+- **Self-rating is blocked**: `PUT /collections/{id}/rating` 400s if
+  `current_user.id == collection.owner_id`. There is no equivalent
+  self-comment block — an owner can comment on their own collection.
+- **`CollectionComment` and `CollectionRating` both use soft-delete
+  (`deleted_at`), never `session.delete()`** — this extends rule 15 to
+  both new tables. `CollectionRating`'s unique constraint on
+  `(collection_id, user_id)` is **not** scoped to live rows, so
+  `PUT /collections/{id}/rating` must look up an existing row regardless
+  of `deleted_at` and revive it (clear `deleted_at`, overwrite `stars`)
+  rather than insert a second row — a naive "only look at live rows, then
+  INSERT if none found" upsert will 500 on the constraint the moment a
+  user re-rates after deleting their rating. `Collection.avg_rating`/
+  `rating_count` recomputation must filter `deleted_at == None`, or a
+  withdrawn rating keeps counting toward the average.
+- **Comment deletion authorization is comment-author OR collection-owner
+  OR moderator/admin** — checked in the route handler
+  (`backend/app/api/comments.py::delete_comment`), not a DB constraint.
+  The frontend delete icon on a comment mirrors this exact rule so it
+  doesn't render and then 403 on click.

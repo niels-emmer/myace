@@ -85,9 +85,11 @@ model.
   a profile into the exact files Claude Code, OpenCode, or Cursor expect.
   See [Architecture](#architecture) below for the full list of 11 supported
   frameworks.
-- **Community collections** — publish your collections to make them public
-  immediately, browse and import collections published by other users. This
-  is self-serve, not admin-moderated.
+- **Community collections** — submit your collections for a moderator to
+  review; approved submissions become public, browsable, and importable by
+  other users. Rate (1-5 stars) and comment on published collections, sort
+  the community listing by rating/downloads/name, and opt into email
+  notifications when your submissions get downloaded or commented on.
 - **Starter packs out of the box** — every fresh install seeds itself with 3
   base collections (Vibecoder, Software Engineer, Data Scientist) and 12
   specializations (Frontend, Backend, Infrastructure as Code Expert, Security
@@ -260,7 +262,8 @@ system-wide from System Settings → Adapter Registry.
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
 │   │   ├── pages/                 # Login, ResetPassword, Dashboard, Collections, CollectionDetail,
 │   │   │                          #   CommunityCollections, CommunityCollectionDetail, Profiles, ProfileDetail,
-│   │   │                          #   Import, Compile, UserSettings, SystemSettings (admin-gated)
+│   │   │                          #   Import, Compile, UserSettings, ModerationQueue (moderator/admin-gated),
+│   │   │                          #   SystemSettings (admin-gated)
 │   │   ├── lib/                   # API client
 │   │   └── types/                 # TypeScript interfaces
 │   └── dist/                     # Production build

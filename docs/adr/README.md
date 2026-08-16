@@ -31,3 +31,5 @@ ADR-00XX`.
 | [0004](0004-github-export-via-rest-api.md) | GitHub export via REST API, not a local git clone/push | Accepted |
 | [0005](0005-email-password-baseline-auth.md) | Email+password as the baseline auth method, SSO optional | Accepted |
 | [0006](0006-encrypted-admin-editable-secrets.md) | Encrypted admin-editable secrets in the database | Accepted |
+| [0007](0007-additive-user-role-column.md) | Additive `role` column alongside `is_admin` | Accepted |
+| [0008](0008-collection-moderation-state-machine.md) | Collection moderation state machine replaces self-serve publish | Accepted |
