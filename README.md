@@ -273,8 +273,8 @@ system-wide from System Settings → Adapter Registry.
 │   ├── app/
 │   │   ├── main.py              # App entrypoint, CORS + session middleware
 │   │   ├── core/                # Config, DB session, OIDC/security, crypto (encrypted admin secrets), deps (auth), authz (ownership checks)
-│   │   ├── models/               # SQLModel schemas (User, Collection, Artifact, Profile, ApiToken, DocCache, SystemSettings)
-│   │   ├── api/                  # Routes: auth, collections, profiles, adapters, doc_cache, admin, demo (public), freshness
+│   │   ├── models/               # SQLModel schemas (User, Collection, CollectionComment, CollectionRating, Artifact, Profile, ApiToken, DocCache, SyncStatus, SystemSettings)
+│   │   ├── api/                  # Routes: auth, collections, comments, ratings, profiles, adapters, doc_cache, admin, moderation, sync, demo (public), freshness
 │   │   ├── adapters/             # Canonical IR → target translators (11: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q)
 │   │   └── services/             # Compiler, doc verifier, scanner (local + git), github_export, seed_collections,
 │   │                              #   email (SMTP send), effective_settings (DB-override-vs-env resolver)
@@ -299,7 +299,7 @@ system-wide from System Settings → Adapter Registry.
 ├── cli/                          # Python Typer CLI
 │   ├── pyproject.toml
 │   └── myace_cli/
-│       ├── main.py               # Entrypoint (7 commands)
+│       ├── main.py               # Entrypoint (9 commands: login, logout, status, pull, check, watch, serve, list, import)
 │       ├── auth.py               # Credential storage
 │       ├── sync.py               # Profile fetch + write
 │       ├── scanner.py            # Local directory scanner
