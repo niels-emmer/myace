@@ -93,6 +93,12 @@ class Settings(BaseSettings):
     # (e.g. the password-reset link). Does not affect API/CORS behavior.
     frontend_base_url: str = "http://localhost:5173"
 
+    # Community collection freshness — how many days a manual
+    # last_verified_at is considered current before GET /admin/freshness-queue
+    # and app/scripts/check_collection_freshness.py flag it for re-review.
+    # Default ~6 months.
+    collection_freshness_threshold_days: int = 180
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

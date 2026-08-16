@@ -12,6 +12,7 @@ import {
   Star,
 } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
+import { FreshnessBadge } from '../components/FreshnessBadge';
 import type { Collection } from '../types';
 
 const PAGE_SIZE = 10;
@@ -242,6 +243,9 @@ function CommunityCollectionCard({ collection }: { collection: Collection }) {
           {collection.avg_rating.toFixed(1)}
           <span className="text-muted-foreground/70">({collection.rating_count})</span>
         </span>
+      </div>
+      <div className="mt-2">
+        <FreshnessBadge lastVerifiedAt={collection.last_verified_at} />
       </div>
     </Link>
   );

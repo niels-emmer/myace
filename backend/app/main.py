@@ -20,6 +20,7 @@ from app.api import (
     comments,
     demo,
     doc_cache,
+    freshness,
     moderation,
     profiles,
     ratings,
@@ -144,6 +145,7 @@ app.add_middleware(
 
 # Register routers
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
+app.include_router(freshness.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(demo.router, prefix="/api/v1/demo", tags=["Demo"])
 app.include_router(collections.router, prefix="/api/v1/collections", tags=["Collections"])

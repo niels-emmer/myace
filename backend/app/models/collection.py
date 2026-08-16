@@ -1,10 +1,10 @@
 """Collection model — a Git repository of canonical artifacts."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Literal
 
-from sqlalchemy import ForeignKey, Text, Uuid
+from sqlalchemy import Date, ForeignKey, Text, Uuid
 from sqlmodel import Boolean, Column, DateTime, Field, Float, Integer, SQLModel, String
 
 
@@ -61,6 +61,14 @@ class Collection(SQLModel, table=True):
     last_synced_at: datetime | None = Field(
         default=None,
         sa_column=Column("last_synced_at", DateTime(timezone=True)),
+    )
+    last_verified_at: date | None = Field(
+        default=None,
+        sa_column=Column("last_verified_at", Date),
+    )
+    verified_by: uuid.UUID | None = Field(
+        default=None,
+        sa_column=Column("verified_by", Uuid, ForeignKey("users.id"), nullable=True),
     )
     last_digest_download_count: int = Field(
         default=0,
@@ -127,5 +135,7 @@ class CollectionRead(SQLModel):
     moderated_at: datetime | None = None
     moderated_by: uuid.UUID | None = None
     last_synced_at: datetime | None = None
+    last_verified_at: date | None = None
+    verified_by: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime

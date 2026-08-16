@@ -19,6 +19,7 @@ vi.mock('../lib/api', () => ({
     get: vi.fn(),
     getArtifacts: vi.fn(),
     importCommunity: vi.fn(),
+    verify: vi.fn(),
   },
   authApi: {
     me: vi.fn().mockRejectedValue(new Error('not logged in')),
@@ -130,6 +131,13 @@ describe('CommunityCollectionDetail — category counts', () => {
     expect(collectionsApi.getArtifacts).toHaveBeenCalledWith('test-collection-id', {
       include_disabled: true,
     });
+  });
+
+  it('shows a "not yet verified" badge and no verify button for a non-moderator', async () => {
+    renderPage();
+
+    expect(await screen.findByText('Not yet verified')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Mark verified/i })).not.toBeInTheDocument();
   });
 
   it('shows only the selected type in the artifact list', async () => {

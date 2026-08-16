@@ -130,6 +130,13 @@ export const collectionsApi = {
     request<import('@/types').ImportCommunityResult>(`/collections/${collectionId}/import`, {
       method: 'POST',
     }),
+
+  // ─── Freshness verification (moderator/admin only) ──────
+
+  verify: (collectionId: string) =>
+    request<import('@/types').Collection>(`/collections/${collectionId}/verify`, {
+      method: 'POST',
+    }),
 };
 
 // ─── Profiles ────────────────────────────────────────────────

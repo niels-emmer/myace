@@ -48,6 +48,12 @@ export interface Collection {
   moderated_at?: string;
   moderated_by?: string;
   last_synced_at?: string;
+  // Manual freshness verification (Epic 4.5) — a moderator/admin
+  // confirming this collection is still good, not an automated check
+  // against live tool documentation. last_verified_at is an ISO date
+  // string (YYYY-MM-DD), not a full timestamp.
+  last_verified_at?: string | null;
+  verified_by?: string | null;
   created_at: string;
   updated_at: string;
 }
