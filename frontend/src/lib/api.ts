@@ -340,3 +340,37 @@ export const moderationApi = {
       body: JSON.stringify(data),
     }),
 };
+
+// ─── Ratings & Comments API ─────────────────────────────────────
+
+export const ratingsApi = {
+  get: (collectionId: string) =>
+    request<import('@/types').CollectionRatingSummary>(`/collections/${collectionId}/rating`),
+
+  rate: (collectionId: string, stars: number) =>
+    request<import('@/types').CollectionRatingSummary>(`/collections/${collectionId}/rating`, {
+      method: 'PUT',
+      body: JSON.stringify({ stars }),
+    }),
+
+  remove: (collectionId: string) =>
+    request<import('@/types').CollectionRatingSummary>(`/collections/${collectionId}/rating`, {
+      method: 'DELETE',
+    }),
+};
+
+export const commentsApi = {
+  list: (collectionId: string) =>
+    request<import('@/types').CollectionComment[]>(`/collections/${collectionId}/comments`),
+
+  create: (collectionId: string, body: string) =>
+    request<import('@/types').CollectionComment>(`/collections/${collectionId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    }),
+
+  remove: (collectionId: string, commentId: string) =>
+    request<{ message: string }>(`/collections/${collectionId}/comments/${commentId}`, {
+      method: 'DELETE',
+    }),
+};

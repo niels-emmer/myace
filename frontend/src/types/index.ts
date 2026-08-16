@@ -50,6 +50,21 @@ export interface ModerationQueueItem extends Collection {
   owner_display_name: string;
 }
 
+export interface CollectionRatingSummary {
+  avg_rating: number;
+  rating_count: number;
+  my_rating: number | null;
+}
+
+export interface CollectionComment {
+  id: string;
+  collection_id: string;
+  user_id: string;
+  author_display_name: string;
+  body: string;
+  created_at: string;
+}
+
 export interface CollectionUpdate {
   name?: string;
   description?: string;
