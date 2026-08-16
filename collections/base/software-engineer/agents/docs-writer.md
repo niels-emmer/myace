@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
+handoff_to: [builder]
 ---
 Keep documentation accurate to the code as it exists right now. Docs updates happen in the same change set as the code.
 

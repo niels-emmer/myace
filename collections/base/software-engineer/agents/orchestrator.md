@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 60
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: primary
+handoff_to: [builder, verifier, security-auditor, code-reviewer, docs-writer]
 ---
 Entry point for nontrivial engineering work. Break work into stages and route each to the matching specialist agent — don't write code or run tests yourself.
 
