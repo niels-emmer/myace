@@ -104,14 +104,12 @@ class ValidationIssue(SQLModel):
 
 
 class ProfileCompileResponse(SQLModel):
-    """Response schema for POST /profiles/compile.
-
-    Documents the shape `compile_profile()` returns; not wired as the route's
-    `response_model` because `compile_profile()` also has an unreachable-in-
-    practice error-dict branch (`{"error": ..., "available_targets": [...]}`)
-    for an unregistered target — unreachable since `ProfileCompileRequest.target`
-    is a `Literal` covering every registered adapter, but enforcing this schema
-    at the route would turn that dead branch into a 500 if it ever did fire.
+    """Return type of `compile_profile()` and `response_model` for
+    `POST /profiles/compile`. An unregistered `target` (unreachable via the
+    API today — `ProfileCompileRequest.target` is a `Literal` covering every
+    registered adapter, so FastAPI 422s first) raises
+    `compiler.UnknownAdapterError` instead of returning a differently-shaped
+    dict, which is what keeps this a single concrete return type end to end.
     """
     profile_id: str
     profile_name: str

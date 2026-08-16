@@ -650,8 +650,9 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 - **Warnings never block compilation** — `level` is currently always
   `"warning"`, and every consumer treats them as advisory: the CLI's
   `myace pull` prints them (yellow) after the file table but still writes
-  the files, with a `--strict` flag to opt into a non-zero exit code
-  *after* the write, not instead of it; the zip route appends a
+  the files (outside `--dry-run`, where nothing is written either way),
+  with a `--strict` flag to opt into a non-zero exit code rather than
+  skipping the write/dry-run itself; the zip route appends a
   `_myace_warnings.txt` file inside the archive (a zip's HTTP response has
   no room for a second JSON payload) only when there's something to
   report; `TargetExporter.tsx` renders a dismissible amber (not red) panel

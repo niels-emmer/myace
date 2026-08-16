@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import typer
 from rich import print as rprint
 from rich.console import Console
+from rich.markup import escape as rich_escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -231,9 +232,15 @@ def pull(
         for warning in warnings:
             code = warning.get("code", "warning")
             message = warning.get("message", "")
-            # Note: (code) rather than [code] — a literal "[name_collision]"
-            # would be parsed as (invalid, silently-dropped) Rich markup.
-            rprint(f"  [yellow]![/yellow] ({code}) {message}")
+            # code/message come from the server's compile response, which
+            # embeds user-controlled collection/artifact names — escape both
+            # before interpolating into a Rich-markup f-string, or a name
+            # containing "[bracketed]" text can corrupt or (for tag-shaped
+            # text like "[/bold]") crash rendering with a MarkupError. Note:
+            # (code) rather than [code] as a second layer of defense — even
+            # escaped, literal brackets read confusingly in a bracket-based
+            # markup language.
+            rprint(f"  [yellow]![/yellow] ({rich_escape(code)}) {rich_escape(message)}")
 
     if dry_run:
         rprint("\n[yellow]Dry run complete. No files were written.[/yellow]")
@@ -276,7 +283,9 @@ def pull(
         rprint(f"   Location: [bold]{output_path}[/bold]")
 
     # --strict flags a pull that succeeded but has warnings worth a look —
-    # it never prevents the pull itself, files are already written above.
+    # it never *prevents* the pull. In the real-write path above, files are
+    # already on disk by the time this check runs; in --dry-run, nothing was
+    # ever going to be written, so this only affects the exit code either way.
     if strict and warnings:
         rprint(f"\n[red]✗[/red] --strict: {len(warnings)} warning(s) reported by the server.")
         raise typer.Exit(1)

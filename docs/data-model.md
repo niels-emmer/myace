@@ -246,11 +246,11 @@ and no migration was needed to add it. `POST /profiles/compile/zip` can't
 embed this JSON alongside the zip's binary response, so it instead appends
 a `_myace_warnings.txt` file inside the archive when there are any
 warnings to report. See [AGENTS.md rule 32](../AGENTS.md) for the
-name-collision rule this currently powers, and the architecture note in
-`docs/plans/platform-enhancements.md`'s Phase 1 section for why this is
-deliberately kept generic (`code`/`message`, not a name-collision-specific
-shape) — a later phase reuses the same `warnings` field for a
-dangling-agent-handoff check.
+name-collision rule this currently powers. The `{level, code, message}`
+shape is deliberately generic rather than name-collision-specific, so a
+future compile-time check (e.g. a dangling agent-handoff reference) can
+append its own `code` to the same `warnings` list without a schema change
+or a second parallel warnings mechanism.
 
 ### `api_tokens`
 

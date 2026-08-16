@@ -24,26 +24,9 @@ async def _register(client: AsyncClient) -> None:
 
 
 async def _create_collection_with_artifact(client: AsyncClient, db_session: AsyncSession) -> str:
-    res = await client.post(
-        "/api/v1/collections",
-        json={"name": "zip-test-collection", "git_url": "https://example.com/repo.git"},
+    return await _create_collection_with_named_artifact(
+        client, db_session, "zip-test-collection", "test-rule"
     )
-    assert res.status_code == 201
-    collection_id = res.json()["id"]
-
-    db_session.add(
-        Artifact(
-            collection_id=uuid.UUID(collection_id),
-            artifact_type="rule",
-            name="test-rule",
-            priority=80,
-            body="Always use type annotations.",
-            file_path="rules/test-rule.md",
-        )
-    )
-    await db_session.commit()
-
-    return collection_id
 
 
 async def _create_profile(
@@ -236,6 +219,47 @@ async def test_compile_reports_name_collision_warning(
     assert "base-collection" in warning["message"]
     assert "additional-collection" in warning["message"]
     assert "shared-rule" in warning["message"]
+
+
+@pytest.mark.asyncio
+async def test_compile_reports_name_collision_across_same_named_collections(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Collision detection must key on collection ID, not Collection.name —
+    Collection.name has no uniqueness constraint, so two distinct
+    collections sharing a display name must still produce a name_collision
+    warning (comparing names alone would false-negative here since the
+    names are identical)."""
+    await _register(async_client)
+    base_id = await _create_collection_with_named_artifact(
+        async_client, db_session, "same-name-collection", "shared-rule"
+    )
+    additional_id = await _create_collection_with_named_artifact(
+        async_client, db_session, "same-name-collection", "shared-rule"
+    )
+    assert base_id != additional_id
+
+    profile_id = await _create_profile(
+        async_client, base_id, additional_collection_ids=[additional_id]
+    )
+
+    res = await async_client.post(
+        "/api/v1/profiles/compile",
+        json={"profile_id": profile_id, "target": "claude-code"},
+    )
+    assert res.status_code == 200
+    warnings = res.json()["warnings"]
+    assert len(warnings) == 1
+    warning = warnings[0]
+    assert warning["code"] == "name_collision"
+    assert "shared-rule" in warning["message"]
+    # Both collections are named identically — the message must still let a
+    # human tell them apart, e.g. via a short id fragment for each side.
+    # (The winning collection's label appears twice — "in both X and Y" and
+    # "Y wins" — so the name substring appears 3 times total, not 2.)
+    assert warning["message"].count("same-name-collection") == 3
+    assert base_id[:8] in warning["message"]
+    assert additional_id[:8] in warning["message"]
 
 
 @pytest.mark.asyncio

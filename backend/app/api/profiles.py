@@ -14,9 +14,15 @@ from app.core.authz import authorize_access, owner_or_public_clause
 from app.core.database import get_session
 from app.core.deps import get_current_user
 from app.models.collection import Collection
-from app.models.profile import Profile, ProfileCompileRequest, ProfileCreate, ProfileRead
+from app.models.profile import (
+    Profile,
+    ProfileCompileRequest,
+    ProfileCompileResponse,
+    ProfileCreate,
+    ProfileRead,
+)
 from app.models.user import User
-from app.services.compiler import AdapterDisabledError, compile_profile
+from app.services.compiler import AdapterDisabledError, UnknownAdapterError, compile_profile
 from app.services.github_export import slugify
 
 router = APIRouter()
@@ -114,7 +120,7 @@ async def get_profile(
     return _profile_to_read(profile)
 
 
-@router.post("/compile")
+@router.post("/compile", response_model=ProfileCompileResponse)
 async def compile_profile_endpoint(
     request: ProfileCompileRequest,
     current_user: User = Depends(get_current_user),
@@ -138,7 +144,7 @@ async def compile_profile_endpoint(
             target=request.target,
             include_disabled=request.include_disabled,
         )
-    except AdapterDisabledError as e:
+    except (AdapterDisabledError, UnknownAdapterError) as e:
         raise HTTPException(status_code=400, detail=str(e))
     return compiled
 
@@ -166,23 +172,20 @@ async def compile_profile_zip_endpoint(
             target=request.target,
             include_disabled=request.include_disabled,
         )
-    except AdapterDisabledError as e:
+    except (AdapterDisabledError, UnknownAdapterError) as e:
         raise HTTPException(status_code=400, detail=str(e))
-    if "error" in compiled:
-        raise HTTPException(status_code=400, detail=compiled["error"])
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for filename, content in compiled["files"].items():
+        for filename, content in compiled.files.items():
             zf.writestr(filename, content)
 
         # The JSON /compile route can return warnings alongside files in the
         # same response body; a zip's HTTP response has no room for a second
         # payload, so warnings ride along as an extra file inside the archive
         # instead, only when there are any to report.
-        warnings = compiled.get("warnings") or []
-        if warnings:
-            warnings_text = "\n".join(f"[{w.code}] {w.message}" for w in warnings)
+        if compiled.warnings:
+            warnings_text = "\n".join(f"[{w.code}] {w.message}" for w in compiled.warnings)
             zf.writestr("_myace_warnings.txt", warnings_text + "\n")
 
     # Sanitize into the Content-Disposition header — profile.name is
