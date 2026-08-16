@@ -143,7 +143,8 @@ Moderators/admins get a weekly email digest when any approved community
 collection's manual freshness verification is missing or has aged past
 `COLLECTION_FRESHNESS_THRESHOLD_DAYS` (default 180, ~6 months) — see
 [data-model.md](data-model.md#freshness-verification) and
-[ADR-0011](adr/0011-public-demo-sandbox.md)'s sibling feature note. Same
+[ADR-0012](adr/0012-manual-collection-freshness-verification.md) for why
+this is a manual signal, not an automated content check. Same
 "no in-process scheduler" shape as the download-digest script above:
 `backend/app/scripts/check_collection_freshness.py`, meant for the host's
 crontab, not run in-process.

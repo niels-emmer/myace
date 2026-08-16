@@ -289,8 +289,11 @@ content, not the server's compute cost).
 
 ### Freshness verification
 
-`Collection.last_verified_at` (nullable `Date`) and `verified_by` (nullable
-FK to `users.id`) record that a moderator/admin manually looked at a
+See [ADR-0012](adr/0012-manual-collection-freshness-verification.md) for
+why this is a manual, moderator-attested signal rather than an automated
+content check. `Collection.last_verified_at` (nullable `Date`) and
+`verified_by` (nullable FK to `users.id`) record that a moderator/admin
+manually looked at a
 collection recently and confirmed it's still good — not that anything was
 automatically checked against live tool documentation; the frontend badge
 copy (`FreshnessBadge.tsx`) and API docstrings both say so explicitly, to
@@ -302,7 +305,7 @@ settings.collection_freshness_threshold_days` (default ~6 months),
 never-verified first. `POST /collections/{id}/verify` (same gate) sets both
 fields to "today" / the calling moderator's id — there is no
 self-verification block the way moderation has a self-approval block
-(rule 30/AGENTS.md rule 36), since verifying is additive/non-destructive in
+(rule 30/AGENTS.md rule 37), since verifying is additive/non-destructive in
 a way approving a submission isn't.
 
 `app/scripts/check_collection_freshness.py` is a weekly cron script (same

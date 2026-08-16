@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { Copy, Check as CheckIcon } from 'lucide-react';
 
 // The local companion server (`myace serve`) is what actually reads this
@@ -8,6 +9,47 @@ import { Copy, Check as CheckIcon } from 'lucide-react';
 // both need the exact same "is it running, and if not, how do I start it"
 // panel — see AGENTS.md rule 24.
 export const COMPANION_URLS = ['http://localhost:8765', 'http://127.0.0.1:8765'];
+
+interface CompanionHealth {
+  status: string;
+  server: string;
+}
+
+/**
+ * Polls the companion server's /health across both candidate URLs and
+ * reports whether it's reachable. Shared by ImportPage.tsx and
+ * SetupAudit.tsx so the two pages can't quietly drift on retry/polling
+ * behavior the way they had before this was extracted.
+ */
+export function useCompanionHealth(enabled: boolean = true): UseQueryResult<CompanionHealth> {
+  return useQuery({
+    queryKey: ['companion-health'],
+    queryFn: async () => {
+      for (const baseUrl of COMPANION_URLS) {
+        try {
+          const res = await fetch(`${baseUrl}/health`, {
+            mode: 'cors',
+            cache: 'no-cache',
+            signal: AbortSignal.timeout(3000),
+          });
+          if (res.ok) {
+            const data = (await res.json()) as CompanionHealth;
+            console.info(`[myace] Companion detected at ${baseUrl}`, data);
+            return data;
+          }
+        } catch (err) {
+          console.debug(`[myace] Companion not found at ${baseUrl}:`, err);
+        }
+      }
+      throw new Error('Companion unreachable at localhost:8765 or 127.0.0.1:8765');
+    },
+    enabled,
+    retry: 3,
+    retryDelay: 3000,
+    refetchInterval: 5000,
+    staleTime: 0,
+  });
+}
 
 type Platform = 'linux-x86_64' | 'macos-x86_64' | 'macos-arm64' | 'windows-x86_64' | null;
 

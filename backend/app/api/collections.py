@@ -706,12 +706,12 @@ async def verify_collection_freshness(
     collection_id: uuid.UUID,
     current_user: User = Depends(require_moderator_or_admin),
     session: AsyncSession = Depends(get_session),
-):
+) -> Collection:
     """Mark a collection as freshness-verified today by the calling
     moderator/admin — sets last_verified_at/verified_by.
 
     Gated by require_moderator_or_admin, not authorize_access — same
-    reasoning as the moderation queue (AGENTS.md rule 30/36): reviewing
+    reasoning as the moderation queue (AGENTS.md rule 30/37): reviewing
     community content is a moderator capability, not an ownership one.
     "Verified" means a human looked at this collection recently and
     confirmed it's still good, not that anything was automatically

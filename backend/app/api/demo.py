@@ -22,13 +22,22 @@ size: rule-type artifacts only (parsed via the same `##`-section splitter
 `scan_directory()` uses for AGENTS.md, `_parse_agents_md_content()`) — no
 skills/agents/model-configs, no git URLs, no file uploads — compiled
 through 3 adapters (claude-code, cursor, opencode), not all 11. Input is
-capped at 20KB; requests are rate-limited to 10/minute/IP via slowapi,
-scoped to this route only via the `@limiter.limit(...)` decorator — every
-other route keeps its existing auth-based protection unchanged. The
-limiter instance and its exception handler are wired once in `app/main.py`
-(`app.state.limiter` + `RateLimitExceeded` handler), which is required
-plumbing for the decorator to raise 429s correctly; it does not add
-rate-limiting to any other route.
+capped at 20KB (`MAX_MARKDOWN_BYTES`, enforced by `DemoCompileRequest`'s
+`field_validator`) — but that check runs only *after* FastAPI has already
+buffered and JSON-parsed the whole request body, so a transport-level cap
+is enforced earlier too: `app.core.body_limit.MaxBodySizeMiddleware`,
+wired in `app/main.py` and scoped to this one route
+(`DEMO_REQUEST_BODY_MAX_BYTES`, generously above `MAX_MARKDOWN_BYTES` to
+cover JSON-escaping overhead), rejects an oversized body with 413 before
+it's ever handed to FastAPI's own parsing. Requests are additionally
+rate-limited to 10/minute/IP via slowapi, scoped to this route only via
+the `@limiter.limit(...)` decorator — every other route keeps its
+existing auth-based protection unchanged. The limiter instance and its
+exception handler are wired once in `app/main.py` (`app.state.limiter` +
+a custom `RateLimitExceeded` handler that matches this app's normal
+`{"detail": ...}` error shape), which is required plumbing for the
+decorator to raise 429s correctly; it does not add rate-limiting to any
+other route.
 """
 
 from fastapi import APIRouter, Request
@@ -50,6 +59,15 @@ router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 MAX_MARKDOWN_BYTES = 20 * 1024
+# Transport-level cap for app.core.body_limit.MaxBodySizeMiddleware, wired
+# in app/main.py. Deliberately larger than MAX_MARKDOWN_BYTES: a JSON
+# string's escaped form (\uXXXX per character, worst case) can be several
+# times its raw UTF-8 byte length, so a cap this close to MAX_MARKDOWN_BYTES
+# would reject some legitimate 20KB-of-content requests at the transport
+# layer before Pydantic's own, more precise, decoded-content check ever
+# runs. This is a coarse early backstop, not the source of truth for the
+# real content limit.
+DEMO_REQUEST_BODY_MAX_BYTES = 128 * 1024
 DEMO_TARGETS = ("claude-code", "cursor", "opencode")
 
 

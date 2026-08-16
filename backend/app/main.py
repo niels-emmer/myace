@@ -5,12 +5,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 from app.api import (
     adapters,
@@ -26,7 +25,9 @@ from app.api import (
     ratings,
     sync,
 )
+from app.api.demo import DEMO_REQUEST_BODY_MAX_BYTES
 from app.api.demo import limiter as demo_limiter
+from app.core.body_limit import MaxBodySizeMiddleware
 from app.core.config import settings
 from app.core.database import get_session_factory, init_db
 from app.services.seed_collections import seed_starter_collections
@@ -94,18 +95,46 @@ app.state.limiter = demo_limiter
 
 
 def _handle_rate_limit_exceeded(request: Request, exc: Exception) -> Response:
-    """Typed wrapper around slowapi's own handler — Starlette's
-    add_exception_handler() expects `Callable[[Request, Exception],
-    Response]`, but slowapi's handler is typed narrower
-    (`RateLimitExceeded`, not `Exception`); Starlette only ever calls this
-    for a registered `RateLimitExceeded`, so the isinstance check just
-    narrows the type for mypy rather than guarding real runtime behavior.
+    """Custom handler, not slowapi's own `_rate_limit_exceeded_handler` —
+    that one returns `{"error": "Rate limit exceeded: ..."}`, but every
+    other error response in this app (FastAPI's `HTTPException`) shapes
+    its body as `{"detail": ...}`, which is exactly what
+    `frontend/src/lib/api.ts`'s `request()` reads. Returning the
+    `{"error": ...}` shape here would silently degrade to a generic
+    "HTTP 429" in the UI instead of the real rate-limit message. Rebuilds
+    the same rate-limit headers slowapi's own handler injects, via the
+    same private `_inject_headers` helper it uses internally.
+
+    Starlette's `add_exception_handler()` expects `Callable[[Request,
+    Exception], Response]`, but this is only ever registered for
+    `RateLimitExceeded` — the `isinstance` check narrows the type for
+    mypy rather than guarding real runtime behavior.
     """
     assert isinstance(exc, RateLimitExceeded)
-    return _rate_limit_exceeded_handler(request, exc)
+    response = JSONResponse(
+        {"detail": f"Rate limit exceeded: {exc.detail}"}, status_code=429
+    )
+    # slowapi ships no py.typed marker, so mypy sees this call as returning
+    # `Any` despite its real (correctly-typed) runtime signature
+    # `(Response, ...) -> Response` — annotate the result explicitly
+    # rather than letting `Any` silently propagate as this function's
+    # declared `Response` return.
+    injected: Response = request.app.state.limiter._inject_headers(
+        response, request.state.view_rate_limit
+    )
+    return injected
 
 
 app.add_exception_handler(RateLimitExceeded, _handle_rate_limit_exceeded)
+
+# Transport-level body-size cap for the one fully-public route in this app
+# (POST /demo/compile) — see app.core.body_limit's module docstring for why
+# this can't be done inside a Pydantic validator alone. Scoped to exactly
+# this (method, path) pair; every other route is unaffected.
+app.add_middleware(
+    MaxBodySizeMiddleware,
+    limits={("POST", "/api/v1/demo/compile"): DEMO_REQUEST_BODY_MAX_BYTES},
+)
 
 # Trusted hosts — always enforce. In development, allow all hosts (safe
 # default for local testing). In production, the operator MUST set

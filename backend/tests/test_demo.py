@@ -12,7 +12,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.api.demo import MAX_MARKDOWN_BYTES, limiter
+from app.api.demo import DEMO_REQUEST_BODY_MAX_BYTES, MAX_MARKDOWN_BYTES, limiter
 from app.models.artifact import Artifact
 from app.models.collection import Collection
 
@@ -82,6 +82,50 @@ async def test_demo_compile_rate_limit_triggers_on_eleventh_request(
 
     res = await async_client.post("/api/v1/demo/compile", json={"markdown": "## Rule\n\nx\n"})
     assert res.status_code == 429
+
+
+async def test_demo_compile_rate_limit_response_uses_detail_key(
+    async_client: AsyncClient,
+) -> None:
+    """The frontend's shared request() helper reads error.detail (matching
+    every other FastAPI HTTPException in this app) — slowapi's own default
+    handler returns {"error": ...} instead, which would silently degrade
+    to a generic message in the UI. Confirm the custom handler in
+    app/main.py fixes that."""
+    for _ in range(10):
+        await async_client.post("/api/v1/demo/compile", json={"markdown": "## Rule\n\nx\n"})
+
+    res = await async_client.post("/api/v1/demo/compile", json={"markdown": "## Rule\n\nx\n"})
+    assert res.status_code == 429
+    data = res.json()
+    assert "detail" in data
+    assert "error" not in data
+    assert "Rate limit exceeded" in data["detail"]
+
+
+async def test_demo_compile_oversized_transport_body_returns_413_before_parsing(
+    async_client: AsyncClient,
+) -> None:
+    """A body well beyond the transport-level cap must be rejected by
+    MaxBodySizeMiddleware (413) before it ever reaches Pydantic's own
+    (more precise, but too-late) content-size validator."""
+    huge_markdown = "x" * (DEMO_REQUEST_BODY_MAX_BYTES + 50_000)
+    res = await async_client.post("/api/v1/demo/compile", json={"markdown": huge_markdown})
+    assert res.status_code == 413
+    assert "detail" in res.json()
+
+
+async def test_demo_compile_body_under_transport_cap_but_over_content_cap_still_422s(
+    async_client: AsyncClient,
+) -> None:
+    """Confirms the two caps are independent layers: a body that clears
+    the coarse transport-level cap but still exceeds the precise 20KB
+    content cap is rejected by Pydantic (422), not silently allowed
+    through just because it passed the transport check."""
+    over_content_cap = "x" * (MAX_MARKDOWN_BYTES + 100)
+    assert len(over_content_cap.encode("utf-8")) < DEMO_REQUEST_BODY_MAX_BYTES
+    res = await async_client.post("/api/v1/demo/compile", json={"markdown": over_content_cap})
+    assert res.status_code == 422
 
 
 async def test_demo_compile_creates_no_database_rows(

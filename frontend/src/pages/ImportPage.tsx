@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import {
   Upload,
@@ -16,7 +16,7 @@ import {
   Check as CheckIcon,
   Loader2,
 } from 'lucide-react';
-import { COMPANION_URLS, LocalCompanionSetup } from '../components/LocalCompanionSetup';
+import { COMPANION_URLS, LocalCompanionSetup, useCompanionHealth } from '../components/LocalCompanionSetup';
 
 const FRAMEWORKS = [
   { id: 'opencode', label: 'OpenCode', globalPath: '~/.config/opencode' },
@@ -62,33 +62,7 @@ export default function ImportPage() {
   // backend's local-scan path only ever sees whatever machine *it* runs on
   // (the server, not a remote visitor's laptop). Poll while "Local Machine"
   // is selected so starting `myace serve` mid-session is picked up live.
-  const companionQuery = useQuery({
-    queryKey: ['companion-health'],
-    queryFn: async () => {
-      for (const baseUrl of COMPANION_URLS) {
-        try {
-          const res = await fetch(`${baseUrl}/health`, {
-            mode: 'cors',
-            cache: 'no-cache',
-            signal: AbortSignal.timeout(3000),
-          });
-          if (res.ok) {
-            const data = (await res.json()) as { status: string; server: string };
-            console.info(`[myace] Companion detected at ${baseUrl}`, data);
-            return data;
-          }
-        } catch (err) {
-          console.debug(`[myace] Companion not found at ${baseUrl}:`, err);
-        }
-      }
-      throw new Error('Companion unreachable at localhost:8765 or 127.0.0.1:8765');
-    },
-    enabled: sourceType === 'local',
-    retry: 3,
-    retryDelay: 3000,
-    refetchInterval: 5000,
-    staleTime: 0,
-  });
+  const companionQuery = useCompanionHealth(sourceType === 'local');
   const companionReady = sourceType === 'local' && companionQuery.isSuccess;
 
   const canScan =

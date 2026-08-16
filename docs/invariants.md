@@ -63,7 +63,7 @@ names where it's enforced so you can verify it hasn't regressed.
    adapter toggles). It gates `/api/v1/moderation/*` plus two Phase-4
    additions that are the same kind of community-content review capability
    under a different URL prefix: `GET /admin/freshness-queue` and
-   `POST /collections/{id}/verify` (AGENTS.md rule 36) — never widen it to
+   `POST /collections/{id}/verify` (AGENTS.md rule 37) — never widen it to
    accept `is_admin` alone, never merge it with `require_admin`, and never
    use `authorize_access()`'s owner-bypass on any route it gates — see
    [ADR-0007](adr/0007-additive-user-role-column.md).

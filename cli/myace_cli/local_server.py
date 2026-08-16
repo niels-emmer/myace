@@ -69,6 +69,21 @@ def build_app(allowed_origin: str) -> Any:
     class AuditRequestBody(BaseModel):
         path: str
 
+    def _require_companion_request(request: Request) -> None:
+        """Shared auth gate for every state-touching/data-reading route
+        (`/scan`, `/audit`) — a custom header (blocks blind `no-cors`
+        cross-origin POSTs, which can't carry custom headers) plus a
+        server-side Origin check (not just the CORS response header, so a
+        non-browser client can't skip the dance). Defined once so a future
+        security-relevant change here (e.g. a rate limit) can't land on
+        only one of the two routes by accident — see AGENTS.md rule 24.
+        Raises the same HTTPException both routes already raised inline.
+        """
+        if request.headers.get(COMPANION_HEADER) != "1":
+            raise HTTPException(status_code=400, detail="Missing X-MyACE-Companion header")
+        if request.headers.get("origin") != allowed_origin:
+            raise HTTPException(status_code=403, detail="Origin not allowed")
+
     class _CompanionCors(BaseHTTPMiddleware):
         async def dispatch(self, request: Request, call_next: Any) -> Response:
             origin = request.headers.get("origin")
@@ -96,10 +111,7 @@ def build_app(allowed_origin: str) -> Any:
 
     @app.post("/scan")
     async def scan(request: Request, body: ScanRequestBody) -> JSONResponse:
-        if request.headers.get(COMPANION_HEADER) != "1":
-            raise HTTPException(status_code=400, detail="Missing X-MyACE-Companion header")
-        if request.headers.get("origin") != allowed_origin:
-            raise HTTPException(status_code=403, detail="Origin not allowed")
+        _require_companion_request(request)
 
         try:
             artifacts = scan_directory(body.path)
@@ -118,12 +130,9 @@ def build_app(allowed_origin: str) -> Any:
     @app.post("/audit")
     async def audit(request: Request, body: AuditRequestBody) -> JSONResponse:
         """Cross-target local setup audit — same security gate as /scan
-        (rule 24): companion header + exact Origin match, both checked
-        server-side, not just via CORS response headers."""
-        if request.headers.get(COMPANION_HEADER) != "1":
-            raise HTTPException(status_code=400, detail="Missing X-MyACE-Companion header")
-        if request.headers.get("origin") != allowed_origin:
-            raise HTTPException(status_code=403, detail="Origin not allowed")
+        (rule 24), enforced by the same shared `_require_companion_request`
+        both routes call."""
+        _require_companion_request(request)
 
         root = Path(body.path).expanduser()
         if not root.exists():

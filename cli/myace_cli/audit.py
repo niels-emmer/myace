@@ -38,11 +38,10 @@ the same name defined more than once. Say so in any UI that renders this,
 not just here.
 """
 
-import re
 from pathlib import Path
 from typing import TypedDict
 
-from myace_cli.scanner import scan_directory
+from myace_cli.scanner import _parse_agents_md_content, scan_directory
 
 # Mirrors backend/app/adapters/*.py's expected_paths() — see module
 # docstring. Directory entries end with `/`; file entries don't.
@@ -108,27 +107,18 @@ class AuditResult(TypedDict):
 
 def _parse_rule_sections(path: Path) -> list[dict]:
     """Split a plain rules markdown file into one rule artifact per
-    top-level '##' section — the same splitting logic as
-    scanner._parse_agents_md, generalized over the source filename (that
-    function hardcodes `file_path: "AGENTS.md"` in its output, which isn't
-    accurate for CLAUDE.md/CONVENTIONS.md, so this is a small local copy
-    rather than a reused import)."""
+    top-level '##' section, reusing `scanner._parse_agents_md_content()` —
+    the exact same splitter `scan_directory()` uses for a real `AGENTS.md`
+    — rather than a second, hand-copied regex. That function hardcodes
+    `file_path: "AGENTS.md"` in its output (accurate for its own callers,
+    which only ever pass real `AGENTS.md` content), which isn't correct
+    for CLAUDE.md/CONVENTIONS.md here, so this overrides it afterward with
+    the real source filename.
+    """
     content = path.read_text(encoding="utf-8")
-    artifacts: list[dict] = []
-    sections = re.split(r"\n(?=## )", content)
-    for section in sections:
-        section = section.strip()
-        if not section:
-            continue
-        header_match = re.match(r"## (.+)", section)
-        if not header_match:
-            continue
-        name = header_match.group(1).strip()
-        artifacts.append({
-            "artifact_type": "rule",
-            "name": name,
-            "file_path": path.name,
-        })
+    artifacts = _parse_agents_md_content(content)
+    for artifact in artifacts:
+        artifact["file_path"] = path.name
     return artifacts
 
 

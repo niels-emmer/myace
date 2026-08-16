@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import {
   ShieldCheck,
   Search,
@@ -8,7 +8,7 @@ import {
   CircleAlert,
   Info,
 } from 'lucide-react';
-import { COMPANION_URLS, LocalCompanionSetup } from '../components/LocalCompanionSetup';
+import { COMPANION_URLS, LocalCompanionSetup, useCompanionHealth } from '../components/LocalCompanionSetup';
 
 interface AuditTarget {
   detected: boolean;
@@ -56,34 +56,10 @@ export default function SetupAudit() {
   const [rootPath, setRootPath] = useState(DEFAULT_PATH);
   const [result, setResult] = useState<AuditResult | null>(null);
 
-  // Same "is the companion server running" pattern as ImportPage.tsx — the
+  // Same "is the companion server running" check ImportPage.tsx uses — the
   // browser has no filesystem access, so this page can't audit anything
   // until `myace serve` is reachable on this machine.
-  const companionQuery = useQuery({
-    queryKey: ['companion-health'],
-    queryFn: async () => {
-      for (const baseUrl of COMPANION_URLS) {
-        try {
-          const res = await fetch(`${baseUrl}/health`, {
-            mode: 'cors',
-            cache: 'no-cache',
-            signal: AbortSignal.timeout(3000),
-          });
-          if (res.ok) {
-            const data = (await res.json()) as { status: string; server: string };
-            return data;
-          }
-        } catch {
-          // try the next candidate URL
-        }
-      }
-      throw new Error('Companion unreachable at localhost:8765 or 127.0.0.1:8765');
-    },
-    retry: 3,
-    retryDelay: 3000,
-    refetchInterval: 5000,
-    staleTime: 0,
-  });
+  const companionQuery = useCompanionHealth();
   const companionReady = companionQuery.isSuccess;
 
   const auditMutation = useMutation({

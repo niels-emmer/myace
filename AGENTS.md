@@ -84,10 +84,14 @@ class BaseAdapter(ABC):
     def adapter_name(self) -> str: ...
 
     @abstractmethod
+    def expected_paths(self) -> list[str]: ...
+
+    @abstractmethod
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]: ...
 ```
 
 - `translate()` returns a dict of `{filename: file_content}` for the target framework.
+- `expected_paths()` (added Phase 4, rule 35) returns this adapter's conventional local file/directory names, used by the local setup audit — must match what `translate()` actually writes.
 - Adapters are stateless — all state lives in the composition engine.
 
 ### 4. API Versioning
@@ -610,7 +614,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `/api/v1/moderation/*`, plus two Phase-4 additions under other URL
   prefixes that are the same community-content-review capability in
   substance — `GET /admin/freshness-queue` and
-  `POST /collections/{id}/verify` (rule 36) — and nothing else. Never
+  `POST /collections/{id}/verify` (rule 37) — and nothing else. Never
   widen it to accept `is_admin` alone, never merge it with `require_admin`,
   and never use `authorize_access()`'s owner-bypass on a route it gates —
   a collection's own owner must never be able to approve or deny their own
@@ -872,7 +876,9 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   shows it (API docstrings, `FreshnessBadge.tsx`'s tooltip copy) says so
   explicitly. Don't let a future change make this look more automated than
   it is (e.g. auto-setting it from a passing CI run) without a deliberate,
-  reviewed decision to change what "verified" means.
+  reviewed decision to change what "verified" means. See
+  [ADR-0012](docs/adr/0012-manual-collection-freshness-verification.md)
+  for why manual, not automated, was the deliberate choice here.
 - **`GET /admin/freshness-queue` and `POST /collections/{id}/verify`
   (`backend/app/api/freshness.py`, `backend/app/api/collections.py`) are
   both gated by `require_moderator_or_admin`, per rule 30's extended
