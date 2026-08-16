@@ -176,6 +176,10 @@ def pull(
         False, "--force", "-f",
         help="Overwrite existing files without confirmation",
     ),
+    strict: bool = typer.Option(
+        False, "--strict",
+        help="Exit with code 1 if the server reports any compile-time warnings",
+    ),
 ):
     """Fetch a compiled profile from the server and write files locally."""
     creds = auth_manager.load_credentials()
@@ -199,6 +203,7 @@ def pull(
         raise typer.Exit(1)
 
     files = result["files"]
+    warnings = result.get("warnings") or []
     rprint(f"\n[bold]Profile:[/bold] {result.get('profile_name', profile)}")
     rprint(f"[bold]Target:[/bold]  {target}")
     rprint(f"[bold]Artifacts:[/bold] {result.get('artifact_count', 0)}")
@@ -217,46 +222,64 @@ def pull(
 
     console.print(table)
 
+    # Compile-time warnings (e.g. artifact name collisions) never block a
+    # pull — the compiled output is still valid — but are worth a human
+    # look, so they're always printed after the file table regardless of
+    # --strict.
+    if warnings:
+        rprint("\n[yellow]Warnings:[/yellow]")
+        for warning in warnings:
+            code = warning.get("code", "warning")
+            message = warning.get("message", "")
+            # Note: (code) rather than [code] — a literal "[name_collision]"
+            # would be parsed as (invalid, silently-dropped) Rich markup.
+            rprint(f"  [yellow]![/yellow] ({code}) {message}")
+
     if dry_run:
         rprint("\n[yellow]Dry run complete. No files were written.[/yellow]")
-        return
+    else:
+        # Determine output path
+        output_path = path or _default_target_path(target)
+        rprint(f"\nOutput directory: [bold]{output_path}[/bold]")
 
-    # Determine output path
-    output_path = path or _default_target_path(target)
-    rprint(f"\nOutput directory: [bold]{output_path}[/bold]")
+        if not output_path.exists():
+            output_path.mkdir(parents=True, exist_ok=True)
 
-    if not output_path.exists():
-        output_path.mkdir(parents=True, exist_ok=True)
-
-    # Write files
-    written = 0
-    skipped = 0
-    for filename, content in files.items():
-        # Prevent path traversal: reject filenames with path separators or
-        # parent-dir references. The server's compile response is derived from
-        # user-controlled artifact names, so a malicious/compromised server
-        # could return a filename like '../../.bashrc'.
-        if "/" in filename or "\\" in filename or ".." in filename:
-            rprint(f"  [red]Skipping unsafe filename: {filename}[/red]")
-            skipped += 1
-            continue
-        file_path = output_path / filename
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if file_path.exists() and not force:
-            overwrite = typer.confirm(
-                f"  Overwrite {filename}?",
-                default=False,
-            )
-            if not overwrite:
+        # Write files
+        written = 0
+        skipped = 0
+        for filename, content in files.items():
+            # Prevent path traversal: reject filenames with path separators or
+            # parent-dir references. The server's compile response is derived from
+            # user-controlled artifact names, so a malicious/compromised server
+            # could return a filename like '../../.bashrc'.
+            if "/" in filename or "\\" in filename or ".." in filename:
+                rprint(f"  [red]Skipping unsafe filename: {filename}[/red]")
                 skipped += 1
                 continue
+            file_path = output_path / filename
+            file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        file_path.write_text(content)
-        written += 1
+            if file_path.exists() and not force:
+                overwrite = typer.confirm(
+                    f"  Overwrite {filename}?",
+                    default=False,
+                )
+                if not overwrite:
+                    skipped += 1
+                    continue
 
-    rprint(f"\n[green]✓[/green] {written} files written, {skipped} skipped.")
-    rprint(f"   Location: [bold]{output_path}[/bold]")
+            file_path.write_text(content)
+            written += 1
+
+        rprint(f"\n[green]✓[/green] {written} files written, {skipped} skipped.")
+        rprint(f"   Location: [bold]{output_path}[/bold]")
+
+    # --strict flags a pull that succeeded but has warnings worth a look —
+    # it never prevents the pull itself, files are already written above.
+    if strict and warnings:
+        rprint(f"\n[red]✗[/red] --strict: {len(warnings)} warning(s) reported by the server.")
+        raise typer.Exit(1)
 
 
 @app.command()
