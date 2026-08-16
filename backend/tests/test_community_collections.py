@@ -205,11 +205,12 @@ async def test_import_non_published_collection_fails(
 
 
 @pytest.mark.asyncio
-async def test_publish_is_immediate_and_self_serve(
+async def test_publish_submits_for_moderation_review(
     async_client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """Publishing sets published=True and visibility=public on the caller's own
-    row immediately — no admin approval step, no GitHub round-trip."""
+    """Publishing no longer sets published/visibility immediately — it moves
+    the collection into the 'submitted' moderation queue instead. Only the
+    approve action (see test_moderation.py) flips published/visibility."""
     await _register(async_client)
     collection_id = await _create_collection(async_client, db_session, visibility="private")
 
@@ -223,17 +224,38 @@ async def test_publish_is_immediate_and_self_serve(
     )
     assert res.status_code == 200
     data = res.json()
-    assert data["published"] is True
-    assert data["visibility"] == "public"
+    assert data["published"] is False
+    assert data["visibility"] == "private"
+    assert data["moderation_status"] == "submitted"
+    assert data["submitted_at"] is not None
     assert data["category"] == "python"
     assert data["name"] == "Published Display Name"
     assert data["description"] == "A public-facing description."
 
-    # Immediately visible in the community listing, no extra step.
+    # Not visible in the community listing until a moderator approves it.
     res = await async_client.get("/api/v1/collections/community")
     assert res.status_code == 200
     data = res.json()
-    assert any(c["id"] == collection_id for c in data["items"])
+    assert not any(c["id"] == collection_id for c in data["items"])
+
+
+@pytest.mark.asyncio
+async def test_resubmitting_an_already_submitted_collection_409s(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Can't submit a collection that's already awaiting review."""
+    await _register(async_client)
+    collection_id = await _create_collection(async_client, db_session)
+
+    res = await async_client.post(
+        f"/api/v1/collections/{collection_id}/publish", json={"category": "python"}
+    )
+    assert res.status_code == 200
+
+    res = await async_client.post(
+        f"/api/v1/collections/{collection_id}/publish", json={"category": "python"}
+    )
+    assert res.status_code == 409
 
 
 @pytest.mark.asyncio

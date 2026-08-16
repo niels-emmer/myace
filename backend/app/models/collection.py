@@ -39,6 +39,23 @@ class Collection(SQLModel, table=True):
     is_starter_pack: bool = Field(
         default=False, sa_column=Column("is_starter_pack", Boolean, nullable=False, default=False)
     )
+    moderation_status: str = Field(
+        default="draft",
+        sa_column=Column("moderation_status", String(32), nullable=False, default="draft"),
+    )
+    moderation_reason: str | None = Field(
+        default=None, sa_column=Column("moderation_reason", Text)
+    )
+    submitted_at: datetime | None = Field(
+        default=None, sa_column=Column("submitted_at", DateTime(timezone=True))
+    )
+    moderated_at: datetime | None = Field(
+        default=None, sa_column=Column("moderated_at", DateTime(timezone=True))
+    )
+    moderated_by: uuid.UUID | None = Field(
+        default=None,
+        sa_column=Column("moderated_by", Uuid, ForeignKey("users.id"), nullable=True),
+    )
     last_synced_at: datetime | None = Field(
         default=None,
         sa_column=Column("last_synced_at", DateTime(timezone=True)),
@@ -92,6 +109,11 @@ class CollectionRead(SQLModel):
     published: bool = False
     category: str | None = None
     is_starter_pack: bool = False
+    moderation_status: Literal["draft", "submitted", "approved", "denied"] = "draft"
+    moderation_reason: str | None = None
+    submitted_at: datetime | None = None
+    moderated_at: datetime | None = None
+    moderated_by: uuid.UUID | None = None
     last_synced_at: datetime | None = None
     created_at: datetime
     updated_at: datetime

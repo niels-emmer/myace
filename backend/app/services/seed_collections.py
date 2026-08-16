@@ -285,6 +285,7 @@ async def seed_starter_collections(session: AsyncSession) -> None:
                 collection_type=collection_type,
                 visibility="public",
                 published=True,
+                moderation_status="approved",
                 category=meta["category"],
                 is_starter_pack=True,
                 artifact_count=len(scanned),

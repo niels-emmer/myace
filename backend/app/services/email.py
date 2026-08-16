@@ -59,3 +59,25 @@ def build_password_reset_email(reset_link: str) -> tuple[str, str]:
         f"If you didn't request this, you can safely ignore this email."
     )
     return subject, body
+
+
+def build_moderation_approved_email(collection_name: str) -> tuple[str, str]:
+    """Return (subject, text_body) for a submission-approved email."""
+    subject = f'Your collection "{collection_name}" was approved'
+    body = (
+        f'Good news — your submission "{collection_name}" has been reviewed and '
+        f"approved. It's now live in the {settings.app_name} community collections."
+    )
+    return subject, body
+
+
+def build_moderation_denied_email(collection_name: str, reason: str) -> tuple[str, str]:
+    """Return (subject, text_body) for a submission-denied email."""
+    subject = f'Your collection "{collection_name}" was not approved'
+    body = (
+        f'Your submission "{collection_name}" was reviewed and was not approved '
+        f"for the {settings.app_name} community collections.\n\n"
+        f"Reviewer's note:\n{reason}\n\n"
+        f"You can edit the collection and resubmit it for another review."
+    )
+    return subject, body
