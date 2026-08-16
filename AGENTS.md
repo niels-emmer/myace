@@ -541,8 +541,12 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   earlier ones** (`backend/app/services/compiler.py`, step 4 of
   `compile_profile()`'s docstring). An agent, skill, or rule that shares
   its name with one in another collection doesn't merge or conflict
-  loudly — one copy just vanishes from the compiled output, with no
-  warning surfaced anywhere in the API response or the UI.
+  loudly — one copy just vanishes from the compiled output.
+- **This is no longer silent in the API response or the UI** — see rule 32.
+  A `name_collision` warning is generated automatically on every compile,
+  so the `grep` below is a way to *prevent* collisions proactively in
+  `collections/` (this repo's own starter packs); it's no longer the only
+  way to *detect* one after the fact.
 - This matters most for `additional/` collections, since they're
   explicitly designed to layer onto a `base/` collection in the same
   profile. Before adding or renaming an agent/skill/rule in
@@ -621,3 +625,41 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   (`backend/app/api/comments.py::delete_comment`), not a DB constraint.
   The frontend delete icon on a comment mirrors this exact rule so it
   doesn't render and then 403 on click.
+
+### 32. Compile-Time Validation Warnings — Additive, Response-Only, Not Yet Blocking
+
+- **`compile_profile()` (`backend/app/services/compiler.py`) returns a
+  `warnings: list[ValidationIssue]` field alongside its pre-existing
+  `{profile_id, profile_name, target, artifact_count, files}` shape**
+  (`ValidationIssue = {level: "warning", code: str, message: str}`,
+  `backend/app/models/profile.py`). This is response-only — nothing is
+  persisted, there's no migration, and no new table (see
+  [data-model.md](docs/data-model.md)). Both `POST /profiles/compile` and
+  `POST /profiles/compile/zip` funnel through this one function (same
+  choke point as rule 21's adapter-disabled check), so a new warning rule
+  added here reaches both routes automatically.
+- **The only rule implemented so far is `name_collision`** — the
+  artifact-name-dedup step described in rule 29 now emits a warning
+  whenever an override actually crosses a collection boundary, naming
+  both collections and which one won. `code` is deliberately a generic
+  string (not a closed enum) and the schema is deliberately generic
+  (`code`/`message`, not name-collision-specific fields) — a planned
+  follow-up (dangling `handoff_to` references once that field exists)
+  reuses this exact same plumbing rather than inventing a second warnings
+  mechanism.
+- **Warnings never block compilation** — `level` is currently always
+  `"warning"`, and every consumer treats them as advisory: the CLI's
+  `myace pull` prints them (yellow) after the file table but still writes
+  the files (outside `--dry-run`, where nothing is written either way),
+  with a `--strict` flag to opt into a non-zero exit code rather than
+  skipping the write/dry-run itself; the zip route appends a
+  `_myace_warnings.txt` file inside the archive (a zip's HTTP response has
+  no room for a second JSON payload) only when there's something to
+  report; `TargetExporter.tsx` renders a dismissible amber (not red) panel
+  above the file output. If a future `"error"` level is ever added, that's
+  a deliberate, reviewed widening of the `Literal` — not an implicit one.
+- **Don't hand-roll a second ad hoc warnings mechanism for a new
+  compile-time check.** Add a new `code` and append to the same
+  `warnings` list inside `compile_profile()`'s existing collection loop
+  (or a clearly-marked follow-up pass over `all_artifacts` for
+  whole-profile checks) instead.

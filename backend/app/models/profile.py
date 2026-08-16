@@ -87,3 +87,33 @@ class ProfileCompileRequest(SQLModel):
         "aider", "continue", "goose", "amazon-q",
     ] = "opencode"
     include_disabled: bool = False
+
+
+class ValidationIssue(SQLModel):
+    """A non-fatal problem surfaced during compilation (e.g. an artifact name
+    collision across composed collections). Additive to the compile response —
+    never blocks compilation, just flags something worth a human look.
+
+    `level` is a `Literal["warning"]` today because compile-time validation only
+    ever emits warnings; a future error-level check would be a deliberate,
+    reviewed addition to this Literal, not an implicit widening.
+    """
+    level: Literal["warning"] = "warning"
+    code: str
+    message: str
+
+
+class ProfileCompileResponse(SQLModel):
+    """Return type of `compile_profile()` and `response_model` for
+    `POST /profiles/compile`. An unregistered `target` (unreachable via the
+    API today — `ProfileCompileRequest.target` is a `Literal` covering every
+    registered adapter, so FastAPI 422s first) raises
+    `compiler.UnknownAdapterError` instead of returning a differently-shaped
+    dict, which is what keeps this a single concrete return type end to end.
+    """
+    profile_id: str
+    profile_name: str
+    target: str
+    artifact_count: int
+    files: dict[str, str]
+    warnings: list[ValidationIssue] = []

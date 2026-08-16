@@ -27,8 +27,13 @@ class SyncEngine:
             target: Target framework (e.g., opencode, claude-code, cursor)
 
         Returns:
-            Dict with 'files' key containing {filename: content} mappings,
-            or None if the request fails.
+            Dict with a 'files' key containing {filename: content} mappings
+            and a 'warnings' key containing any compile-time ValidationIssue
+            dicts the server reported (e.g. name collisions across composed
+            collections — see AGENTS.md rule 32), or None if the request
+            fails. 'warnings' is simply forwarded as-is from the server's
+            JSON response; callers should use `.get("warnings", [])` since
+            older servers predating this field won't send it.
         """
         # First, resolve profile name to ID if needed
         profile_id = self._resolve_profile_id(server, token, profile_name)

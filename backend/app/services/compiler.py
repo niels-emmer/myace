@@ -9,7 +9,7 @@ from sqlmodel import select
 from app.adapters import get_adapter, list_adapters
 from app.models.artifact import Artifact, CanonicalArtifact
 from app.models.collection import Collection
-from app.models.profile import Profile
+from app.models.profile import Profile, ProfileCompileResponse, ValidationIssue
 from app.models.system_settings import SystemSettings
 
 
@@ -17,19 +17,34 @@ class AdapterDisabledError(Exception):
     """Raised when compilation targets an adapter an admin has disabled."""
 
 
+class UnknownAdapterError(Exception):
+    """Raised when `target` doesn't match any registered adapter.
+
+    In practice unreachable via the API — `ProfileCompileRequest.target` is a
+    `Literal` covering every registered adapter, so FastAPI 422s before this
+    function is ever called with a bad value — but kept as a real, typed
+    error (rather than an ad hoc `{"error": ...}` dict) so `compile_profile()`
+    can have one concrete success return type end to end.
+    """
+
+
 async def compile_profile(
     session: AsyncSession,
     profile: Profile,
     target: str,
     include_disabled: bool = False,
-) -> dict:
+) -> ProfileCompileResponse:
     """
     Compile a profile into target-specific file payloads.
 
     1. Resolve base collection + additional collections
     2. Collect all artifacts, respecting disabled list
     3. Sort by priority (highest first)
-    4. Deduplicate by name (later collections override earlier)
+    4. Deduplicate by name (later collections override earlier); emit a
+       `name_collision` ValidationIssue warning whenever that override
+       actually happens across two different source collections (see
+       AGENTS.md rule 29 for the dedup itself and rule 32 for this
+       warnings mechanism)
     5. Translate via the target adapter
     """
     # Resolve collection IDs
@@ -54,6 +69,7 @@ async def compile_profile(
     # Collect artifacts from all collections
     seen_names: dict[str, CanonicalArtifact] = {}
     all_artifacts: list[CanonicalArtifact] = []
+    warnings: list[ValidationIssue] = []
 
     for cid in all_collection_ids:
         if cid not in collection_map:
@@ -73,7 +89,28 @@ async def compile_profile(
                 continue
 
             canonical = _db_to_canonical(db_artifact, collection)
-            # Deduplicate by name — later collections override
+            # Deduplicate by name — later collections override earlier ones
+            # (AGENTS.md rule 29). When the override crosses a collection
+            # boundary, surface it as a name_collision warning instead of
+            # letting it vanish silently. Compare *collection IDs*, not
+            # names — Collection.name has no uniqueness constraint, so two
+            # distinct collections can share a display name, and comparing
+            # names would false-negative on exactly that case.
+            existing = seen_names.get(canonical.name)
+            if existing is not None:
+                if existing.source_collection_id != canonical.source_collection_id:
+                    other_label = _collection_label(existing)
+                    winning_label = _collection_label(canonical)
+                    warnings.append(
+                        ValidationIssue(
+                            code="name_collision",
+                            message=(
+                                f"Artifact '{canonical.name}' ({canonical.artifact_type}) is "
+                                f"defined in both {other_label} and {winning_label}; "
+                                f"{winning_label} wins."
+                            ),
+                        )
+                    )
             seen_names[canonical.name] = canonical
 
     # Sort by priority descending
@@ -90,20 +127,30 @@ async def compile_profile(
     # Translate via adapter
     adapter = get_adapter(target)
     if not adapter:
-        return {
-            "error": f"No adapter found for target '{target}'",
-            "available_targets": [a.adapter_name() for a in list_adapters()],
-        }
+        available = ", ".join(a.adapter_name() for a in list_adapters())
+        raise UnknownAdapterError(f"No adapter found for target '{target}'. Available: {available}")
 
     files = adapter.translate(all_artifacts)
 
-    return {
-        "profile_id": str(profile.id),
-        "profile_name": profile.name,
-        "target": target,
-        "artifact_count": len(all_artifacts),
-        "files": files,
-    }
+    return ProfileCompileResponse(
+        profile_id=str(profile.id),
+        profile_name=profile.name,
+        target=target,
+        artifact_count=len(all_artifacts),
+        files=files,
+        warnings=warnings,
+    )
+
+
+def _collection_label(artifact: CanonicalArtifact) -> str:
+    """Human-readable, disambiguated label for a warning message.
+
+    `Collection.name` has no uniqueness constraint, so two distinct
+    collections can share a display name — append a short id prefix so a
+    user with two same-named collections can still tell them apart.
+    """
+    short_id = str(artifact.source_collection_id)[:8] if artifact.source_collection_id else "?"
+    return f"'{artifact.source_collection_name}' ({short_id})"
 
 
 def _db_to_canonical(db_artifact: Artifact, collection: Collection) -> CanonicalArtifact:

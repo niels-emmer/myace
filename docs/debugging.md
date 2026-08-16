@@ -439,8 +439,7 @@ traceback.
 
 **Symptom:** a profile combining a `base/` collection with one or more
 `additional/` collections compiles successfully, but a specific agent,
-skill, or rule you know is enabled just isn't in the output — no error, no
-warning, it's simply absent.
+skill, or rule you know is enabled just isn't in the output.
 
 **Cause:** `compile_profile()` (`backend/app/services/compiler.py`)
 deduplicates artifacts **by name alone**, across every collection in the
@@ -449,12 +448,21 @@ profile at once: `seen_names[canonical.name] = canonical`, iterated in
 silently replaces an earlier one that happens to share its exact name. Two
 starter collections can define, say, an agent both named `security-auditor`
 with materially different behavior (different handoff targets, different
-scope) — compose them into one profile and only one survives, with nothing
-in the API response or UI indicating the other was dropped.
+scope) — compose them into one profile and only one survives.
 
-**Fix:** check for a name collision first — compare the artifact's name
-(skill: frontmatter `name:`; agent/workflow: file stem; rule: `AGENTS.md`
-`##` heading text) against every other collection in the profile:
+**As of AGENTS.md rule 32, this is no longer completely silent**: the
+compile response's `warnings` field carries a `name_collision`
+`ValidationIssue` naming both collections and which one won —
+`myace pull` prints it (yellow) after the file table, and
+`TargetExporter.tsx` shows it in a dismissible panel above the file
+output. If you're troubleshooting via the API/CLI/UI, check there first.
+The steps below are for finding and *fixing* a collision in this repo's
+own `collections/` source before it ships, which the warning alone
+doesn't help with.
+
+**Fix:** compare the artifact's name (skill: frontmatter `name:`;
+agent/workflow: file stem; rule: `AGENTS.md` `##` heading text) against
+every other collection in the profile:
 
 ```bash
 grep -rn "^name:" collections/*/*/skills/*/SKILL.md | sort -t: -k3

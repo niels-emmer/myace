@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Download, Copy, Terminal, Check } from 'lucide-react';
+import { Download, Copy, Terminal, Check, AlertTriangle, X } from 'lucide-react';
 import { profilesApi, adaptersApi } from '../lib/api';
 import type { CompileResult } from '../types';
 
@@ -12,6 +12,7 @@ export default function TargetExporter() {
   const [result, setResult] = useState<CompileResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [warningsDismissed, setWarningsDismissed] = useState(false);
 
   const { data: profiles } = useQuery({
     queryKey: ['profiles'],
@@ -35,6 +36,9 @@ export default function TargetExporter() {
         target: selectedTarget,
       });
       setResult(res);
+      // A fresh compile can carry its own new warnings (or resolve old
+      // ones) — don't let a dismissal from a previous result carry over.
+      setWarningsDismissed(false);
     } catch (err) {
       console.error('Compilation failed:', err);
     }
@@ -189,6 +193,37 @@ export default function TargetExporter() {
               Output — {result.artifact_count} artifacts, {Object.keys(result.files).length} files
             </h2>
           </div>
+
+          {/* Compile-time validation warnings — advisory (amber), not errors (red).
+              The compiled output above is still valid; these just flag something
+              worth a human look, e.g. an artifact name collision across composed
+              collections. */}
+          {!warningsDismissed && result.warnings && result.warnings.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-amber-800">
+                  {result.warnings.length === 1
+                    ? '1 warning from compilation'
+                    : `${result.warnings.length} warnings from compilation`}
+                </h3>
+                <ul className="mt-2 space-y-1.5">
+                  {result.warnings.map((warning, index) => (
+                    <li key={index} className="text-sm text-amber-700">
+                      {warning.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <button
+                onClick={() => setWarningsDismissed(true)}
+                aria-label="Dismiss warnings"
+                className="p-1 hover:bg-amber-100 rounded transition-colors flex-shrink-0"
+              >
+                <X className="h-4 w-4 text-amber-600" />
+              </button>
+            </div>
+          )}
 
           {Object.entries(result.files).map(([filename, content]) => (
             <div key={filename} className="bg-card rounded-xl border border-border overflow-hidden">
