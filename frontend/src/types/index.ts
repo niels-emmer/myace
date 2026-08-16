@@ -355,6 +355,18 @@ export interface ImportCommunityResult {
   artifacts_imported: number;
 }
 
+// ─── Public Demo Types ────────────────────────────────────────
+
+// Mirrors backend DemoCompileResponse (POST /demo/compile) — the only
+// unauthenticated compile route in the API (AGENTS.md rule 13's
+// documented exception, see docs/adr/0011-public-demo-sandbox.md).
+// Nothing here is persisted; `targets` is a fixed, small subset of the
+// full adapter registry (claude-code, cursor, opencode).
+export interface DemoCompileResult {
+  artifact_count: number;
+  targets: Record<string, Record<string, string>>;
+}
+
 // ─── Admin Types ──────────────────────────────────────────────
 
 export interface UserAdminInfo {

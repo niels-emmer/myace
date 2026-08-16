@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
@@ -33,7 +34,7 @@ function RequireAuth() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/welcome" replace />;
   }
 
   return <Outlet />;
@@ -86,6 +87,7 @@ function RequireModerator() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/welcome" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<RequireAuth />}>
