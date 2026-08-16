@@ -1,9 +1,12 @@
 # Plan: Community Enhancements
 
-**Status: Not started.** This is a live task list for an unattended build. Work
-through the epics in order on a single branch, committing after each one
-(see [Branch & Workflow](#branch--workflow)). Do not skip the documentation
-epic at the end — it is part of "done," not cleanup.
+**Status: Complete.** All 11 epics built on `feat/community-enhancements`
+(one commit per epic, plus two follow-up fix commits — a rating soft-delete
+correction found while writing the docs, and two authz gaps found by the
+Epic 11 security-review pass). Backend (271 tests), CLI (28 tests), and
+frontend (build + lint + 22 tests) are all green. Branch is not yet pushed
+or opened as a PR — see the final summary in the conversation that built
+this for what's next.
 
 ## Overview
 
