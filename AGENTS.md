@@ -538,7 +538,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `backend/app/services/github_export.py` (rules 8, 10) are untouched and
   still reachable by direct API use; nothing in the frontend surfaces them
   anymore. Don't reintroduce the button — if GitHub export needs a UI again,
-  get explicit product direction first. `TargetExporter.tsx` (`/compile`)
+  get explicit product direction first. `TargetExporter.tsx` (`/build/compile`)
   remains a separate, unrelated concept: it compiles a **Profile** into a
   target framework's files (copy-paste, zip download, or CLI pull).
 - `ImportPage.tsx`'s Local Machine / GitHub Repository source toggle
@@ -781,8 +781,8 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   artifact.py`) is this route's request body and deliberately has no
   `collection_id` field — the path parameter is the single source of
   truth, not a client-supplied body field (same reasoning as rule 13).
-- **The Orchestration Gallery (`/orchestration`) and pipeline wizard
-  (`/orchestration/build`, `frontend/src/pages/OrchestratorBuilder.tsx`)
+- **The Orchestration Gallery (`/build/orchestration`) and pipeline wizard
+  (`/build/orchestration/build`, `frontend/src/pages/OrchestratorBuilder.tsx`)
   derive everything client-side from artifacts the API already
   exposes — no dedicated backend endpoint for either beyond the create
   route above.** A "recipe" is any agent with a `mode:primary` tag

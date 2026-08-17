@@ -87,9 +87,9 @@ model.
   frameworks.
 - **Orchestration Gallery & pipeline wizard** — agents can declare a
   `handoff_to` list describing which other agents they route work to; the
-  Orchestration Gallery (`/orchestration`) turns that into a browsable set
+  Orchestration Gallery (`/build/orchestration`) turns that into a browsable set
   of multi-agent pipeline "recipes" with a flow diagram, and "Compose your
-  pipeline" (`/orchestration/build`) lets you assemble a new linear
+  pipeline" (`/build/orchestration/build`) lets you assemble a new linear
   pipeline from an existing profile's agents and save it as a generated
   orchestrator agent — no hand-written frontmatter required.
 - **Community collections** — submit your collections for a moderator to
@@ -192,7 +192,7 @@ myace login --server <your-server-url> --token <your-api-token>
 myace --help
 ```
 
-Create an API token from the web UI's Settings page.
+Create an API token from the web UI's Settings → Account page.
 
 ### Deploying it for real
 
