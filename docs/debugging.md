@@ -579,7 +579,7 @@ content itself).
 
 ## The Compile Profile zip download doesn't match the on-screen preview
 
-**Symptom:** `/compile` (TargetExporter.tsx) shows a compiled profile with
+**Symptom:** `/build/compile` (TargetExporter.tsx) shows a compiled profile with
 several files — e.g. `CLAUDE.md`, `.claude/agents/*.md`,
 `.claude/skills/*/SKILL.md` — but clicking "Download as .zip" produces an
 archive containing a single, often much larger, file (commonly `AGENTS.md`

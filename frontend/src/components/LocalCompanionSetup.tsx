@@ -185,7 +185,7 @@ export function LocalCompanionSetup({
         </summary>
         <div className="mt-3 space-y-3">
           <p className="text-xs text-foreground">
-            <Link to="/settings" className="text-brand-600 hover:underline">
+            <Link to="/settings/account" className="text-brand-600 hover:underline">
               Create an API token
             </Link>{' '}
             if you haven't yet, then run:

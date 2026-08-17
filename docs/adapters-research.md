@@ -2,7 +2,7 @@
 
 ## Summary
 
-MyACE ships 11 target adapters (`backend/app/adapters/`), each translating
+MyACE ships 12 target adapters (`backend/app/adapters/`), each translating
 the Canonical IR into a real, currently-supported file format for its
 target framework. Every adapter's output has been verified directly
 against that target's current live documentation (most recently in a
@@ -262,6 +262,41 @@ the same file set as the IDE extension, by design — confirmed via
 
 ---
 
+### 12. pi.dev (Pi Coding Agent)
+
+`backend/app/adapters/pi_dev.py` — target names `pi-dev`, `pi`.
+
+| Property | Value |
+|----------|-------|
+| **Config format** | `AGENTS.md`/`CLAUDE.md` (Markdown), skills + prompt templates (Markdown + YAML frontmatter), `settings.json` (JSON) |
+| **Project path** | `AGENTS.md`; `.pi/skills/<name>/SKILL.md`; `.pi/prompts/<name>.md`; `.pi/settings.json` |
+| **Scope** | `rule`/`agent` → `AGENTS.md` sections; `skill` → per-skill file; `workflow` → per-prompt-template file; `model_config` (`model:*` only) → merged `settings.json` |
+| **Docs** | https://pi.dev/docs/latest/usage, /skills, /prompt-templates, /settings |
+
+Pi loads `AGENTS.md` (or `CLAUDE.md`) hierarchically from the cwd upward,
+same mechanism as OpenCode/Goose, so `rule` artifacts fold into one root
+`AGENTS.md`. Pi has a real skills system (`.pi/skills/<name>/SKILL.md`)
+with the same `name`/`description`/`license`/`compatibility`/`metadata`
+frontmatter shape OpenCode's skill format uses — confirmed directly against
+`/docs/latest/skills`. It also has a real slash-command mechanism ("prompt
+templates" at `.pi/prompts/<name>.md`, frontmatter `description`), so
+`workflow` artifacts map there rather than folding into `AGENTS.md`. Pi has
+no documented subagent/agent concept (no "agents" page anywhere in the docs
+nav), so `agent` artifacts fold into `AGENTS.md` as a labeled section — the
+same fallback OpenCode/Goose use for artifact types their target has no
+dedicated file for.
+
+**Known limitations:** `model_config` artifacts named `model:<name>` merge
+into `.pi/settings.json`'s `defaultProvider`/`defaultModel`/`enabledModels`
+(confirmed against `/docs/latest/settings`), but `mcp:<name>` artifacts are
+skipped — `pi.dev/docs/latest/mcp` 404s, and the only MCP config shape found
+(a `~/.pi/agent/mcp.json` / `.pi/mcp.json` file with a `mcpServers` object)
+comes from third-party sources, not pi.dev's own docs. Emitting that file
+once the format is confirmed against primary docs is an open enhancement.
+See [Future Plans](#future-plans).
+
+---
+
 ## Future Plans
 
 MyACE doesn't yet ship adapters for every AI coding tool. If you use a
@@ -274,10 +309,6 @@ addition: one file implementing `BaseAdapter`, registered in
 
 **Known unbuilt-but-viable candidates:**
 
-- **pi.dev** — reads `AGENTS.md` natively (like OpenCode); config lives in
-  `settings.json` at `~/.pi/agent/settings.json` / `.pi/settings.json`;
-  its skills system maps well to Canonical IR `skill` artifacts. Docs:
-  [pi.dev/docs/latest](https://pi.dev/docs/latest)
 - **Zed AI** — plain text rule files under `.zed/rules/`; the format is
   comparatively immature and worth re-checking against current docs
   before building. Docs: [zed.dev](https://zed.dev/)
@@ -298,6 +329,9 @@ contribution:
 - **Amazon Q Developer** could emit the newer native
   `.amazonq/cli-agents/*.json` agent format instead of falling back to a
   plain rules file.
+- **pi.dev** doesn't yet emit an MCP server config file (`mcp:*` artifacts
+  are skipped) — the format needs confirming against primary pi.dev docs
+  first (`/docs/latest/mcp` currently 404s); see `pi_dev.py`'s docstring.
 
 **Retired or rejected candidates** — researched and deliberately not built,
 so they don't get re-proposed:

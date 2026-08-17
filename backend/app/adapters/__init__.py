@@ -25,6 +25,7 @@ from app.adapters.copilot_cli import CopilotCliAdapter
 from app.adapters.cursor import CursorAdapter
 from app.adapters.goose import GooseAdapter
 from app.adapters.opencode import OpenCodeAdapter
+from app.adapters.pi_dev import PiDevAdapter
 from app.adapters.windsurf import WindsurfAdapter
 
 _registry: dict[str, BaseAdapter] = {}
@@ -57,3 +58,4 @@ register_adapter(AiderAdapter())
 register_adapter(ContinueAdapter())
 register_adapter(GooseAdapter())
 register_adapter(AmazonQAdapter())
+register_adapter(PiDevAdapter())
