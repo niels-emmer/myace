@@ -3,7 +3,7 @@
 `myace` is a Typer-based CLI that pulls compiled profiles from a MyACE
 server and can scan a local config directory to import it as a collection.
 It authenticates with a long-lived Bearer API token (create one from the
-web UI's Settings page), not a browser session — see
+web UI's Settings → Account page), not a browser session — see
 [architecture.md](architecture.md#components).
 
 ## Installing
@@ -59,7 +59,7 @@ myace login --server <your-server-url> --token <your-api-token>
 myace --help
 ```
 
-Create an API token from the web UI's Settings page — its "CLI Setup" panel
+Create an API token from the web UI's Settings → Account page — its "CLI Setup" panel
 interpolates the exact command above with your server URL and a freshly
 created token.
 
@@ -143,7 +143,7 @@ exactly what CI diffs against.
 Both `check` and `watch` accept `--report`, which is **opt-in only** —
 nothing is ever sent to the server otherwise. With `--report`, each check's
 result is POSTed to `/api/v1/sync/report` and shows up on your own Sync
-Dashboard (`/sync` in the web UI) under a machine label (defaults to your
+Dashboard (`/machine/sync` in the web UI) under a machine label (defaults to your
 hostname). Reports are always scoped to the reporting user — nobody else
 can see them, not even admins.
 

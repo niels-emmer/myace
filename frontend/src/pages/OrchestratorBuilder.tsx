@@ -180,7 +180,7 @@ export default function OrchestratorBuilder() {
   return (
     <div className="space-y-6">
       <Link
-        to="/orchestration"
+        to="/build/orchestration"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Back to gallery
@@ -368,7 +368,7 @@ export default function OrchestratorBuilder() {
           {savedArtifactName && !createMutation.isPending && (
             <p className="text-sm text-green-700">
               Saved <code className="font-mono">{savedArtifactName}</code>. View it in the{' '}
-              <Link to="/orchestration" className="underline">
+              <Link to="/build/orchestration" className="underline">
                 Orchestration Gallery
               </Link>
               .

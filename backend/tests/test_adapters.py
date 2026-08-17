@@ -22,6 +22,7 @@ class TestAdapterRegistry:
         assert "continue" in names
         assert "goose" in names
         assert "amazon-q" in names
+        assert "pi-dev" in names
 
     def test_get_adapter(self):
         """Should retrieve adapter by name."""
@@ -892,3 +893,127 @@ class TestAmazonQAdapter:
             target_compatibility=[], priority=50, tags=[], description="", body="{}",
         )
         assert self.adapter.translate([mc]) == {}
+
+
+class TestPiDevAdapter:
+    """Test pi.dev (Pi Coding Agent) adapter translation."""
+
+    def setup_method(self):
+        self.adapter = get_adapter("pi-dev")
+
+    def test_translate_rule_creates_agents_md_section(self):
+        rule = CanonicalArtifact(
+            artifact_type="rule",
+            name="type-safety",
+            version="1.0.0",
+            target_compatibility=["python"],
+            priority=80,
+            tags=[],
+            description="Type safety rules",
+            body="Use strict typing.",
+        )
+        result = self.adapter.translate([rule])
+        assert "AGENTS.md" in result
+        assert "type-safety" in result["AGENTS.md"]
+        assert "Rule" in result["AGENTS.md"]
+        assert "Use strict typing." in result["AGENTS.md"]
+
+    def test_translate_agent_creates_agents_md_section(self):
+        """Pi has no documented subagent concept, so agents fold into AGENTS.md too."""
+        agent = CanonicalArtifact(
+            artifact_type="agent", name="reviewer", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="Reviews code", body="Review all PRs.",
+        )
+        result = self.adapter.translate([agent])
+        assert "AGENTS.md" in result
+        assert "reviewer" in result["AGENTS.md"]
+        assert "Agent" in result["AGENTS.md"]
+        assert "Review all PRs." in result["AGENTS.md"]
+
+    def test_translate_rule_and_agent_share_one_agents_md(self):
+        rule = CanonicalArtifact(
+            artifact_type="rule", name="r1", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="", body="Rule body.",
+        )
+        agent = CanonicalArtifact(
+            artifact_type="agent", name="a1", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="", body="Agent body.",
+        )
+        result = self.adapter.translate([rule, agent])
+        assert len(result) == 1
+        assert "Rule body." in result["AGENTS.md"]
+        assert "Agent body." in result["AGENTS.md"]
+
+    def test_translate_skill_creates_skill_md_with_frontmatter(self):
+        skill = CanonicalArtifact(
+            artifact_type="skill",
+            name="testing",
+            version="1.0.0",
+            target_compatibility=["python"],
+            priority=50,
+            tags=["quality"],
+            description="Testing guide",
+            body="Write tests first.",
+        )
+        result = self.adapter.translate([skill])
+        path = ".pi/skills/testing/SKILL.md"
+        assert path in result
+        content = result[path]
+        assert content.startswith("---\n")
+        import yaml
+        frontmatter = yaml.safe_load(content.split("---\n")[1])
+        assert frontmatter["name"] == "testing"
+        assert frontmatter["description"] == "Testing guide"
+        assert frontmatter["compatibility"] == ["python"]
+        assert frontmatter["metadata"]["tags"] == ["quality"]
+        assert "Write tests first." in content
+
+    def test_translate_workflow_creates_prompt_template(self):
+        workflow = CanonicalArtifact(
+            artifact_type="workflow",
+            name="ship",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=50,
+            tags=[],
+            description="Pre-ship checklist",
+            body="Run tests, then commit.",
+        )
+        result = self.adapter.translate([workflow])
+        path = ".pi/prompts/ship.md"
+        assert path in result
+        content = result[path]
+        assert "Run tests, then commit." in content
+        import yaml
+        frontmatter = yaml.safe_load(content.split("---\n")[1])
+        assert frontmatter["description"] == "Pre-ship checklist"
+
+    def test_translate_model_config_merges_into_settings_json(self):
+        model = CanonicalArtifact(
+            artifact_type="model_config",
+            name="model:claude-sonnet-4-5",
+            version="1.0.0",
+            target_compatibility=[],
+            priority=50,
+            tags=["provider:anthropic"],
+            description="Model config",
+            body="{}",
+        )
+        result = self.adapter.translate([model])
+        assert ".pi/settings.json" in result
+        import json
+        settings = json.loads(result[".pi/settings.json"])
+        assert settings["defaultProvider"] == "anthropic"
+        assert settings["defaultModel"] == "claude-sonnet-4-5"
+        assert settings["enabledModels"] == ["claude-sonnet-4-5"]
+
+    def test_translate_mcp_model_config_skipped(self):
+        """MCP config format isn't confirmed against primary pi.dev docs yet — skipped, not guessed."""
+        mcp = CanonicalArtifact(
+            artifact_type="model_config", name="mcp:example-server", version="1.0.0",
+            target_compatibility=[], priority=50, tags=[], description="", body='{"command": "npm"}',
+        )
+        assert self.adapter.translate([mcp]) == {}
+
+    def test_translate_empty_artifacts_returns_empty_dict(self):
+        assert self.adapter.translate([]) == {}

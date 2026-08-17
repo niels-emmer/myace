@@ -15,7 +15,7 @@ expects — instead of hand-maintaining N slightly-different copies, or
 picking one tool and losing the rest.
 
 > **MyACE is under heavy development and changes near daily. Use at your own
-> risk.** Currently supporting **11 coding environments**, with a community
+> risk.** Currently supporting **12 coding environments**, with a community
 > store holding **15 starter agent profiles** (3 base + 12 specializations).
 
 <table>
@@ -83,13 +83,13 @@ model.
   off — a named recipe you compile per target, not a duplicated file tree.
 - **Compile to any supported framework** — one click (or `myace pull`) turns
   a profile into the exact files Claude Code, OpenCode, or Cursor expect.
-  See [Architecture](#architecture) below for the full list of 11 supported
+  See [Architecture](#architecture) below for the full list of 12 supported
   frameworks.
 - **Orchestration Gallery & pipeline wizard** — agents can declare a
   `handoff_to` list describing which other agents they route work to; the
-  Orchestration Gallery (`/orchestration`) turns that into a browsable set
+  Orchestration Gallery (`/build/orchestration`) turns that into a browsable set
   of multi-agent pipeline "recipes" with a flow diagram, and "Compose your
-  pipeline" (`/orchestration/build`) lets you assemble a new linear
+  pipeline" (`/build/orchestration/build`) lets you assemble a new linear
   pipeline from an existing profile's agents and save it as a generated
   orchestrator agent — no hand-written frontmatter required.
 - **Community collections** — submit your collections for a moderator to
@@ -192,7 +192,7 @@ myace login --server <your-server-url> --token <your-api-token>
 myace --help
 ```
 
-Create an API token from the web UI's Settings page.
+Create an API token from the web UI's Settings → Account page.
 
 ### Deploying it for real
 
@@ -243,6 +243,7 @@ breakdown, the compilation pipeline, and the auth model, and
 | Continue | `continue`, `continue-dev` | `.continue/rules/*.md`, `.continue/prompts/*.md`, `config.yaml` |
 | Goose | `goose` | `AGENTS.md` |
 | Amazon Q Developer | `amazon-q`, `amazonq` | `.amazonq/rules/*.md` |
+| pi.dev (Pi Coding Agent) | `pi-dev`, `pi` | `AGENTS.md`, `.pi/skills/*/SKILL.md`, `.pi/prompts/*.md`, `.pi/settings.json` |
 
 The table above shows output *paths* only. For each adapter's actual
 frontmatter fields/config schema — and doc citations for every field — see
@@ -275,7 +276,7 @@ system-wide from System Settings → Adapter Registry.
 │   │   ├── core/                # Config, DB session, OIDC/security, crypto (encrypted admin secrets), deps (auth), authz (ownership checks)
 │   │   ├── models/               # SQLModel schemas (User, Collection, CollectionComment, CollectionRating, Artifact, Profile, ApiToken, DocCache, SyncStatus, SystemSettings)
 │   │   ├── api/                  # Routes: auth, collections, comments, ratings, profiles, adapters, doc_cache, admin, moderation, sync, demo (public), freshness
-│   │   ├── adapters/             # Canonical IR → target translators (11: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q)
+│   │   ├── adapters/             # Canonical IR → target translators (12: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q, pi.dev)
 │   │   └── services/             # Compiler, doc verifier, scanner (local + git), github_export, seed_collections,
 │   │                              #   email (SMTP send), effective_settings (DB-override-vs-env resolver)
 │   └── tests/                    # pytest suite
@@ -285,14 +286,16 @@ system-wide from System Settings → Adapter Registry.
 │   ├── nginx.conf
 │   ├── package.json
 │   ├── src/
-│   │   ├── components/           # Layout (responsive sidebar/drawer), shared UI
+│   │   ├── components/           # Layout (responsive, collapsible grouped sidebar/drawer), SectionHub, shared UI
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
-│   │   ├── pages/                 # Landing (public /welcome), Login, ResetPassword, Dashboard, Collections,
-│   │   │                          #   CollectionDetail, CommunityCollections, CommunityCollectionDetail, Profiles,
-│   │   │                          #   ProfileDetail, Import, SetupAudit, Compile, Sync, OrchestrationGallery,
-│   │   │                          #   OrchestratorBuilder, UserSettings, ModerationQueue (moderator/admin-gated),
+│   │   ├── pages/                 # Landing (public /welcome), Login, ResetPassword, Dashboard,
+│   │   │                          #   CollectionsHub, CollectionsManager (My Collections), CollectionDetail,
+│   │   │                          #   CommunityCollections, CommunityCollectionDetail, BuildHub, ProfileComposer,
+│   │   │                          #   ProfileDetail, OrchestrationGallery, OrchestratorBuilder, TargetExporter
+│   │   │                          #   (Compile & Export), MachineHub, ImportPage, SetupAudit, SyncDashboard,
+│   │   │                          #   SettingsHub, UserSettings (Account), ModerationQueue (moderator/admin-gated),
 │   │   │                          #   SystemSettings (admin-gated)
-│   │   ├── lib/                   # API client
+│   │   ├── lib/                   # API client, navigation.ts (sidebar/hub group config — see AGENTS.md #38)
 │   │   └── types/                 # TypeScript interfaces
 │   └── dist/                     # Production build
 │
@@ -333,7 +336,7 @@ anything deeper than "how do I run this."
 MyACE doesn't yet cover every AI coding tool, and a couple of pieces of the
 existing pipeline are known to be incomplete:
 
-- **More adapters** — pi.dev, Zed AI, and CodeGPT are viable, unbuilt
+- **More adapters** — Zed AI and CodeGPT are viable, unbuilt
   candidates; Windsurf's adapter still targets its legacy path rather than
   the Devin Desktop rebrand, and Amazon Q Developer could emit its newer
   native agent format. Full detail (plus what's already been evaluated and

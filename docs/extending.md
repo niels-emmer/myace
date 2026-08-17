@@ -129,7 +129,7 @@ stays inert until an admin explicitly turns it on.
 Requires `SETTINGS_ENCRYPTION_KEY` (`.env.example`) to be set before the
 SMTP password can be saved via the UI — see
 [ADR-0006](adr/0006-encrypted-admin-editable-secrets.md). Use the "Send Test
-Email" button on the System Settings page to validate a configuration (host/
+Email" button on the System Settings page (Settings → System) to validate a configuration (host/
 port/credentials as currently typed, not necessarily saved yet) before
 relying on it — it sends a real email to the requesting admin's own address.
 

@@ -38,15 +38,15 @@ export default function CollectionsManager() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Collections</h1>
+        <h1 className="text-2xl font-bold text-foreground">My Collections</h1>
         <p className="text-muted-foreground mt-1">
           Collections are groups of artifacts (rules, skills, agents, workflows) serving a
           role or specific function in agentic coding. They can be imported from{' '}
-          <Link to="/import?source=git" className="text-brand-600 hover:underline font-medium">
+          <Link to="/machine/import?source=git" className="text-brand-600 hover:underline font-medium">
             any GitHub repository
           </Link>
           , from{' '}
-          <Link to="/import?source=local" className="text-brand-600 hover:underline font-medium">
+          <Link to="/machine/import?source=local" className="text-brand-600 hover:underline font-medium">
             your local machine
           </Link>
           , or imported from the{' '}
@@ -84,14 +84,14 @@ export default function CollectionsManager() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
-                to="/import?source=local"
+                to="/machine/import?source=local"
                 className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
               >
                 <HardDrive className="h-4 w-4" />
                 Import from local machine
               </Link>
               <Link
-                to="/import?source=git"
+                to="/machine/import?source=git"
                 className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
               >
                 <Github className="h-4 w-4" />
