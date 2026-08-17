@@ -53,8 +53,10 @@ export default function Dashboard() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your agentic coding environment configurations
+        <p className="text-muted-foreground mt-1 max-w-2xl">
+          Write your rules, skills, and agents once, then compile them into whatever Claude Code,
+          Cursor, OpenCode, or any other framework actually expects — no more hand-maintaining a
+          slightly different copy for every tool.
         </p>
       </div>
 

@@ -6,7 +6,13 @@ export default function SectionHub({ group }: { group: NavGroup }) {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-foreground">{group.label}</h1>
-        <p className="text-muted-foreground mt-1">{group.summary}</p>
+        <div className="space-y-2 mt-1 max-w-3xl">
+          {group.description.map((paragraph, i) => (
+            <p key={i} className="text-muted-foreground">
+              {paragraph}
+            </p>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

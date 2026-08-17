@@ -26,7 +26,8 @@ export interface NavGroup {
   id: string;
   label: string;
   icon: LucideIcon;
-  summary: string;
+  /** One or more paragraphs introducing the group, rendered on its hub page. */
+  description: string[];
   hubPath?: string;
   children: NavChild[];
 }
@@ -35,7 +36,10 @@ export const collectionsGroup: NavGroup = {
   id: 'collections',
   label: 'Collections',
   icon: FolderGit2,
-  summary: 'Curate the rules, skills, and agents that make up your library.',
+  description: [
+    'Collections are groups of artifacts — rules, skills, agents, and workflows — that serve a role or specific function in agentic coding. Curate your own, or bring in ready-made ones from a GitHub repository, your local machine, or the community.',
+    'Base collections set the foundation for your coding profile; additional collections layer in specific roles and skills on top. Combine them into a Profile, then compile that profile to any supported framework.',
+  ],
   hubPath: '/collections',
   children: [
     {
@@ -57,7 +61,10 @@ export const buildGroup: NavGroup = {
   id: 'build',
   label: 'Build',
   icon: SlidersHorizontal,
-  summary: "Turn your collections into a working profile for your coding agent.",
+  description: [
+    "A Profile is a named recipe — a base collection plus any additional ones, with individual rules, skills, and agents toggled on or off — not a duplicated file tree. Build one once, then compile it to as many target frameworks as you need.",
+    "Agents can also declare who they hand work off to. Browse existing multi-agent pipelines in the Orchestration Gallery, or compose your own from a profile's agents without writing frontmatter by hand.",
+  ],
   hubPath: '/build',
   children: [
     {
@@ -85,7 +92,10 @@ export const machineGroup: NavGroup = {
   id: 'machine',
   label: 'My Machine',
   icon: Upload,
-  summary: 'Manage the connection between MyACE and your local tool configs.',
+  description: [
+    "MyACE only does anything useful once it's connected to the tools actually running on your machine. Import scans a local config directory or a GitHub repo and turns what it finds into a portable Collection; Setup Audit checks your machine's existing configs against what MyACE expects and reports gaps.",
+    "Once you've pulled a compiled profile down with the CLI, Sync keeps you honest — it flags whenever a local file has been hand-edited or has drifted out of date against the server, so nothing silently goes stale.",
+  ],
   hubPath: '/machine',
   children: [
     {
@@ -141,7 +151,14 @@ export function getSettingsGroup(user: User | null): NavGroup {
     id: 'settings',
     label: 'Settings',
     icon: Settings,
-    summary: 'Your account, moderation queue, and system configuration.',
+    description: [
+      'Manage your own account — profile details, notification preferences, and the API tokens the CLI uses to authenticate.',
+      ...(user?.role === 'moderator' || user?.role === 'admin'
+        ? [
+            "If you hold a moderator or admin role, this is also where you review community submissions and, for admins, configure system-wide behavior like SMTP, OAuth providers, and adapter availability.",
+          ]
+        : []),
+    ],
     hubPath: '/settings',
     children,
   };

@@ -9,7 +9,7 @@ const testGroup: NavGroup = {
   id: 'test',
   label: 'Test Group',
   icon: FolderGit2,
-  summary: 'A group for testing.',
+  description: ['A group for testing.', 'A second paragraph for testing.'],
   hubPath: '/test',
   children: [
     { to: '/test/one', label: 'One', icon: FolderGit2, description: 'First item.' },
@@ -18,7 +18,7 @@ const testGroup: NavGroup = {
 };
 
 describe('SectionHub', () => {
-  it('renders the group title, summary, and one card per child', () => {
+  it('renders the group title, every description paragraph, and one card per child', () => {
     render(
       <MemoryRouter>
         <SectionHub group={testGroup} />
@@ -27,6 +27,7 @@ describe('SectionHub', () => {
 
     expect(screen.getByText('Test Group')).toBeInTheDocument();
     expect(screen.getByText('A group for testing.')).toBeInTheDocument();
+    expect(screen.getByText('A second paragraph for testing.')).toBeInTheDocument();
 
     expect(screen.getByText('One')).toBeInTheDocument();
     expect(screen.getByText('First item.')).toBeInTheDocument();
