@@ -847,7 +847,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `Depends(get_current_user)` *and* no DB session dependency at all (so
   there's structurally nothing to persist by accident — see invariant 22
   in `docs/invariants.md`), a capped/validated input size, a fixed small
-  scope (3 adapters here, not all 11), and a per-route `slowapi`
+  scope (3 adapters here, not all 12), and a per-route `slowapi`
   `@limiter.limit(...)` decorator. Don't reach for session-based/anonymous
   auth to gate a route like this — if there's genuinely nothing to own,
   there's nothing an auth check would protect.

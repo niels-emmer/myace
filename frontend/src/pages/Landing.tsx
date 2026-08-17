@@ -86,7 +86,7 @@ export default function Landing() {
         </h1>
         <p className="text-muted-foreground text-lg">
           MyACE stores your rules, skills, agents, and workflows as a portable Canonical
-          Intermediate Representation, then translates them into the exact config files 11
+          Intermediate Representation, then translates them into the exact config files 12
           different coding-agent frameworks expect — Claude Code, Cursor, OpenCode, Codex CLI,
           and more.
         </p>
@@ -206,10 +206,10 @@ export default function Landing() {
         </div>
         <div className="space-y-2">
           <Boxes className="h-6 w-6 text-brand-600" />
-          <h3 className="font-semibold text-foreground">11 target frameworks</h3>
+          <h3 className="font-semibold text-foreground">12 target frameworks</h3>
           <p className="text-sm text-muted-foreground">
             Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider,
-            Continue, Goose, and Amazon Q Developer.
+            Continue, Goose, Amazon Q Developer, and pi.dev.
           </p>
         </div>
       </section>
