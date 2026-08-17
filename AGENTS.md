@@ -799,7 +799,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 
 ### 35. Local Setup Audit — `expected_paths()` Is a Hand-Maintained Contract, Not a Shared Import
 
-- **`BaseAdapter.expected_paths() -> list[str]`** (implemented by all 11
+- **`BaseAdapter.expected_paths() -> list[str]`** (implemented by all 12
   backend adapters, `backend/app/adapters/*.py`) returns each target
   framework's conventional local file/directory names — directory entries
   end with `/` (e.g. `.claude/agents/`), file entries don't (e.g.
@@ -817,10 +817,10 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   0-100 score — say so in any UI surfacing it (`SetupAudit.tsx` does),
   not just in code comments.
 - **`cli/myace_cli/audit.py`'s `ADAPTER_EXPECTED_PATHS` is a hand-maintained
-  mirror of the 11 backend adapters' `expected_paths()` values, not an
+  mirror of the 12 backend adapters' `expected_paths()` values, not an
   import.** The CLI package doesn't depend on the backend package (same
   reasoning as the two parallel scanner implementations, rule 8) — if you
-  add a 12th adapter or change an existing one's `expected_paths()`,
+  add a 13th adapter or change an existing one's `expected_paths()`,
   update this dict too, or the audit will silently miss/misreport that
   target.
 - **Two tiers of parsing fidelity inside `audit.py`'s `scan_target()`**,
@@ -913,3 +913,83 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   is scoped to one line with a comment explaining why; don't blanket-ignore
   the file, and don't be surprised if a `datetime` column doesn't need the
   same treatment.
+
+### 38. Frontend Navigation Is Grouped by Task, With `lib/navigation.ts` as the Single Source of Truth
+
+- **The sidebar (`frontend/src/components/Layout.tsx`) is grouped into
+  task-based, collapsible sections, not a flat link list.** Groups:
+  Dashboard (single link, not collapsible), **Collections** (My
+  Collections, Community), **Build** (Profiles, Orchestration, Compile &
+  Export), **My Machine** (Import, Setup Audit, Sync), and **Settings**
+  (Account, Moderation†, System†). This exists because the flat 9-item
+  list stopped mapping to how people actually think about the app as
+  functionality grew (see `docs/plans/` for the platform-enhancements
+  history) — grouping by task keeps the nav legible for a first-time
+  visitor without hiding anything from a power user.
+- **Every group has a "hub" page** — `CollectionsHub.tsx`/`BuildHub.tsx`/
+  `MachineHub.tsx`/`SettingsHub.tsx`, all thin wrappers around the shared
+  `SectionHub.tsx` component — reachable at `/collections`, `/build`,
+  `/machine`, `/settings`. Clicking a group's *label* in the sidebar goes
+  to its hub (a card grid explaining what each child page is for);
+  clicking a *child* link goes straight to that page. `SettingsHub.tsx` is
+  the one hub page that isn't a static import — it calls `useAuth()` and
+  passes the live `user` into `getSettingsGroup(user)` itself, since its
+  card set is role-gated the same way its sidebar children are.
+- **Each group is collapsed by default and expands on click, chevron
+  rotated to indicate state.** `Layout.tsx`'s `NavGroupSection` renders
+  the group label as a `Link` to its hub and a *separate* chevron button
+  next to it that only toggles expansion — clicking the label navigates,
+  clicking the chevron does not. Effective open state is
+  `openOverrides[group.id] ?? locationPathnameStartsWith(group.hubPath)`:
+  with no manual toggle, whichever group contains the active route
+  auto-expands (so deep-linking straight into a child page never hides the
+  highlighted item) and every other group stays collapsed; a manual click
+  overrides that default for that group until clicked again. Expanded
+  children render in an indented, left-bordered block
+  (`ml-[1.15rem] pl-3 border-l border-border`) below the header — that's
+  the "slightly indented" sub-menu look; don't restyle children to look
+  like top-level items.
+- **`frontend/src/lib/navigation.ts` is the single source of truth for
+  group/child labels, icons, descriptions, and paths** — both
+  `Layout.tsx`'s sidebar and the four hub pages import the same
+  `collectionsGroup`/`buildGroup`/`machineGroup` constants (and
+  `getSettingsGroup(user)` for the role-gated one), so the sidebar and its
+  hub card never drift out of sync the way the CLI/backend scanner pair
+  (rule 8) or `ADAPTER_EXPECTED_PATHS` (rule 35) require manual syncing.
+  Add a new page to an existing group by adding one entry to that group's
+  `children` array in `navigation.ts` — don't hand-edit `Layout.tsx` or a
+  hub page directly.
+- **The Settings group's naming is deliberate: the *group* is "Settings",
+  the *child* pointing at the personal-account page (`UserSettings.tsx`,
+  API tokens/CLI setup/profile) is "Account".** Calling both of them
+  "Settings" (the original shape) was confusing once Moderation and System
+  joined the same group as siblings — "Settings" now means "this whole
+  area," "Account" means "your own settings specifically." Don't rename
+  the child back to "Settings" even though its component file is still
+  called `UserSettings.tsx`.
+- **Every page that moved under a group prefix keeps its old top-level
+  path alive as a redirect** in `App.tsx` (`/profiles` → `/build/profiles`,
+  `/orchestration` → `/build/orchestration`, `/orchestration/build` →
+  `/build/orchestration/build`, `/compile` and `/export` → `/build/compile`,
+  `/import` → `/machine/import`, `/setup-audit` → `/machine/audit`,
+  `/sync` → `/machine/sync`, `/moderation` → `/settings/moderation`,
+  `/admin/system` → `/settings/system`) — same pattern as the pre-existing
+  `/export` → `/compile` redirect. `/profiles/:id` needs its own tiny
+  `ProfileDetailRedirect` wrapper component (reads `useParams().id` and
+  builds the target path) since `<Navigate to="...">` can't itself contain
+  a route param placeholder — copy that pattern for any future param-bearing
+  redirect. **`/collections` and `/settings` are the two exceptions**:
+  `/collections` used to be My Collections directly and `/settings` used
+  to be the account page directly, but both are now intentionally
+  repurposed as their group's hub landing page (My Collections moved to
+  `/collections/mine`, the account page moved to `/settings/account`)
+  rather than redirected — that's a deliberate behavior change, not an
+  oversight. `RequireModerator`/`RequireAdmin` still gate the real
+  `/settings/moderation`/`/settings/system` routes exactly as they gated
+  the old `/moderation`/`/admin/system` ones; the legacy paths are plain,
+  ungated `Navigate` redirects because the gate at the destination already
+  covers them.
+- If you add a new top-level page, decide up front whether it belongs
+  inside an existing group (add it to that group's `children` in
+  `navigation.ts`) or genuinely needs a new group — don't add a new flat,
+  ungrouped sidebar item.

@@ -236,7 +236,7 @@ export default function OrchestrationGallery() {
           </p>
         </div>
         <Link
-          to="/orchestration/build"
+          to="/build/orchestration/build"
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors flex-shrink-0"
         >
           <Wrench className="h-4 w-4" /> Compose your pipeline

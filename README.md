@@ -15,7 +15,7 @@ expects — instead of hand-maintaining N slightly-different copies, or
 picking one tool and losing the rest.
 
 > **MyACE is under heavy development and changes near daily. Use at your own
-> risk.** Currently supporting **11 coding environments**, with a community
+> risk.** Currently supporting **12 coding environments**, with a community
 > store holding **15 starter agent profiles** (3 base + 12 specializations).
 
 <table>
@@ -83,7 +83,7 @@ model.
   off — a named recipe you compile per target, not a duplicated file tree.
 - **Compile to any supported framework** — one click (or `myace pull`) turns
   a profile into the exact files Claude Code, OpenCode, or Cursor expect.
-  See [Architecture](#architecture) below for the full list of 11 supported
+  See [Architecture](#architecture) below for the full list of 12 supported
   frameworks.
 - **Orchestration Gallery & pipeline wizard** — agents can declare a
   `handoff_to` list describing which other agents they route work to; the
@@ -286,14 +286,16 @@ system-wide from System Settings → Adapter Registry.
 │   ├── nginx.conf
 │   ├── package.json
 │   ├── src/
-│   │   ├── components/           # Layout (responsive sidebar/drawer), shared UI
+│   │   ├── components/           # Layout (responsive, collapsible grouped sidebar/drawer), SectionHub, shared UI
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
-│   │   ├── pages/                 # Landing (public /welcome), Login, ResetPassword, Dashboard, Collections,
-│   │   │                          #   CollectionDetail, CommunityCollections, CommunityCollectionDetail, Profiles,
-│   │   │                          #   ProfileDetail, Import, SetupAudit, Compile, Sync, OrchestrationGallery,
-│   │   │                          #   OrchestratorBuilder, UserSettings, ModerationQueue (moderator/admin-gated),
+│   │   ├── pages/                 # Landing (public /welcome), Login, ResetPassword, Dashboard,
+│   │   │                          #   CollectionsHub, CollectionsManager (My Collections), CollectionDetail,
+│   │   │                          #   CommunityCollections, CommunityCollectionDetail, BuildHub, ProfileComposer,
+│   │   │                          #   ProfileDetail, OrchestrationGallery, OrchestratorBuilder, TargetExporter
+│   │   │                          #   (Compile & Export), MachineHub, ImportPage, SetupAudit, SyncDashboard,
+│   │   │                          #   SettingsHub, UserSettings (Account), ModerationQueue (moderator/admin-gated),
 │   │   │                          #   SystemSettings (admin-gated)
-│   │   ├── lib/                   # API client
+│   │   ├── lib/                   # API client, navigation.ts (sidebar/hub group config — see AGENTS.md #38)
 │   │   └── types/                 # TypeScript interfaces
 │   └── dist/                     # Production build
 │
