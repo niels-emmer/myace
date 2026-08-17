@@ -29,14 +29,20 @@ vi.mock('./pages/TargetExporter', () => ({ default: () => <div>compile-page</div
 vi.mock('./pages/ImportPage', () => ({ default: () => <div>import-page</div> }));
 vi.mock('./pages/SetupAudit', () => ({ default: () => <div>setup-audit-page</div> }));
 vi.mock('./pages/SyncDashboard', () => ({ default: () => <div>sync-page</div> }));
+vi.mock('./pages/ModerationQueue', () => ({ default: () => <div>moderation-page</div> }));
+vi.mock('./pages/SystemSettings', () => ({ default: () => <div>system-page</div> }));
 
+// Admin so the /moderation and /admin/system redirect cases (both
+// role-gated at their destination) actually reach their target instead of
+// bouncing to "/" — role gating itself is covered separately, this file is
+// only about the route table.
 const mockUser: User = {
   id: 'user-1',
   email: 'user@test.com',
   display_name: 'Test User',
   is_active: true,
-  is_admin: false,
-  role: 'user',
+  is_admin: true,
+  role: 'admin',
   created_at: '2026-01-01T00:00:00Z',
 };
 
@@ -68,6 +74,8 @@ describe('legacy top-level route redirects', () => {
     ['/import', 'import-page'],
     ['/setup-audit', 'setup-audit-page'],
     ['/sync', 'sync-page'],
+    ['/moderation', 'moderation-page'],
+    ['/admin/system', 'system-page'],
   ])('redirects %s to the grouped route', async (path, expectedText) => {
     renderAt(path);
     expect(await screen.findByText(expectedText)).toBeInTheDocument();

@@ -8,6 +8,7 @@ import {
   Search,
   RefreshCw,
   Settings,
+  UserCircle,
   ShieldCheck,
   Shield,
   type LucideIcon,
@@ -108,19 +109,19 @@ export const machineGroup: NavGroup = {
   ],
 };
 
-export function getAccountGroup(user: User | null): NavGroup {
+export function getSettingsGroup(user: User | null): NavGroup {
   const children: NavChild[] = [
     {
-      to: '/settings',
-      label: 'Settings',
-      icon: Settings,
+      to: '/settings/account',
+      label: 'Account',
+      icon: UserCircle,
       description: 'Manage your account, API tokens, and CLI setup.',
     },
   ];
 
   if (user?.role === 'moderator' || user?.role === 'admin') {
     children.push({
-      to: '/moderation',
+      to: '/settings/moderation',
       label: 'Moderation',
       icon: ShieldCheck,
       description: 'Review, approve, or deny community collection submissions.',
@@ -129,7 +130,7 @@ export function getAccountGroup(user: User | null): NavGroup {
 
   if (user?.is_admin) {
     children.push({
-      to: '/admin/system',
+      to: '/settings/system',
       label: 'System',
       icon: Shield,
       description: 'Configure system-wide settings and adapters.',
@@ -137,10 +138,11 @@ export function getAccountGroup(user: User | null): NavGroup {
   }
 
   return {
-    id: 'account',
-    label: 'Account',
+    id: 'settings',
+    label: 'Settings',
     icon: Settings,
-    summary: 'Your account, tokens, and admin tools.',
+    summary: 'Your account, moderation queue, and system configuration.',
+    hubPath: '/settings',
     children,
   };
 }

@@ -21,6 +21,7 @@ import MachineHub from './pages/MachineHub';
 import ImportPage from './pages/ImportPage';
 import SetupAudit from './pages/SetupAudit';
 import SyncDashboard from './pages/SyncDashboard';
+import SettingsHub from './pages/SettingsHub';
 import UserSettings from './pages/UserSettings';
 import SystemSettings from './pages/SystemSettings';
 import ModerationQueue from './pages/ModerationQueue';
@@ -133,13 +134,16 @@ export default function App() {
           <Route path="/import" element={<Navigate to="/machine/import" replace />} />
           <Route path="/setup-audit" element={<Navigate to="/machine/audit" replace />} />
           <Route path="/sync" element={<Navigate to="/machine/sync" replace />} />
+          <Route path="/moderation" element={<Navigate to="/settings/moderation" replace />} />
+          <Route path="/admin/system" element={<Navigate to="/settings/system" replace />} />
 
-          <Route path="/settings" element={<UserSettings />} />
+          <Route path="/settings" element={<SettingsHub />} />
+          <Route path="/settings/account" element={<UserSettings />} />
           <Route element={<RequireModerator />}>
-            <Route path="/moderation" element={<ModerationQueue />} />
+            <Route path="/settings/moderation" element={<ModerationQueue />} />
           </Route>
           <Route element={<RequireAdmin />}>
-            <Route path="/admin/system" element={<SystemSettings />} />
+            <Route path="/settings/system" element={<SystemSettings />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

@@ -226,7 +226,7 @@ export default function UserSettings() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+        <h1 className="text-2xl font-bold text-foreground">Account</h1>
         <p className="text-muted-foreground mt-1">Manage your profile, security, and preferences</p>
       </div>
 

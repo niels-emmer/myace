@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, LogOut, Menu, X, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { collectionsGroup, buildGroup, machineGroup, getAccountGroup, type NavGroup } from '../lib/navigation';
+import { collectionsGroup, buildGroup, machineGroup, getSettingsGroup, type NavGroup } from '../lib/navigation';
 
 const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -11,32 +11,52 @@ const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
   }`;
 
-function NavGroupSection({ group, groupActive }: { group: NavGroup; groupActive: boolean }) {
-  const headerClasses = `flex items-center gap-2 px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wide transition-colors ${
-    groupActive ? 'text-brand-700' : 'text-muted-foreground'
-  }`;
+function NavGroupSection({
+  group,
+  groupActive,
+  open,
+  onToggle,
+}: {
+  group: NavGroup;
+  groupActive: boolean;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const headerTextClasses = groupActive ? 'text-brand-700' : 'text-foreground';
 
   return (
     <div>
-      {group.hubPath ? (
-        <Link to={group.hubPath} className={`${headerClasses} hover:text-accent-foreground`}>
-          <group.icon className="h-3.5 w-3.5" />
-          {group.label}
+      <div
+        className={`flex items-center rounded-lg text-sm font-medium transition-colors ${
+          groupActive ? 'bg-brand-50' : 'hover:bg-accent'
+        }`}
+      >
+        <Link
+          to={group.hubPath ?? '#'}
+          className={`flex flex-1 min-w-0 items-center gap-3 px-3 py-2.5 ${headerTextClasses}`}
+        >
+          <group.icon className="h-4 w-4 flex-shrink-0" />
+          <span className="truncate">{group.label}</span>
         </Link>
-      ) : (
-        <div className={headerClasses}>
-          <group.icon className="h-3.5 w-3.5" />
-          {group.label}
+        <button
+          onClick={onToggle}
+          aria-label={open ? `Collapse ${group.label}` : `Expand ${group.label}`}
+          aria-expanded={open}
+          className="p-2.5 pl-1.5 text-muted-foreground hover:text-accent-foreground flex-shrink-0"
+        >
+          <ChevronRight className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
+        </button>
+      </div>
+      {open && (
+        <div className="mt-1 ml-[1.15rem] pl-3 border-l border-border space-y-1">
+          {group.children.map((child) => (
+            <NavLink key={child.to} to={child.to} className={navLinkClasses}>
+              <child.icon className="h-4 w-4" />
+              {child.label}
+            </NavLink>
+          ))}
         </div>
       )}
-      <div className="space-y-1">
-        {group.children.map((child) => (
-          <NavLink key={child.to} to={child.to} className={navLinkClasses}>
-            <child.icon className="h-4 w-4" />
-            {child.label}
-          </NavLink>
-        ))}
-      </div>
     </div>
   );
 }
@@ -47,6 +67,7 @@ export default function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(location.pathname);
+  const [openOverrides, setOpenOverrides] = useState<Record<string, boolean>>({});
 
   // Close the mobile drawer whenever navigation happens, so tapping a link
   // doesn't leave the overlay open behind the new page. Adjusted during
@@ -63,7 +84,17 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const groups = [collectionsGroup, buildGroup, machineGroup, getAccountGroup(user)];
+  const groups = [collectionsGroup, buildGroup, machineGroup, getSettingsGroup(user)];
+
+  // Collapsed by default; a group auto-expands once its hub or one of its
+  // pages is the active route, so navigating straight to a sub-page never
+  // hides the highlighted item. A manual toggle overrides that default
+  // until the user toggles it again.
+  const isGroupActive = (group: NavGroup) => !!group.hubPath && location.pathname.startsWith(group.hubPath);
+  const isGroupOpen = (group: NavGroup) => openOverrides[group.id] ?? isGroupActive(group);
+  const toggleGroup = (group: NavGroup) => {
+    setOpenOverrides((prev) => ({ ...prev, [group.id]: !isGroupOpen(group) }));
+  };
 
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-background">
@@ -125,7 +156,9 @@ export default function Layout() {
             <NavGroupSection
               key={group.id}
               group={group}
-              groupActive={!!group.hubPath && location.pathname.startsWith(group.hubPath)}
+              groupActive={isGroupActive(group)}
+              open={isGroupOpen(group)}
+              onToggle={() => toggleGroup(group)}
             />
           ))}
         </nav>
