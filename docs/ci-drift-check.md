@@ -29,7 +29,7 @@ MyACE server would compile today.
    for a repo whose whole point is dogfooding a specific compiled snapshot,
    commit `.myace/` deliberately.
 2. A MyACE API token with read access to the profile being checked (create
-   one from the web UI's Settings → CLI Setup panel, or `myace login`
+   one from the web UI's Settings → Account → CLI Setup panel, or `myace login`
    locally to generate one), stored as a repository secret.
 
 ## Usage
