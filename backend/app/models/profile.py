@@ -81,7 +81,7 @@ class ProfileRead(SQLModel):
 
 CompileTarget = Literal[
     "claude-code", "opencode", "cursor", "codex-cli", "copilot-cli", "cline", "windsurf",
-    "aider", "continue", "goose", "amazon-q",
+    "aider", "continue", "goose", "amazon-q", "pi-dev",
 ]
 
 

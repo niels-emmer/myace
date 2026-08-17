@@ -24,10 +24,10 @@ This is a rough signal, not a certified metric. Two tiers of fidelity:
 - Every other directory convention (Cursor's `.cursor/rules/`, Windsurf's
   `.windsurf/rules/`, Amazon Q's `.amazonq/rules/`, Cline's `.clinerules/`,
   Continue's `.continue/rules/`+`.continue/prompts/`, Copilot's
-  `.github/instructions/`) has no shared per-file parser here — those
-  frameworks each have their own frontmatter schema (see
-  `docs/adapters-research.md`) and this module doesn't reimplement 8 of
-  them just to audit file presence. Every markdown/`.mdc` file directly
+  `.github/instructions/`, pi.dev's `.pi/prompts/`) has no shared per-file
+  parser here — those frameworks each have their own frontmatter schema
+  (see `docs/adapters-research.md`) and this module doesn't reimplement
+  them all just to audit file presence. Every markdown/`.mdc` file directly
   inside such a directory is instead counted as one "rule" artifact named
   after its filename stem — enough to compare names/counts across targets,
   not enough to inspect real frontmatter content.
@@ -60,6 +60,7 @@ ADAPTER_EXPECTED_PATHS: dict[str, list[str]] = {
     "continue": [".continue/rules/", ".continue/prompts/", "config.yaml"],
     "goose": ["AGENTS.md"],
     "amazon-q": [".amazonq/rules/"],
+    "pi-dev": ["AGENTS.md", ".pi/skills/", ".pi/prompts/", ".pi/settings.json"],
 }
 
 # Plain "## section per rule" markdown files we know how to split into

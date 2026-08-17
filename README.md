@@ -243,6 +243,7 @@ breakdown, the compilation pipeline, and the auth model, and
 | Continue | `continue`, `continue-dev` | `.continue/rules/*.md`, `.continue/prompts/*.md`, `config.yaml` |
 | Goose | `goose` | `AGENTS.md` |
 | Amazon Q Developer | `amazon-q`, `amazonq` | `.amazonq/rules/*.md` |
+| pi.dev (Pi Coding Agent) | `pi-dev`, `pi` | `AGENTS.md`, `.pi/skills/*/SKILL.md`, `.pi/prompts/*.md`, `.pi/settings.json` |
 
 The table above shows output *paths* only. For each adapter's actual
 frontmatter fields/config schema — and doc citations for every field — see
@@ -275,7 +276,7 @@ system-wide from System Settings → Adapter Registry.
 │   │   ├── core/                # Config, DB session, OIDC/security, crypto (encrypted admin secrets), deps (auth), authz (ownership checks)
 │   │   ├── models/               # SQLModel schemas (User, Collection, CollectionComment, CollectionRating, Artifact, Profile, ApiToken, DocCache, SyncStatus, SystemSettings)
 │   │   ├── api/                  # Routes: auth, collections, comments, ratings, profiles, adapters, doc_cache, admin, moderation, sync, demo (public), freshness
-│   │   ├── adapters/             # Canonical IR → target translators (11: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q)
+│   │   ├── adapters/             # Canonical IR → target translators (12: Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q, pi.dev)
 │   │   └── services/             # Compiler, doc verifier, scanner (local + git), github_export, seed_collections,
 │   │                              #   email (SMTP send), effective_settings (DB-override-vs-env resolver)
 │   └── tests/                    # pytest suite
@@ -333,7 +334,7 @@ anything deeper than "how do I run this."
 MyACE doesn't yet cover every AI coding tool, and a couple of pieces of the
 existing pipeline are known to be incomplete:
 
-- **More adapters** — pi.dev, Zed AI, and CodeGPT are viable, unbuilt
+- **More adapters** — Zed AI and CodeGPT are viable, unbuilt
   candidates; Windsurf's adapter still targets its legacy path rather than
   the Devin Desktop rebrand, and Amazon Q Developer could emit its newer
   native agent format. Full detail (plus what's already been evaluated and
