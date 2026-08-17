@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
@@ -6,21 +6,32 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
+import CollectionsHub from './pages/CollectionsHub';
 import CollectionsManager from './pages/CollectionsManager';
 import CollectionDetail from './pages/CollectionDetail';
 import CommunityCollections from './pages/CommunityCollections';
 import CommunityCollectionDetail from './pages/CommunityCollectionDetail';
+import BuildHub from './pages/BuildHub';
 import ProfileComposer from './pages/ProfileComposer';
 import ProfileDetail from './pages/ProfileDetail';
-import ImportPage from './pages/ImportPage';
-import SetupAudit from './pages/SetupAudit';
 import TargetExporter from './pages/TargetExporter';
-import SyncDashboard from './pages/SyncDashboard';
 import OrchestrationGallery from './pages/OrchestrationGallery';
 import OrchestratorBuilder from './pages/OrchestratorBuilder';
+import MachineHub from './pages/MachineHub';
+import ImportPage from './pages/ImportPage';
+import SetupAudit from './pages/SetupAudit';
+import SyncDashboard from './pages/SyncDashboard';
 import UserSettings from './pages/UserSettings';
 import SystemSettings from './pages/SystemSettings';
 import ModerationQueue from './pages/ModerationQueue';
+
+// Legacy top-level path -> new grouped path. `Navigate`'s `to` can't itself
+// contain a route param placeholder, so the :id param is read here and
+// interpolated before redirecting.
+function ProfileDetailRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/build/profiles/${id}`} replace />;
+}
 
 function RequireAuth() {
   const { user, isLoading } = useAuth();
@@ -93,19 +104,36 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/collections" element={<CollectionsManager />} />
+
+          <Route path="/collections" element={<CollectionsHub />} />
+          <Route path="/collections/mine" element={<CollectionsManager />} />
           <Route path="/collections/community" element={<CommunityCollections />} />
           <Route path="/collections/community/:id" element={<CommunityCollectionDetail />} />
           <Route path="/collections/:id" element={<CollectionDetail />} />
-          <Route path="/profiles" element={<ProfileComposer />} />
-          <Route path="/profiles/:id" element={<ProfileDetail />} />
-          <Route path="/import" element={<ImportPage />} />
-          <Route path="/setup-audit" element={<SetupAudit />} />
-          <Route path="/compile" element={<TargetExporter />} />
-          <Route path="/export" element={<Navigate to="/compile" replace />} />
-          <Route path="/sync" element={<SyncDashboard />} />
-          <Route path="/orchestration" element={<OrchestrationGallery />} />
-          <Route path="/orchestration/build" element={<OrchestratorBuilder />} />
+
+          <Route path="/build" element={<BuildHub />} />
+          <Route path="/build/profiles" element={<ProfileComposer />} />
+          <Route path="/build/profiles/:id" element={<ProfileDetail />} />
+          <Route path="/build/orchestration" element={<OrchestrationGallery />} />
+          <Route path="/build/orchestration/build" element={<OrchestratorBuilder />} />
+          <Route path="/build/compile" element={<TargetExporter />} />
+
+          <Route path="/machine" element={<MachineHub />} />
+          <Route path="/machine/import" element={<ImportPage />} />
+          <Route path="/machine/audit" element={<SetupAudit />} />
+          <Route path="/machine/sync" element={<SyncDashboard />} />
+
+          {/* Legacy top-level paths, kept as redirects for old bookmarks/links */}
+          <Route path="/profiles" element={<Navigate to="/build/profiles" replace />} />
+          <Route path="/profiles/:id" element={<ProfileDetailRedirect />} />
+          <Route path="/orchestration" element={<Navigate to="/build/orchestration" replace />} />
+          <Route path="/orchestration/build" element={<Navigate to="/build/orchestration/build" replace />} />
+          <Route path="/compile" element={<Navigate to="/build/compile" replace />} />
+          <Route path="/export" element={<Navigate to="/build/compile" replace />} />
+          <Route path="/import" element={<Navigate to="/machine/import" replace />} />
+          <Route path="/setup-audit" element={<Navigate to="/machine/audit" replace />} />
+          <Route path="/sync" element={<Navigate to="/machine/sync" replace />} />
+
           <Route path="/settings" element={<UserSettings />} />
           <Route element={<RequireModerator />}>
             <Route path="/moderation" element={<ModerationQueue />} />

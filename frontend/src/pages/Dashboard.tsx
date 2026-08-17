@@ -31,21 +31,21 @@ export default function Dashboard() {
       value: collections?.length ?? 0,
       icon: FolderGit2,
       color: 'text-blue-600 bg-blue-50',
-      href: '/collections',
+      href: '/collections/mine',
     },
     {
       label: 'Profiles',
       value: profiles?.length ?? 0,
       icon: SlidersHorizontal,
       color: 'text-purple-600 bg-purple-50',
-      href: '/profiles',
+      href: '/build/profiles',
     },
     {
       label: 'Target Adapters',
       value: adapters?.length ?? 0,
       icon: Download,
       color: 'text-green-600 bg-green-50',
-      href: '/compile',
+      href: '/build/compile',
     },
   ];
 
@@ -86,22 +86,22 @@ export default function Dashboard() {
         <div className="space-y-1">
           <Step
             number={1}
-            href="/import"
+            href="/machine/import"
             text="Browse the starter Collections, or import your own from GitHub or your local machine"
           />
           <Step
             number={2}
-            href="/profiles"
+            href="/build/profiles"
             text="Create a Profile combining a base + additional collections"
           />
           <Step
             number={3}
-            href="/compile"
+            href="/build/compile"
             text="Compile the profile into your target framework's files"
           />
           <Step
             number={4}
-            href="/compile"
+            href="/build/compile"
             text="Download as an archive, or sync with the CLI: myace pull --profile <name> --target <framework>"
           />
         </div>

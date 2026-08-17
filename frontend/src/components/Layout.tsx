@@ -1,34 +1,45 @@
 import { useState } from 'react';
 import { Link, Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  FolderGit2,
-  SlidersHorizontal,
-  Upload,
-  Download,
-  RefreshCw,
-  Settings,
-  LogOut,
-  Shield,
-  ShieldCheck,
-  Menu,
-  X,
-  Workflow,
-  Search,
-} from 'lucide-react';
+import { LayoutDashboard, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { collectionsGroup, buildGroup, machineGroup, getAccountGroup, type NavGroup } from '../lib/navigation';
 
-const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/collections', icon: FolderGit2, label: 'Collections' },
-  { to: '/profiles', icon: SlidersHorizontal, label: 'Profiles' },
-  { to: '/orchestration', icon: Workflow, label: 'Orchestration' },
-  { to: '/import', icon: Upload, label: 'Import' },
-  { to: '/setup-audit', icon: Search, label: 'Setup Audit' },
-  { to: '/compile', icon: Download, label: 'Compile' },
-  { to: '/sync', icon: RefreshCw, label: 'Sync' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
-];
+const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
+  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+    isActive
+      ? 'bg-brand-50 text-brand-700'
+      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+  }`;
+
+function NavGroupSection({ group, groupActive }: { group: NavGroup; groupActive: boolean }) {
+  const headerClasses = `flex items-center gap-2 px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wide transition-colors ${
+    groupActive ? 'text-brand-700' : 'text-muted-foreground'
+  }`;
+
+  return (
+    <div>
+      {group.hubPath ? (
+        <Link to={group.hubPath} className={`${headerClasses} hover:text-accent-foreground`}>
+          <group.icon className="h-3.5 w-3.5" />
+          {group.label}
+        </Link>
+      ) : (
+        <div className={headerClasses}>
+          <group.icon className="h-3.5 w-3.5" />
+          {group.label}
+        </div>
+      )}
+      <div className="space-y-1">
+        {group.children.map((child) => (
+          <NavLink key={child.to} to={child.to} className={navLinkClasses}>
+            <child.icon className="h-4 w-4" />
+            {child.label}
+          </NavLink>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -51,6 +62,8 @@ export default function Layout() {
     await logout();
     navigate('/login');
   };
+
+  const groups = [collectionsGroup, buildGroup, machineGroup, getAccountGroup(user)];
 
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-background">
@@ -103,53 +116,18 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                }`
-              }
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </NavLink>
+          <NavLink to="/" end className={navLinkClasses}>
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </NavLink>
+
+          {groups.map((group) => (
+            <NavGroupSection
+              key={group.id}
+              group={group}
+              groupActive={!!group.hubPath && location.pathname.startsWith(group.hubPath)}
+            />
           ))}
-          {(user?.role === 'moderator' || user?.role === 'admin') && (
-            <NavLink
-              to="/moderation"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                }`
-              }
-            >
-              <ShieldCheck className="h-4 w-4" />
-              Moderation
-            </NavLink>
-          )}
-          {user?.is_admin && (
-            <NavLink
-              to="/admin/system"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                }`
-              }
-            >
-              <Shield className="h-4 w-4" />
-              System
-            </NavLink>
-          )}
         </nav>
 
         <div className="p-4 border-t border-border space-y-1">

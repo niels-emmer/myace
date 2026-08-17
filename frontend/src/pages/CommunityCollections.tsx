@@ -62,7 +62,7 @@ export default function CommunityCollections() {
       {/* Header */}
       <div className="flex items-start gap-4">
         <Link
-          to="/collections"
+          to="/collections/mine"
           className="p-2 -ml-2 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors"
           title="Back to collections"
         >

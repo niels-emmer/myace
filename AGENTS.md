@@ -913,3 +913,54 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   is scoped to one line with a comment explaining why; don't blanket-ignore
   the file, and don't be surprised if a `datetime` column doesn't need the
   same treatment.
+
+### 38. Frontend Navigation Is Grouped by Task, With `lib/navigation.ts` as the Single Source of Truth
+
+- **The sidebar (`frontend/src/components/Layout.tsx`) is grouped into
+  task-based sections, not a flat link list.** Groups: Dashboard (single
+  link), **Collections** (My Collections, Community), **Build** (Profiles,
+  Orchestration, Compile & Export), **My Machine** (Import, Setup Audit,
+  Sync), and **Account** (Settings, Moderation†, System† — no hub page,
+  see below). This exists because the flat 9-item list stopped mapping to
+  how people actually think about the app as functionality grew (see
+  `docs/plans/` for the platform-enhancements history) — grouping by task
+  keeps the nav legible for a first-time visitor without hiding anything
+  from a power user.
+- **`Collections`, `Build`, and `My Machine` each have a "hub" page** —
+  `CollectionsHub.tsx`/`BuildHub.tsx`/`MachineHub.tsx`, all thin wrappers
+  around the shared `SectionHub.tsx` component — reachable at `/collections`,
+  `/build`, `/machine`. Clicking a group's *header* in the sidebar goes to
+  its hub (a card grid explaining what each child page is for); clicking a
+  *child* link goes straight to that page. **Account has no hub** — its
+  children (Settings, Moderation, System) are direct-access utility pages
+  someone already knows they want, not a "discover this area" moment, so
+  its sidebar header is plain text, not a link.
+- **`frontend/src/lib/navigation.ts` is the single source of truth for
+  group/child labels, icons, descriptions, and paths** — both
+  `Layout.tsx`'s sidebar and the three hub pages import the same
+  `collectionsGroup`/`buildGroup`/`machineGroup` constants (and
+  `getAccountGroup(user)` for the role-gated one), so the sidebar and its
+  hub card never drift out of sync the way the CLI/backend scanner pair
+  (rule 8) or `ADAPTER_EXPECTED_PATHS` (rule 35) require manual syncing.
+  Add a new page to an existing group by adding one entry to that group's
+  `children` array in `navigation.ts` — don't hand-edit `Layout.tsx` or a
+  hub page directly.
+- **Every page that moved under a group prefix keeps its old top-level
+  path alive as a redirect** in `App.tsx` (`/profiles` → `/build/profiles`,
+  `/orchestration` → `/build/orchestration`, `/orchestration/build` →
+  `/build/orchestration/build`, `/compile` and `/export` → `/build/compile`,
+  `/import` → `/machine/import`, `/setup-audit` → `/machine/audit`,
+  `/sync` → `/machine/sync`) — same pattern as the pre-existing `/export` →
+  `/compile` redirect. `/profiles/:id` needs its own tiny
+  `ProfileDetailRedirect` wrapper component (reads `useParams().id` and
+  builds the target path) since `<Navigate to="...">` can't itself contain
+  a route param placeholder — copy that pattern for any future param-bearing
+  redirect. **`/collections` is the one exception**: it used to be My
+  Collections directly, but is now intentionally repurposed as the
+  `CollectionsHub` landing page (My Collections moved to
+  `/collections/mine`) rather than redirected — that's a deliberate
+  behavior change, not an oversight.
+- If you add a new top-level page, decide up front whether it belongs
+  inside an existing group (add it to that group's `children` in
+  `navigation.ts`) or genuinely needs a new group — don't add a new flat,
+  ungrouped sidebar item.

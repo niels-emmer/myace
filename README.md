@@ -286,14 +286,16 @@ system-wide from System Settings → Adapter Registry.
 │   ├── nginx.conf
 │   ├── package.json
 │   ├── src/
-│   │   ├── components/           # Layout (responsive sidebar/drawer), shared UI
+│   │   ├── components/           # Layout (responsive, grouped sidebar/drawer), SectionHub, shared UI
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
-│   │   ├── pages/                 # Landing (public /welcome), Login, ResetPassword, Dashboard, Collections,
-│   │   │                          #   CollectionDetail, CommunityCollections, CommunityCollectionDetail, Profiles,
-│   │   │                          #   ProfileDetail, Import, SetupAudit, Compile, Sync, OrchestrationGallery,
-│   │   │                          #   OrchestratorBuilder, UserSettings, ModerationQueue (moderator/admin-gated),
-│   │   │                          #   SystemSettings (admin-gated)
-│   │   ├── lib/                   # API client
+│   │   ├── pages/                 # Landing (public /welcome), Login, ResetPassword, Dashboard,
+│   │   │                          #   CollectionsHub, CollectionsManager (My Collections), CollectionDetail,
+│   │   │                          #   CommunityCollections, CommunityCollectionDetail, BuildHub, ProfileComposer,
+│   │   │                          #   ProfileDetail, OrchestrationGallery, OrchestratorBuilder, TargetExporter
+│   │   │                          #   (Compile & Export), MachineHub, ImportPage, SetupAudit, SyncDashboard,
+│   │   │                          #   UserSettings, ModerationQueue (moderator/admin-gated), SystemSettings
+│   │   │                          #   (admin-gated)
+│   │   ├── lib/                   # API client, navigation.ts (sidebar/hub group config — see AGENTS.md #38)
 │   │   └── types/                 # TypeScript interfaces
 │   └── dist/                     # Production build
 │

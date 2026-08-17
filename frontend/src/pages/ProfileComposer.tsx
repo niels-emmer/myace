@@ -97,7 +97,7 @@ export default function ProfileComposer() {
             add a new profile
           </button>{' '}
           to your exact liking. Then,{' '}
-          <Link to="/compile" className="text-brand-600 hover:underline font-medium">
+          <Link to="/build/compile" className="text-brand-600 hover:underline font-medium">
             compile your profile
           </Link>{' '}
           to produce the actual files for a target framework.
