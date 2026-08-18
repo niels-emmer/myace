@@ -81,6 +81,11 @@ model.
 - **Compose, don't copy** — a **Profile** combines a base collection with
   additional ones, layered by priority, with individual items toggled on or
   off — a named recipe you compile per target, not a duplicated file tree.
+- **Edit artifacts in place** — expand a rule, skill, agent, workflow, or
+  model config on a collection's detail page and click its priority,
+  version, target frameworks, or body to edit it directly, validated and
+  auto-saved on blur. A right-aligned "Add rule" button adds a new rule
+  without leaving the collection.
 - **Compile to any supported framework** — one click (or `myace pull`) turns
   a profile into the exact files Claude Code, OpenCode, or Cursor expect.
   See [Architecture](#architecture) below for the full list of 12 supported
@@ -286,11 +291,13 @@ system-wide from System Settings → Adapter Registry.
 │   ├── nginx.conf
 │   ├── package.json
 │   ├── src/
-│   │   ├── components/           # Layout (responsive, collapsible grouped sidebar/drawer), SectionHub, shared UI
+│   │   ├── components/           # Layout (responsive, collapsible grouped sidebar/drawer), SectionHub,
+│   │   │                          #   TargetChecklist (adapter-name multi-select), shared UI
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
 │   │   ├── pages/                 # Landing (public /welcome), Login, ResetPassword, Dashboard,
 │   │   │                          #   CollectionsHub, CollectionsManager (My Collections), CollectionDetail,
-│   │   │                          #   CommunityCollections, CommunityCollectionDetail, BuildHub, ProfileComposer,
+│   │   │                          #   NewArtifactRule (add a rule), CommunityCollections, CommunityCollectionDetail,
+│   │   │                          #   BuildHub, ProfileComposer,
 │   │   │                          #   ProfileDetail, OrchestrationGallery, OrchestratorBuilder, TargetExporter
 │   │   │                          #   (Compile & Export), MachineHub, ImportPage, SetupAudit, SyncDashboard,
 │   │   │                          #   SettingsHub, UserSettings (Account), ModerationQueue (moderator/admin-gated),

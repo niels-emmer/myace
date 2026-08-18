@@ -21,9 +21,12 @@ import {
   Share2,
   BookOpen,
   Clock,
+  Plus,
 } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
-import type { Artifact, ArtifactType, CollectionType, Visibility } from '../types';
+import TargetChecklist from '../components/TargetChecklist';
+import { validatePriority, validateVersion } from '../lib/artifactValidation';
+import type { Artifact, ArtifactType, ArtifactUpdate, CollectionType, Visibility } from '../types';
 
 const ARTIFACT_TYPES: { value: ArtifactType | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -123,6 +126,14 @@ export default function CollectionDetail() {
   const toggleMutation = useMutation({
     mutationFn: ({ artifactId, is_enabled }: { artifactId: string; is_enabled: boolean }) =>
       collectionsApi.updateArtifact(id!, artifactId, { is_enabled }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artifacts', id] });
+    },
+  });
+
+  const updateFieldMutation = useMutation({
+    mutationFn: ({ artifactId, data }: { artifactId: string; data: ArtifactUpdate }) =>
+      collectionsApi.updateArtifact(id!, artifactId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['artifacts', id] });
     },
@@ -598,6 +609,9 @@ export default function CollectionDetail() {
                 })
               }
               isToggling={toggleMutation.isPending}
+              onUpdateField={(data) =>
+                updateFieldMutation.mutateAsync({ artifactId: artifact.id, data })
+              }
             />
           ))}
         </div>
@@ -611,6 +625,16 @@ export default function CollectionDetail() {
           </p>
         </div>
       )}
+
+      <div className="flex justify-end">
+        <button
+          onClick={() => navigate(`/collections/${id}/artifacts/new`)}
+          className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors text-sm font-medium"
+        >
+          <Plus className="h-4 w-4" />
+          Add rule
+        </button>
+      </div>
 
       {/* Export Modal */}
       {showExportModal && (
@@ -1047,6 +1071,8 @@ export default function CollectionDetail() {
   );
 }
 
+type EditableFieldName = 'priority' | 'version' | 'target_compatibility' | 'body';
+
 function ArtifactRow({
   artifact,
   isSelected,
@@ -1055,6 +1081,7 @@ function ArtifactRow({
   onToggleExpand,
   onToggleEnabled,
   isToggling,
+  onUpdateField,
 }: {
   artifact: Artifact;
   isSelected: boolean;
@@ -1063,7 +1090,102 @@ function ArtifactRow({
   onToggleExpand: () => void;
   onToggleEnabled: () => void;
   isToggling: boolean;
+  onUpdateField: (data: ArtifactUpdate) => Promise<Artifact>;
 }) {
+  const [editingField, setEditingField] = useState<EditableFieldName | null>(null);
+  const [draftPriority, setDraftPriority] = useState(String(artifact.priority));
+  const [draftVersion, setDraftVersion] = useState(artifact.version);
+  const [draftTargets, setDraftTargets] = useState<string[]>(artifact.target_compatibility);
+  const [draftBody, setDraftBody] = useState(artifact.body);
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [savingField, setSavingField] = useState<EditableFieldName | null>(null);
+
+  const startEditingField = (field: EditableFieldName) => {
+    setFieldError(null);
+    if (field === 'priority') setDraftPriority(String(artifact.priority));
+    if (field === 'version') setDraftVersion(artifact.version);
+    if (field === 'target_compatibility') setDraftTargets(artifact.target_compatibility);
+    if (field === 'body') setDraftBody(artifact.body);
+    setEditingField(field);
+  };
+
+  const cancelEditingField = () => {
+    setFieldError(null);
+    setEditingField(null);
+  };
+
+  // Guards every state clear with "am I still the field the user is looking
+  // at?" — the user can switch to editing a different field before this
+  // field's request resolves (editingField moved on before this promise
+  // settled), and an unguarded clear here would close whatever the user is
+  // now editing out from under them.
+  const saveField = async (field: EditableFieldName, value: number | string | string[]) => {
+    setFieldError(null);
+    setSavingField(field);
+    try {
+      if (field === 'priority') await onUpdateField({ priority: value as number });
+      else if (field === 'version') await onUpdateField({ version: value as string });
+      else if (field === 'target_compatibility')
+        await onUpdateField({ target_compatibility: value as string[] });
+      else await onUpdateField({ body: value as string });
+      setEditingField((current) => (current === field ? null : current));
+    } catch (err) {
+      setFieldError(err instanceof Error ? err.message : 'Failed to save.');
+    } finally {
+      setSavingField((current) => (current === field ? null : current));
+    }
+  };
+
+  const commitPriority = () => {
+    const result = validatePriority(draftPriority);
+    if ('error' in result) {
+      setFieldError(result.error);
+      return;
+    }
+    if (result.value === artifact.priority) {
+      setEditingField(null);
+      return;
+    }
+    saveField('priority', result.value);
+  };
+
+  const commitVersion = () => {
+    const result = validateVersion(draftVersion);
+    if ('error' in result) {
+      setFieldError(result.error);
+      return;
+    }
+    if (result.value === artifact.version) {
+      setEditingField(null);
+      return;
+    }
+    saveField('version', result.value);
+  };
+
+  const commitBody = () => {
+    const trimmed = draftBody.trim();
+    if (!trimmed) {
+      setFieldError('Body cannot be empty.');
+      return;
+    }
+    if (draftBody === artifact.body) {
+      setEditingField(null);
+      return;
+    }
+    saveField('body', draftBody);
+  };
+
+  const commitTargets = () => {
+    const sameSet =
+      draftTargets.length === artifact.target_compatibility.length &&
+      draftTargets.every((t) => artifact.target_compatibility.includes(t));
+    if (sameSet) {
+      setEditingField(null);
+      return;
+    }
+    saveField('target_compatibility', draftTargets);
+  };
+
   return (
     <div>
       {/* Row header */}
@@ -1101,6 +1223,7 @@ function ArtifactRow({
         {/* Expand toggle */}
         <button
           onClick={onToggleExpand}
+          aria-label={isExpanded ? `Collapse ${artifact.name}` : `Expand ${artifact.name}`}
           className="p-1 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded transition-colors"
         >
           {isExpanded ? (
@@ -1139,27 +1262,156 @@ function ArtifactRow({
 
       {/* Expanded body */}
       {isExpanded && (
-        <div className="px-4 pb-4 pl-20">
+        <div className="px-4 pb-4 pl-20 space-y-3">
           {artifact.description && (
-            <p className="text-sm text-muted-foreground mb-3">{artifact.description}</p>
+            <p className="text-sm text-muted-foreground">{artifact.description}</p>
           )}
-          <div className="bg-muted rounded-lg p-3 overflow-x-auto max-h-80 overflow-y-auto">
-            <pre className="text-xs text-foreground whitespace-pre-wrap font-mono">
-              {artifact.body}
-            </pre>
-          </div>
-          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
+
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+            {/* Priority */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">Priority:</span>
+              {editingField === 'priority' ? (
+                <input
+                  type="number"
+                  autoFocus
+                  value={draftPriority}
+                  onChange={(e) => setDraftPriority(e.target.value)}
+                  onBlur={commitPriority}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                    if (e.key === 'Escape') cancelEditingField();
+                  }}
+                  disabled={savingField === 'priority'}
+                  className="w-16 px-1.5 py-0.5 bg-background text-foreground border border-input rounded text-xs focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              ) : (
+                <button
+                  onClick={() => startEditingField('priority')}
+                  className="text-foreground hover:text-brand-600 hover:underline underline-offset-2"
+                >
+                  {artifact.priority}
+                </button>
+              )}
+            </div>
+
+            {/* Version */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">Version:</span>
+              {editingField === 'version' ? (
+                <input
+                  type="text"
+                  autoFocus
+                  value={draftVersion}
+                  onChange={(e) => setDraftVersion(e.target.value)}
+                  onBlur={commitVersion}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                    if (e.key === 'Escape') cancelEditingField();
+                  }}
+                  disabled={savingField === 'version'}
+                  className="w-24 px-1.5 py-0.5 bg-background text-foreground border border-input rounded text-xs focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              ) : (
+                <button
+                  onClick={() => startEditingField('version')}
+                  className="text-foreground hover:text-brand-600 hover:underline underline-offset-2"
+                >
+                  {artifact.version}
+                </button>
+              )}
+            </div>
+
+            <span className="flex items-center gap-1 text-muted-foreground">
               <FileText className="h-3 w-3" />
               {artifact.file_path}
             </span>
+
             {artifact.tags.length > 0 && (
-              <span>Tags: {artifact.tags.join(', ')}</span>
+              <span className="text-muted-foreground">Tags: {artifact.tags.join(', ')}</span>
             )}
-            {artifact.target_compatibility.length > 0 && (
-              <span>Targets: {artifact.target_compatibility.join(', ')}</span>
-            )}
+
+            {/* Target */}
+            <div className="relative flex items-center gap-1.5">
+              <span className="text-muted-foreground">Targets:</span>
+              <button
+                onClick={() => startEditingField('target_compatibility')}
+                className="text-foreground hover:text-brand-600 hover:underline underline-offset-2"
+              >
+                {artifact.target_compatibility.length > 0
+                  ? artifact.target_compatibility.join(', ')
+                  : 'none (all frameworks)'}
+              </button>
+              {editingField === 'target_compatibility' && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={commitTargets} />
+                  <div className="absolute left-0 top-full mt-1 w-56 bg-card border border-border rounded-lg shadow-lg z-20 p-2">
+                    <TargetChecklist selected={draftTargets} onChange={setDraftTargets} />
+                    <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-border">
+                      <button
+                        onClick={cancelEditingField}
+                        className="px-2 py-1 text-xs text-muted-foreground hover:text-accent-foreground"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={commitTargets}
+                        disabled={savingField === 'target_compatibility'}
+                        className="px-2 py-1 text-xs bg-brand-600 text-white rounded hover:bg-brand-700 disabled:opacity-50"
+                      >
+                        {savingField === 'target_compatibility' ? 'Saving...' : 'Done'}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
+
+          {fieldError && <p className="text-xs text-destructive">{fieldError}</p>}
+
+          {/* Body */}
+          {editingField === 'body' ? (
+            <div>
+              <textarea
+                autoFocus
+                rows={12}
+                value={draftBody}
+                onChange={(e) => setDraftBody(e.target.value)}
+                onBlur={commitBody}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') cancelEditingField();
+                }}
+                disabled={savingField === 'body'}
+                className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Click outside to save, Escape to cancel.
+              </p>
+            </div>
+          ) : (
+            // A <div> with a button role, not a real <button> — a native
+            // button suppresses click-drag text selection in several
+            // browsers, which would make it impossible to copy body text
+            // without first entering edit mode.
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => startEditingField('body')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  startEditingField('body');
+                }
+              }}
+              title="Click to edit"
+              className="w-full text-left bg-muted rounded-lg p-3 overflow-x-auto max-h-80 overflow-y-auto hover:ring-2 hover:ring-brand-500/50 transition-shadow cursor-text"
+            >
+              <pre className="text-xs text-foreground whitespace-pre-wrap font-mono">
+                {artifact.body}
+              </pre>
+            </div>
+          )}
         </div>
       )}
     </div>

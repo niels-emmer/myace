@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import CollectionsHub from './pages/CollectionsHub';
 import CollectionsManager from './pages/CollectionsManager';
 import CollectionDetail from './pages/CollectionDetail';
+import NewArtifactRule from './pages/NewArtifactRule';
 import CommunityCollections from './pages/CommunityCollections';
 import CommunityCollectionDetail from './pages/CommunityCollectionDetail';
 import BuildHub from './pages/BuildHub';
@@ -111,6 +112,7 @@ export default function App() {
           <Route path="/collections/community" element={<CommunityCollections />} />
           <Route path="/collections/community/:id" element={<CommunityCollectionDetail />} />
           <Route path="/collections/:id" element={<CollectionDetail />} />
+          <Route path="/collections/:id/artifacts/new" element={<NewArtifactRule />} />
 
           <Route path="/build" element={<BuildHub />} />
           <Route path="/build/profiles" element={<ProfileComposer />} />
