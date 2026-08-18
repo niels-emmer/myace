@@ -1056,3 +1056,76 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   resource type needs the same "moderator can review, once it's actually
   in the review pipeline" shape, copy the pattern locally rather than
   teaching the shared helper about roles.
+
+### 41. Inline Artifact Editing — Validate-on-Blur, No Backend Changes Needed
+
+- **Editing an artifact's priority/version/target_compatibility/body on
+  `CollectionDetail.tsx` (`/collections/{id}`) is entirely a frontend
+  feature.** The backend already had everything it needed —
+  `PATCH /collections/{id}/artifacts/{artifact_id}` (partial update,
+  `exclude_unset=True`) and `POST /collections/{id}/artifacts` (single-
+  artifact create, rule 34) were both already implemented and already
+  called by the frontend (the enable/disable toggle uses the same PATCH
+  route). Before adding a UI that edits or creates *any* resource, check
+  whether the write endpoint already exists — it frequently does, since
+  most resources on this backend get PATCH/POST routes even before a
+  frontend surface calls them.
+- **Editing only becomes available once a row is expanded** — the
+  collapsed row header's compact `p{priority}`/`v{version}` badges stay
+  read-only; the expanded panel's Priority/Version/Target/Body become
+  click-to-edit. Each artifact row (`ArtifactRow` in `CollectionDetail.tsx`)
+  owns its own `editingField`/draft-value/`fieldError` state — there's no
+  shared "which field of which row is being edited" state in the parent,
+  since only one field of one row can plausibly be mid-edit at a time and
+  co-locating the state avoids threading a row-identifying key through
+  every draft-value setter.
+- **The edit lifecycle is the same for all four fields**: click → input
+  (auto-focused, seeded from the current value) → **Escape** reverts with
+  no API call → **blur** with an unchanged value exits with no API call
+  (avoids needless PATCH traffic) → blur with a changed, valid value calls
+  `collectionsApi.updateArtifact` (via `mutateAsync`, not the shared
+  mutation object's `isError`/`isPending` — every row would otherwise
+  flicker off each other's in-flight state) and exits edit mode on success
+  → a validation or request failure shows a small inline `text-destructive`
+  message under the field and **stays in edit mode**, so a failed save
+  never silently discards what the user typed. `TargetChecklist.tsx`
+  (`frontend/src/components/`, shared between this inline editor and the
+  Add-rule form below) is the one field that isn't a plain blur-to-save
+  input — it's a checkbox popover with an explicit "Done" button, since
+  toggling several checkboxes needs to happen before committing.
+- **Validation is client-side only, mirroring the Canonical IR schema
+  (rule 5)**: priority is an integer 0–100; version must match
+  `^\d+\.\d+\.\d+$` (plain `MAJOR.MINOR.PATCH`, no pre-release/build
+  metadata); body must be non-empty after trimming. `target_compatibility`
+  has no validation — despite looking like it constrains which adapters an
+  artifact applies to, grepping `compiler.py` confirms it's never actually
+  read anywhere in compilation; it's descriptive metadata copied straight
+  onto `CanonicalArtifact`. The checklist (built from live `GET /adapters`
+  names) still beats free text for avoiding typos, but don't assume this
+  field gates anything at compile time — it doesn't, today.
+- **No client-side ownership check gates any of this** — `CollectionDetail.tsx`
+  has never had one (Edit/Delete/Share are unconditionally rendered too);
+  authorization is enforced entirely server-side via
+  `authorize_access(write=True)`, which 404s for a non-owner (including a
+  moderator using rule 40's read-only bypass, which doesn't extend to
+  writes). A failed PATCH/POST from a non-owner surfaces through the same
+  inline-error path as any other failure — there's nothing MyACE-specific
+  to add here, just don't add a `useAuth()`/`owner_id` check that the rest
+  of this page doesn't have either.
+- **"Add rule" (`frontend/src/pages/NewArtifactRule.tsx`,
+  `/collections/{id}/artifacts/new`) only creates `artifact_type: "rule"`**
+  — matching the button's literal label lets the form skip both a type
+  picker and a `file_path` field. `file_path` is hardcoded to `"AGENTS.md"`,
+  matching the convention every scanner-parsed rule already uses
+  (`_parse_agents_md_content` in `backend/app/services/scanner.py` — every
+  rule from an `AGENTS.md` file shares that same `file_path`, differentiated
+  by `name`/`## section`, not by a unique path each). If a future "Add
+  skill"/"Add agent" is added, it needs its own `file_path` convention
+  (`skills/{slug}/SKILL.md`, `agents/{slug}.md`) since those aren't
+  filename-shared the way rules are.
+- **No special "re-sort after create" code exists, or is needed** —
+  `CollectionDetail.tsx`'s `visibleArtifacts` is a `useMemo` that already
+  re-derives and re-sorts from whatever the `['artifacts', id]` query
+  currently holds; invalidating that query on create (same as every other
+  artifact-mutating action on this page) is sufficient for the new rule to
+  appear in the right sorted position once the page navigates back.
