@@ -83,6 +83,23 @@ def build_moderation_denied_email(collection_name: str, reason: str) -> tuple[st
     return subject, body
 
 
+def build_moderation_unpublished_email(collection_name: str, reason: str | None) -> tuple[str, str]:
+    """Return (subject, text_body) for a moderator-initiated unpublish email.
+
+    Only sent when the actor isn't the owner themselves — an owner
+    unpublishing their own collection doesn't need to be told about it."""
+    subject = f'Your collection "{collection_name}" was unpublished'
+    body = (
+        f'A moderator removed your collection "{collection_name}" from the '
+        f"{settings.app_name} community collections. It's no longer public, "
+        f"but you still own it and can edit it.\n\n"
+    )
+    if reason:
+        body += f"Reviewer's note:\n{reason}\n\n"
+    body += "You can resubmit it for another review once it's ready."
+    return subject, body
+
+
 def build_comment_notification_email(collection_name: str, commenter_name: str) -> tuple[str, str]:
     """Return (subject, text_body) for a new-comment notification email."""
     subject = f'New comment on "{collection_name}"'

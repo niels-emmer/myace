@@ -391,3 +391,196 @@ class TestMetaEdit:
             f"/api/v1/moderation/{draft_id}/meta", json={"name": "Hijacked"}
         )
         assert res.status_code == 404
+
+
+async def _approve(async_client: AsyncClient, collection_id: str, moderator_email: str) -> None:
+    await _login(async_client, moderator_email)
+    res = await async_client.post(f"/api/v1/moderation/{collection_id}/approve")
+    assert res.status_code == 200
+    await async_client.post("/api/v1/auth/logout")
+
+
+class TestUnpublish:
+    @pytest.mark.asyncio
+    async def test_owner_can_unpublish_own_approved_collection(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+        await _approve(async_client, collection_id, "mod@test.com")
+
+        await _login(async_client, "owner@test.com")
+        res = await async_client.post(f"/api/v1/collections/{collection_id}/unpublish")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["moderation_status"] == "unpublished"
+        assert data["published"] is False
+        assert data["visibility"] == "private"
+
+        # Gone from the community listing.
+        res = await async_client.get("/api/v1/collections/community")
+        assert not any(c["id"] == collection_id for c in res.json()["items"])
+
+    @pytest.mark.asyncio
+    async def test_moderator_can_unpublish_someone_elses_collection_with_reason(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+        await _approve(async_client, collection_id, "mod@test.com")
+
+        await _login(async_client, "mod@test.com")
+        res = await async_client.post(
+            f"/api/v1/collections/{collection_id}/unpublish",
+            json={"reason": "Reported for outdated content"},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert data["moderation_status"] == "unpublished"
+        assert data["moderation_reason"] == "Reported for outdated content"
+
+    @pytest.mark.asyncio
+    async def test_admin_can_unpublish(self, async_client: AsyncClient, db_session: AsyncSession):
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+        await _create_user(db_session, "admin@test.com", role="admin")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+        await _approve(async_client, collection_id, "mod@test.com")
+
+        await _login(async_client, "admin@test.com")
+        res = await async_client.post(f"/api/v1/collections/{collection_id}/unpublish")
+        assert res.status_code == 200
+        assert res.json()["moderation_status"] == "unpublished"
+
+    @pytest.mark.asyncio
+    async def test_outsider_cannot_unpublish(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+        await _create_user(db_session, "outsider@test.com")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+        await _approve(async_client, collection_id, "mod@test.com")
+
+        await _login(async_client, "outsider@test.com")
+        res = await async_client.post(f"/api/v1/collections/{collection_id}/unpublish")
+        assert res.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_cannot_unpublish_a_non_approved_collection(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _create_user(db_session, "owner@test.com")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+
+        await _login(async_client, "owner@test.com")
+        res = await async_client.post(f"/api/v1/collections/{collection_id}/unpublish")
+        assert res.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_resubmit_after_unpublish(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+        await _approve(async_client, collection_id, "mod@test.com")
+
+        await _login(async_client, "owner@test.com")
+        res = await async_client.post(f"/api/v1/collections/{collection_id}/unpublish")
+        assert res.status_code == 200
+
+        res = await async_client.post(
+            f"/api/v1/collections/{collection_id}/publish", json={"category": "python"}
+        )
+        assert res.status_code == 200
+        assert res.json()["moderation_status"] == "submitted"
+
+    @pytest.mark.asyncio
+    async def test_unpublish_email_failure_does_not_roll_back_state(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+        await _approve(async_client, collection_id, "mod@test.com")
+
+        from app.services.effective_settings import SmtpConfig
+        from app.services.email import EmailSendError
+
+        await _login(async_client, "mod@test.com")
+        with patch(
+            "app.api.collections.send_email",
+            new=AsyncMock(side_effect=EmailSendError("smtp down")),
+        ):
+            with patch("app.api.collections.get_effective_smtp_config") as mock_cfg:
+                mock_cfg.return_value = SmtpConfig(
+                    host="smtp.test", port=587, username="", password="",
+                    from_email="a@b.com", from_name="", use_tls=True, enabled=True,
+                )
+                res = await async_client.post(f"/api/v1/collections/{collection_id}/unpublish")
+
+        assert res.status_code == 200
+        assert res.json()["moderation_status"] == "unpublished"
+
+
+class TestModeratorReadAccess:
+    @pytest.mark.asyncio
+    async def test_moderator_can_view_submitted_collection_detail(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        """A moderator needs to actually open a submission to review it —
+        require_moderator_or_admin only gates the queue actions, not the
+        plain GET /collections/{id} route the frontend uses to render it."""
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+
+        await _login(async_client, "mod@test.com")
+        res = await async_client.get(f"/api/v1/collections/{collection_id}")
+        assert res.status_code == 200
+
+        res = await async_client.get(f"/api/v1/collections/{collection_id}/artifacts")
+        assert res.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_moderator_cannot_view_a_never_submitted_draft(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        """Same scope boundary as the moderator meta-edit endpoint (rule
+        30): a draft that's never been submitted stays purely private to
+        its owner, even from a moderator."""
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+
+        await _login(async_client, "owner@test.com")
+        res = await async_client.post(
+            "/api/v1/collections",
+            json={"name": "private-draft", "git_url": "https://example.com/repo.git"},
+        )
+        draft_id = res.json()["id"]
+        await async_client.post("/api/v1/auth/logout")
+
+        await _login(async_client, "mod@test.com")
+        res = await async_client.get(f"/api/v1/collections/{draft_id}")
+        assert res.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_moderator_can_view_an_unpublished_collection(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        await _create_user(db_session, "owner@test.com")
+        await _create_user(db_session, "mod@test.com", role="moderator")
+        collection_id = await _create_submitted_collection(async_client, db_session, "owner@test.com")
+        await _approve(async_client, collection_id, "mod@test.com")
+
+        await _login(async_client, "owner@test.com")
+        res = await async_client.post(f"/api/v1/collections/{collection_id}/unpublish")
+        assert res.status_code == 200
+        await async_client.post("/api/v1/auth/logout")
+
+        await _login(async_client, "mod@test.com")
+        res = await async_client.get(f"/api/v1/collections/{collection_id}")
+        assert res.status_code == 200

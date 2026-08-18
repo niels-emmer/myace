@@ -144,15 +144,12 @@ async def login_with_password(
         }
 
     request.session["user_id"] = str(user.id)
-    return UserRead(
-        id=user.id,
-        email=user.email,
-        display_name=user.display_name,
-        avatar_url=user.avatar_url,
-        is_active=user.is_active,
-        is_admin=user.is_admin,
-        created_at=user.created_at,
-    )
+    # This route has no response_model (it also returns the mfa_required
+    # dict above), so returning `user` directly would serialize the raw
+    # ORM row via jsonable_encoder — including password_hash, totp_secret,
+    # and reset_token_hash. Must go through UserRead explicitly to filter
+    # to public fields, same as every other user-serializing route.
+    return UserRead.model_validate(user)
 
 
 @router.post("/logout")

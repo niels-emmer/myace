@@ -24,7 +24,7 @@ export interface CanonicalArtifact {
 
 export type CollectionType = 'base' | 'additional';
 export type Visibility = 'private' | 'public';
-export type ModerationStatus = 'draft' | 'submitted' | 'approved' | 'denied';
+export type ModerationStatus = 'draft' | 'submitted' | 'approved' | 'denied' | 'unpublished';
 
 export interface Collection {
   id: string;

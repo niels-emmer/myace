@@ -37,3 +37,4 @@ ADR-00XX`.
 | [0010](0010-structured-handoff-field.md) | `handoff_to` field on agent artifacts, not a new join table | Accepted |
 | [0011](0011-public-demo-sandbox.md) | A stateless, rate-limited public demo endpoint | Accepted |
 | [0012](0012-manual-collection-freshness-verification.md) | Manual freshness verification, not automated content checking | Accepted |
+| [0013](0013-post-hoc-unpublish.md) | Post-hoc unpublish for approved collections | Accepted |

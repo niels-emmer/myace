@@ -603,3 +603,36 @@ the live target dropdown" test, which reproduces the exact scenario (compile
 with one target, switch the dropdown, download, assert the original target
 was used) — any future change to this component should keep that test
 passing rather than relying on manual reproduction.
+
+## A moderator/admin logs in but the Moderation/System nav item is missing until they reload
+
+**Symptom:** An account with `role="moderator"` or `role="admin"` (or
+`is_admin=True`) logs in with email+password and the Settings group in the
+sidebar (rule 38) only shows "Account" — no "Moderation"/"System". Reloading
+the page (or logging out and back in via SSO instead) makes the item appear
+immediately. `GET /api/v1/auth/me` returns the correct `role` the whole
+time.
+
+**Cause:** `POST /auth/login` (`login_with_password()` in
+`backend/app/api/auth.py`) used to hand-build its response as
+`UserRead(id=..., email=..., ..., is_admin=..., created_at=...)` and simply
+never listed `role` — so it silently fell back to `UserRead`'s field
+default, `"user"`, regardless of the account's actual role.
+`AuthContext.login()` sets `user` straight from this response, so the
+sidebar's `getSettingsGroup(user)` (`frontend/src/lib/navigation.ts`)
+correctly finds `role !== 'moderator' && role !== 'admin'` and hides the
+item — using stale, wrong data. It self-corrects on the next full page
+load because `AuthContext`'s mount-time `refresh()` calls `GET /auth/me`
+instead, which serializes the live `current_user` ORM row through
+`response_model=UserRead` and gets `role` right.
+
+**Fix:** `login_with_password()` now returns `UserRead.model_validate(user)`
+instead of a hand-built `UserRead(...)` — see rule 39 in `AGENTS.md` for
+why that's the right fix here specifically (and why returning the raw
+`user` ORM object instead would have been a different bug: this route has
+no `response_model`, so an unfiltered return would have leaked
+`password_hash`/`totp_secret`/`reset_token_hash`). See
+`backend/tests/test_role_management.py::TestLoginResponseIncludesRole` for
+the regression coverage — it asserts on the `POST /auth/login` response
+body directly, not a follow-up `/auth/me` call, since that's exactly the
+distinction this bug hid in.

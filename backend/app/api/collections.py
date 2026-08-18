@@ -1,6 +1,7 @@
 """Collection management routes."""
 
 import json
+import logging
 import uuid
 from datetime import UTC, date, datetime
 from typing import Literal
@@ -23,6 +24,10 @@ from app.models.artifact import (
 )
 from app.models.collection import Collection, CollectionCreate, CollectionRead, CollectionUpdate
 from app.models.user import User
+from app.services.effective_settings import get_effective_smtp_config
+from app.services.email import EmailSendError, build_moderation_unpublished_email, send_email
+
+logger = logging.getLogger("myace")
 
 router = APIRouter()
 
@@ -69,6 +74,25 @@ async def _get_collection_or_404(session: AsyncSession, collection_id: uuid.UUID
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
     return collection
+
+
+def _visible_to_moderator(collection: Collection, current_user: User) -> bool:
+    """Whether a non-owner should be able to read this collection: truly
+    public, or a moderator/admin reviewing something that has actually
+    entered the moderation lifecycle.
+
+    Mirrors update_collection_meta's scope (AGENTS.md rule 30): a `draft`
+    collection that's never been submitted is out of bounds even for a
+    moderator, since it's purely private to its owner. Once it's been
+    submitted/approved/denied/unpublished, a moderator/admin needs to be
+    able to actually open it to review it — `require_moderator_or_admin`
+    only gates the moderation-queue actions, not this read.
+    """
+    if collection.visibility == "public":
+        return True
+    if collection.moderation_status == "draft":
+        return False
+    return current_user.role in ("moderator", "admin")
 
 
 @router.post("", response_model=CollectionRead, status_code=status.HTTP_201_CREATED)
@@ -231,7 +255,7 @@ async def get_collection(
     collection = await _get_collection_or_404(session, collection_id)
     authorize_access(
         owner_id=collection.owner_id, current_user=current_user,
-        is_public=collection.visibility == "public", resource_name="Collection",
+        is_public=_visible_to_moderator(collection, current_user), resource_name="Collection",
     )
     return collection
 
@@ -271,7 +295,7 @@ async def list_collection_artifacts(
     collection = await _get_collection_or_404(session, collection_id)
     authorize_access(
         owner_id=collection.owner_id, current_user=current_user,
-        is_public=collection.visibility == "public", resource_name="Collection",
+        is_public=_visible_to_moderator(collection, current_user), resource_name="Collection",
     )
 
     query = select(Artifact).where(
@@ -346,7 +370,7 @@ async def get_artifact(
     collection = await _get_collection_or_404(session, collection_id)
     authorize_access(
         owner_id=collection.owner_id, current_user=current_user,
-        is_public=collection.visibility == "public", resource_name="Collection",
+        is_public=_visible_to_moderator(collection, current_user), resource_name="Collection",
     )
 
     result = await session.execute(
@@ -666,7 +690,7 @@ async def publish_collection(
         write=True, resource_name="Collection",
     )
 
-    if collection.moderation_status not in ("draft", "denied"):
+    if collection.moderation_status not in ("draft", "denied", "unpublished"):
         raise HTTPException(
             status_code=409,
             detail=f"Collection is already {collection.moderation_status}; cannot resubmit",
@@ -697,6 +721,68 @@ async def publish_collection(
     collection.submitted_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(collection)
+
+    return collection
+
+
+class UnpublishRequest(BaseModel):
+    """Optional body for POST /collections/{id}/unpublish."""
+    reason: str | None = None
+
+
+@router.post("/{collection_id}/unpublish", response_model=CollectionRead)
+async def unpublish_collection(
+    collection_id: uuid.UUID,
+    request: UnpublishRequest = UnpublishRequest(),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Take an approved collection back out of the community store.
+
+    Post-hoc, not a replacement for the pre-publication review in
+    app.api.moderation (see docs/adr/0008 and docs/adr/0013) — the owner or
+    a moderator/admin can pull an already-approved collection back to
+    private at any time. Only allowed from `approved` (409 otherwise).
+    Sets `moderation_status="unpublished"`, a distinct state from `draft`
+    (never submitted) and `denied` (rejected pre-publication) so the
+    collection's history stays legible. Getting back to the community
+    requires a fresh `publish` + moderator approval, same as `denied` —
+    there's no self-serve republish path.
+    """
+    collection = await _get_collection_or_404(session, collection_id)
+    is_owner = collection.owner_id == current_user.id
+    is_moderator = current_user.is_admin or current_user.role == "moderator"
+    if not (is_owner or is_moderator):
+        raise HTTPException(status_code=404, detail="Collection not found")
+
+    if collection.moderation_status != "approved":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Collection is {collection.moderation_status}, not approved; cannot unpublish",
+        )
+
+    collection.published = False
+    collection.visibility = "private"
+    collection.moderation_status = "unpublished"
+    collection.moderation_reason = request.reason.strip() if request.reason else None
+    collection.moderated_at = datetime.now(UTC)
+    collection.moderated_by = current_user.id
+    await session.commit()
+    await session.refresh(collection)
+
+    if not is_owner:
+        owner_result = await session.execute(select(User).where(User.id == collection.owner_id))
+        owner = owner_result.scalar_one_or_none()
+        if owner and owner.email:
+            try:
+                config = await get_effective_smtp_config(session)
+                if config.enabled:
+                    subject, body = build_moderation_unpublished_email(
+                        collection.name, collection.moderation_reason
+                    )
+                    await send_email(config=config, to=owner.email, subject=subject, text_body=body)
+            except EmailSendError:
+                logger.exception("Failed to send unpublish notification to a collection owner.")
 
     return collection
 

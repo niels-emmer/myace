@@ -134,6 +134,52 @@ class TestSetUserRole:
         assert resp.status_code == 422
 
 
+class TestLoginResponseIncludesRole:
+    """POST /auth/login used to hand-build its UserRead response and forgot
+    the role field, so a moderator/admin logging in with a password saw
+    role="user" until the next full page reload triggered GET /auth/me —
+    hiding the Moderation/System nav items right after login."""
+
+    @pytest.mark.asyncio
+    async def test_login_response_reports_moderator_role(
+        self, db_session: AsyncSession, async_client: AsyncClient
+    ):
+        await _create_user(db_session, "mod@test.com", role="moderator")
+
+        resp = await async_client.post(
+            "/api/v1/auth/login", json={"email": "mod@test.com", "password": "userpass123"}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["role"] == "moderator"
+
+    @pytest.mark.asyncio
+    async def test_login_response_reports_admin_role(
+        self, db_session: AsyncSession, async_client: AsyncClient
+    ):
+        await _create_user(db_session, "admin@test.com", is_admin=True)
+
+        resp = await async_client.post(
+            "/api/v1/auth/login", json={"email": "admin@test.com", "password": "userpass123"}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["role"] == "admin"
+
+    @pytest.mark.asyncio
+    async def test_login_response_does_not_leak_password_hash(
+        self, db_session: AsyncSession, async_client: AsyncClient
+    ):
+        await _create_user(db_session, "plain@test.com")
+
+        resp = await async_client.post(
+            "/api/v1/auth/login", json={"email": "plain@test.com", "password": "userpass123"}
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "password_hash" not in data
+        assert "totp_secret" not in data
+        assert "reset_token_hash" not in data
+
+
 class TestRoleBackfillMigration:
     @pytest.mark.asyncio
     async def test_backfill_sets_role_admin_for_every_is_admin_row(

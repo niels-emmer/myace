@@ -17,6 +17,7 @@ import {
   Trash2,
   MessageSquare,
   ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { collectionsApi, moderationApi, ratingsApi, commentsApi } from '../lib/api';
 import { FreshnessBadge } from '../components/FreshnessBadge';
@@ -65,6 +66,8 @@ export default function CommunityCollectionDetail() {
   const [metaDescription, setMetaDescription] = useState('');
   const [metaCategory, setMetaCategory] = useState('');
   const [commentDraft, setCommentDraft] = useState('');
+  const [showUnpublishModal, setShowUnpublishModal] = useState(false);
+  const [unpublishReason, setUnpublishReason] = useState('');
 
   const canEditMeta = user?.role === 'moderator' || user?.role === 'admin';
 
@@ -173,12 +176,28 @@ export default function CommunityCollectionDetail() {
     },
   });
 
+  const unpublishMutation = useMutation({
+    mutationFn: () => collectionsApi.unpublish(id!, unpublishReason.trim()),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['community-collection', id], updated);
+      queryClient.invalidateQueries({ queryKey: ['community-collections'] });
+      setShowUnpublishModal(false);
+      setUnpublishReason('');
+    },
+  });
+
   const openMetaEditModal = () => {
     updateMetaMutation.reset();
     setMetaName(collection?.name ?? '');
     setMetaDescription(collection?.description ?? '');
     setMetaCategory(collection?.category ?? '');
     setShowMetaEditModal(true);
+  };
+
+  const openUnpublishModal = () => {
+    unpublishMutation.reset();
+    setUnpublishReason('');
+    setShowUnpublishModal(true);
   };
 
   if (loadingCollection) {
@@ -270,6 +289,16 @@ export default function CommunityCollectionDetail() {
             >
               <Pencil className="h-3.5 w-3.5" />
               Edit metadata
+            </button>
+          )}
+          {canEditMeta && collection.moderation_status === 'approved' && (
+            <button
+              onClick={openUnpublishModal}
+              title="Remove this collection from the community store"
+              className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Unpublish
             </button>
           )}
           {importSuccess ? (
@@ -500,6 +529,58 @@ export default function CommunityCollectionDetail() {
           <p className="text-sm text-muted-foreground">No comments yet.</p>
         )}
       </div>
+
+      {/* Unpublish Modal (moderator/admin only) */}
+      {showUnpublishModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
+            <h2 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Unpublish &ldquo;{collection.name}&rdquo;?
+            </h2>
+            <p className="text-sm text-muted-foreground -mt-2">
+              This removes it from the community store and makes it private again. The owner
+              can edit it and resubmit for another review. They&rsquo;ll be emailed if you give
+              a reason below.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Reason <span className="text-muted-foreground">(optional)</span>
+              </label>
+              <textarea
+                value={unpublishReason}
+                onChange={(e) => setUnpublishReason(e.target.value)}
+                rows={3}
+                className={inputClass}
+                placeholder="Why is this being unpublished?"
+                autoFocus
+              />
+            </div>
+
+            {unpublishMutation.isError && (
+              <p className="text-sm text-destructive">
+                {(unpublishMutation.error as Error).message}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowUnpublishModal(false)}
+                className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => unpublishMutation.mutate()}
+                disabled={unpublishMutation.isPending}
+                className="px-4 py-2 bg-destructive text-white rounded-lg hover:bg-destructive/90 disabled:opacity-50 text-sm font-medium transition-colors"
+              >
+                {unpublishMutation.isPending ? 'Unpublishing...' : 'Unpublish'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Metadata Modal (moderator/admin only) */}
       {showMetaEditModal && (

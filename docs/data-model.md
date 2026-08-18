@@ -49,8 +49,8 @@ erDiagram
         bool is_starter_pack "true for the seeded starter collections"
         float avg_rating "denormalized cache of collection_ratings"
         int rating_count "denormalized cache of collection_ratings"
-        string moderation_status "draft | submitted | approved | denied"
-        string moderation_reason "nullable — set on deny"
+        string moderation_status "draft | submitted | approved | denied | unpublished"
+        string moderation_reason "nullable — set on deny or unpublish"
         datetime submitted_at "nullable"
         datetime moderated_at "nullable"
         uuid moderated_by FK "nullable — the reviewing moderator/admin"
@@ -166,11 +166,14 @@ passwordless system account — see the "Starter packs" section in
 `CLAUDE.md`. `avg_rating`/`rating_count` are a denormalized cache of
 `collection_ratings`, recomputed transactionally on every rating
 write/delete — see the `collection_ratings` section below.
-`moderation_status` (`draft`/`submitted`/`approved`/`denied`) is the
-single source of truth for the community-publishing lifecycle — see
-[ADR-0008](adr/0008-collection-moderation-state-machine.md) and the
-"Community collections" section below; `published`/`visibility` are only
-ever flipped to public by the approve action, never by submission itself.
+`moderation_status` (`draft`/`submitted`/`approved`/`denied`/
+`unpublished`) is the single source of truth for the community-publishing
+lifecycle — see [ADR-0008](adr/0008-collection-moderation-state-machine.md),
+[ADR-0013](adr/0013-post-hoc-unpublish.md), and the "Community collections"
+section below; `published`/`visibility` are only ever flipped to public by
+the approve action, never by submission itself. `unpublished` is reached
+from `approved` only, via the owner or a moderator/admin, and can only get
+back to `approved` through a fresh submit + approval — same as `denied`.
 `last_digest_download_count`/`last_digest_sent_at` are watermark fields
 for the daily download-digest script
 (`app/scripts/send_download_digests.py`), not exposed via the API.
@@ -447,6 +450,20 @@ Denying (`POST /moderation/{id}/deny`, body `{reason}`) sets
 `moderation_status` — never `git_url`/`git_branch`/artifact content, and
 never available to the collection's own owner (they use their existing
 `PATCH /collections/{id}` instead).
+
+`POST /collections/{id}/unpublish` (owner *or* moderator/admin, only from
+`approved`) sets `published = False`, `visibility = "private"`,
+`moderation_status = "unpublished"`, and reuses `moderation_reason`/
+`moderated_at`/`moderated_by` — see
+[ADR-0013](adr/0013-post-hoc-unpublish.md). Unlike `publish`/`approve`/
+`deny`, this one is deliberately available to both the owner and a
+moderator/admin, since pulling stale or reported content shouldn't require
+waiting on whichever side didn't notice first. Getting back to `approved`
+still requires a fresh `publish` + moderator approval, same as `denied`.
+`GET /collections/{id}` (and its artifacts routes) also allow read access
+to a non-admin moderator once `moderation_status != "draft"`, so they can
+actually open a submission's contents to review it, not just its queue-row
+metadata — see rule 40 in `AGENTS.md`.
 
 This is entirely separate from the seeded starter-pack set (`is_starter_pack
 = True`, owned by the system account — see the `collections` table above):

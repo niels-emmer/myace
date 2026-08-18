@@ -84,6 +84,7 @@ export default function CollectionDetail() {
   const [showDeleteCollectionModal, setShowDeleteCollectionModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareVisibility, setShareVisibility] = useState<Visibility>('private');
+  const [showUnpublishModal, setShowUnpublishModal] = useState(false);
 
   const { data: collection, isLoading: loadingCollection } = useQuery({
     queryKey: ['collection', id],
@@ -192,6 +193,16 @@ export default function CollectionDetail() {
     },
   });
 
+  const unpublishMutation = useMutation({
+    mutationFn: () => collectionsApi.unpublish(id!),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['collection', id], updated);
+      queryClient.invalidateQueries({ queryKey: ['collections'] });
+      queryClient.invalidateQueries({ queryKey: ['community-collections'] });
+      setShowUnpublishModal(false);
+    },
+  });
+
   const updateVisibilityMutation = useMutation({
     mutationFn: (visibility: Visibility) =>
       collectionsApi.update(id!, { visibility }),
@@ -274,6 +285,11 @@ export default function CollectionDetail() {
     setPublishName(collection.name);
     setPublishDescription(collection.description || '');
     setShowPublishModal(true);
+  };
+
+  const openUnpublishModal = () => {
+    unpublishMutation.reset();
+    setShowUnpublishModal(true);
   };
 
   return (
@@ -423,12 +439,12 @@ export default function CollectionDetail() {
               </button>
               {collection.moderation_status === 'approved' ? (
                 <button
-                  disabled
-                  title="Already approved and published"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200 cursor-default"
+                  onClick={openUnpublishModal}
+                  title="Take this collection back out of the community store"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
                 >
                   <BookOpen className="h-3.5 w-3.5" />
-                  Published
+                  Published — Unpublish
                 </button>
               ) : collection.moderation_status === 'submitted' ? (
                 <button
@@ -446,7 +462,9 @@ export default function CollectionDetail() {
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-muted border border-border text-foreground hover:bg-accent transition-colors"
                 >
                   <BookOpen className="h-3.5 w-3.5" />
-                  {collection.moderation_status === 'denied' ? 'Resubmit for review' : 'Submit for review'}
+                  {collection.moderation_status === 'denied' || collection.moderation_status === 'unpublished'
+                    ? 'Resubmit for review'
+                    : 'Submit for review'}
                 </button>
               )}
               <button
@@ -479,6 +497,22 @@ export default function CollectionDetail() {
             <p className="text-sm text-red-700 mt-1">
               Edit the collection, then use &ldquo;Resubmit for review&rdquo; above to send it
               back to the moderation queue.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {collection.moderation_status === 'unpublished' && (
+        <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">No longer published</p>
+            {collection.moderation_reason && (
+              <p className="text-sm text-amber-700 mt-1">{collection.moderation_reason}</p>
+            )}
+            <p className="text-sm text-amber-700 mt-1">
+              This collection was taken out of the community store and is private again.
+              Use &ldquo;Resubmit for review&rdquo; above to send it back to the moderation queue.
             </p>
           </div>
         </div>
@@ -769,6 +803,50 @@ export default function CollectionDetail() {
                 className="px-4 py-2 bg-destructive text-white rounded-lg hover:bg-destructive/90 disabled:opacity-50 text-sm font-medium transition-colors"
               >
                 {deleteCollectionMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unpublish Confirmation */}
+      {showUnpublishModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-100 rounded-lg flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-amber-700" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-card-foreground">
+                  Unpublish &ldquo;{collection.name}&rdquo;?
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This removes it from the community store and makes it private again. You can
+                  resubmit it for review later.
+                </p>
+              </div>
+            </div>
+
+            {unpublishMutation.isError && (
+              <p className="text-sm text-destructive">
+                {(unpublishMutation.error as Error).message}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowUnpublishModal(false)}
+                className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => unpublishMutation.mutate()}
+                disabled={unpublishMutation.isPending}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 text-sm font-medium transition-colors"
+              >
+                {unpublishMutation.isPending ? 'Unpublishing...' : 'Unpublish'}
               </button>
             </div>
           </div>

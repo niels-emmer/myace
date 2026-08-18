@@ -137,6 +137,12 @@ export const collectionsApi = {
     request<import('@/types').Collection>(`/collections/${collectionId}/verify`, {
       method: 'POST',
     }),
+
+  unpublish: (collectionId: string, reason?: string) =>
+    request<import('@/types').Collection>(`/collections/${collectionId}/unpublish`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || undefined }),
+    }),
 };
 
 // ─── Profiles ────────────────────────────────────────────────
