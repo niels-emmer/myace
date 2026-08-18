@@ -329,6 +329,15 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `seed_starter_collections()` on backend boot — seeded straight to
   `moderation_status="approved"`, never routed through the queue. Nothing
   a user publishes through the API ever flows into it automatically.
+- **`approved` can move to `unpublished`, post-hoc, via
+  `POST /{collection_id}/unpublish`** — callable by the collection's owner
+  *or* a moderator/admin (unlike `publish`/`approve`/`deny`, this one
+  deliberately isn't owner-vs-moderator exclusive). Sets
+  `published=False`, `visibility="private"`, reuses `moderation_reason`/
+  `moderated_at`/`moderated_by`. This doesn't reopen ADR-0008's
+  self-approval question — there's still no path back to `approved`
+  except a fresh `publish` + moderator approval. See
+  [ADR-0013](docs/adr/0013-post-hoc-unpublish.md) and rule 40.
 
 ### 19. Admin-Editable Secrets Must Go Through `app/core/crypto.py`
 
@@ -993,3 +1002,57 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   inside an existing group (add it to that group's `children` in
   `navigation.ts`) or genuinely needs a new group — don't add a new flat,
   ungrouped sidebar item.
+
+### 39. `POST /auth/login` Must Return the Real User, Not a Hand-Built `UserRead`
+
+- **`login_with_password()` (`backend/app/api/auth.py`) returns
+  `UserRead.model_validate(user)`, not a manually-constructed
+  `UserRead(...)`.** This route has no `response_model` (it also returns
+  an `{"mfa_required": ...}` dict when MFA is enabled), so whatever it
+  returns must already be shaped as public fields — but hand-listing
+  fields is exactly what caused the bug this rule exists to prevent: an
+  earlier version built `UserRead(id=..., email=..., ...)` by hand and
+  simply forgot `role` (and `notify_on_download`/`notify_on_comment`),
+  so every password login reported `role="user"` regardless of the
+  account's actual role, even for a real moderator/admin. `is_admin` was
+  listed explicitly and so wasn't affected, which is why this went
+  unnoticed for admins but silently hid the Settings → Moderation nav
+  item (rule 38) for moderators — until the next full page load, when
+  `AuthContext`'s mount-time `GET /auth/me` (which correctly serializes
+  `current_user` through `response_model=UserRead`) overwrote the stale
+  session state. If you add a new field to `UserRead` or `User`, this is
+  the one route where nothing forces you to update it — there's no
+  `response_model` to catch a drifted-by-hand return value at request
+  time the way FastAPI would everywhere else.
+- **Never `return user` (the raw ORM row) here either.** `User` is a
+  `SQLModel` table model — without a `response_model` to filter the
+  output, FastAPI's `jsonable_encoder` would serialize every column,
+  including `password_hash`, `totp_secret`, and `reset_token_hash`.
+  `UserRead.model_validate(user)` is the one line that's both correct
+  (reads every current field off the ORM object, nothing to drift) and
+  safe (still only emits `UserRead`'s public fields).
+
+### 40. Moderator Read Access to Collections Is Scoped by Lifecycle State, Not Just Role
+
+- **`_visible_to_moderator()` (`backend/app/api/collections.py`) is what
+  lets `GET /collections/{id}` (and the artifacts routes) work for a
+  moderator/admin viewing someone else's non-public collection** — plain
+  `authorize_access(is_public=collection.visibility=="public")` only ever
+  passed for the owner, an admin (via its unconditional bypass), or a
+  truly public collection, so a non-admin moderator could see a
+  submission's row in `GET /moderation/queue` but got a 404 opening it to
+  actually review its contents. The helper adds a read-only bypass for
+  `role in ("moderator", "admin")`, but **only once
+  `moderation_status != "draft"`** — a collection that's never been
+  submitted stays exactly as private as before, matching the scope
+  `update_collection_meta` (rule 30) already established. Don't widen this
+  to cover writes (artifact edits, collection metadata) — those still go
+  through `write=True` `authorize_access` calls untouched, or the
+  dedicated moderator-only meta-edit endpoint.
+- This is a read bypass on the shared `_get_collection_or_404` call sites
+  in `collections.py` specifically, not a change to `authorize_access`
+  itself (`app/core/authz.py`) — that helper is shared by profiles/sync/
+  auth too, where a blanket moderator bypass would be wrong. If a future
+  resource type needs the same "moderator can review, once it's actually
+  in the review pipeline" shape, copy the pattern locally rather than
+  teaching the shared helper about roles.

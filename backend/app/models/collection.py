@@ -129,7 +129,7 @@ class CollectionRead(SQLModel):
     is_starter_pack: bool = False
     avg_rating: float = 0.0
     rating_count: int = 0
-    moderation_status: Literal["draft", "submitted", "approved", "denied"] = "draft"
+    moderation_status: Literal["draft", "submitted", "approved", "denied", "unpublished"] = "draft"
     moderation_reason: str | None = None
     submitted_at: datetime | None = None
     moderated_at: datetime | None = None
