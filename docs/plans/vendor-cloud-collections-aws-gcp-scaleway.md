@@ -2,11 +2,16 @@
 
 ## Status
 
-**Not started.** Executable follow-up to the Azure first pass (merged via PR #127).
-Builds the remaining vendor collections using the established template from
+**In progress — AWS done, GCP and Scaleway pending.** Executable follow-up to
+the Azure first pass (merged via PR #127). Builds the remaining vendor
+collections using the established template from
 `docs/plans/vendor-cloud-collections.md` step 5, following the same workflow
 and governance as the Azure work. Research for all three providers is baked
 into this plan so execution needs no re-research.
+
+- **AWS** (`collections/additional/aws/`) — complete (AGENTS.md + 5 skills,
+  registered in `STARTER_COLLECTIONS`, README count updated). Shipped via
+  PR #___.
 
 ## Decisions (inherited from the Azure pass, apply to all three)
 

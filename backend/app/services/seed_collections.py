@@ -96,6 +96,15 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "posture. Layers on the vendor-agnostic iac-expert collection."
             ),
         },
+        "aws": {
+            "name": "AWS Cloud Architect",
+            "category": "Infrastructure",
+            "description": (
+                "AWS-specific architecture and governance — WAF pillars, CAF "
+                "landing zones, IAM identity, Security Hub/GuardDuty/Config "
+                "posture. Layers on the vendor-agnostic iac-expert collection."
+            ),
+        },
         "auditor": {
             "name": "Security Auditor",
             "category": "Governance & Security",
