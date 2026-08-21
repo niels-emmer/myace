@@ -203,6 +203,16 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "12-factor-agents principles."
             ),
         },
+        "eu-ai-act": {
+            "name": "EU AI Act Compliance",
+            "category": "Governance & Security",
+            "description": (
+                "Compliance persona for the EU AI Act (Regulation 2024/1689) — "
+                "risk-tier classification, high-risk/transparency/GPAI obligation "
+                "reviews, and compliance documentation drafts, grounded in the "
+                "Act's articles and 2026 enforcement timeline."
+            ),
+        },
     },
 }
 

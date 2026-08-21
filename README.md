@@ -17,9 +17,9 @@ picking one tool and losing the rest.
 A live instance runs at **[myace.macjuu.com](https://myace.macjuu.com)** —
 sign up and start building a profile in minutes, no setup required.
 
-MyACE ships with **19 starter collections** (3 base + 16 specializations)
-holding **210 artifacts** — 99 rules, 64 skills, 35 agents, and 12 commands —
-across **8 categories** and **102 tags**, and compiles to **12 target
+MyACE ships with **20 starter collections** (3 base + 17 specializations)
+holding **225 artifacts** — 106 rules, 69 skills, 38 agents, and 12 commands —
+across **8 categories** and **112 tags**, and compiles to **12 target
 frameworks** (Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline,
 Windsurf, Aider, Continue, Goose, Amazon Q Developer, and pi.dev). You can
 start from scratch and build your own rules, import governance from any
@@ -121,15 +121,16 @@ model.
   the community listing by rating/downloads/name, and opt into email
   notifications when your submissions get downloaded or commented on.
 - **Starter packs out of the box** — every fresh install seeds itself with 3
-  base collections (Vibecoder, Software Engineer, Data Scientist) and 16
+  base collections (Vibecoder, Software Engineer, Data Scientist) and 17
   specializations (Frontend, Backend, Infrastructure as Code Expert, Azure,
   AWS, Google Cloud, and Scaleway Cloud Architect, Security Auditor,
   Documentation Editor, Full-Stack Developer, DevOps/Platform Engineer,
   Java/Spring Developer, iOS Developer, Android Developer, Spec-Driven
-  Development, AI/LLM Engineering), so there's real, opinionated content to
-  build a first profile from on day one. This is a fixed, code-reviewed set
-  maintained in [`collections/`](collections/) — separate from user-published
-  community collections, and not affected by them.
+  Development, AI/LLM Engineering, EU AI Act Compliance), so there's real,
+  opinionated content to build a first profile from on day one. This is a
+  fixed, code-reviewed set maintained in [`collections/`](collections/) —
+  separate from user-published community collections, and not affected by
+  them.
 
 ### CLI & automation
 
