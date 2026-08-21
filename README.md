@@ -103,12 +103,12 @@ model.
   the community listing by rating/downloads/name, and opt into email
   notifications when your submissions get downloaded or commented on.
 - **Starter packs out of the box** — every fresh install seeds itself with 3
-  base collections (Vibecoder, Software Engineer, Data Scientist) and 12
-  specializations (Frontend, Backend, Infrastructure as Code Expert, Security
-  Auditor, Documentation Editor, Full-Stack Developer, DevOps/Platform
-  Engineer, Java/Spring Developer, iOS Developer, Android Developer,
-  Spec-Driven Development, AI/LLM Engineering), so there's real, opinionated
-  content to build a first profile from on day one.
+  base collections (Vibecoder, Software Engineer, Data Scientist) and 13
+  specializations (Frontend, Backend, Infrastructure as Code Expert, Azure
+  Cloud Architect, Security Auditor, Documentation Editor, Full-Stack
+  Developer, DevOps/Platform Engineer, Java/Spring Developer, iOS Developer,
+  Android Developer, Spec-Driven Development, AI/LLM Engineering), so there's
+  real, opinionated content to build a first profile from on day one.
   This is a fixed, code-reviewed set maintained in
   [`collections/`](collections/) — separate from user-published community
   collections, and not affected by them.
