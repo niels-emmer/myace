@@ -37,6 +37,7 @@ export default function Dashboard() {
 
   const communityTotal = communityData?.total;
   const categoryList = categories ?? [];
+  const appVersion: string = import.meta.env.VITE_APP_VERSION ?? 'dev';
 
   const stats = [
     {
@@ -74,16 +75,13 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground mt-1 max-w-2xl">
           MyACE lets you write your rules, skills, and agents once, then compile them into whatever
-          Claude Code, Cursor, OpenCode, or any other framework actually expects — no more
-          hand-maintaining a slightly different copy for every tool.
-        </p>
-        <p className="text-muted-foreground mt-1 max-w-2xl">
-          To start fresh or augment what&rsquo;s already on your machine, browse the{' '}
-          {communityTotal !== undefined ? communityTotal : 'many'} community collections
+          Claude Code, Cursor, OpenCode, or any other framework expects — no more hand-maintaining a
+          different copy per tool. Start afresh or augment what&rsquo;s on your machine by browsing
+          the {communityTotal !== undefined ? communityTotal : 'many'} community collections
           {categoryList.length > 0
             ? ` across categories like ${categoryList.slice(0, 5).join(', ')}`
             : ''}{' '}
-          and import the ones that fit.
+          and importing the ones that fit.
         </p>
       </div>
 
@@ -164,6 +162,17 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+          <p className="text-sm text-muted-foreground mt-4">
+            MyACE v{appVersion} ·{' '}
+            <a
+              href="https://github.com/niels-emmer/myace"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand-600 hover:underline"
+            >
+              github.com/niels-emmer/myace
+            </a>
+          </p>
         </div>
       )}
     </div>
