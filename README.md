@@ -14,9 +14,13 @@ format Claude Code, OpenCode, Cursor (and whatever comes next) actually
 expects — instead of hand-maintaining N slightly-different copies, or
 picking one tool and losing the rest.
 
-> **MyACE is under heavy development and changes near daily. Use at your own
-> risk.** Currently supporting **12 coding environments**, with a community
-> store holding **19 starter agent profiles** (3 base + 16 specializations).
+You can start from scratch and build your own rules, import governance from
+any GitHub repo (or a local config directory) and turn it into a portable
+collection, or browse the community collection for ready-made content. The
+starter packs ship with **19 collections** (3 base + 16 specializations)
+holding **210 artifacts** — 99 rules, 64 skills, 35 agents, and 12 commands —
+across **9 categories** and **104 tags**, so there's real, opinionated content
+to build a first profile from on day one.
 
 <table>
   <tr>
