@@ -11,7 +11,7 @@ into this plan so execution needs no re-research.
 
 - **AWS** (`collections/additional/aws/`) — complete (AGENTS.md + 5 skills,
   registered in `STARTER_COLLECTIONS`, README count updated). Shipped via
-  PR #___.
+  PR #129.
 
 ## Decisions (inherited from the Azure pass, apply to all three)
 
