@@ -13,6 +13,46 @@ into this plan so execution needs no re-research.
   registered in `STARTER_COLLECTIONS`, README count updated). Shipped via
   PR #129.
 
+## Handoff notes (AWS learnings — read before starting GCP)
+
+Captured from the AWS execution so the GCP/Scaleway passes start clean. The
+working tree is clean on `main`; the AWS collection is merged.
+
+- **Reference implementations to mirror exactly:** `collections/additional/aws/`
+  (just merged) and `collections/additional/azure/`. Same structure: one
+  `AGENTS.md` + five `SKILL.md` files, identical frontmatter fields
+  (`name`/`description`/`version`/`priority`/`compatibility`/`tags`), identical
+  `compatibility` list, `gcp-`/`scaleway-` prefix mirroring `aws-`/`azure-`.
+- **The plan's README count instruction is stale.** It says "13 → 16", but the
+  real count is derived from `collections/` dirs, not the plan. As of AWS merge:
+  **17 total (3 base + 14 specializations)**. GCP makes **18/15**, Scaleway
+  **19/16**. Update BOTH README references (line ~19 "N starter agent
+  profiles (3 base + M specializations)" and the "Starter packs out of the
+  box" bullet listing the specializations) and keep them consistent with each
+  other — the AWS pass initially got these wrong and a reviewer caught it.
+- **Branch/PR workflow:** one branch per vendor (`feat/gcp-cloud-collection`),
+  one PR, squash merge, delete branch. Branch from `main` (the plan doc is now
+  on `main`). Conventional commit: `feat: add Google Cloud Architect starter
+  collection`.
+- **Verification (all must pass before PR):** rule-29 collision grep across
+  `collections/*/*/skills/*/SKILL.md`; YAML frontmatter parse via the scanner's
+  `_parse_skill_file` (takes a `Path`, returns a dict); registry/disk match
+  (`collections/additional/gcp/` ↔ `STARTER_COLLECTIONS["additional"]["gcp"]`);
+  `cd backend && .venv/bin/pytest` (351 tests); `.venv/bin/ruff check .`;
+  `.venv/bin/mypy app` (must equal the 129-error `main` baseline, no new).
+- **`STARTER_COLLECTIONS` entry:** add `"gcp"` under `"additional"` in
+  `backend/app/services/seed_collections.py`, category `Infrastructure`, name
+  "Google Cloud Architect", description mirroring the AWS/Azure entries.
+- **GCP specifics to get right (from the research section below):** labels not
+  tags; Architecture Framework has 6 pillars (incl. Sustainability); GCAF has
+  4 themes (Learn/Lead/Scale/Secure); resource hierarchy Organization →
+  Folders → Projects; identity is IAM roles + service accounts + Workload
+  Identity Federation (avoid long-lived service-account keys); remote state
+  GCS + locking.
+- **Run `@security-auditor` and `@reviewer` before opening the PR.** The AWS
+  reviewer caught a real README count error; the security-auditor passed with
+  only an optional INFO. Expect the same review depth.
+
 ## Decisions (inherited from the Azure pass, apply to all three)
 
 - **Skills-only** — no per-vendor agents; reuse `iac-expert`'s
