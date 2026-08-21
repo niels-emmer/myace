@@ -14,7 +14,7 @@ into this plan so execution needs no re-research.
   PR #129.
 - **GCP** (`collections/additional/gcp/`) — complete (AGENTS.md + 5 skills,
   registered in `STARTER_COLLECTIONS`, README count updated). Shipped via
-  PR #__GCP_PR__.
+  PR #131.
 
 ## Handoff notes (AWS learnings — read before starting GCP)
 
