@@ -115,6 +115,17 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "vendor-agnostic iac-expert collection."
             ),
         },
+        "scaleway": {
+            "name": "Scaleway Cloud Architect",
+            "category": "Infrastructure",
+            "description": (
+                "Scaleway-specific architecture and governance — "
+                "Organization/Project structure, IAM permission-set scoping, "
+                "VPC/private-network topology, security groups, WAF edge "
+                "protection. Layers on the vendor-agnostic iac-expert "
+                "collection."
+            ),
+        },
         "auditor": {
             "name": "Security Auditor",
             "category": "Governance & Security",
