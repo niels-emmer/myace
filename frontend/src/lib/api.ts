@@ -40,6 +40,12 @@ export const collectionsApi = {
     return request<import('@/types').Collection[]>(`/collections${qs ? `?${qs}` : ''}`);
   },
 
+  create: (data: import('@/types').CollectionCreate) =>
+    request<import('@/types').Collection>('/collections', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   get: (id: string) =>
     request<import('@/types').Collection>(`/collections/${id}`),
 

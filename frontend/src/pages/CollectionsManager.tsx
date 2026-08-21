@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   FolderGit2,
   GitBranch,
@@ -7,11 +7,9 @@ import {
   Lock,
   ChevronRight,
   BookOpen,
-  Grid3X3,
-  Download,
   HardDrive,
   Github,
-  Star,
+  Plus,
 } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,6 +17,8 @@ import type { Collection } from '../types';
 
 export default function CollectionsManager() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: collections, isLoading } = useQuery({
     queryKey: ['collections', { owner_id: user?.id }],
@@ -26,13 +26,19 @@ export default function CollectionsManager() {
     enabled: !!user,
   });
 
-  const { data: communityData, isLoading: loadingTop } = useQuery({
-    queryKey: ['community-collections', 'preview'],
-    queryFn: () => collectionsApi.listCommunity({ limit: 10 }),
+  const createMutation = useMutation({
+    mutationFn: () =>
+      collectionsApi.create({
+        name: 'Untitled collection',
+        description: '',
+        collection_type: 'base',
+        git_url: 'manual://untitled',
+      }),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ['collections'] });
+      navigate(`/collections/${created.id}`);
+    },
   });
-
-  const topCommunity = communityData?.items;
-  const totalCommunity = communityData?.total ?? 0;
 
   return (
     <div className="space-y-8">
@@ -107,55 +113,33 @@ export default function CollectionsManager() {
             </div>
           </div>
         )}
-      </div>
 
-      {/* Community Collections */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-muted-foreground" />
-            Community Collections
-          </h2>
+        {/* Add a collection */}
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-foreground">Add a collection:</span>
+          <button
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors text-sm font-medium"
+          >
+            <Plus className="h-4 w-4" />
+            {createMutation.isPending ? 'Creating...' : 'New'}
+          </button>
+          <Link
+            to="/machine/import?source=git"
+            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
+          >
+            <Github className="h-4 w-4" />
+            From GitHub
+          </Link>
           <Link
             to="/collections/community"
-            className="flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
           >
-            <Grid3X3 className="h-4 w-4" />
-            Browse by category
-            <ChevronRight className="h-4 w-4" />
+            <BookOpen className="h-4 w-4" />
+            From the Community Collections
           </Link>
         </div>
-        <p className="text-sm text-muted-foreground mb-4">
-          Discover collections published by the MyACE community. Import them into your workspace with one click.
-        </p>
-
-        {loadingTop ? (
-          <div className="text-center py-8 text-muted-foreground">Loading community collections...</div>
-        ) : topCommunity && topCommunity.length > 0 ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {topCommunity.map((collection) => (
-                <CommunityCollectionCard key={collection.id} collection={collection} />
-              ))}
-            </div>
-            {totalCommunity > 10 && (
-              <p className="text-center text-sm text-muted-foreground mt-4">
-                First 10 collections shown,{' '}
-                <Link
-                  to="/collections/community"
-                  className="text-brand-600 hover:underline font-medium"
-                >
-                  click here to view all community collections
-                </Link>
-              </p>
-            )}
-          </>
-        ) : (
-          <div className="text-center py-8 bg-card rounded-xl border border-border">
-            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground">No community collections yet. Be the first to publish!</p>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -207,61 +191,6 @@ function CollectionCard({ collection }: { collection: Collection }) {
             published
           </span>
         )}
-      </div>
-    </Link>
-  );
-}
-
-function CommunityCollectionCard({ collection }: { collection: Collection }) {
-  return (
-    <Link
-      to={`/collections/community/${collection.id}`}
-      className="block bg-card rounded-xl border border-border p-5 hover:shadow-sm transition-shadow group"
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-card-foreground group-hover:text-brand-600 transition-colors">
-            {collection.name}
-          </h3>
-          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
-            {collection.description || 'No description'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-            collection.collection_type === 'base'
-              ? 'bg-blue-50 text-blue-700'
-              : 'bg-purple-50 text-purple-700'
-          }`}>
-            {collection.collection_type}
-          </span>
-          <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-brand-600 transition-colors" />
-        </div>
-      </div>
-      <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-4 min-w-0">
-          {collection.category && (
-            <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium flex-shrink-0">
-              {collection.category}
-            </span>
-          )}
-          <span className="flex items-center gap-1 flex-shrink-0">
-            <Download className="h-3 w-3" />
-            {collection.download_count} downloads
-          </span>
-          <span className="flex-shrink-0">{collection.artifact_count} artifacts</span>
-        </div>
-        <span className="flex items-center gap-1 flex-shrink-0">
-          <Star
-            className={`h-3 w-3 ${
-              collection.rating_count > 0
-                ? 'fill-amber-400 text-amber-400'
-                : 'text-muted-foreground/40'
-            }`}
-          />
-          {collection.avg_rating.toFixed(1)}
-          <span className="text-muted-foreground/70">({collection.rating_count})</span>
-        </span>
       </div>
     </Link>
   );

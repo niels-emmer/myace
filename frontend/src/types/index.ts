@@ -78,6 +78,16 @@ export interface CollectionComment {
   created_at: string;
 }
 
+export interface CollectionCreate {
+  name: string;
+  description?: string;
+  git_url: string;
+  git_branch?: string;
+  collection_type?: CollectionType;
+  visibility?: Visibility;
+  category?: string;
+}
+
 export interface CollectionUpdate {
   name?: string;
   description?: string;

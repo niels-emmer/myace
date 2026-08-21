@@ -25,13 +25,28 @@ export default function Dashboard() {
     queryFn: () => adaptersApi.list(),
   });
 
+  const { data: communityData } = useQuery({
+    queryKey: ['community-collections', 'dashboard'],
+    queryFn: () => collectionsApi.listCommunity({ limit: 1 }),
+  });
+
+  const { data: categories } = useQuery({
+    queryKey: ['community-categories'],
+    queryFn: () => collectionsApi.listCommunityCategories(),
+  });
+
+  const communityTotal = communityData?.total;
+  const categoryList = categories ?? [];
+
   const stats = [
     {
       label: 'Collections',
       value: collections?.length ?? 0,
       icon: FolderGit2,
       color: 'text-blue-600 bg-blue-50',
-      href: '/collections/mine',
+      href: '/collections',
+      description:
+        'Collections are groups of artifacts — rules, skills, agents, and workflows — that serve a role or specific function in agentic coding.',
     },
     {
       label: 'Profiles',
@@ -39,6 +54,8 @@ export default function Dashboard() {
       icon: SlidersHorizontal,
       color: 'text-purple-600 bg-purple-50',
       href: '/build/profiles',
+      description:
+        'A Profile is a named recipe — a base collection plus any additional ones, with individual rules, skills, and agents toggled on or off — not a duplicated file tree.',
     },
     {
       label: 'Target Adapters',
@@ -46,6 +63,8 @@ export default function Dashboard() {
       icon: Download,
       color: 'text-green-600 bg-green-50',
       href: '/build/compile',
+      description:
+        'Adapters translate your compiled profile into the exact file layout each framework expects — Claude Code, Cursor, OpenCode, and more.',
     },
   ];
 
@@ -54,9 +73,17 @@ export default function Dashboard() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground mt-1 max-w-2xl">
-          Write your rules, skills, and agents once, then compile them into whatever Claude Code,
-          Cursor, OpenCode, or any other framework actually expects — no more hand-maintaining a
-          slightly different copy for every tool.
+          MyACE lets you write your rules, skills, and agents once, then compile them into whatever
+          Claude Code, Cursor, OpenCode, or any other framework actually expects — no more
+          hand-maintaining a slightly different copy for every tool.
+        </p>
+        <p className="text-muted-foreground mt-1 max-w-2xl">
+          To start fresh or augment what&rsquo;s already on your machine, browse the{' '}
+          {communityTotal !== undefined ? communityTotal : 'many'} community collections
+          {categoryList.length > 0
+            ? ` across categories like ${categoryList.slice(0, 5).join(', ')}`
+            : ''}{' '}
+          and import the ones that fit.
         </p>
       </div>
 
@@ -66,15 +93,18 @@ export default function Dashboard() {
           <Link
             key={stat.label}
             to={stat.href}
-            className="bg-card rounded-xl border border-border p-6 flex items-center gap-4 hover:shadow-sm hover:border-input transition-shadow"
+            className="bg-card rounded-xl border border-border p-6 hover:shadow-sm hover:border-input transition-shadow"
           >
-            <div className={`p-3 rounded-lg ${stat.color}`}>
-              <stat.icon className="h-6 w-6" />
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-lg ${stat.color}`}>
+                <stat.icon className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">{stat.label}</p>
+                <p className="text-2xl font-bold text-card-foreground">{stat.value}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-              <p className="text-2xl font-bold text-card-foreground">{stat.value}</p>
-            </div>
+            <p className="text-sm text-muted-foreground mt-3">{stat.description}</p>
           </Link>
         ))}
       </div>
