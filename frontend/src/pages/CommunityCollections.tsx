@@ -27,20 +27,27 @@ const SORT_LABELS: Record<SortOption, string> = {
 
 export default function CommunityCollections() {
   const [collectionType, setCollectionType] = useState<string | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
   const [sort, setSort] = useState<SortOption>('downloads');
   const [page, setPage] = useState(0);
 
   const offset = page * PAGE_SIZE;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['community-collections', { type: collectionType, sort, page }],
+    queryKey: ['community-collections', { type: collectionType, category, sort, page }],
     queryFn: () =>
       collectionsApi.listCommunity({
         ...(collectionType ? { type: collectionType } : {}),
+        ...(category ? { category } : {}),
         sort,
         offset,
         limit: PAGE_SIZE,
       }),
+  });
+
+  const { data: categories } = useQuery({
+    queryKey: ['community-categories'],
+    queryFn: () => collectionsApi.listCommunityCategories(),
   });
 
   const collections = data?.items ?? [];
@@ -49,6 +56,12 @@ export default function CommunityCollections() {
 
   const handleTypeChange = (type: string | null) => {
     setCollectionType(type);
+    setCategory(null);
+    setPage(0);
+  };
+
+  const handleCategoryChange = (cat: string | null) => {
+    setCategory(cat);
     setPage(0);
   };
 
@@ -127,6 +140,35 @@ export default function CommunityCollections() {
         </select>
       </div>
 
+      {/* Category filter — only shown for additional collections */}
+      {collectionType === 'additional' && categories && categories.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => handleCategoryChange(null)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+              category === null
+                ? 'border-brand-500 bg-brand-50 text-brand-700'
+                : 'border-border text-muted-foreground hover:border-input hover:text-accent-foreground'
+            }`}
+          >
+            All
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => handleCategoryChange(cat)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                category === cat
+                  ? 'border-brand-500 bg-brand-50 text-brand-700'
+                  : 'border-border text-muted-foreground hover:border-input hover:text-accent-foreground'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Collection list */}
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Loading collections...</div>
@@ -204,7 +246,7 @@ function CommunityCollectionCard({ collection }: { collection: Collection }) {
           <h3 className="font-semibold text-card-foreground group-hover:text-brand-600 transition-colors">
             {collection.name}
           </h3>
-          <p className="text-sm text-muted-foreground mt-0.5 truncate">
+          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-3">
             {collection.description || 'No description'}
           </p>
         </div>
