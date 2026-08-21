@@ -17,7 +17,7 @@ into this plan so execution needs no re-research.
   PR #131.
 - **Scaleway** (`collections/additional/scaleway/`) — complete (AGENTS.md + 3
   skills, registered in `STARTER_COLLECTIONS`, README count updated). Shipped
-  via PR #__SCALEWAY_PR__.
+  via PR #132.
 
 ## Handoff notes (AWS learnings — read before starting GCP)
 
