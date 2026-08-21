@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
-import { Workflow, GitBranch, ArrowLeft, FolderGit2, Wrench } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Workflow, GitBranch, ArrowLeft, FolderGit2, Wrench, Pencil } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { collectionsApi } from '../lib/api';
 import {
   formatAgentName,
@@ -140,6 +140,7 @@ function RecipeCard({ recipe, onSelect }: { recipe: Recipe; onSelect: () => void
 
 export default function OrchestrationGallery() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const { data: ownedCollections, isLoading: loadingOwned } = useQuery({
     queryKey: ['collections'],
@@ -199,12 +200,30 @@ export default function OrchestrationGallery() {
   if (selectedRecipe && flowGraph) {
     return (
       <div className="space-y-6">
-        <button
-          onClick={() => setSelectedKey(null)}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to gallery
-        </button>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <button
+            onClick={() => setSelectedKey(null)}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to gallery
+          </button>
+          <button
+            onClick={() =>
+              navigate('/build/orchestration/build', {
+                state: {
+                  editRecipe: {
+                    collectionId: selectedRecipe.collectionId,
+                    collectionName: selectedRecipe.collectionName,
+                    primary: selectedRecipe.primary,
+                  },
+                },
+              })
+            }
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors flex-shrink-0"
+          >
+            <Pencil className="h-4 w-4" /> Edit pipeline
+          </button>
+        </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Workflow className="h-6 w-6 text-muted-foreground" />

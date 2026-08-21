@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ArrowUp, ArrowDown, X, Wrench, Save, Info } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, X, Wrench, Save, Info, Pencil } from 'lucide-react';
 import { collectionsApi, profilesApi } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -11,7 +11,7 @@ import {
   type PipelineNodeSpec,
   type PipelineEdgeSpec,
 } from '../components/PipelineFlow';
-import type { Artifact, ArtifactCreate } from '../types';
+import type { Artifact, ArtifactCreate, EditRecipeState } from '../types';
 
 // ─── Pipeline composition wizard (Epic 3.4) ─────────────────────
 //
@@ -53,11 +53,16 @@ function buildBody(names: string[]): string {
 export default function OrchestratorBuilder() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const location = useLocation();
+
+  // When arriving via the gallery's "Edit pipeline" button, the recipe's
+  // fields are carried in router state so the wizard opens prefilled.
+  const editRecipe = (location.state as { editRecipe?: EditRecipeState } | null)?.editRecipe;
 
   const [profileId, setProfileId] = useState('');
-  const [sequence, setSequence] = useState<string[]>([]);
-  const [agentName, setAgentName] = useState('pipeline-orchestrator');
-  const [description, setDescription] = useState('');
+  const [sequence, setSequence] = useState<string[]>(editRecipe?.primary.handoff_to ?? []);
+  const [agentName, setAgentName] = useState(editRecipe?.primary.name ?? 'pipeline-orchestrator');
+  const [description, setDescription] = useState(editRecipe?.primary.description ?? '');
   const [targetCollectionId, setTargetCollectionId] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedArtifactName, setSavedArtifactName] = useState<string | null>(null);
@@ -73,7 +78,32 @@ export default function OrchestratorBuilder() {
     enabled: !!user,
   });
 
-  const profile = profiles?.find((p) => p.id === profileId) ?? null;
+  // The recipe's collection may not be part of any of the user's profiles
+  // (e.g. a starter pack), so the profile/collection prefill is best-effort:
+  // pick the first profile that includes the recipe's collection, and default
+  // the save target to the recipe's own collection only if the user owns it.
+  // These are derived fallbacks, not state — an explicit user selection in
+  // the selects below always wins over the suggestion.
+  const suggestedProfileId = useMemo(() => {
+    if (!editRecipe || !profiles) return '';
+    return (
+      profiles.find((p) =>
+        [p.base_collection_id, ...p.additional_collection_ids].includes(editRecipe.collectionId),
+      )?.id ?? ''
+    );
+  }, [editRecipe, profiles]);
+
+  const suggestedTargetCollectionId = useMemo(() => {
+    if (!editRecipe || !ownedCollections) return '';
+    return ownedCollections.some((c) => c.id === editRecipe.collectionId)
+      ? editRecipe.collectionId
+      : '';
+  }, [editRecipe, ownedCollections]);
+
+  const effectiveProfileId = profileId || suggestedProfileId;
+  const effectiveTargetCollectionId = targetCollectionId || suggestedTargetCollectionId;
+
+  const profile = profiles?.find((p) => p.id === effectiveProfileId) ?? null;
   const resourceCollectionIds = profile
     ? [profile.base_collection_id, ...profile.additional_collection_ids]
     : [];
@@ -149,10 +179,11 @@ export default function OrchestratorBuilder() {
   const nameCollidesWithSequence = sequence.includes(slug);
 
   const createMutation = useMutation({
-    mutationFn: (data: ArtifactCreate) => collectionsApi.createArtifact(targetCollectionId, data),
+    mutationFn: (data: ArtifactCreate) =>
+      collectionsApi.createArtifact(effectiveTargetCollectionId, data),
     onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: ['artifacts', targetCollectionId] });
-      queryClient.invalidateQueries({ queryKey: ['collection', targetCollectionId] });
+      queryClient.invalidateQueries({ queryKey: ['artifacts', effectiveTargetCollectionId] });
+      queryClient.invalidateQueries({ queryKey: ['collection', effectiveTargetCollectionId] });
       setSaveError(null);
       setSavedArtifactName(created.name);
     },
@@ -160,7 +191,10 @@ export default function OrchestratorBuilder() {
   });
 
   const canSave =
-    sequence.length > 0 && !!targetCollectionId && slug.length > 0 && !nameCollidesWithSequence;
+    sequence.length > 0 &&
+    !!effectiveTargetCollectionId &&
+    slug.length > 0 &&
+    !nameCollidesWithSequence;
 
   const handleSave = () => {
     if (!canSave) return;
@@ -194,6 +228,16 @@ export default function OrchestratorBuilder() {
           Pick a profile, choose a linear sequence of its agents, and generate a new orchestrator
           agent that routes work through them in order.
         </p>
+        {editRecipe && (
+          <p className="text-sm text-brand-700 bg-brand-50 border border-brand-200 rounded-lg px-3 py-2 mt-3 flex items-start gap-2">
+            <Pencil className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <span>
+              Editing <code className="font-mono text-xs">{editRecipe.primary.name}</code> from{' '}
+              <span className="font-medium">{editRecipe.collectionName}</span>. Fields are prefilled
+              from the current recipe — adjust and save to generate an updated orchestrator.
+            </span>
+          </p>
+        )}
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3 flex items-start gap-2">
           <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
           <span>
@@ -208,7 +252,7 @@ export default function OrchestratorBuilder() {
       <div>
         <label className="block text-sm font-medium text-foreground mb-1">Profile</label>
         <select
-          value={profileId}
+          value={effectiveProfileId}
           onChange={(e) => {
             setProfileId(e.target.value);
             setSequence([]);
@@ -339,7 +383,7 @@ export default function OrchestratorBuilder() {
                 Save into collection
               </label>
               <select
-                value={targetCollectionId}
+                value={effectiveTargetCollectionId}
                 onChange={(e) => setTargetCollectionId(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
               >

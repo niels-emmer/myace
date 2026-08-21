@@ -1,8 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import OrchestrationGallery from './OrchestrationGallery';
+import { ThemeProvider } from '../contexts/ThemeContext';
 import { collectionsApi } from '../lib/api';
 import type { Collection, Artifact, CommunityCollectionsResponse } from '../types';
 
@@ -30,9 +31,11 @@ function renderPage() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <OrchestrationGallery />
-      </MemoryRouter>
+      <ThemeProvider>
+        <MemoryRouter>
+          <OrchestrationGallery />
+        </MemoryRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
@@ -78,6 +81,11 @@ function makeAgent(overrides: Partial<Artifact>): Artifact {
 
 const emptyCommunity: CommunityCollectionsResponse = { items: [], total: 0 };
 
+function EditStateProbe() {
+  const state = useLocation().state as { editRecipe?: { primary?: { name?: string } } } | null;
+  return <span data-testid="edit-state">{state?.editRecipe?.primary?.name ?? 'none'}</span>;
+}
+
 describe('OrchestrationGallery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -122,6 +130,48 @@ describe('OrchestrationGallery', () => {
     expect(await screen.findByText('Back to gallery')).toBeInTheDocument();
     expect(screen.getAllByText('Builder').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Verifier').length).toBeGreaterThan(0);
+  });
+
+  it('navigates to the builder with the recipe prefilled when Edit pipeline is clicked', async () => {
+    (collectionsApi.list as ReturnType<typeof vi.fn>).mockResolvedValue([collection]);
+    (collectionsApi.listCommunity as ReturnType<typeof vi.fn>).mockResolvedValue(emptyCommunity);
+    (collectionsApi.getArtifacts as ReturnType<typeof vi.fn>).mockResolvedValue([
+      makeAgent({
+        name: 'orchestrator',
+        tags: ['mode:primary'],
+        handoff_to: ['builder'],
+        description: 'Routes work through the pipeline.',
+      }),
+      makeAgent({ name: 'builder', tags: ['mode:subagent'] }),
+    ]);
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <MemoryRouter initialEntries={['/build/orchestration']}>
+            <Routes>
+              <Route path="/build/orchestration" element={<OrchestrationGallery />} />
+              <Route
+                path="/build/orchestration/build"
+                element={
+                  <div>
+                    builder-page
+                    <EditStateProbe />
+                  </div>
+                }
+              />
+            </Routes>
+          </MemoryRouter>
+        </ThemeProvider>
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(await screen.findByText('Orchestrator'));
+    fireEvent.click(await screen.findByRole('button', { name: /edit pipeline/i }));
+
+    expect(await screen.findByText('builder-page')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-state').textContent).toBe('orchestrator');
   });
 
   it('marks a dangling handoff_to target as not found instead of dropping it', async () => {

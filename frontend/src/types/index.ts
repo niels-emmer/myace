@@ -116,6 +116,16 @@ export interface Artifact {
   updated_at: string;
 }
 
+/** The subset of a recipe the Orchestration Gallery hands to the pipeline
+ * composition wizard when the user clicks "Edit pipeline" — enough to
+ * prefill the wizard's fields (agent name, handoff sequence, description)
+ * without carrying the whole (non-serializable) recipe graph. */
+export interface EditRecipeState {
+  collectionId: string;
+  collectionName: string;
+  primary: Artifact;
+}
+
 // ─── Profile Types ───────────────────────────────────────────
 
 export interface Profile {
