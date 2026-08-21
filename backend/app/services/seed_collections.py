@@ -105,6 +105,16 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "posture. Layers on the vendor-agnostic iac-expert collection."
             ),
         },
+        "gcp": {
+            "name": "Google Cloud Architect",
+            "category": "Infrastructure",
+            "description": (
+                "GCP-specific architecture and governance — Architecture "
+                "Framework pillars, GCAF landing zones, IAM/service-account "
+                "identity, Security Command Center posture. Layers on the "
+                "vendor-agnostic iac-expert collection."
+            ),
+        },
         "auditor": {
             "name": "Security Auditor",
             "category": "Governance & Security",
