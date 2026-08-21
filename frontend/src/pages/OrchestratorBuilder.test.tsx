@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import OrchestratorBuilder from './OrchestratorBuilder';
 import { AuthProvider } from '../contexts/AuthContext';
+import { ThemeProvider } from '../contexts/ThemeContext';
 import { collectionsApi, profilesApi, authApi } from '../lib/api';
 import type { Profile, Collection, Artifact, User } from '../types';
 
@@ -92,17 +93,19 @@ function makeAgent(overrides: Partial<Artifact>): Artifact {
   };
 }
 
-function renderPage() {
+function renderPage(initialEntries?: Parameters<typeof MemoryRouter>[0]['initialEntries']) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <AuthProvider>
-          <OrchestratorBuilder />
-        </AuthProvider>
-      </MemoryRouter>
+      <ThemeProvider>
+        <MemoryRouter initialEntries={initialEntries}>
+          <AuthProvider>
+            <OrchestratorBuilder />
+          </AuthProvider>
+        </MemoryRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
@@ -175,6 +178,40 @@ describe('OrchestratorBuilder', () => {
     });
 
     expect(await screen.findByRole('link', { name: /orchestration gallery/i })).toBeInTheDocument();
+  });
+
+  it('prefills fields from an edit-recipe passed via router state', async () => {
+    renderPage([
+      {
+        pathname: '/build/orchestration/build',
+        state: {
+          editRecipe: {
+            collectionId: 'collection-1',
+            collectionName: 'Software Engineer',
+            primary: makeAgent({
+              name: 'orchestrator',
+              description: 'Routes work through specialists.',
+              handoff_to: ['builder', 'verifier'],
+            }),
+          },
+        },
+      },
+    ]);
+
+    // Editing banner names the recipe and its source collection.
+    expect(
+      await screen.findByText(
+        (_, el) => (el?.tagName === 'P' && el?.textContent?.includes('Editing orchestrator from Software Engineer')) ?? false
+      )
+    ).toBeInTheDocument();
+
+    // Agent name input is prefilled from the recipe's primary agent.
+    expect(await screen.findByDisplayValue('orchestrator')).toBeInTheDocument();
+
+    // The handoff sequence is prefilled and rendered in the sequence panel.
+    expect(await screen.findByText('Pipeline sequence')).toBeInTheDocument();
+    expect(screen.getAllByText('Builder').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Verifier').length).toBeGreaterThan(0);
   });
 
   it('blocks saving when the new agent name collides with a sequence member', async () => {

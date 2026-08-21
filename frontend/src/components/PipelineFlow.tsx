@@ -2,6 +2,7 @@ import { ReactFlow, Background, Controls, Position, MarkerType } from '@xyflow/r
 import type { Node, Edge, NodeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { HelpCircle } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Shared building blocks for rendering a pipeline as a flow diagram — used
 // by both the Orchestration Gallery (Epic 3.3, diagramming a real,
@@ -38,7 +39,11 @@ function PipelineNode({ data }: NodeProps) {
       }`}
       title={description || (isMissing ? `${label} is not defined in this collection` : undefined)}
     >
-      <div className={`text-sm font-medium truncate ${isMissing ? 'text-destructive' : 'text-card-foreground'}`}>
+      <div
+        className={`text-sm font-medium truncate ${
+          isMissing ? 'text-destructive' : isPrimary ? 'text-brand-700' : 'text-card-foreground'
+        }`}
+      >
         {label}
       </div>
       {isMissing ? (
@@ -46,7 +51,9 @@ function PipelineNode({ data }: NodeProps) {
           <HelpCircle className="h-3 w-3" /> not found
         </div>
       ) : description ? (
-        <div className="text-xs text-muted-foreground truncate mt-0.5">{description}</div>
+        <div className={`text-xs truncate mt-0.5 ${isPrimary ? 'text-brand-700/70' : 'text-muted-foreground'}`}>
+          {description}
+        </div>
       ) : null}
     </div>
   );
@@ -120,6 +127,7 @@ export function layoutPipeline(
 }
 
 export function PipelineFlowDiagram({ nodes, edges }: { nodes: Node[]; edges: Edge[] }) {
+  const { resolvedTheme } = useTheme();
   return (
     <div className="bg-card border border-border rounded-xl h-[520px]">
       <ReactFlow
@@ -133,6 +141,7 @@ export function PipelineFlowDiagram({ nodes, edges }: { nodes: Node[]; edges: Ed
         zoomOnScroll={false}
         fitView
         proOptions={{ hideAttribution: true }}
+        className={resolvedTheme === 'dark' ? 'dark' : undefined}
       >
         <Background gap={20} />
         <Controls showInteractive={false} />
