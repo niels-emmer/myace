@@ -2,7 +2,7 @@
 
 ## Status
 
-**In progress — AWS done, GCP and Scaleway pending.** Executable follow-up to
+**In progress — AWS and GCP done, Scaleway pending.** Executable follow-up to
 the Azure first pass (merged via PR #127). Builds the remaining vendor
 collections using the established template from
 `docs/plans/vendor-cloud-collections.md` step 5, following the same workflow
@@ -12,6 +12,9 @@ into this plan so execution needs no re-research.
 - **AWS** (`collections/additional/aws/`) — complete (AGENTS.md + 5 skills,
   registered in `STARTER_COLLECTIONS`, README count updated). Shipped via
   PR #129.
+- **GCP** (`collections/additional/gcp/`) — complete (AGENTS.md + 5 skills,
+  registered in `STARTER_COLLECTIONS`, README count updated). Shipped via
+  PR #__GCP_PR__.
 
 ## Handoff notes (AWS learnings — read before starting GCP)
 
