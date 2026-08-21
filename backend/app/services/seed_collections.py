@@ -83,8 +83,17 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
             "name": "Infrastructure as Code Expert",
             "category": "Infrastructure",
             "description": (
-                "Cloud-agnostic IaC governance (Azure CAF/WAF worked example) — invariants, "
-                "naming, approval-gated applies, documented exceptions."
+                "Cloud-agnostic IaC governance — invariants, naming, approval-gated "
+                "applies, documented exceptions, well-architected pillar review."
+            ),
+        },
+        "azure": {
+            "name": "Azure Cloud Architect",
+            "category": "Infrastructure",
+            "description": (
+                "Azure-specific architecture and governance — WAF pillars, CAF "
+                "landing zones, Entra ID identity, Azure Policy/Defender security "
+                "posture. Layers on the vendor-agnostic iac-expert collection."
             ),
         },
         "auditor": {
