@@ -14,13 +14,17 @@ format Claude Code, OpenCode, Cursor (and whatever comes next) actually
 expects — instead of hand-maintaining N slightly-different copies, or
 picking one tool and losing the rest.
 
-You can start from scratch and build your own rules, import governance from
-any GitHub repo (or a local config directory) and turn it into a portable
-collection, or browse the community collection for ready-made content. The
-starter packs ship with **19 collections** (3 base + 16 specializations)
-holding **210 artifacts** — 99 rules, 64 skills, 35 agents, and 12 commands —
-across **9 categories** and **104 tags**, so there's real, opinionated content
-to build a first profile from on day one.
+A live instance runs at **[myace.macjuu.com](https://myace.macjuu.com)** —
+sign up and start building a profile in minutes, no setup required.
+
+MyACE ships with **20 starter collections** (3 base + 17 specializations)
+holding **225 artifacts** — 106 rules, 69 skills, 38 agents, and 12 commands —
+across **8 categories** and **112 tags**, and compiles to **12 target
+frameworks** (Claude Code, OpenCode, Cursor, Codex CLI, Copilot CLI, Cline,
+Windsurf, Aider, Continue, Goose, Amazon Q Developer, and pi.dev). You can
+start from scratch and build your own rules, import governance from any
+GitHub repo (or a local config directory) and turn it into a portable
+collection, or browse the community store for ready-made content.
 
 <table>
   <tr>
@@ -79,6 +83,14 @@ model.
 
 ## Features
 
+### Compose & compile
+
+- **Compile to any supported framework** — one click (or `myace pull`) turns
+  a profile into the exact files 12 frameworks expect: Claude Code, OpenCode,
+  Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider, Continue, Goose,
+  Amazon Q Developer, and pi.dev. See
+  [docs/adapters-research.md](docs/adapters-research.md) for each adapter's
+  exact output format.
 - **Import from anywhere** — scan a local config directory (`~/.claude`,
   `~/.config/opencode`, `~/.cursor`) or a GitHub repo, pick exactly which
   rules/skills/agents to bring in, and they become a portable **Collection**.
@@ -90,33 +102,38 @@ model.
   version, target frameworks, or body to edit it directly, validated and
   auto-saved on blur. A right-aligned "Add rule" button adds a new rule
   without leaving the collection.
-- **Compile to any supported framework** — one click (or `myace pull`) turns
-  a profile into the exact files Claude Code, OpenCode, or Cursor expect.
-  See [Architecture](#architecture) below for the full list of 12 supported
-  frameworks.
+
+### Orchestrate
+
 - **Orchestration Gallery & pipeline wizard** — agents can declare a
   `handoff_to` list describing which other agents they route work to; the
-  Orchestration Gallery (`/build/orchestration`) turns that into a browsable set
-  of multi-agent pipeline "recipes" with a flow diagram, and "Compose your
-  pipeline" (`/build/orchestration/build`) lets you assemble a new linear
-  pipeline from an existing profile's agents and save it as a generated
-  orchestrator agent — no hand-written frontmatter required.
+  Orchestration Gallery (`/build/orchestration`) turns that into a browsable
+  set of multi-agent pipeline "recipes" with a flow diagram, and "Compose
+  your pipeline" (`/build/orchestration/build`) lets you assemble a new
+  linear pipeline from an existing profile's agents and save it as a
+  generated orchestrator agent — no hand-written frontmatter required.
+
+### Community
+
 - **Community collections** — submit your collections for a moderator to
   review; approved submissions become public, browsable, and importable by
   other users. Rate (1-5 stars) and comment on published collections, sort
   the community listing by rating/downloads/name, and opt into email
   notifications when your submissions get downloaded or commented on.
 - **Starter packs out of the box** — every fresh install seeds itself with 3
-  base collections (Vibecoder, Software Engineer, Data Scientist) and 16
-  specializations (Frontend, Backend, Infrastructure as Code Expert, Azure
-  Cloud Architect, AWS Cloud Architect, Google Cloud Architect, Scaleway
-  Cloud Architect, Security Auditor, Documentation Editor, Full-Stack
-  Developer, DevOps/Platform Engineer, Java/Spring Developer, iOS Developer,
-  Android Developer, Spec-Driven Development, AI/LLM Engineering), so there's
-  real, opinionated content to build a first profile from on day one.
-  This is a fixed, code-reviewed set maintained in
-  [`collections/`](collections/) — separate from user-published community
-  collections, and not affected by them.
+  base collections (Vibecoder, Software Engineer, Data Scientist) and 17
+  specializations (Frontend, Backend, Infrastructure as Code Expert, Azure,
+  AWS, Google Cloud, and Scaleway Cloud Architect, Security Auditor,
+  Documentation Editor, Full-Stack Developer, DevOps/Platform Engineer,
+  Java/Spring Developer, iOS Developer, Android Developer, Spec-Driven
+  Development, AI/LLM Engineering, EU AI Act Compliance), so there's real,
+  opinionated content to build a first profile from on day one. This is a
+  fixed, code-reviewed set maintained in [`collections/`](collections/) —
+  separate from user-published community collections, and not affected by
+  them.
+
+### CLI & automation
+
 - **A real CLI** — `myace login`, `myace pull`, `myace import --push`. Script
   it, put it in a dotfiles repo, run it on a fresh machine. See
   [docs/cli.md](docs/cli.md) for the full command reference.
@@ -126,32 +143,20 @@ model.
   `--report` to a personal Sync Dashboard in the web UI. A distributable
   [CI Action](docs/ci-drift-check.md) lets any repo that vendors compiled
   output fail its build on drift.
+
+### Auth & admin
+
 - **Real multi-user auth** — email+password (with email-based password
-  reset) or OIDC/GitHub/Google SSO, private-by-default collections and
-  profiles with an explicit public/private flag, and an admin role for
-  oversight. Not a toy single-user hack. See
+  reset) or OIDC/GitHub/Google SSO, optional TOTP two-factor authentication,
+  private-by-default collections and profiles with an explicit
+  public/private flag, and user/moderator/admin roles for oversight. Not a
+  toy single-user hack. See
   [docs/invariants.md#authorization](docs/invariants.md#authorization) for
   the exact rules.
 - **Admin controls in the UI, no redeploy needed** — configure SMTP and
   OAuth provider credentials (Client ID/Secret, redirect URLs, a
   connectivity test button) from System Settings instead of editing `.env`;
   enable/disable target adapters and other users' accounts system-wide.
-- **Responsive** — the web UI works on a phone-width screen (a slide-out
-  drawer replaces the sidebar below ~1024px), not just desktop.
-- **Try it before you sign up** — the public `/welcome` landing page embeds
-  a live compile demo (paste or edit an `AGENTS.md`-style rules file, see
-  Claude Code/Cursor/OpenCode output side by side) with no account
-  required — see [ADR-0011](docs/adr/0011-public-demo-sandbox.md) for how
-  that stays safe as this codebase's one deliberate public route.
-- **Local setup audit** — the Setup Audit page uses the same local
-  companion server as Import to scan every supported target framework's
-  conventional config location on your own machine, then reports coverage
-  gaps and duplicate names across them with a rough 0-100 score. A
-  diagnostic, not a certified metric.
-- **Community collection freshness** — moderators can mark an approved
-  community collection as manually verified; cards and the detail page
-  show "Verified {date}" or "Needs re-check" once that goes stale
-  (default ~6 months), and a weekly digest email flags anything overdue.
 
 ## Getting Started
 
@@ -210,56 +215,6 @@ Running it in production (single machine or behind a reverse proxy),
 hardening a fresh fork, and configuring SSO/SMTP are all covered in
 [docs/deployment.md](docs/deployment.md). Database backups are covered in
 [docs/backups.md](docs/backups.md).
-
-## Architecture
-
-```mermaid
-flowchart LR
-    Browser["Browser<br/>(you)"] -->|HTTPS| Frontend["Frontend<br/>React SPA, served by nginx<br/>:80"]
-    Frontend -->|"/api/* proxy"| Backend["Backend<br/>FastAPI<br/>:8000"]
-    CLI["CLI (myace)<br/>Typer"] -->|"Bearer token"| Backend
-    Backend --> DB[("PostgreSQL<br/>:5432")]
-    Backend -->|"push branch + PR"| GitHub[("GitHub<br/>REST API")]
-```
-
-- **`backend/`** — FastAPI + SQLModel API. Owns the database, the canonical
-  IR, authentication, and the compilation pipeline (Postgres in prod, SQLite
-  for tests).
-- **`frontend/`** — React + Vite + TailwindCSS SPA, served by nginx in
-  production, proxying `/api/*` to the backend.
-- **`cli/`** — Python Typer CLI (`myace`) that pulls compiled profiles from
-  the server and can scan local config directories to import them.
-
-None of the three talk to Postgres directly except the backend — the
-frontend and CLI only ever see the HTTP API. Two roles exist: **user**
-(full access to their own data, read-only on anything another user marked
-public) and **admin** (bypasses ownership, for oversight). See
-[docs/architecture.md](docs/architecture.md) for the full components
-breakdown, the compilation pipeline, and the auth model, and
-[docs/data-model.md](docs/data-model.md) for the database schema.
-
-### Target adapters
-
-| Adapter | Target Frameworks | Output |
-|---------|------------------|--------|
-| Claude Code | `claude-code`, `claude` | `CLAUDE.md`, `.claude/agents/*.md`, `.claude/skills/*/SKILL.md`, `.claude/commands/*.md` |
-| OpenCode | `opencode`, `open-code` | `.opencode/skills/*/SKILL.md`, `.opencode/agents/*.md`, `.opencode/commands/*.md`, `AGENTS.md`, `opencode.json` |
-| Cursor | `cursor`, `cursor-editor` | `.cursor/rules/*.mdc` |
-| Codex CLI | `codex-cli`, `codex`, `openai-codex` | `AGENTS.md`, `.agents/skills/*/SKILL.md`, `.codex/agents/*.toml`, `.codex/config.toml` |
-| GitHub Copilot CLI | `copilot-cli`, `copilot`, `github-copilot` | `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md` |
-| Cline | `cline`, `clinerules` | `.clinerules/*.md` |
-| Windsurf | `windsurf`, `codeium-windsurf` | `.windsurf/rules/*.md` |
-| Aider | `aider` | `CONVENTIONS.md`, `.aider.conf.yml` |
-| Continue | `continue`, `continue-dev` | `.continue/rules/*.md`, `.continue/prompts/*.md`, `config.yaml` |
-| Goose | `goose` | `AGENTS.md` |
-| Amazon Q Developer | `amazon-q`, `amazonq` | `.amazonq/rules/*.md` |
-| pi.dev (Pi Coding Agent) | `pi-dev`, `pi` | `AGENTS.md`, `.pi/skills/*/SKILL.md`, `.pi/prompts/*.md`, `.pi/settings.json` |
-
-The table above shows output *paths* only. For each adapter's actual
-frontmatter fields/config schema — and doc citations for every field — see
-[docs/adapters-research.md](docs/adapters-research.md), which every adapter
-was re-verified against as of Aug 2026. An admin can disable any adapter
-system-wide from System Settings → Adapter Registry.
 
 ## Project Structure
 
@@ -372,9 +327,10 @@ and PR process. Please read [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) too.
 Found a security issue? Please don't open a public issue — see
 [`SECURITY.md`](SECURITY.md) for how to report it privately.
 
-MyACE is equally designed to be **forked and self-hosted**, not run as
-someone else's SaaS — see [docs/deployment.md](docs/deployment.md) for the
-checklist to work through before exposing a fork beyond localhost.
+MyACE is equally designed to be **forked and self-hosted** — run your own
+instance, or use the hosted one at [myace.macjuu.com](https://myace.macjuu.com).
+See [docs/deployment.md](docs/deployment.md) for the checklist to work
+through before exposing a fork beyond localhost.
 
 A few things worth knowing as either a contributor or an operator running
 their own fork:
@@ -393,10 +349,6 @@ their own fork:
   [docs/debugging.md](docs/debugging.md) for why that split matters).
 - **Documentation moves in the same PR as the code it describes** — see
   [`AGENTS.md`](AGENTS.md#14-documentation-maintenance).
-
-## License
-
-[MIT](LICENSE) © 2026 [Niels Emmer](https://github.com/niels-emmer)
 
 ## Acknowledgements
 
@@ -429,3 +381,7 @@ infrastructure config — was written by AI coding agents:
 [Claude Code / Sonnet 5](https://docs.anthropic.com/en/docs/claude-code/overview)
 and [OpenCode / DeepSeek V4-Flash](https://github.com/niels-emmer/opencode).
 The human (Niels) reviewed, directed, and shipped it.
+
+## License
+
+[MIT](LICENSE) © 2026 [Niels Emmer](https://github.com/niels-emmer)
