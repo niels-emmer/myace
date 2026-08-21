@@ -1,6 +1,6 @@
 [project]
 name = "myace-backend"
-version = "1.9.0"
+version = "1.10.0"
 description = "MyACE — My Agentic Coding Environment Backend API"
 requires-python = ">=3.12"
 license = { text = "MIT" }
