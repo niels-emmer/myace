@@ -16,7 +16,7 @@ picking one tool and losing the rest.
 
 > **MyACE is under heavy development and changes near daily. Use at your own
 > risk.** Currently supporting **12 coding environments**, with a community
-> store holding **18 starter agent profiles** (3 base + 15 specializations).
+> store holding **19 starter agent profiles** (3 base + 16 specializations).
 
 <table>
   <tr>
@@ -103,13 +103,13 @@ model.
   the community listing by rating/downloads/name, and opt into email
   notifications when your submissions get downloaded or commented on.
 - **Starter packs out of the box** — every fresh install seeds itself with 3
-  base collections (Vibecoder, Software Engineer, Data Scientist) and 15
+  base collections (Vibecoder, Software Engineer, Data Scientist) and 16
   specializations (Frontend, Backend, Infrastructure as Code Expert, Azure
-  Cloud Architect, AWS Cloud Architect, Google Cloud Architect, Security
-  Auditor, Documentation Editor, Full-Stack Developer, DevOps/Platform
-  Engineer, Java/Spring Developer, iOS Developer, Android Developer,
-  Spec-Driven Development, AI/LLM Engineering), so there's real, opinionated
-  content to build a first profile from on day one.
+  Cloud Architect, AWS Cloud Architect, Google Cloud Architect, Scaleway
+  Cloud Architect, Security Auditor, Documentation Editor, Full-Stack
+  Developer, DevOps/Platform Engineer, Java/Spring Developer, iOS Developer,
+  Android Developer, Spec-Driven Development, AI/LLM Engineering), so there's
+  real, opinionated content to build a first profile from on day one.
   This is a fixed, code-reviewed set maintained in
   [`collections/`](collections/) — separate from user-published community
   collections, and not affected by them.
