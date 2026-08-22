@@ -382,6 +382,11 @@ infrastructure config — was written by AI coding agents:
 and [OpenCode / DeepSeek V4-Flash](https://github.com/niels-emmer/opencode).
 The human (Niels) reviewed, directed, and shipped it.
 
+Incoming PRs are also reviewed by **Marvin** ([`marv-o-matic`](https://github.com/marv-o-matic)),
+an automated AI review bot that checks CI status, verifies README/count claims
+and code changes against source, and flags risks — comment-only unless a human
+explicitly asks it to push a change.
+
 ## License
 
 [MIT](LICENSE) © 2026 [Niels Emmer](https://github.com/niels-emmer)
