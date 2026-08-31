@@ -16,6 +16,10 @@ depth, it links here.
 
 ## Contents
 
+- **[`API.md`](../API.md)** — the HTTP API: base URL, auth (session cookie
+  + Bearer token), route groups, and working curl examples. The canonical
+  machine-readable spec is served at `/openapi.json`; this file is the
+  orientation layer on top of it.
 - **[architecture.md](architecture.md)** — the three components, how they
   talk to each other, the compilation pipeline, and the authentication
   model. Start here.
