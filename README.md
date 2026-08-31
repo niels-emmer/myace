@@ -282,6 +282,7 @@ hardening a fresh fork, and configuring SSO/SMTP are all covered in
 
 | Document | What it covers |
 |---|---|
+| [`API.md`](API.md) | The HTTP API — base URL, auth, route groups, curl examples. Canonical spec served at `/openapi.json` |
 | [`docs/architecture.md`](docs/architecture.md) | Components, compilation pipeline, canonical IR, auth model |
 | [`docs/data-model.md`](docs/data-model.md) | Every table, its columns, and how they relate |
 | [`docs/invariants.md`](docs/invariants.md) | Rules the system must never violate, and where they're enforced |
