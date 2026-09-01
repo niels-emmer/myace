@@ -222,7 +222,7 @@ export default function CommunityCollectionDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start gap-4">
+      <div className="flex flex-wrap items-start gap-4">
         <Link
           to="/collections/community"
           className="p-2 -ml-2 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors"
@@ -266,7 +266,7 @@ export default function CommunityCollectionDetail() {
         </div>
 
         {/* Import + moderator actions */}
-        <div className="flex-shrink-0 flex items-center gap-2">
+        <div className="flex-shrink-0 flex flex-wrap items-center gap-2 w-full md:w-auto">
           {canEditMeta && (
             <button
               onClick={() => verifyMutation.mutate()}

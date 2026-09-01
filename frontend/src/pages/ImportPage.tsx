@@ -10,12 +10,12 @@ import {
   Terminal,
   Globe,
   Folder,
-  Github,
   HardDrive,
   Copy,
   Check as CheckIcon,
   Loader2,
 } from 'lucide-react';
+import GithubIcon from '../components/GithubIcon';
 import { COMPANION_URLS, LocalCompanionSetup, useCompanionHealth } from '../components/LocalCompanionSetup';
 
 const FRAMEWORKS = [
@@ -225,7 +225,7 @@ export default function ImportPage() {
               : 'border-border text-muted-foreground hover:border-input'
           }`}
         >
-          <Github className="h-4 w-4" />
+          <GithubIcon className="h-4 w-4" />
           GitHub Repository
         </button>
       </div>

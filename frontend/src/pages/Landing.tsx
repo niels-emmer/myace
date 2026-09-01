@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { Github, Loader2, Play, Package, Boxes, Layers } from 'lucide-react';
+import { Loader2, Play, Package, Boxes, Layers } from 'lucide-react';
+import GithubIcon from '../components/GithubIcon';
 import { demoApi } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -60,7 +61,7 @@ export default function Landing() {
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Github className="h-4 w-4" />
+              <GithubIcon className="h-4 w-4" />
               GitHub
             </a>
             <Link
@@ -80,7 +81,7 @@ export default function Landing() {
       </header>
 
       {/* Hero */}
-      <section className="max-w-3xl mx-auto px-4 py-16 text-center space-y-4">
+      <section className="max-w-5xl mx-auto px-4 py-16 text-center space-y-4">
         <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
           Write your AI agent rules once. Compile them everywhere.
         </h1>

@@ -8,9 +8,9 @@ import {
   ChevronRight,
   BookOpen,
   HardDrive,
-  Github,
   Plus,
 } from 'lucide-react';
+import GithubIcon from '../components/GithubIcon';
 import { collectionsApi } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import type { Collection } from '../types';
@@ -100,7 +100,7 @@ export default function CollectionsManager() {
                 to="/machine/import?source=git"
                 className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
               >
-                <Github className="h-4 w-4" />
+                <GithubIcon className="h-4 w-4" />
                 Import from a GitHub repo
               </Link>
               <Link
@@ -129,7 +129,7 @@ export default function CollectionsManager() {
             to="/machine/import?source=git"
             className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
           >
-            <Github className="h-4 w-4" />
+            <GithubIcon className="h-4 w-4" />
             From GitHub
           </Link>
           <Link

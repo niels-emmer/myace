@@ -73,7 +73,7 @@ export default function Dashboard() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1 max-w-2xl">
+        <p className="text-muted-foreground mt-1">
           MyACE lets you write your rules, skills, and agents once, then compile them into whatever
           Claude Code, Cursor, OpenCode, or any other framework expects — no more hand-maintaining a
           different copy per tool. Start afresh or augment what&rsquo;s on your machine by browsing
