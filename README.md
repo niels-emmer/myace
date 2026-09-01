@@ -19,7 +19,7 @@ sign up and start building a profile in minutes, no setup required.
 
 MyACE ships with **23 starter collections** (4 base + 19 specializations)
 holding **278 artifacts** — 130 rules, 84 skills, 49 agents, 14 workflows,
-and 1 model config — across **8 categories** and **123 tags**, and compiles
+and 1 model config — across **8 categories** and **133 tags**, and compiles
 to **12 target frameworks** (Claude Code, OpenCode, Cursor, Codex CLI,
 Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q Developer,
 and pi.dev). You can start from scratch and build your own rules, import
