@@ -25,6 +25,17 @@ Use a short prefix that says what kind of change it is, then a few words describ
 
 Keep the branch name short enough to read in a terminal prompt. If the work doesn't fit cleanly into one of these, `feat/` is a safe default.
 
+## Commit messages
+
+Write each commit as a small, coherent unit with a message that states what changed and why. Use a conventional prefix so the history is scannable:
+
+- `feat:` — new functionality
+- `fix:` — bug fix
+- `chore:` — maintenance, deps, config, cleanup
+- `docs:` — documentation only
+
+Keep the subject under ~50 characters and imperative ("add retry to the fetch", not "added retry"). If the "why" isn't obvious from the diff, add a short body paragraph — the message should make the intent recoverable later, not just describe the diff.
+
 ## When to open a PR vs. just push
 
 For solo or low-stakes prototype work on your own feature branch, it's fine to push directly and merge without ceremony — a PR that nobody else will read doesn't add safety, it just adds a click.
@@ -36,6 +47,10 @@ Open a real pull request (even solo) when:
 - The default/main branch is protected and requires one anyway.
 
 Otherwise, commit on the feature branch and merge or push straight to the target branch once it works.
+
+## PR description
+
+When you do open a PR, write a short description covering what changed and why, how it was tested, and anything a reviewer should pay attention to. A reviewer shouldn't have to reverse-engineer the intent from the diff.
 
 ## Checklist before pushing
 
