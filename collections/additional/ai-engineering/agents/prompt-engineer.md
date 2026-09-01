@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
+handoff_to: [ai-engineer, code-reviewer]
 ---
 Iterates on prompts, system instructions, and agent/skill/command content, backed by a concrete before/after comparison rather than a subjective read.
 

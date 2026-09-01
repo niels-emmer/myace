@@ -8,7 +8,7 @@ Build UI with Jetpack Compose by default. Use XML layouts only when Compose does
 
 State is hoisted to the lowest common ancestor that needs it. Composables accept state as parameters and emit events as callbacks — they never own mutable state that affects other composables. Use `remember`/`derivedStateOf` for local derived state, `mutableStateOf` in ViewModels for screen-level state.
 
-## Play Store Readiness
+## Play Store Readiness Gate
 
 Before submission: app signing configured, keystore secured, API level targeting current requirements, privacy policy published, content rating completed, in-app review guidelines checked. See the `play-store-readiness` skill for the full checklist.
 

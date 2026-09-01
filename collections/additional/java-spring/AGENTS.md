@@ -1,6 +1,6 @@
 # Java / Spring Developer
 
-## Layered Architecture
+## Layered Architecture Discipline
 
 Maintain strict controller → service → repository layering. Controllers handle HTTP concerns only; services contain business logic; repositories handle data access. Never let a controller call a repository directly or a service return a JPA entity to a controller.
 

@@ -392,6 +392,75 @@ async def test_compile_reports_dangling_handoff_warning(
 
 
 @pytest.mark.asyncio
+async def test_compile_resolves_handoff_across_collections(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A handoff_to target may legitimately live in a *different* collection of
+    the same profile — the whole reason _check_dangling_handoffs() runs after
+    the final deduplicated set is known (AGENTS.md rule 34). An orchestrator in
+    the base collection routing to a builder that only exists in an additional
+    collection must NOT produce a dangling_handoff warning."""
+    await _register(async_client)
+    base_id = await _create_collection_with_agent_artifacts(
+        async_client,
+        db_session,
+        "handoff-base-collection",
+        [("orchestrator", ["builder", "verifier"])],
+    )
+    additional_id = await _create_collection_with_agent_artifacts(
+        async_client,
+        db_session,
+        "handoff-additional-collection",
+        [("builder", None), ("verifier", None)],
+    )
+    profile_id = await _create_profile(
+        async_client, base_id, additional_collection_ids=[additional_id]
+    )
+
+    res = await async_client.post(
+        "/api/v1/profiles/compile",
+        json={"profile_id": profile_id, "target": "claude-code"},
+    )
+    assert res.status_code == 200
+    assert res.json()["warnings"] == []
+
+
+@pytest.mark.asyncio
+async def test_compile_reports_dangling_handoff_across_collections(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """The cross-collection resolution must not mask a genuinely dangling
+    reference: an orchestrator routing to an agent that exists in *neither*
+    collection of the profile still produces a dangling_handoff warning."""
+    await _register(async_client)
+    base_id = await _create_collection_with_agent_artifacts(
+        async_client,
+        db_session,
+        "handoff-base-collection",
+        [("orchestrator", ["ghost-agent"])],
+    )
+    additional_id = await _create_collection_with_agent_artifacts(
+        async_client,
+        db_session,
+        "handoff-additional-collection",
+        [("builder", None)],
+    )
+    profile_id = await _create_profile(
+        async_client, base_id, additional_collection_ids=[additional_id]
+    )
+
+    res = await async_client.post(
+        "/api/v1/profiles/compile",
+        json={"profile_id": profile_id, "target": "claude-code"},
+    )
+    assert res.status_code == 200
+    warnings = res.json()["warnings"]
+    assert len(warnings) == 1
+    assert warnings[0]["code"] == "dangling_handoff"
+    assert "ghost-agent" in warnings[0]["message"]
+
+
+@pytest.mark.asyncio
 async def test_deleted_profile_excluded_from_list(
     async_client: AsyncClient, db_session: AsyncSession
 ) -> None:

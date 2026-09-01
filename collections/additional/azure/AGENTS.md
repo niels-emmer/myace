@@ -7,7 +7,7 @@ remote state with locking, approval-gated applies, documented exceptions,
 well-architected pillar review) and adds the Azure-specific layer on top.
 Compose it with `iac-expert` (and a base collection) in a profile.
 
-## Governance By Design (CAF)
+## Azure Governance By Design (CAF)
 
 Follow Cloud Adoption Framework (CAF) governance essentials: a management-group
 hierarchy that separates platform from workloads, subscriptions scoped by
@@ -23,7 +23,7 @@ never a long-lived secret where a federated credential works. Scope RBAC to
 least privilege; enable MFA and conditional access for human access. See the
 `azure-identity` skill.
 
-## Security By Default
+## Azure Security By Default
 
 Private endpoints and VNet isolation over public exposure. No public IP,
 `0.0.0.0/0` NSG rule, or public storage/blob access without a documented
@@ -31,7 +31,7 @@ exception. Secrets live in Key Vault, referenced by ID — never embedded.
 Defender for Cloud posture and Azure Policy guardrails are part of the
 baseline, not an afterthought. See the `azure-security-checklist` skill.
 
-## Cost Attribution
+## Azure Cost Attribution
 
 Every resource carries the mandatory tags (owner, cost-center, environment,
 workload) so spend rolls up correctly in Azure Cost Management. Size to actual

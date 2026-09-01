@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: primary
+handoff_to: [model-reviewer, pipeline-builder]
 ---
 Hands-on-keyboard data science agent. Explore data, train models, log experiments.
 

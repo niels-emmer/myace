@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
+handoff_to: [eu-ai-act-compliance-reviewer, eu-ai-act-documentation-writer]
 ---
 Classifies an AI system under Regulation (EU) 2024/1689 before any compliance work begins.
 
