@@ -306,7 +306,7 @@ export default function CollectionDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start gap-4">
+      <div className="flex flex-wrap items-start gap-4">
         <button
           onClick={() => navigate('/collections')}
           className="p-2 -ml-2 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors"
@@ -387,7 +387,7 @@ export default function CollectionDetail() {
         </div>
 
         {/* Header actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-2 flex-shrink-0 w-full md:w-auto">
           {!isEditing && selectedIds.size > 0 && (
             <div className="relative">
               <button
