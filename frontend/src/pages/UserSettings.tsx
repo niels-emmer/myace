@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   User, Lock, Key, Plus, Trash2, Copy, Check, ExternalLink,
-  Sun, Moon, Monitor, Smartphone, Shield, AlertTriangle, QrCode, Github, Bell,
+  Sun, Moon, Monitor, Smartphone, Shield, AlertTriangle, QrCode, Bell,
 } from 'lucide-react';
+import GithubIcon from '../components/GithubIcon';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../lib/api';
@@ -660,7 +661,7 @@ export default function UserSettings() {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
         >
-          <Github className="h-3.5 w-3.5" />
+          <GithubIcon className="h-3.5 w-3.5" />
           GitHub repository
         </a>
       </div>
