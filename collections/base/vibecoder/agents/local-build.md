@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: primary
+handoff_to: []
 ---
 Primary hands-on-keyboard agent for solo/prototype work.
 

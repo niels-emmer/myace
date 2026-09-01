@@ -26,6 +26,7 @@ from app.services.scanner import (
     _parse_agent_file,
     _parse_agents_md,
     _parse_command_file,
+    _parse_opencode_json,
     _parse_skill_file,
 )
 
@@ -256,6 +257,10 @@ def _scan_starter_collection(collection_dir: Path) -> list[dict]:
     agents_md = collection_dir / "AGENTS.md"
     if agents_md.exists():
         artifacts.extend(_parse_agents_md(agents_md))
+
+    opencode_json = collection_dir / "opencode.json"
+    if opencode_json.exists():
+        artifacts.extend(_parse_opencode_json(opencode_json))
 
     return artifacts
 
