@@ -36,6 +36,13 @@ For each item: record **PASS**, **FAIL**, or **N/A**. Every FAIL needs a concret
 - No dependency with a known critical/high CVE affecting the version in use is introduced without an explicit, documented reason.
 - Dependency permissions/scopes (e.g. an OAuth app requesting broad scopes, an npm package with postinstall scripts) are proportionate to what the dependency actually needs to do.
 
+### Repository and supply-chain
+- Branch protection on `main`/release branches: require pull request reviews (at least 1, preferably 2 for critical repos), dismiss stale reviews on new pushes, require status checks to pass, require branches to be up to date, and disallow force pushes and deletions.
+- Push access is restricted to specific users/teams; no one bypasses the PR gate.
+- Repository secrets are scoped to the minimum workflows that need them; no hardcoded credentials in workflow files, code, or documentation.
+- Personal access tokens are fine-grained (not classic) with minimal scopes; GitHub App tokens are rotated regularly and minimally scoped.
+- Supply-chain tooling (dependency update automation, SBOM generation) is enabled where available, and dependencies are pinned to specific versions from a trusted source.
+
 ### Input validation and output handling
 - Every external input (request body, query param, header, file upload, webhook payload) is validated for type, shape, and business constraints at the boundary before use (see the `Validate At The Boundary` rule in the backend collection, if layered in).
 - Output rendered into HTML, shell commands, or other interpreted contexts is escaped/encoded for that context — not just validated on the way in.
