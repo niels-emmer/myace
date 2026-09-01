@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
+handoff_to: [iac-reviewer]
 ---
 Write and validate IaC changes. Your job ends at a validated, reviewable plan — not a deployed change.
 

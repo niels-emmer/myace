@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
+handoff_to: [eu-ai-act-documentation-writer, security-auditor]
 ---
 Reviews an AI system against the EU AI Act obligations that apply to its classified tier and role.
 

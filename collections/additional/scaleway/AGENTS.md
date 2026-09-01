@@ -22,7 +22,7 @@ federation (OAuth2/SAML SSO) over long-lived credentials — never a long-lived
 secret where a federated credential works. Scope IAM permission sets to least
 privilege; enable MFA for human access. See the `scaleway-architecture` skill.
 
-## Security By Default
+## Scaleway Security By Default
 
 Private networking and VPC isolation over public exposure. No public IP,
 `0.0.0.0/0` security-group rule, or public object-storage bucket without a
@@ -31,7 +31,7 @@ embedded. Security groups (virtual firewalls on the public interface), private
 networks, and WAF edge protection are part of the baseline, not an
 afterthought. See the `scaleway-security-checklist` skill.
 
-## Cost Attribution
+## Scaleway Cost Attribution
 
 Every resource carries the mandatory tags (owner, cost-center, environment,
 workload) so spend rolls up correctly in cost reports. Size to actual load;

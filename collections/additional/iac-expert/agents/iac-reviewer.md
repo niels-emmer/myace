@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
+handoff_to: [iac-builder]
 ---
 Read-only IaC reviewer. Check plans/diffs against invariants; flag undocumented exceptions.
 

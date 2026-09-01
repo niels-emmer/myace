@@ -217,6 +217,24 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "obligation reviews, and compliance documentation drafts."
             ),
         },
+        "database": {
+            "name": "Database Specialist",
+            "category": "Backend",
+            "description": (
+                "For schema, migration, and query work that must stay correct and "
+                "fast as data grows. Constraint-driven schema design, safe "
+                "migrations, index discipline, and explicit data-integrity decisions."
+            ),
+        },
+        "qa-testing": {
+            "name": "QA / Test Engineer",
+            "category": "Process & Methodology",
+            "description": (
+                "For keeping the test suite a real safety net. Test strategy at the "
+                "right level, failure-mode coverage, deterministic automation, and "
+                "a regression test with every bug fix."
+            ),
+        },
     },
 }
 

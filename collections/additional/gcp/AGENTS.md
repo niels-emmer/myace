@@ -23,7 +23,7 @@ Federation over long-lived service-account keys — never a long-lived secret
 where a federated credential works. Scope IAM roles to least privilege; enable
 MFA for human access. See the `gcp-identity` skill.
 
-## Security By Default
+## GCP Security By Default
 
 Private networking and VPC isolation over public exposure. No public IP,
 `0.0.0.0/0` firewall rule, or public GCS bucket without a documented exception.
@@ -31,7 +31,7 @@ Secrets live in Secret Manager, referenced by ID — never embedded. Security
 Command Center posture and Organization-policy guardrails are part of the
 baseline, not an afterthought. See the `gcp-security-checklist` skill.
 
-## Cost Attribution
+## GCP Cost Attribution
 
 Every resource carries the mandatory labels (owner, cost-center, environment,
 workload) so spend rolls up correctly in Cloud Billing. Size to actual load;

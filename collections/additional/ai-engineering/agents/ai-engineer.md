@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
+handoff_to: [verifier, security-auditor]
 ---
 Implements the plumbing around LLM calls — retrieval, tool orchestration, structured-output parsing — as the AI-specific counterpart to `backend-builder`.
 

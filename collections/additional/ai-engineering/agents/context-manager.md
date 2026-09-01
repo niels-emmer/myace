@@ -4,6 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
+handoff_to: []
 ---
 Makes an explicit call about what belongs in context for the next step of a long-running or multi-agent task, instead of letting context accrete by default.
 
