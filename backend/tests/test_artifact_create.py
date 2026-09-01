@@ -66,6 +66,11 @@ class TestCreateArtifact:
         assert list_res.status_code == 200
         names = [a["name"] for a in list_res.json()]
         assert "generated-orchestrator" in names
+        # The frontend reads handoff_to from this list response (the gallery /
+        # builder derive recipes from it), so it must survive list serialization
+        # as a list[str], not a JSON-encoded string or null.
+        listed = next(a for a in list_res.json() if a["name"] == "generated-orchestrator")
+        assert listed["handoff_to"] == ["builder", "verifier"]
 
     @pytest.mark.asyncio
     async def test_create_artifact_without_handoff_to_is_none(
