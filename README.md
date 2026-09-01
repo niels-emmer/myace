@@ -17,8 +17,8 @@ picking one tool and losing the rest.
 A live instance runs at **[myace.macjuu.com](https://myace.macjuu.com)** —
 sign up and start building a profile in minutes, no setup required.
 
-MyACE ships with **22 starter collections** (3 base + 19 specializations)
-holding **248 artifacts** — 118 rules, 75 skills, 42 agents, 12 workflows,
+MyACE ships with **23 starter collections** (4 base + 19 specializations)
+holding **278 artifacts** — 130 rules, 84 skills, 49 agents, 14 workflows,
 and 1 model config — across **8 categories** and **123 tags**, and compiles
 to **12 target frameworks** (Claude Code, OpenCode, Cursor, Codex CLI,
 Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q Developer,
@@ -121,8 +121,9 @@ model.
   other users. Rate (1-5 stars) and comment on published collections, sort
   the community listing by rating/downloads/name, and opt into email
   notifications when your submissions get downloaded or commented on.
-- **Starter packs out of the box** — every fresh install seeds itself with 3
-  base collections (Vibecoder, Software Engineer, Data Scientist) and 19
+- **Starter packs out of the box** — every fresh install seeds itself with 4
+  base collections (Vibecoder, Software Engineer, Data Scientist, DevOps
+  Engineer) and 19
   specializations (Frontend, Backend, Database, QA/Test Engineer,
   Infrastructure as Code Expert, Azure, AWS, Google Cloud, and Scaleway Cloud
   Architect, Security Auditor, Documentation Editor, Full-Stack Developer,

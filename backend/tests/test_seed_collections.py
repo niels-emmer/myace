@@ -158,8 +158,8 @@ async def test_base_profiles_compile_without_orchestration_warnings(
     await _seed_against_repo_collections(db_session, monkeypatch)
     await _register(async_client)
 
-    # The three base packages, keyed by their seeded display name.
-    base_names = ["Software Engineer", "Data Scientist", "Vibecoder"]
+    # The four base packages, keyed by their seeded display name.
+    base_names = ["Software Engineer", "Data Scientist", "Vibecoder", "DevOps Engineer"]
 
     collections = (
         await db_session.execute(
@@ -246,5 +246,62 @@ async def test_additional_collections_compile_clean_on_software_engineer(
         )
         assert "name_collision" not in codes, (
             f"{name} on software-engineer has a name collision: {body['warnings']}"
+        )
+        assert body["artifact_count"] > 0, f"{name} compiled to zero artifacts"
+
+
+async def test_additional_collections_compile_clean_on_devops_engineer(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch
+) -> None:
+    """Regression guard for the DevOps Engineer base package: each additional
+    starter collection must compile cleanly when layered onto it — zero
+    `dangling_handoff` and zero `name_collision` warnings.
+
+    The DevOps Engineer base deliberately reuses the software-engineer
+    pipeline agent names (`builder`, `verifier`, `security-auditor`,
+    `code-reviewer`, `docs-writer`, `debugger`, `orchestrator`) so the
+    additional collections' handoff_to references to those names resolve
+    against it too, and its skill/rule names are chosen to avoid colliding
+    with the infra-related additions (devops, iac-expert, azure, aws, gcp,
+    scaleway, auditor) it's most naturally composed with (AGENTS.md rule 29).
+    """
+    await _seed_against_repo_collections(db_session, monkeypatch)
+    await _register(async_client)
+
+    collections = (
+        await db_session.execute(
+            select(Collection).where(Collection.is_starter_pack.is_(True))
+        )
+    ).scalars().all()
+    by_name = {c.name: c for c in collections}
+
+    base = by_name["DevOps Engineer"]
+    additional_names = sorted(
+        c.name for c in collections if c.collection_type == "additional"
+    )
+    assert additional_names, "Expected additional starter collections to be seeded"
+
+    for name in additional_names:
+        additional = by_name[name]
+        profile_id = await _create_profile(
+            async_client,
+            f"de-{name}",
+            str(base.id),
+            additional_collection_ids=[str(additional.id)],
+        )
+
+        res = await async_client.post(
+            "/api/v1/profiles/compile",
+            json={"profile_id": profile_id, "target": "claude-code"},
+        )
+        assert res.status_code == 200, f"{name} failed to compile: {res.text}"
+        body = res.json()
+
+        codes = [w["code"] for w in body["warnings"]]
+        assert "dangling_handoff" not in codes, (
+            f"{name} on devops-engineer has a dangling handoff_to: {body['warnings']}"
+        )
+        assert "name_collision" not in codes, (
+            f"{name} on devops-engineer has a name collision: {body['warnings']}"
         )
         assert body["artifact_count"] > 0, f"{name} compiled to zero artifacts"
