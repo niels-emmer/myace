@@ -64,6 +64,16 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "and rigorous model evaluation before anything ships."
             ),
         },
+        "devops-engineer": {
+            "name": "DevOps Engineer",
+            "category": "Base Profiles",
+            "description": (
+                "For infrastructure, CI/CD, and platform work that must be safe and "
+                "reproducible. A gated multi-agent pipeline (build, verify, security, "
+                "review, docs) specialized for IaC (Terraform/Bicep), DevSecOps, "
+                "observability, and incident response."
+            ),
+        },
     },
     "additional": {
         "frontend": {
