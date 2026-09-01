@@ -364,10 +364,7 @@ export default function CollectionDetail() {
                   {collection.collection_type}
                 </span>
               </div>
-              <p className="text-muted-foreground mt-1">
-                {collection.description || 'No description'}
-              </p>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
                 <span className="flex items-center gap-1">
                   <GitBranch className="h-3 w-3" />
                   {collection.git_branch}
@@ -382,6 +379,9 @@ export default function CollectionDetail() {
                 </span>
                 <span>{collection.artifact_count} artifacts</span>
               </div>
+              <p className="text-muted-foreground mt-1">
+                {collection.description || 'No description'}
+              </p>
             </>
           )}
         </div>

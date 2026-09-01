@@ -242,17 +242,14 @@ export default function CommunityCollectionDetail() {
             >
               {collection.collection_type}
             </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
             {collection.category && (
               <span className="px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
                 {collection.category}
               </span>
             )}
             <FreshnessBadge lastVerifiedAt={collection.last_verified_at} />
-          </div>
-          <p className="text-muted-foreground mt-1">
-            {collection.description || 'No description'}
-          </p>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
             <span className="flex items-center gap-1">
               <Download className="h-3 w-3" />
               {collection.download_count} downloads
@@ -263,6 +260,9 @@ export default function CommunityCollectionDetail() {
               Community collection
             </span>
           </div>
+          <p className="text-muted-foreground mt-1">
+            {collection.description || 'No description'}
+          </p>
         </div>
 
         {/* Import + moderator actions */}
