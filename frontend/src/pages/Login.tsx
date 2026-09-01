@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Github, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { GithubIcon } from '../components/GithubIcon';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../lib/api';
 
@@ -159,7 +160,7 @@ export default function Login() {
                     onClick={() => authApi.loginWithProvider('github')}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-foreground hover:bg-accent transition-colors"
                   >
-                    <Github className="h-4 w-4" />
+                    <GithubIcon className="h-4 w-4" />
                     GitHub
                   </button>
                 )}
@@ -193,7 +194,7 @@ export default function Login() {
         rel="noopener noreferrer"
         className="mt-8 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        <Github className="h-4 w-4" />
+        <GithubIcon className="h-4 w-4" />
         View on GitHub
       </a>
     </div>
