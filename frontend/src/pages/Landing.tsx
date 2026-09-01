@@ -80,7 +80,7 @@ export default function Landing() {
       </header>
 
       {/* Hero */}
-      <section className="max-w-3xl mx-auto px-4 py-16 text-center space-y-4">
+      <section className="max-w-5xl mx-auto px-4 py-16 text-center space-y-4">
         <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
           Write your AI agent rules once. Compile them everywhere.
         </h1>
