@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, SlidersHorizontal, Save, Download } from 'lucide-react';
 import { adaptersApi, collectionsApi, profilesApi } from '../lib/api';
+import { detectNameCollisions } from '../lib/collisions';
 import ProfileFormFields from '../components/ProfileForm';
 import type { Profile, ProfileCreate } from '../types';
 
@@ -43,6 +44,50 @@ export default function ProfileComposer() {
 
   const baseCollections = collections?.filter((c) => c.collection_type === 'base') ?? [];
   const additionalCollections = collections?.filter((c) => c.collection_type === 'additional') ?? [];
+
+  // The selected collections in profile order (base first, then additional in
+  // the order they appear in additional_collection_ids) — the same order
+  // compile_profile() iterates, so the preview matches compile-time semantics.
+  const selectedCollectionIds = useMemo(() => {
+    if (!form.base_collection_id) return [];
+    return [form.base_collection_id, ...(form.additional_collection_ids ?? [])];
+  }, [form.base_collection_id, form.additional_collection_ids]);
+
+  // Fan out one getArtifacts query per selected collection, keyed
+  // ['artifacts', cid, { include_disabled: false }] — the filter is folded
+  // into the key (AGENTS.md rule 12) so this doesn't collide with
+  // CollectionDetail's ['artifacts', id] query, which fetches with
+  // include_disabled: true. The preview must only ever see enabled artifacts,
+  // matching what compile_profile() actually compiles.
+  const artifactQueries = useQueries({
+    queries: selectedCollectionIds.map((cid) => ({
+      queryKey: ['artifacts', cid, { include_disabled: false }],
+      queryFn: () => collectionsApi.getArtifacts(cid),
+    })),
+  });
+
+  // Map collection id -> its artifacts, only for queries that have resolved.
+  const artifactsByCollection = useMemo(() => {
+    const map: Record<string, import('../types').Artifact[]> = {};
+    selectedCollectionIds.forEach((cid, index) => {
+      const data = artifactQueries[index]?.data;
+      if (data) map[cid] = data;
+    });
+    return map;
+  }, [selectedCollectionIds, artifactQueries]);
+
+  // Recompute the collision list whenever the selection, artifact data, or
+  // disabled set changes — so the panel updates live as the user acts.
+  const collisions = useMemo(
+    () => detectNameCollisions(selectedCollectionIds, artifactsByCollection, form.disabled_artifact_ids ?? []),
+    [selectedCollectionIds, artifactsByCollection, form.disabled_artifact_ids],
+  );
+
+  const handleDisableArtifact = (artifactId: string) => {
+    const current = form.disabled_artifact_ids ?? [];
+    if (current.includes(artifactId)) return;
+    setForm({ ...form, disabled_artifact_ids: [...current, artifactId] });
+  };
 
   // A profile detail page can send us here to clone it — prefill and open the form.
   useEffect(() => {
@@ -123,6 +168,8 @@ export default function ProfileComposer() {
             baseCollections={baseCollections}
             additionalCollections={additionalCollections}
             targets={targets}
+            collisions={collisions}
+            onDisableArtifact={handleDisableArtifact}
           />
 
           {createMutation.isError && (
