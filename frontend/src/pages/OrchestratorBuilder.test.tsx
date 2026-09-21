@@ -220,6 +220,10 @@ describe('OrchestratorBuilder', () => {
     fireEvent.change(await screen.findByDisplayValue('Select a profile...'), {
       target: { value: 'profile-1' },
     });
+    // Wait for the agents list to render before clicking "Add" — the list
+    // loads asynchronously after profile selection, and on slow CI the
+    // "Add" buttons may not exist yet when findAllByText first polls.
+    expect(await screen.findByText('Builder')).toBeInTheDocument();
     // Add "builder" to the sequence.
     fireEvent.click((await screen.findAllByText('Add'))[0]);
 
