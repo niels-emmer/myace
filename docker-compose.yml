@@ -8,6 +8,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: myace-backend
+    restart: unless-stopped
     expose:
       - "8000"
     env_file:
@@ -32,6 +33,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: myace-frontend
+    restart: unless-stopped
     env_file:
       - .env
     depends_on:
@@ -42,6 +44,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: myace-postgres
+    restart: unless-stopped
     expose:
       - "5432"
     env_file:

@@ -6,13 +6,23 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](backend/pyproject.toml)
 [![Node 20+](https://img.shields.io/badge/node-20%2B-green)](frontend/package.json)
 
+> **Built entirely by AI coding agents.** Every line of code, every test,
+> every doc, and every infrastructure config in this repo was written by
+> [Claude Code / Sonnet 5](https://docs.anthropic.com/en/docs/claude-code/overview)
+> and [OpenCode / DeepSeek V4-Flash](https://github.com/niels-emmer/opencode) —
+> reviewed, directed, and shipped by a human. If you're exploring what
+> agentic coding can produce end-to-end, this is a working example.
+
 ## What it is
 
 **MyACE makes your AI coding agent's rules, skills, and workflows portable.**
 Write them once, keep them in one place, and compile them into whatever
 format Claude Code, OpenCode, Cursor (and whatever comes next) actually
 expects — instead of hand-maintaining N slightly-different copies, or
-picking one tool and losing the rest.
+picking one tool and losing the rest. It's a portability layer for the
+whole prompt-engineering stack: rules, skills, agents, workflows, and
+model configs, managed as portable LLM tooling rather than per-framework
+lock-in.
 
 A live instance runs at **[myace.macjuu.com](https://myace.macjuu.com)** —
 sign up and start building a profile in minutes, no setup required.
@@ -380,10 +390,8 @@ copied verbatim into the artifacts themselves:
 Logo: <a href="https://www.flaticon.com/free-icons/layers" title="layers icons">Layers icons created by Good Ware - Flaticon</a>.
 
 This entire project — every line of code, every test, every doc, every
-infrastructure config — was written by AI coding agents:
-[Claude Code / Sonnet 5](https://docs.anthropic.com/en/docs/claude-code/overview)
-and [OpenCode / DeepSeek V4-Flash](https://github.com/niels-emmer/opencode).
-The human (Niels) reviewed, directed, and shipped it.
+infrastructure config — was written by AI coding agents (see the note at
+the top of this README).
 
 Incoming PRs are also reviewed by **Marvin** ([`marv-o-matic`](https://github.com/marv-o-matic)),
 an automated AI review bot that checks CI status, verifies README/count claims

@@ -3,6 +3,7 @@ import { Link, Outlet, NavLink, useNavigate, useLocation } from 'react-router-do
 import { LayoutDashboard, LogOut, Menu, X, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { collectionsGroup, buildGroup, machineGroup, getSettingsGroup, type NavGroup } from '../lib/navigation';
+import GithubIcon from './GithubIcon';
 
 const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -164,6 +165,15 @@ export default function Layout() {
         </nav>
 
         <div className="p-4 border-t border-border space-y-1">
+          <a
+            href="https://github.com/niels-emmer/myace"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            <GithubIcon className="h-4 w-4" />
+            View source on GitHub
+          </a>
           <div className="flex items-center justify-between px-3 py-2">
             <div className="min-w-0">
               <p className="text-sm font-medium text-card-foreground truncate">
