@@ -1093,8 +1093,12 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   Add-rule form below) is the one field that isn't a plain blur-to-save
   input — it's a checkbox popover with an explicit "Done" button, since
   toggling several checkboxes needs to happen before committing.
-- **Validation is client-side only, mirroring the Canonical IR schema
-  (rule 5)**: priority is an integer 0–100; version must match
+- **Validation is client-side *and* enforced server-side by
+  `ArtifactCreate`/`ArtifactUpdate` (`backend/app/models/artifact.py`) —
+  422 on out-of-range values, a bad `artifact_type`, or an explicit `null`
+  for any field except `description`/`handoff_to`** (a stored `null` in
+  `tags`/`body`/etc. used to 500 every later read of that artifact). The
+  client rules mirror the Canonical IR schema (rule 5): priority is an integer 0–100; version must match
   `^\d+\.\d+\.\d+$` (plain `MAJOR.MINOR.PATCH`, no pre-release/build
   metadata); body must be non-empty after trimming. `target_compatibility`
   has no validation — despite looking like it constrains which adapters an
