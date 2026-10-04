@@ -152,6 +152,19 @@ The backend scanner includes Docker path resolution (`/host-home/` mount, broken
 
 The backend scanner additionally supports scanning a Git repository (`scan_git_repository()` — shallow clone to a temp dir, then delegates to the same directory-scanning logic). This is **web-only**: the CLI's `myace import` still only accepts `--path`. If you add git-source support to the CLI, keep its artifact discovery in sync with both existing scanners per the table above.
 
+Backend scans are **confined**, and the git path has its own limits — keep
+all of it if you touch `scanner.py`: `_resolve_path()` `resolve()`s before
+checking `settings.scan_root` (a lexical check lets `/host-home/../etc`
+through); `_scan_tree()` skips any file whose symlink-resolved path leaves
+its `confine_to` root (`scan_root` for local scans, the temp clone for git
+scans — a hostile repo can't commit `agents/x.md -> /etc/passwd`);
+`scan_git_repository()` confines to its own clone (it does *not* go through
+`scan_root`), rejects `subdirectory` values that leave the clone, rejects
+hosts resolving to non-public addresses (SSRF), disables HTTP redirects via
+`GIT_CONFIG_*` env (GitPython blocks `--config` as unsafe), and caps the
+clone at `settings.git_clone_timeout_seconds`. It is blocking, so the route
+calls it via `asyncio.to_thread`.
+
 `backend/app/services/github_export.py` is the inverse: converts canonical artifacts back into this same directory layout and pushes them to a GitHub branch + PR via the REST API. Keep `artifacts_to_files()` (export) and the scanner's parsers (import) symmetric — a collection exported to GitHub should scan back to the same artifacts.
 
 ### 9. Compose File Strategy
