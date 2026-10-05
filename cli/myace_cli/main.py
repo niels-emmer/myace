@@ -24,6 +24,7 @@ from myace_cli.sync import (
     read_manifest,
     report_sync_status,
     run_watch_iteration,
+    safe_output_path,
     write_manifest,
 )
 
@@ -231,7 +232,7 @@ def pull(
     for filename, content in files.items():
         size = len(content)
         size_str = f"{size} chars" if size < 1000 else f"{size / 1000:.1f} KB"
-        table.add_row(filename, size_str, "write" if not dry_run else "dry-run")
+        table.add_row(rich_escape(filename), size_str, "write" if not dry_run else "dry-run")
 
     console.print(table)
 
@@ -269,15 +270,14 @@ def pull(
         skipped = 0
         written_filenames: list[str] = []
         for filename, content in files.items():
-            # Prevent path traversal: reject filenames with path separators or
-            # parent-dir references. The server's compile response is derived from
-            # user-controlled artifact names, so a malicious/compromised server
-            # could return a filename like '../../.bashrc'.
-            if "/" in filename or "\\" in filename or ".." in filename:
-                rprint(f"  [red]Skipping unsafe filename: {filename}[/red]")
+            # Prevent path traversal: reject absolute paths and `..` segments
+            # (nested relative paths like .claude/agents/x.md are what most
+            # adapters emit, and are fine). See safe_output_path().
+            file_path = safe_output_path(output_path, filename)
+            if file_path is None:
+                rprint(f"  [red]Skipping unsafe filename: {rich_escape(filename)}[/red]")
                 skipped += 1
                 continue
-            file_path = output_path / filename
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
             if file_path.exists() and not force:
@@ -712,7 +712,9 @@ def import_cmd(
             raise typer.Exit(1)
 
         import httpx
-        url = f"{creds['server']}/api/v1/collections/import?owner_id={creds.get('user_id', '')}"
+        # Ownership comes from the bearer token server-side (AGENTS.md rule
+        # 10) — never send an owner id.
+        url = f"{creds['server']}/api/v1/collections/import"
         headers = {
             "Authorization": f"Bearer {creds['token']}",
             "Content-Type": "application/json",
@@ -740,7 +742,7 @@ def import_cmd(
             body = e.response.text[:500] if e.response.text else ""
             rprint(f"[red]✗[/red] Failed to push: server returned {e.response.status_code}")
             if body:
-                rprint(f"   [dim]{body}[/dim]")
+                rprint(f"   [dim]{rich_escape(body)}[/dim]")
         except httpx.ConnectError:
             rprint(f"[red]✗[/red] Could not connect to {creds['server']}")
 
