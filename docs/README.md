@@ -49,8 +49,8 @@ depth, it links here.
   (or repeats a mistake) six months later.
 - **[adapters-research.md](adapters-research.md)** — every target adapter
   MyACE ships, its confirmed file format and doc citation, plus a Future
-  Plans section for unbuilt candidates (pi.dev, Zed AI, CodeGPT) open to
-  contribution.
+  Plans section for unbuilt candidates (Zed AI, CodeGPT) and known gaps in
+  shipped adapters, open to contribution.
 
 ## Keeping this up to date
 

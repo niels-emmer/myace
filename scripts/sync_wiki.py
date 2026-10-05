@@ -45,6 +45,10 @@ PAGE_MAP: dict[str, str] = {
     "extending.md": "Extending-MyACE",
     "debugging.md": "Debugging",
     "adapters-research.md": "Adapter-Research",
+    "deployment.md": "Deployment",
+    "cli.md": "CLI",
+    "backups.md": "Backups",
+    "ci-drift-check.md": "CI-Drift-Check",
     "adr/README.md": "ADR-Index",
 }
 
@@ -134,6 +138,10 @@ def build_sidebar(page_map: dict[str, str]) -> str:
         "- [Invariants](Invariants)",
         "- [Extending MyACE](Extending-MyACE)",
         "- [Debugging](Debugging)",
+        "- [Deployment](Deployment)",
+        "- [CLI](CLI)",
+        "- [Backups](Backups)",
+        "- [CI Drift Check](CI-Drift-Check)",
         "- [ADR Index](ADR-Index)",
     ]
     for p in adr_pages:
