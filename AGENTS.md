@@ -318,13 +318,23 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   self-serve publish anymore.** It moves `Collection.moderation_status`
   from `draft`/`denied` to `submitted` (409 otherwise) and never touches
   `published`/`visibility`. The *only* code path that sets
-  `published=True`/`visibility="public"` is
+  `published=True` (Community listing) is
   `POST /moderation/{collection_id}/approve` (moderator/admin only, via
   `require_moderator_or_admin` — never `authorize_access`, whose
   owner-bypass would let an owner approve their own submission).
   `GET /collections/community` still filters on
   `published=True AND is_active=True`, but that predicate is only ever
-  true for `moderation_status="approved"` rows now. See
+  true for `moderation_status="approved"` rows now.
+- **`visibility="public"` is a separate, owner-controlled flag — link
+  sharing, not Community listing.** The collection page's Share dialog
+  PATCHes `visibility` directly (`CollectionUpdate`), and that is
+  deliberate: a `public` collection is readable by any signed-in user who
+  has its ID (and usable in their profiles, see rule 13), but it never
+  appears in `/collections/community`, can't be rated or commented on, and
+  is not "published" — all of which still require `published=True` /
+  `moderation_status="approved"` via the moderation flow. Don't add a
+  moderation gate to the `visibility` PATCH, and don't treat `visibility`
+  as evidence a collection was reviewed. See
   [ADR-0008](docs/adr/0008-collection-moderation-state-machine.md) for the
   full state machine and rule 30 below for the role that gates it.
 - **This still isn't a GitHub PR.** The old self-serve flow described in a
@@ -1106,8 +1116,12 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   Add-rule form below) is the one field that isn't a plain blur-to-save
   input — it's a checkbox popover with an explicit "Done" button, since
   toggling several checkboxes needs to happen before committing.
-- **Validation is client-side only, mirroring the Canonical IR schema
-  (rule 5)**: priority is an integer 0–100; version must match
+- **Validation is client-side *and* enforced server-side by
+  `ArtifactCreate`/`ArtifactUpdate` (`backend/app/models/artifact.py`) —
+  422 on out-of-range values, a bad `artifact_type`, or an explicit `null`
+  for any field except `description`/`handoff_to`** (a stored `null` in
+  `tags`/`body`/etc. used to 500 every later read of that artifact). The
+  client rules mirror the Canonical IR schema (rule 5): priority is an integer 0–100; version must match
   `^\d+\.\d+\.\d+$` (plain `MAJOR.MINOR.PATCH`, no pre-release/build
   metadata); body must be non-empty after trimming. `target_compatibility`
   has no validation — despite looking like it constrains which adapters an

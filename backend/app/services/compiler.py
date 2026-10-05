@@ -12,6 +12,7 @@ from app.models.artifact import Artifact, CanonicalArtifact
 from app.models.collection import Collection
 from app.models.profile import Profile, ProfileCompileResponse, ValidationIssue
 from app.models.system_settings import SystemSettings
+from app.models.user import User
 
 
 def compute_compiled_hash(files: dict[str, str]) -> str:
@@ -54,12 +55,18 @@ async def compile_profile(
     profile: Profile,
     target: str,
     include_disabled: bool = False,
+    requesting_user: User | None = None,
 ) -> ProfileCompileResponse:
     """
     Compile a profile into target-specific file payloads.
 
-    1. Resolve base collection + additional collections
-    2. Collect all artifacts, respecting disabled list
+    1. Resolve base collection + additional collections, skipping inactive
+       (soft-deleted) ones and — when `requesting_user` is given — any the
+       caller can't read (a public profile never exposes its owner's
+       private collections to other users)
+    2. Collect all live (not soft-deleted) artifacts, respecting disabled
+       list; `include_disabled` only takes effect for collections the
+       requester owns (or any, for an admin)
     3. Sort by priority (highest first)
     4. Deduplicate by name (later collections override earlier); emit a
        `name_collision` ValidationIssue warning whenever that override
@@ -84,8 +91,13 @@ async def compile_profile(
     for cid in all_collection_ids:
         result = await session.execute(select(Collection).where(Collection.id == cid))
         collection = result.scalar_one_or_none()
-        if collection:
-            collection_map[cid] = collection
+        if collection is None or not collection.is_active:
+            continue
+        if requesting_user is not None and not _can_read_collection(
+            collection, requesting_user
+        ):
+            continue
+        collection_map[cid] = collection
 
     # Collect artifacts from all collections
     seen_names: dict[str, CanonicalArtifact] = {}
@@ -97,9 +109,11 @@ async def compile_profile(
             continue
 
         collection = collection_map[cid]
-        query = select(Artifact).where(Artifact.collection_id == cid)
+        query = select(Artifact).where(
+            Artifact.collection_id == cid, Artifact.deleted_at == None  # noqa: E711
+        )
 
-        if not include_disabled:
+        if not include_disabled or not _can_include_disabled(collection, requesting_user):
             query = query.where(Artifact.is_enabled == True)
 
         result = await session.execute(query)
@@ -172,11 +186,22 @@ async def compile_profile(
     )
 
 
+def _can_read_collection(collection: Collection, user: User) -> bool:
+    return user.is_admin or collection.owner_id == user.id or collection.visibility == "public"
+
+
+def _can_include_disabled(collection: Collection, user: User | None) -> bool:
+    if user is None:
+        return True
+    return user.is_admin or collection.owner_id == user.id
+
+
 async def compute_compile_status(
     session: AsyncSession,
     profile: Profile,
     target: str,
     include_disabled: bool = False,
+    requesting_user: User | None = None,
 ) -> str:
     """Compute just the `compiled_hash` for `GET /profiles/{id}/compile-status`.
 
@@ -195,7 +220,8 @@ async def compute_compile_status(
     profile's resolved inputs, which is future work, not implemented here.
     """
     compiled = await compile_profile(
-        session=session, profile=profile, target=target, include_disabled=include_disabled,
+        session=session, profile=profile, target=target,
+        include_disabled=include_disabled, requesting_user=requesting_user,
     )
     return compiled.compiled_hash
 
