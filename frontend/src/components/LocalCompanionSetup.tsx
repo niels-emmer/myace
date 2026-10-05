@@ -13,6 +13,11 @@ export const COMPANION_URLS = ['http://localhost:8765', 'http://127.0.0.1:8765']
 interface CompanionHealth {
   status: string;
   server: string;
+  /** The candidate URL that actually answered — use this for follow-up calls
+   *  (scan/audit), not COMPANION_URLS[0]: on a machine where `localhost`
+   *  resolves to ::1 only 127.0.0.1 answers, since the companion binds
+   *  127.0.0.1 only. */
+  baseUrl: string;
 }
 
 /**
@@ -33,7 +38,7 @@ export function useCompanionHealth(enabled: boolean = true): UseQueryResult<Comp
             signal: AbortSignal.timeout(3000),
           });
           if (res.ok) {
-            const data = (await res.json()) as CompanionHealth;
+            const data = { ...(await res.json()), baseUrl } as CompanionHealth;
             console.info(`[myace] Companion detected at ${baseUrl}`, data);
             return data;
           }

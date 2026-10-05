@@ -52,3 +52,31 @@ def test_load_credentials_corrupted(tmp_path: Path):
 
     creds = auth.load_credentials()
     assert creds is None
+
+
+def test_credentials_file_and_dir_are_owner_only(tmp_path: Path):
+    import stat
+
+    auth = AuthManager()
+    auth.config_dir = tmp_path / ".myace"
+    auth.credentials_path = auth.config_dir / "credentials.json"
+
+    auth.store_credentials("https://api.example.com", "test-token-12345")
+
+    assert stat.S_IMODE(auth.config_dir.stat().st_mode) == 0o700
+    assert stat.S_IMODE(auth.credentials_path.stat().st_mode) == 0o600
+
+
+def test_store_credentials_tightens_an_existing_loose_file(tmp_path: Path):
+    import stat
+
+    auth = AuthManager()
+    auth.config_dir = tmp_path
+    auth.credentials_path = tmp_path / "credentials.json"
+    auth.credentials_path.write_text("{}")
+    auth.credentials_path.chmod(0o644)
+
+    auth.store_credentials("https://api.example.com", "test-token-12345")
+
+    assert stat.S_IMODE(auth.credentials_path.stat().st_mode) == 0o600
+    assert auth.load_credentials() is not None

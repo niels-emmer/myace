@@ -11,6 +11,7 @@ from authlib.integrations.starlette_client.apps import StarletteOAuth2App
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from itsdangerous import URLSafeTimedSerializer
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, select
 
@@ -18,6 +19,7 @@ from app.core.authz import authorize_access
 from app.core.config import settings
 from app.core.database import get_session
 from app.core.deps import get_current_user, require_admin
+from app.core.ratelimit import auth_limiter
 from app.core.security import (
     default_token_expiry,
     generate_api_key,
@@ -50,6 +52,42 @@ router = APIRouter()
 RESET_TOKEN_TTL = timedelta(hours=1)
 
 
+def _auth_limit() -> str:
+    return settings.auth_rate_limit
+
+
+def _mfa_limit() -> str:
+    return settings.mfa_rate_limit
+
+
+class TotpCodeRequest(BaseModel):
+    """Body for the TOTP verify/disable routes. A one-time code in a query
+    string ends up in access logs and browser history, so it travels in the
+    body; the `code` query parameter is still accepted as a deprecated
+    fallback for existing clients."""
+    code: str
+
+
+class MfaLoginRequest(BaseModel):
+    """Body for POST /auth/login/mfa — same reasoning as `TotpCodeRequest`,
+    plus `mfa_token` is a bearer credential for the second login step."""
+    mfa_token: str
+    code: str
+
+
+def _body_or_query(body_value: str | None, query_value: str | None, name: str) -> str:
+    value = body_value if body_value is not None else query_value
+    if value is None:
+        raise HTTPException(status_code=422, detail=f"{name} is required")
+    return value
+
+
+async def _registration_allowed(session: AsyncSession) -> bool:
+    result = await session.execute(select(SystemSettings).where(SystemSettings.id == 1))
+    sys_settings = result.scalar_one_or_none()
+    return not sys_settings or sys_settings.allow_registration
+
+
 async def _is_bootstrap_admin(session: AsyncSession, email: str) -> bool:
     """First-ever user becomes admin (while ADMIN_BOOTSTRAP_ENABLED); emails in
     ADMIN_EMAILS are always promoted regardless."""
@@ -64,6 +102,7 @@ async def _is_bootstrap_admin(session: AsyncSession, email: str) -> bool:
 # ─── Email + Password Auth ─────────────────────────────────────
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@auth_limiter.limit(_auth_limit)
 async def register(
     request: Request,
     data: UserRegister,
@@ -73,10 +112,7 @@ async def register(
     if len(data.password) < 8:
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
 
-    # Check if registration is allowed
-    result = await session.execute(select(SystemSettings).where(SystemSettings.id == 1))
-    sys_settings = result.scalar_one_or_none()
-    if sys_settings and not sys_settings.allow_registration:
+    if not await _registration_allowed(session):
         raise HTTPException(status_code=403, detail="Registration is disabled")
 
     result = await session.execute(select(User).where(User.email == data.email))
@@ -109,6 +145,7 @@ async def register(
 
 
 @router.post("/login")
+@auth_limiter.limit(_auth_limit)
 async def login_with_password(
     request: Request,
     data: UserLogin,
@@ -216,7 +253,9 @@ async def change_password(
 
 
 @router.post("/forgot-password")
+@auth_limiter.limit(_auth_limit)
 async def forgot_password(
+    request: Request,
     data: ForgotPasswordRequest,
     session: AsyncSession = Depends(get_session),
 ):
@@ -257,7 +296,9 @@ async def forgot_password(
 
 
 @router.post("/reset-password")
+@auth_limiter.limit(_auth_limit)
 async def reset_password(
+    request: Request,
     data: ResetPasswordRequest,
     session: AsyncSession = Depends(get_session),
 ):
@@ -579,11 +620,17 @@ async def auth_callback(
         # `preferred_username`/`picture` claims, and `email` is null unless
         # the user made one public, even with the user:email scope granted.
         oidc_sub = str(user_info["id"])
+        # Both sources are verified-only: the public profile email must be
+        # verified to be shown, and _fetch_github_primary_email filters on
+        # `verified`.
+        email_verified = True
         email = user_info.get("email") or await _fetch_github_primary_email(client, token)
         display_name = user_info.get("name") or user_info.get("login") or email.split("@")[0]
         avatar_url = user_info.get("avatar_url")
     else:
         oidc_sub = user_info.get("sub")
+        # OIDC `email_verified` — some IdPs send the string "true".
+        email_verified = user_info.get("email_verified") in (True, "true")
         email = user_info.get("email", "")
         display_name = (
             user_info.get("name") or user_info.get("preferred_username") or email.split("@")[0]
@@ -609,11 +656,29 @@ async def auth_callback(
         user = result.scalar_one_or_none()
 
         if user:
-            # Link OIDC identity
+            # Linking an SSO identity to an existing account by email is only
+            # safe if the provider vouches for that email: registration here
+            # is unverified, so without this an attacker could pre-register a
+            # victim's address, then have it linked to their own SSO login
+            # (or the reverse) and keep a working password on the account.
+            if not email_verified:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Your sign-in provider has not verified this email address, so it "
+                    "can't be linked to the existing account. Verify it with your provider, "
+                    "or sign in with your password.",
+                )
+            # Never silently re-point an account at a different identity.
+            if user.oidc_sub and (user.oidc_sub != oidc_sub or user.oidc_provider != provider):
+                raise HTTPException(
+                    status_code=403,
+                    detail="This account is already linked to a different sign-in identity.",
+                )
             user.oidc_sub = oidc_sub
             user.oidc_provider = provider
         else:
-            # Create new user
+            if not await _registration_allowed(session):
+                raise HTTPException(status_code=403, detail="Registration is disabled")
             is_admin = await _is_bootstrap_admin(session, email)
             user = User(
                 email=email,
@@ -731,6 +796,14 @@ async def setup_totp(
     if sys_settings and not sys_settings.mfa_enabled:
         raise HTTPException(status_code=400, detail="MFA is not enabled on this server")
 
+    # Re-running setup would silently replace the secret of an account that
+    # already requires it, locking the owner out (or, for a hijacked
+    # session, swapping in the attacker's authenticator). Disable first.
+    if current_user.mfa_enabled:
+        raise HTTPException(
+            status_code=400, detail="MFA is already enabled. Disable it before setting it up again."
+        )
+
     secret = pyotp.random_base32()
     current_user.totp_secret = secret
     session.add(current_user)
@@ -747,13 +820,18 @@ async def setup_totp(
 
 
 @router.post("/me/mfa/totp/verify")
+@auth_limiter.limit(_mfa_limit)
 async def verify_totp(
-    code: str,
+    request: Request,
+    body: TotpCodeRequest | None = None,
+    code: str | None = None,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Verify a TOTP code and enable MFA for the user."""
+    """Verify a TOTP code (JSON body `{"code": ...}`) and enable MFA for the user."""
     import pyotp
+
+    code = _body_or_query(body.code if body else None, code, "code")
 
     if not current_user.totp_secret:
         raise HTTPException(status_code=400, detail="TOTP not set up. Call setup first.")
@@ -769,18 +847,22 @@ async def verify_totp(
 
 
 @router.post("/me/mfa/totp/disable")
+@auth_limiter.limit(_mfa_limit)
 async def disable_totp(
+    request: Request,
+    body: TotpCodeRequest | None = None,
     code: str | None = None,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Disable MFA. Requires a valid TOTP code or current password."""
+    """Disable MFA. Requires a valid TOTP code (JSON body `{"code": ...}`)."""
     import pyotp
 
     if not current_user.mfa_enabled:
         raise HTTPException(status_code=400, detail="MFA is not enabled")
 
-    # Verify with TOTP code or password
+    if body is not None:
+        code = body.code
     verified = False
     if code and current_user.totp_secret:
         totp = pyotp.TOTP(current_user.totp_secret)
@@ -797,14 +879,20 @@ async def disable_totp(
 
 
 @router.post("/login/mfa")
+@auth_limiter.limit(_mfa_limit)
 async def login_with_mfa(
     request: Request,
-    mfa_token: str,
-    code: str,
+    body: MfaLoginRequest | None = None,
+    mfa_token: str | None = None,
+    code: str | None = None,
     session: AsyncSession = Depends(get_session),
 ):
-    """Complete MFA-challenged login by verifying a TOTP code."""
+    """Complete MFA-challenged login by verifying a TOTP code (JSON body
+    `{"mfa_token": ..., "code": ...}`)."""
     import pyotp
+
+    mfa_token = _body_or_query(body.mfa_token if body else None, mfa_token, "mfa_token")
+    code = _body_or_query(body.code if body else None, code, "code")
 
     # Decode the MFA token
     s = _mfa_serializer()

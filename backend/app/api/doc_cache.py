@@ -59,9 +59,10 @@ async def list_cache_entries(
 async def delete_cache_entry(
     entry_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
-    """Delete a cached documentation entry."""
+    """Delete a cached documentation entry. Admin only: the cache is a single
+    global resource shared by every user, not owned by whoever fetched it."""
     result = await session.execute(
         select(DocCacheEntry).where(
             DocCacheEntry.id == entry_id, DocCacheEntry.deleted_at == None

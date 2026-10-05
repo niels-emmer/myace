@@ -4,8 +4,9 @@ on:
   push:
     branches: [main]
 
+# Build jobs only read; publish-latest below grants itself contents: write.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:

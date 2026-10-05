@@ -10,7 +10,7 @@ import json
 
 import yaml
 
-from app.adapters.base import BaseAdapter
+from app.adapters.base import BaseAdapter, safe_path_component
 from app.models.artifact import CanonicalArtifact
 
 
@@ -46,12 +46,13 @@ class OpenCodeAdapter(BaseAdapter):
         mcp_servers: dict[str, dict] = {}
 
         for artifact in artifacts:
+            slug = safe_path_component(artifact.name)
             if artifact.artifact_type == "skill":
-                files[f".opencode/skills/{artifact.name}/SKILL.md"] = self._format_skill(artifact)
+                files[f".opencode/skills/{slug}/SKILL.md"] = self._format_skill(artifact)
             elif artifact.artifact_type == "agent":
-                files[f".opencode/agents/{artifact.name}.md"] = self._format_agent(artifact)
+                files[f".opencode/agents/{slug}.md"] = self._format_agent(artifact)
             elif artifact.artifact_type == "workflow":
-                files[f".opencode/commands/{artifact.name}.md"] = self._format_command(artifact)
+                files[f".opencode/commands/{slug}.md"] = self._format_command(artifact)
             elif artifact.artifact_type == "rule":
                 rules_content.append(self._format_rule(artifact))
             elif artifact.artifact_type == "model_config":

@@ -69,4 +69,31 @@ describe('ImportPage local companion detection', () => {
     const scanButton = screen.getByRole('button', { name: /Scan Resources/i });
     await waitFor(() => expect(scanButton).toBeEnabled());
   });
+
+  it('sends the scan to whichever companion URL actually answered the health check', async () => {
+    // `localhost` resolves to ::1 here, but the companion only binds 127.0.0.1
+    // — so only the second candidate URL answers.
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.startsWith('http://localhost:8765')) throw new Error('connection refused');
+      if (url === 'http://127.0.0.1:8765/health') {
+        return { ok: true, json: () => Promise.resolve({ status: 'ok', server: 'https://myace.example.com' }) };
+      }
+      return { ok: true, json: () => Promise.resolve({ path: '/p', artifact_count: 0, artifacts: [] }) };
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    renderImportPage();
+    fireEvent.change(screen.getByPlaceholderText('~/.config/opencode'), {
+      target: { value: '~/.config/opencode' },
+    });
+    const scanButton = screen.getByRole('button', { name: /Scan Resources/i });
+    await waitFor(() => expect(scanButton).toBeEnabled());
+    fireEvent.click(scanButton);
+
+    await waitFor(() => {
+      const urls = fetchMock.mock.calls.map((c) => c[0]);
+      expect(urls).toContain('http://127.0.0.1:8765/scan');
+    });
+    expect(fetchMock.mock.calls.map((c) => c[0])).not.toContain('http://localhost:8765/scan');
+  });
 });

@@ -7,8 +7,11 @@
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #
 # The proxy container should be attached to the same external network
-# and forward to:
-#   - http://frontend:80   (SPA)
+# (name it with PROXY_NETWORK in .env; defaults to `proxy-net`) and forward
+# to:
+#   - http://frontend:80   (SPA *and* /api/* — the frontend's nginx proxies
+#                           /api/ to the backend, which has no host port and
+#                           isn't on the proxy network)
 
 services:
   frontend:
@@ -21,9 +24,15 @@ services:
     environment:
       # Read from .env (gitignored) so the real domain never lands in the repo.
       - CORS_ORIGINS=${CORS_ORIGINS}
+    volumes:
+      # The base file bind-mounts the host checkout over the image's code
+      # (hot reload for dev). Same mount here, read-only: prod behaviour is
+      # unchanged, but the container can no longer write into the checkout.
+      - ./backend:/app:ro
 
 networks:
   myace:
     driver: bridge                     # private to this stack
   proxy-net:
     external: true
+    name: ${PROXY_NETWORK:-proxy-net}   # the docs' PROXY_NETWORK, default unchanged

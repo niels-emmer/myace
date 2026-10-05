@@ -56,8 +56,7 @@ export default function ProfileComposer() {
   // Fan out one getArtifacts query per selected collection, keyed
   // ['artifacts', cid, { include_disabled: false }] — the filter is folded
   // into the key (AGENTS.md rule 12) so this doesn't collide with
-  // CollectionDetail's ['artifacts', id] query, which fetches with
-  // include_disabled: true. The preview must only ever see enabled artifacts,
+  // CollectionDetail's ['artifacts', id, { include_disabled: true }] query. The preview must only ever see enabled artifacts,
   // matching what compile_profile() actually compiles.
   const artifactQueries = useQueries({
     queries: selectedCollectionIds.map((cid) => ({
