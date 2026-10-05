@@ -69,7 +69,7 @@ export default function ProfileDetail() {
     : [];
   const artifactQueries = useQueries({
     queries: resourceCollectionIds.map((cid) => ({
-      queryKey: ['artifacts', cid],
+      queryKey: ['artifacts', cid, { include_disabled: false }],
       queryFn: () => collectionsApi.getArtifacts(cid),
       enabled: !!profile,
     })),

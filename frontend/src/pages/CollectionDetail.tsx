@@ -96,7 +96,10 @@ export default function CollectionDetail() {
   });
 
   const { data: artifacts, isLoading: loadingArtifacts } = useQuery({
-    queryKey: ['artifacts', id],
+    // Filter folded into the key (AGENTS.md rule 12): ProfileDetail/ProfileComposer
+    // fetch the same collection with include_disabled: false, and a shared bare
+    // ['artifacts', id] key made each page show the other's data from cache.
+    queryKey: ['artifacts', id, { include_disabled: true }],
     queryFn: () => collectionsApi.getArtifacts(id!, { include_disabled: true }),
     enabled: !!id,
   });
