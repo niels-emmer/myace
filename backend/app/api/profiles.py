@@ -50,7 +50,7 @@ async def _assert_readable_collection(
 ) -> None:
     result = await session.execute(select(Collection).where(Collection.id == collection_id))
     collection = result.scalar_one_or_none()
-    if not collection:
+    if not collection or not collection.is_active:
         raise HTTPException(status_code=404, detail="Base collection not found")
     authorize_access(
         owner_id=collection.owner_id, current_user=current_user,

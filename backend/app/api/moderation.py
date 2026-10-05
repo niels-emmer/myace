@@ -46,7 +46,11 @@ async def _get_submitted_collection_or_404(
 ) -> Collection:
     result = await session.execute(select(Collection).where(Collection.id == collection_id))
     collection = result.scalar_one_or_none()
-    if not collection or collection.moderation_status != "submitted":
+    if (
+        not collection
+        or not collection.is_active
+        or collection.moderation_status != "submitted"
+    ):
         raise HTTPException(status_code=404, detail="No submitted collection with that ID")
     return collection
 
@@ -196,7 +200,7 @@ async def update_collection_meta(
     their own existing PATCH /collections/{id}."""
     result = await session.execute(select(Collection).where(Collection.id == collection_id))
     collection = result.scalar_one_or_none()
-    if not collection or collection.moderation_status == "draft":
+    if not collection or not collection.is_active or collection.moderation_status == "draft":
         raise HTTPException(status_code=404, detail="Collection not found")
 
     if request.name is not None:

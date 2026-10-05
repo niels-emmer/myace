@@ -73,11 +73,14 @@ async def test_compile_skips_inactive_collection(
     await _register(async_client, "owner-ia@example.com")
     cid = await _make_collection(async_client)
     db_session.add(_artifact(cid, "rule-a"))
+    await db_session.commit()
+    # Create the profile while the collection is still live (a profile can't
+    # be built on an inactive one), then soft-delete the collection.
+    pid = await _profile(async_client, cid)
     coll = await db_session.get(Collection, uuid.UUID(cid))
     assert coll is not None
     coll.is_active = False
     await db_session.commit()
-    pid = await _profile(async_client, cid)
 
     res = await async_client.post(
         "/api/v1/profiles/compile", json={"profile_id": pid, "target": "claude-code"}
