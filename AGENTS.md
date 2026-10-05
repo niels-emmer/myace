@@ -708,7 +708,12 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   ended up on disk for each path — a file the user declined to overwrite
   keeps its *old* on-disk hash, not the new server content's hash, or the
   very next `check` would wrongly report it as in sync. Filenames rejected
-  by `pull`'s path-traversal guard are excluded entirely (never written,
+  by `pull`'s path-traversal guard (`sync.py`'s `safe_output_path()` — rejects
+  absolute paths, `..`/empty segments, backslashes and NUL, but **allows
+  nested relative paths** like `.claude/agents/x.md`, which almost every
+  adapter emits; it is lexical on purpose, so a user's symlinked
+  `.claude/agents` still works; `pull`, `watch --auto-pull` and
+  `check`'s manifest reads all share it) are excluded entirely (never written,
   not real paths). Re-running `pull` overwrites the manifest in place —
   it never appends or merges with a previous run. See
   [ADR-0009](docs/adr/0009-manifest-based-drift-detection.md) for why this
