@@ -9,7 +9,9 @@ the `@auth_limiter.limit(...)` decorator (and a `request: Request` parameter).
 Storage is in-memory and per-process, like the demo limiter (AGENTS.md rule
 36): behind N replicas the effective limit is N times the configured one.
 Behind a reverse proxy the key is the forwarded client IP, which relies on
-uvicorn's `--proxy-headers` (rule 27).
+uvicorn's `--proxy-headers` *and* on `--forwarded-allow-ips` being limited to
+the private ranges — with `*` a client could forge `X-Forwarded-For` and
+rotate its key at will (AGENTS.md rule 27, `tests/test_forwarded_ips.py`).
 """
 
 from slowapi import Limiter
