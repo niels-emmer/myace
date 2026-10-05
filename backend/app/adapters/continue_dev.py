@@ -24,7 +24,7 @@ import json
 
 import yaml
 
-from app.adapters.base import BaseAdapter
+from app.adapters.base import BaseAdapter, safe_path_component
 from app.models.artifact import CanonicalArtifact
 
 
@@ -47,14 +47,15 @@ class ContinueAdapter(BaseAdapter):
         mcp_servers: list[dict[str, object]] = []
 
         for artifact in artifacts:
+            slug = safe_path_component(artifact.name)
             if artifact.artifact_type == "rule":
-                files[f".continue/rules/{artifact.name}.md"] = self._format_rule(artifact)
+                files[f".continue/rules/{slug}.md"] = self._format_rule(artifact)
             elif artifact.artifact_type == "skill":
-                files[f".continue/rules/skill-{artifact.name}.md"] = self._format_rule(artifact)
+                files[f".continue/rules/skill-{slug}.md"] = self._format_rule(artifact)
             elif artifact.artifact_type == "agent":
-                files[f".continue/rules/agent-{artifact.name}.md"] = self._format_rule(artifact)
+                files[f".continue/rules/agent-{slug}.md"] = self._format_rule(artifact)
             elif artifact.artifact_type == "workflow":
-                files[f".continue/prompts/{artifact.name}.md"] = self._format_prompt(artifact)
+                files[f".continue/prompts/{slug}.md"] = self._format_prompt(artifact)
             elif artifact.artifact_type == "model_config":
                 self._collect_model_config(artifact, provider_models, mcp_servers)
 

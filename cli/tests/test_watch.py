@@ -293,3 +293,49 @@ def test_watch_missing_manifest_exits_nonzero(
 
     result = runner.invoke(app, ["watch", "--all"])
     assert result.exit_code == 1
+
+
+def test_run_watch_iteration_auto_pull_writes_nested_paths(
+    httpx_mock: HTTPXMock, project_dir: Path
+) -> None:
+    """Auto-pull used to skip every filename containing "/" and, once
+    allowed, would have crashed writing into a missing parent directory."""
+    manifest_path = _seed_manifest(project_dir, compiled_hash="hash-v1")
+    _mock_compile_status(httpx_mock, compiled_hash="hash-v2")
+    httpx_mock.add_response(
+        method="POST",
+        url="http://testserver/api/v1/profiles/compile",
+        json={
+            "profile_id": PROFILE_ID,
+            "profile_name": "demo-profile",
+            "target": "claude-code",
+            "artifact_count": 2,
+            "files": {"CLAUDE.md": "root", ".claude/agents/new.md": "nested"},
+            "warnings": [],
+            "compiled_hash": "hash-v2",
+        },
+    )
+
+    results = run_watch_iteration(
+        project_dir, [manifest_path], "http://testserver", "tok", auto_pull=True,
+    )
+
+    assert results[0]["pulled"] is True
+    assert (project_dir / ".claude" / "agents" / "new.md").read_text() == "nested"
+    import json
+    manifest = json.loads((project_dir / ".myace" / "claude-code.manifest.json").read_text())
+    assert ".claude/agents/new.md" in manifest["files"]
+
+
+def test_check_ignores_planted_manifest_paths_outside_the_project(
+    tmp_path: Path,
+) -> None:
+    from myace_cli.sync import compute_local_file_hashes
+
+    project = tmp_path / "project"
+    project.mkdir()
+    (tmp_path / "secret.txt").write_text("secret")
+
+    hashes = compute_local_file_hashes(project, ["../secret.txt", "/etc/hosts"])
+
+    assert hashes == {"../secret.txt": None, "/etc/hosts": None}

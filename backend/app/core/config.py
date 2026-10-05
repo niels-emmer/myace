@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_secret_key: str = "change-me-to-a-random-64-char-string"
     debug: bool = True
+    # Echo every SQL statement to the log. Deliberately separate from `debug`
+    # (which defaults to true and gates /docs + cookie flags): statement
+    # logging is only for deliberately chasing a query problem. Bound
+    # parameters are never logged either way — see core/database.py.
+    sql_echo: bool = False
 
     # Database
     database_url: str = "postgresql+asyncpg://myace:myace_secret@postgres:5432/myace"
@@ -63,6 +68,10 @@ class Settings(BaseSettings):
     # In Docker (docker-compose.dev.yml), the host home is mounted at /host-home.
     # Set this to the intended scan root for your deployment.
     scan_root: str = "/host-home"
+
+    # Wall-clock cap on a `source_type=git` scan's `git clone`, so a slow or
+    # hostile remote can't hold a worker thread (and temp disk) indefinitely.
+    git_clone_timeout_seconds: int = 60
 
     # Starter-pack collections — read by seed_starter_collections() on boot.
     # docker-compose.yml mounts the repo's collections/ directory at this path

@@ -1,8 +1,10 @@
 """Backend scanner — mirrors the CLI scanner for server-side directory scanning."""
 
+import ipaddress
 import json
 import re
 import shutil
+import socket
 import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
@@ -84,7 +86,11 @@ def _resolve_path(path: str) -> Path:
             raise FileNotFoundError(f"Directory not found: {base}")
 
     # Confine the resolved path to the configured scan root.
+    # resolve() collapses `..` segments and follows symlinks *before* the
+    # containment check — a purely lexical `relative_to` would accept
+    # `/host-home/../etc`.
     scan_root = Path(settings.scan_root).resolve()
+    resolved = resolved.resolve()
     try:
         resolved.relative_to(scan_root)
     except ValueError:
@@ -95,10 +101,30 @@ def _resolve_path(path: str) -> Path:
     return resolved
 
 
+def _is_within(path: Path, root: Path) -> bool:
+    """Whether `path`, with symlinks followed, still lives under `root`."""
+    try:
+        path.resolve().relative_to(root)
+    except (ValueError, OSError):
+        return False
+    return True
+
+
 def scan_directory(path: str | Path) -> list[dict]:
     """Scan a local config directory and return canonical artifacts."""
     base = _resolve_path(str(path))
+    return _scan_tree(base, confine_to=Path(settings.scan_root).resolve())
 
+
+def _scan_tree(base: Path, confine_to: Path) -> list[dict]:
+    """Scan `base` for artifacts, never reading a file whose symlink-resolved
+    path escapes `confine_to`.
+
+    For local scans `confine_to` is `settings.scan_root`; for a cloned Git
+    repository it is the clone's own temp dir, so a hostile repo can't
+    commit e.g. `agents/x.md -> /etc/passwd` and have the server return
+    that file's contents as an artifact body.
+    """
     artifacts: list[dict] = []
 
     # 1. Scan skills/<name>/SKILL.md
@@ -107,7 +133,7 @@ def scan_directory(path: str | Path) -> list[dict]:
         for skill_dir in sorted(skills_dir.iterdir()):
             if skill_dir.is_dir():
                 skill_file = skill_dir / "SKILL.md"
-                if skill_file.exists():
+                if skill_file.exists() and _is_within(skill_file, confine_to):
                     artifact = _parse_skill_file(skill_file)
                     if artifact:
                         artifacts.append(artifact)
@@ -116,6 +142,8 @@ def scan_directory(path: str | Path) -> list[dict]:
     agents_dir = base / "agents"
     if agents_dir.is_dir():
         for agent_file in sorted(agents_dir.glob("*.md")):
+            if not _is_within(agent_file, confine_to):
+                continue
             artifact = _parse_agent_file(agent_file)
             if artifact:
                 artifacts.append(artifact)
@@ -124,37 +152,62 @@ def scan_directory(path: str | Path) -> list[dict]:
     commands_dir = base / "commands"
     if commands_dir.is_dir():
         for cmd_file in sorted(commands_dir.glob("*.md")):
+            if not _is_within(cmd_file, confine_to):
+                continue
             artifact = _parse_command_file(cmd_file)
             if artifact:
                 artifacts.append(artifact)
 
     # 4. Parse AGENTS.md for rules
     agents_md = base / "AGENTS.md"
-    if agents_md.exists():
+    if agents_md.exists() and _is_within(agents_md, confine_to):
         rules = _parse_agents_md(agents_md)
         artifacts.extend(rules)
 
     # 5. Parse opencode.json for model configs
     opencode_json = base / "opencode.json"
-    if opencode_json.exists():
+    if opencode_json.exists() and _is_within(opencode_json, confine_to):
         configs = _parse_opencode_json(opencode_json)
         artifacts.extend(configs)
 
     return artifacts
 
 
+def _assert_public_host(hostname: str, port: int | None) -> None:
+    """Reject a git host that resolves to a non-public address (loopback,
+    private, link-local incl. cloud metadata, reserved, ...) — otherwise any
+    registered user could make the server clone from, and probe, internal
+    services.
+
+    Best-effort: git re-resolves the name itself when it clones, so a
+    DNS-rebinding host can still race this check.
+    """
+    try:
+        infos = socket.getaddrinfo(hostname, port or 443, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        raise ValueError(f"Could not resolve git host '{hostname}'")
+    for info in infos:
+        address = ipaddress.ip_address(info[4][0])
+        if not address.is_global:
+            raise ValueError("Git host resolves to a non-public address")
+
+
 def _validate_git_url(url: str) -> str:
     """Validate a git URL and strip embedded credentials.
 
-    Only https:// and git:// schemes are allowed. Credentials are stripped
-    from the returned URL to prevent credential leakage in error messages.
-    Raises ValueError if the URL is invalid or uses a disallowed scheme.
+    Only https:// and git:// schemes are allowed, and the host must resolve
+    to public addresses only. Credentials are stripped from the returned URL
+    to prevent credential leakage in error messages.
+    Raises ValueError if the URL is invalid or uses a disallowed scheme/host.
     """
     parsed = urlparse(url)
     if parsed.scheme not in ("https", "git"):
         raise ValueError(
             f"Disallowed git URL scheme '{parsed.scheme}'. Only https:// and git:// are permitted."
         )
+    if not parsed.hostname:
+        raise ValueError("Git URL has no host")
+    _assert_public_host(parsed.hostname, parsed.port)
     # Strip credentials for safe use
     safe_url = _redact_credentials(url)
     return safe_url
@@ -170,6 +223,9 @@ def scan_git_repository(
     Only public repositories work out of the box. For private repos, use a
     deploy token or SSH key configured on the server — do not embed credentials
     in the URL, as they may leak in error messages.
+
+    This is blocking (a network clone) — async callers must run it in a
+    thread (`asyncio.to_thread`), or it stalls the whole event loop.
     """
     # Validate and sanitize the URL before any operation
     safe_url = _validate_git_url(repo_url)
@@ -177,19 +233,35 @@ def scan_git_repository(
     tmp_dir = tempfile.mkdtemp(prefix="myace-scan-")
     try:
         try:
-            git.Repo.clone_from(safe_url, tmp_dir, branch=branch, depth=1, single_branch=True)
+            git.Repo.clone_from(
+                safe_url, tmp_dir, branch=branch, depth=1, single_branch=True,
+                # Don't let the server follow an HTTP redirect to an internal
+                # host. Via env, not `--config`: GitPython rejects that flag
+                # as an unsafe clone option.
+                env={
+                    "GIT_CONFIG_COUNT": "1",
+                    "GIT_CONFIG_KEY_0": "http.followRedirects",
+                    "GIT_CONFIG_VALUE_0": "false",
+                },
+                kill_after_timeout=settings.git_clone_timeout_seconds,
+            )
         except git.exc.GitCommandError:
             raise ValueError(
                 f"Failed to clone repository (branch '{branch}') from {safe_url}"
             )
 
-        scan_root = Path(tmp_dir)
+        clone_root = Path(tmp_dir).resolve()
+        scan_root = clone_root
         if subdirectory:
-            scan_root = scan_root / subdirectory
+            # resolve() so `..` and absolute subdirectories (which `/` would
+            # otherwise let replace the whole path) can't leave the clone.
+            scan_root = (clone_root / subdirectory).resolve()
+            if not _is_within(scan_root, clone_root):
+                raise PermissionError("Subdirectory is outside the repository")
             if not scan_root.is_dir():
                 raise FileNotFoundError(f"Subdirectory '{subdirectory}' not found in repository")
 
-        return scan_directory(scan_root)
+        return _scan_tree(scan_root, confine_to=clone_root)
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 

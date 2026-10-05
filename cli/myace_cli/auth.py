@@ -1,6 +1,7 @@
 """CLI authentication — token storage, credential management, and validation."""
 
 import json
+import os
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -16,19 +17,23 @@ class AuthManager:
 
     def store_credentials(self, server: str, token: str) -> None:
         """Store server URL and API token to disk."""
-        self.config_dir.mkdir(parents=True, exist_ok=True)
-        self.credentials_path.write_text(
-            json.dumps(
-                {
-                    "server": server.rstrip("/"),
-                    "token": token,
-                    "version": "0.1.0",
-                },
-                indent=2,
-            )
+        # Owner-only from the first byte: create the directory 0700 and open
+        # the file 0600, rather than write with the umask default and chmod
+        # afterwards (which leaves a window where the token is world-readable).
+        self.config_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        payload = json.dumps(
+            {
+                "server": server.rstrip("/"),
+                "token": token,
+                "version": "0.1.0",
+            },
+            indent=2,
         )
-        # Restrict permissions to owner only
-        self.credentials_path.chmod(0o600)
+        fd = os.open(self.credentials_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            # An existing file keeps its old mode through O_CREAT — tighten it.
+            os.fchmod(f.fileno(), 0o600)
+            f.write(payload)
 
     def load_credentials(self) -> dict[str, str] | None:
         """Load stored credentials from disk."""

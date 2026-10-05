@@ -4,7 +4,7 @@ import hashlib
 import json
 from collections.abc import Iterable
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import httpx
@@ -17,6 +17,26 @@ import httpx
 # any new server-side state. Nothing here talks to the network.
 
 MANIFEST_DIR_NAME = ".myace"
+
+
+def safe_output_path(base: Path, filename: str) -> Path | None:
+    """`base / filename` if `filename` is a safe *relative* path, else None.
+
+    The server's compile response is derived from user-controlled artifact
+    names, so a malicious or compromised server could return `../../.bashrc`
+    or `/etc/cron.d/x`. Nested relative paths (`.claude/agents/x.md`,
+    `.cursor/rules/x.mdc` — what nearly every adapter emits) are fine.
+
+    Checked lexically, deliberately *not* via `resolve()`: following symlinks
+    would wrongly reject a user whose `.claude/agents` is a symlink into a
+    dotfiles repo, and a server can't create symlinks on the user's disk.
+    """
+    if not filename or "\\" in filename or "\0" in filename:
+        return None
+    pure = PurePosixPath(filename)
+    if pure.is_absolute() or any(part in ("..", "") for part in filename.split("/")):
+        return None
+    return base.joinpath(*pure.parts)
 
 
 def sha256_text(content: str) -> str:
@@ -98,8 +118,9 @@ def compute_local_file_hashes(base: Path, filenames: Iterable[str]) -> dict[str,
     modified/deleted by callers) rather than being silently omitted."""
     hashes: dict[str, str | None] = {}
     for filename in filenames:
-        file_path = base / filename
-        if not file_path.exists():
+        file_path = safe_output_path(base, filename)
+        # A planted manifest must not make `check` hash arbitrary files.
+        if file_path is None or not file_path.exists():
             hashes[filename] = None
             continue
         try:
@@ -391,9 +412,11 @@ def run_watch_iteration(
                 # next check.
                 written: dict[str, str] = {}
                 for filename, content in pulled["files"].items():
-                    if "/" in filename or "\\" in filename or ".." in filename:
+                    file_path = safe_output_path(base, filename)
+                    if file_path is None:
                         continue
-                    (base / filename).write_text(content)
+                    file_path.parent.mkdir(parents=True, exist_ok=True)
+                    file_path.write_text(content)
                     written[filename] = content
 
                 compiled_hash = pulled.get("compiled_hash")

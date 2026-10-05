@@ -93,6 +93,18 @@ class BaseAdapter(ABC):
 - `translate()` returns a dict of `{filename: file_content}` for the target framework.
 - `expected_paths()` (added Phase 4, rule 35) returns this adapter's conventional local file/directory names, used by the local setup audit — must match what `translate()` actually writes.
 - Adapters are stateless — all state lives in the composition engine.
+- **Artifact text is untrusted — escape it where an adapter embeds it.**
+  Names, descriptions and bodies are user-controlled (and public
+  collections are readable by other users). Use
+  `safe_path_component(artifact.name)` (`backend/app/adapters/base.py`) for
+  any name that becomes part of an output path — otherwise `../../.bashrc`
+  becomes a traversing zip entry — and `yaml_scalar()` for any value
+  written into a hand-built `key: value` frontmatter line (adapters that
+  use `yaml.safe_dump` already get this for free). TOML output
+  (`codex_cli.py`) goes through its `_toml_string`/`_toml_multiline_body`/
+  `_toml_key` helpers; never interpolate artifact text into TOML directly.
+  `model_config` artifacts named `mcp:<name>` are MCP servers, not models:
+  adapters with no MCP config (Aider, Codex, Pi) skip them.
 
 ### 4. API Versioning
 
@@ -151,6 +163,19 @@ Both MUST support scanning these directory structures:
 The backend scanner includes Docker path resolution (`/host-home/` mount, broken symlink handling).
 
 The backend scanner additionally supports scanning a Git repository (`scan_git_repository()` — shallow clone to a temp dir, then delegates to the same directory-scanning logic). This is **web-only**: the CLI's `myace import` still only accepts `--path`. If you add git-source support to the CLI, keep its artifact discovery in sync with both existing scanners per the table above.
+
+Backend scans are **confined**, and the git path has its own limits — keep
+all of it if you touch `scanner.py`: `_resolve_path()` `resolve()`s before
+checking `settings.scan_root` (a lexical check lets `/host-home/../etc`
+through); `_scan_tree()` skips any file whose symlink-resolved path leaves
+its `confine_to` root (`scan_root` for local scans, the temp clone for git
+scans — a hostile repo can't commit `agents/x.md -> /etc/passwd`);
+`scan_git_repository()` confines to its own clone (it does *not* go through
+`scan_root`), rejects `subdirectory` values that leave the clone, rejects
+hosts resolving to non-public addresses (SSRF), disables HTTP redirects via
+`GIT_CONFIG_*` env (GitPython blocks `--config` as unsafe), and caps the
+clone at `settings.git_clone_timeout_seconds`. It is blocking, so the route
+calls it via `asyncio.to_thread`.
 
 `backend/app/services/github_export.py` is the inverse: converts canonical artifacts back into this same directory layout and pushes them to a GitHub branch + PR via the REST API. Keep `artifacts_to_files()` (export) and the scanner's parsers (import) symmetric — a collection exported to GitHub should scan back to the same artifacts.
 
@@ -333,13 +358,23 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   self-serve publish anymore.** It moves `Collection.moderation_status`
   from `draft`/`denied` to `submitted` (409 otherwise) and never touches
   `published`/`visibility`. The *only* code path that sets
-  `published=True`/`visibility="public"` is
+  `published=True` (Community listing) is
   `POST /moderation/{collection_id}/approve` (moderator/admin only, via
   `require_moderator_or_admin` — never `authorize_access`, whose
   owner-bypass would let an owner approve their own submission).
   `GET /collections/community` still filters on
   `published=True AND is_active=True`, but that predicate is only ever
-  true for `moderation_status="approved"` rows now. See
+  true for `moderation_status="approved"` rows now.
+- **`visibility="public"` is a separate, owner-controlled flag — link
+  sharing, not Community listing.** The collection page's Share dialog
+  PATCHes `visibility` directly (`CollectionUpdate`), and that is
+  deliberate: a `public` collection is readable by any signed-in user who
+  has its ID (and usable in their profiles, see rule 13), but it never
+  appears in `/collections/community`, can't be rated or commented on, and
+  is not "published" — all of which still require `published=True` /
+  `moderation_status="approved"` via the moderation flow. Don't add a
+  moderation gate to the `visibility` PATCH, and don't treat `visibility`
+  as evidence a collection was reviewed. See
   [ADR-0008](docs/adr/0008-collection-moderation-state-machine.md) for the
   full state machine and rule 30 below for the role that gates it.
 - **This still isn't a GitHub PR.** The old self-serve flow described in a
@@ -566,6 +601,23 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   matter what the external proxy saw. See
   [debugging.md](docs/debugging.md#githubgoogleoidc-login-fails-with-redirect-uri-is-not-associated-with-this-application-behind-a-reverse-proxy).
 
+- **Every one of those checks is gated on `APP_ENV != development`, and
+  `.env.example` ships `APP_ENV=development`.** A deployment that
+  customises its secret/hosts/CORS but leaves that line alone runs with
+  none of them (no default-secret error, no `TRUSTED_HOSTS` requirement,
+  schema auto-created each boot). `app/main.py`'s lifespan now logs a
+  warning via `looks_like_real_deployment()` when it sees that combination;
+  `docs/deployment.md` lists `APP_ENV=production` as the first `.env` step.
+  Don't "fix" this by flipping the default to production — it would break
+  local dev for anyone without a `.env`.
+- **SQL logging is `SQL_ECHO`, not `DEBUG`, and never includes bound
+  parameters.** `get_engine()` (`app/core/database.py`) sets
+  `echo=settings.sql_echo` (default off) and `hide_parameters=True`
+  unconditionally — with `echo=settings.debug` (the old behaviour, and
+  `debug` defaults to true) every statement's parameters, including
+  `password_hash`, `totp_secret`, reset-token hashes and emails, went to
+  the log, against rule 10.
+
 ### 28. Frontend Structure Gotchas
 
 - **`CollectionDetail.tsx` no longer has an "Export to GitHub" button.** It
@@ -736,7 +788,12 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   ended up on disk for each path — a file the user declined to overwrite
   keeps its *old* on-disk hash, not the new server content's hash, or the
   very next `check` would wrongly report it as in sync. Filenames rejected
-  by `pull`'s path-traversal guard are excluded entirely (never written,
+  by `pull`'s path-traversal guard (`sync.py`'s `safe_output_path()` — rejects
+  absolute paths, `..`/empty segments, backslashes and NUL, but **allows
+  nested relative paths** like `.claude/agents/x.md`, which almost every
+  adapter emits; it is lexical on purpose, so a user's symlinked
+  `.claude/agents` still works; `pull`, `watch --auto-pull` and
+  `check`'s manifest reads all share it) are excluded entirely (never written,
   not real paths). Re-running `pull` overwrites the manifest in place —
   it never appends or merges with a previous run. See
   [ADR-0009](docs/adr/0009-manifest-based-drift-detection.md) for why this
@@ -1122,8 +1179,12 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   Add-rule form below) is the one field that isn't a plain blur-to-save
   input — it's a checkbox popover with an explicit "Done" button, since
   toggling several checkboxes needs to happen before committing.
-- **Validation is client-side only, mirroring the Canonical IR schema
-  (rule 5)**: priority is an integer 0–100; version must match
+- **Validation is client-side *and* enforced server-side by
+  `ArtifactCreate`/`ArtifactUpdate` (`backend/app/models/artifact.py`) —
+  422 on out-of-range values, a bad `artifact_type`, or an explicit `null`
+  for any field except `description`/`handoff_to`** (a stored `null` in
+  `tags`/`body`/etc. used to 500 every later read of that artifact). The
+  client rules mirror the Canonical IR schema (rule 5): priority is an integer 0–100; version must match
   `^\d+\.\d+\.\d+$` (plain `MAJOR.MINOR.PATCH`, no pre-release/build
   metadata); body must be non-empty after trimming. `target_compatibility`
   has no validation — despite looking like it constrains which adapters an

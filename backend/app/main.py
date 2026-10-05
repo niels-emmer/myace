@@ -37,6 +37,19 @@ logger = logging.getLogger("myace")
 DEFAULT_SECRET_KEY = "change-me-to-a-random-64-char-string"
 
 
+def looks_like_real_deployment() -> bool:
+    """Whether the config has clearly been customised for a non-local
+    deployment — a real secret key, a TRUSTED_HOSTS list, or a non-localhost
+    CORS origin. Used only to warn when that coexists with
+    `APP_ENV=development`, which silently turns off every production
+    hardening check below (default-secret and TRUSTED_HOSTS errors included).
+    """
+    if settings.app_secret_key != DEFAULT_SECRET_KEY or settings.trusted_host_list:
+        return True
+    local = ("localhost", "127.0.0.1", "[::1]", ".localhost")
+    return any(not any(marker in o for marker in local) for o in settings.cors_origin_list)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: initialize DB on startup."""
@@ -52,6 +65,13 @@ async def lifespan(app: FastAPI):
         # tables may not exist yet on this very first boot — the next
         # restart after migrations run will pick the seed back up.
         logger.exception("Starter-pack seeding failed — continuing startup without it.")
+    if settings.app_env == "development" and looks_like_real_deployment():
+        logger.warning(
+            "APP_ENV=development but this looks like a real deployment (custom secret key, "
+            "TRUSTED_HOSTS or non-localhost CORS_ORIGINS). Production hardening checks "
+            "(default-secret and TRUSTED_HOSTS errors) are OFF and the database schema is "
+            "auto-created on every boot — set APP_ENV=production in .env."
+        )
     if settings.app_secret_key == DEFAULT_SECRET_KEY and settings.app_env != "development":
         raise RuntimeError(
             "APP_SECRET_KEY is still the default placeholder value. Session cookies can be "
