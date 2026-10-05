@@ -1,6 +1,6 @@
 """Test fixtures and configuration."""
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -10,11 +10,23 @@ from sqlmodel import SQLModel
 
 import app.models  # noqa: F401  populate SQLModel.metadata with every table
 from app.core.database import get_session
+from app.core.ratelimit import auth_limiter
 from app.main import app as fastapi_app
 
 # In-memory SQLite, single shared connection for the engine's lifetime so every
 # session (and the API request that spawns it) sees the same tables/rows.
 TEST_DATABASE_URL = "sqlite+aiosqlite://"
+
+
+@pytest.fixture(autouse=True)
+def _disable_auth_rate_limit() -> Generator[None, None, None]:
+    """Most tests log in/register many times from one fake client IP, which
+    would trip the per-IP auth limits. Tests that exercise the limiter turn it
+    back on themselves (see tests/test_auth_hardening.py)."""
+    auth_limiter.enabled = False
+    yield
+    auth_limiter.reset()
+    auth_limiter.enabled = True
 
 
 @pytest.fixture
