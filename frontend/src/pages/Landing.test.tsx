@@ -84,4 +84,35 @@ describe('Landing page', () => {
 
     expect(await screen.findByText(/markdown must be at most 20480 bytes/i)).toBeInTheDocument();
   });
+
+  it('shows the large centered brand mark above the headline', async () => {
+    renderLanding();
+    const headline = await screen.findByRole('heading', {
+      level: 1,
+      name: /Write your AI agent rules once/i,
+    });
+
+    // The hero title is a separate element from the header's small wordmark.
+    const heroTitle = screen.getAllByText('MyACE').find((el) => el.tagName === 'P');
+    expect(heroTitle).toBeDefined();
+    // It sits before the headline in document order, in a centered column.
+    expect(
+      heroTitle!.compareDocumentPosition(headline) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(heroTitle!.parentElement).toHaveClass('flex', 'flex-col', 'items-center');
+    expect(heroTitle!.parentElement!.querySelector('img[src="/logo.png"]')).not.toBeNull();
+  });
+
+  it('ends with a call to action that leads to signup, after the feature blocks', async () => {
+    renderLanding();
+    const cta = await screen.findByRole('link', {
+      name: 'Accounts are free, register today and start building!',
+    });
+    expect(cta).toHaveAttribute('href', '/login?mode=register');
+
+    const lastFeature = screen.getByText('12 target frameworks');
+    expect(
+      lastFeature.compareDocumentPosition(cta) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
 });

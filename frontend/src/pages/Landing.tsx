@@ -82,6 +82,12 @@ export default function Landing() {
 
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-4 py-16 text-center space-y-4">
+        {/* Brand mark — decorative image (alt="") since the title text beside it
+            carries the name; the page's single <h1> stays the pitch below. */}
+        <div className="flex flex-col items-center gap-3 pb-4">
+          <img src="/logo.png" alt="" aria-hidden="true" className="h-24 w-24 sm:h-32 sm:w-32" />
+          <p className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground">MyACE</p>
+        </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
           Write your AI agent rules once. Compile them everywhere.
         </h1>
@@ -188,7 +194,7 @@ export default function Landing() {
       </section>
 
       {/* Features */}
-      <section className="max-w-5xl mx-auto px-4 pb-20 grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <section className="max-w-5xl mx-auto px-4 pb-12 grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div className="space-y-2">
           <Package className="h-6 w-6 text-brand-600" />
           <h3 className="font-semibold text-foreground">Import from anywhere</h3>
@@ -213,6 +219,16 @@ export default function Landing() {
             Continue, Goose, Amazon Q Developer, and pi.dev.
           </p>
         </div>
+      </section>
+
+      {/* Call to action */}
+      <section className="max-w-5xl mx-auto px-4 pb-20 text-center">
+        <Link
+          to="/login?mode=register"
+          className="inline-block px-6 py-3 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-base font-semibold transition-colors"
+        >
+          Accounts are free, register today and start building!
+        </Link>
       </section>
 
       <footer className="border-t border-border py-8 text-center">
