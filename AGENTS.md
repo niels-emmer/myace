@@ -220,6 +220,34 @@ Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d
   (400). Add `Literal` to any new field that has a fixed set of allowed
   values.
 
+- **SSO links to an existing account by email only when the provider
+  vouches for it.** `auth_callback()` requires OIDC `email_verified`
+  (GitHub's addresses are verified-only by construction) before attaching
+  an `oidc_sub` to a pre-existing user, never re-points an account that is
+  already linked to a different `(provider, sub)`, and honours
+  `SystemSettings.allow_registration` before creating a brand-new SSO user
+  (`_registration_allowed()`, shared with `/auth/register`). Registration
+  itself is unverified, so without this an attacker could pre-register a
+  victim's address and ride the link. Known, accepted gap: an SSO login
+  does not apply the account's local TOTP — the IdP is trusted for that.
+- **Credential-guessing routes carry `@auth_limiter.limit(...)`**:
+  `/auth/login`, `/register`, `/forgot-password`, `/reset-password` use
+  `settings.auth_rate_limit` (10/minute per client IP) and
+  `/login/mfa`, `/me/mfa/totp/verify|disable` use `settings.mfa_rate_limit`
+  (5/minute — a TOTP code is only 6 digits). Same in-memory, per-process
+  caveat as rule 36. `tests/conftest.py` switches `auth_limiter` off for
+  every test (they log in far more often than the limit) — a test of the
+  limiter itself must turn it back on and `reset()` it.
+- **One-time codes and the MFA login token travel in the JSON body**, not
+  the query string (access logs, browser history): `{"code"}` for
+  `/me/mfa/totp/verify|disable`, `{"mfa_token", "code"}` for `/login/mfa`.
+  The old query parameters are still accepted as a deprecated fallback so
+  existing clients don't break; new clients must use the body.
+  `/me/mfa/totp/setup` 400s if MFA is already enabled — it must never
+  silently replace an active secret.
+- **`DELETE /doc-cache/{id}` is admin-only** — the cache is one global
+  resource shared by every user, not owned by whoever fetched it.
+
 ### 11. Artifact Response Serialization
 
 `Artifact.tags` and `Artifact.target_compatibility` are stored as JSON-encoded `Text` columns, but `ArtifactRead` (and `CanonicalArtifact`) declare them as `list[str]`. Never return a raw SQLModel `Artifact` row from an API route — FastAPI's response validation will 500 (`ResponseValidationError`) on any row with actual tags/compatibility data. Always convert through `_artifact_to_read()` in `backend/app/api/collections.py` (or `_db_to_canonical()` in `backend/app/services/compiler.py` for the compiler path), which `json.loads()` both fields first.
@@ -866,7 +894,8 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   required plumbing for `@limiter.limit(...)` to raise 429s at all — it is
   **not** app-wide rate limiting. Only routes explicitly decorated with
   `@limiter.limit(...)` are throttled; as of this writing that's `POST
-  /demo/compile` alone. Don't assume adding this registration protects any
+  /demo/compile` (its own `limiter`) plus the credential-guessing-sensitive
+  auth routes (`auth_limiter` in `app/core/ratelimit.py` — see rule 10). Don't assume adding this registration protects any
   other route, and don't remove it thinking it's dead weight — every
   route that *does* carry the decorator depends on it.
 - **The rate limiter's storage is in-memory and per-process** — in a

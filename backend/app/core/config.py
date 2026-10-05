@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
 
+    # Per-client-IP rate limits (slowapi syntax) on the auth routes that can be
+    # used to guess credentials or spam email: login, registration, password
+    # reset and TOTP checks. MFA codes are only 6 digits, hence the tighter cap.
+    auth_rate_limit: str = "10/minute"
+    mfa_rate_limit: str = "5/minute"
+
     # API Keys
     api_key_length: int = 48
 
