@@ -50,7 +50,7 @@ async def _assert_readable_collection(
 ) -> None:
     result = await session.execute(select(Collection).where(Collection.id == collection_id))
     collection = result.scalar_one_or_none()
-    if not collection:
+    if not collection or not collection.is_active:
         raise HTTPException(status_code=404, detail="Base collection not found")
     authorize_access(
         owner_id=collection.owner_id, current_user=current_user,
@@ -150,6 +150,7 @@ async def compile_profile_endpoint(
             profile=profile,
             target=request.target,
             include_disabled=request.include_disabled,
+            requesting_user=current_user,
         )
     except (AdapterDisabledError, UnknownAdapterError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -183,6 +184,7 @@ async def compile_status_endpoint(
     try:
         compiled_hash = await compute_compile_status(
             session=session, profile=profile, target=target,
+            requesting_user=current_user,
         )
     except (AdapterDisabledError, UnknownAdapterError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -214,6 +216,7 @@ async def compile_profile_zip_endpoint(
             profile=profile,
             target=request.target,
             include_disabled=request.include_disabled,
+            requesting_user=current_user,
         )
     except (AdapterDisabledError, UnknownAdapterError) as e:
         raise HTTPException(status_code=400, detail=str(e))
