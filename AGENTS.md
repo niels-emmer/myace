@@ -185,11 +185,29 @@ Three compose files with layered overrides:
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.yml` | Base — single-machine prod on `:80` |
+| `docker-compose.yml` | Base — publishes **no** host ports; layer dev/prod (or your own `ports:` override) on top |
 | `docker-compose.dev.yml` | Dev — adds `:8000` for backend, mounts `~/` to `/host-home/`, CORS for Vite |
 | `docker-compose.prod.yml` | VPS — removes host ports, attaches external proxy network via `PROXY_NETWORK` |
 
 Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d`
+
+- **`PROXY_NETWORK` is real now**: `docker-compose.prod.yml` names its
+  external network `${PROXY_NETWORK:-proxy-net}`. Only `frontend` joins it —
+  the backend stays private and `/api/*` rides the frontend's nginx — so
+  there is no separate API hostname to proxy.
+- **The prod layer mounts `./backend:/app:ro`.** The base file bind-mounts
+  the host checkout over the image's code (dev hot reload); prod keeps that
+  (a deploy that does `git pull && docker compose up -d` without
+  `--build` still picks up new code) but read-only. Don't remove the mount
+  from the base file without checking how the VPS deploys.
+- **nginx security headers live in `frontend/security-headers.conf`**,
+  `include`d at server level *and* inside every location that declares its
+  own `add_header` — nginx drops inherited `add_header`s in a location that
+  sets any, which silently stripped the CSP/X-Frame-Options from the SPA
+  shell. A new `location` with an `add_header` must include it too.
+- **The backend image installs runtime dependencies only** (`pip install
+  -e .`, no `[dev]`); tests/lint run from the host. Both images carry an
+  informational `HEALTHCHECK` that nothing `depends_on`.
 
 ### 10. Security Rules
 

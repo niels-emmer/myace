@@ -52,31 +52,40 @@ runs:
   using: "composite"
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ inputs.python-version }}
 
     - name: Install myace-cli
       shell: bash
-      run: pip install "myace-cli${{ inputs.myace-cli-version }}"
+      env:
+        # Inputs reach the script as environment variables, never interpolated
+        # into the script text — a crafted input value can't inject commands.
+        MYACE_CLI_VERSION: ${{ inputs.myace-cli-version }}
+      run: pip install "myace-cli${MYACE_CLI_VERSION}"
 
     - name: Authenticate with the MyACE server
       shell: bash
-      run: myace login --server "${{ inputs.server-url }}" --token "${{ inputs.token }}"
+      env:
+        MYACE_SERVER_URL: ${{ inputs.server-url }}
+        MYACE_TOKEN: ${{ inputs.token }}
+      run: myace login --server "$MYACE_SERVER_URL" --token "$MYACE_TOKEN"
 
     - name: Run drift check
       id: check
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      env:
+        MYACE_TARGET: ${{ inputs.target }}
       run: |
-        if [ -n "${{ inputs.target }}" ]; then
-          TARGET_FLAG="--target ${{ inputs.target }}"
+        if [ -n "$MYACE_TARGET" ]; then
+          TARGET_FLAGS=(--target "$MYACE_TARGET")
         else
-          TARGET_FLAG="--all"
+          TARGET_FLAGS=(--all)
         fi
 
         set +e
-        myace check $TARGET_FLAG --json | tee myace-check-result.json
+        myace check "${TARGET_FLAGS[@]}" --json | tee myace-check-result.json
         exit_code=$?
         set -e
 
