@@ -93,6 +93,18 @@ class BaseAdapter(ABC):
 - `translate()` returns a dict of `{filename: file_content}` for the target framework.
 - `expected_paths()` (added Phase 4, rule 35) returns this adapter's conventional local file/directory names, used by the local setup audit — must match what `translate()` actually writes.
 - Adapters are stateless — all state lives in the composition engine.
+- **Artifact text is untrusted — escape it where an adapter embeds it.**
+  Names, descriptions and bodies are user-controlled (and public
+  collections are readable by other users). Use
+  `safe_path_component(artifact.name)` (`backend/app/adapters/base.py`) for
+  any name that becomes part of an output path — otherwise `../../.bashrc`
+  becomes a traversing zip entry — and `yaml_scalar()` for any value
+  written into a hand-built `key: value` frontmatter line (adapters that
+  use `yaml.safe_dump` already get this for free). TOML output
+  (`codex_cli.py`) goes through its `_toml_string`/`_toml_multiline_body`/
+  `_toml_key` helpers; never interpolate artifact text into TOML directly.
+  `model_config` artifacts named `mcp:<name>` are MCP servers, not models:
+  adapters with no MCP config (Aider, Codex, Pi) skip them.
 
 ### 4. API Versioning
 
@@ -152,6 +164,19 @@ The backend scanner includes Docker path resolution (`/host-home/` mount, broken
 
 The backend scanner additionally supports scanning a Git repository (`scan_git_repository()` — shallow clone to a temp dir, then delegates to the same directory-scanning logic). This is **web-only**: the CLI's `myace import` still only accepts `--path`. If you add git-source support to the CLI, keep its artifact discovery in sync with both existing scanners per the table above.
 
+Backend scans are **confined**, and the git path has its own limits — keep
+all of it if you touch `scanner.py`: `_resolve_path()` `resolve()`s before
+checking `settings.scan_root` (a lexical check lets `/host-home/../etc`
+through); `_scan_tree()` skips any file whose symlink-resolved path leaves
+its `confine_to` root (`scan_root` for local scans, the temp clone for git
+scans — a hostile repo can't commit `agents/x.md -> /etc/passwd`);
+`scan_git_repository()` confines to its own clone (it does *not* go through
+`scan_root`), rejects `subdirectory` values that leave the clone, rejects
+hosts resolving to non-public addresses (SSRF), disables HTTP redirects via
+`GIT_CONFIG_*` env (GitPython blocks `--config` as unsafe), and caps the
+clone at `settings.git_clone_timeout_seconds`. It is blocking, so the route
+calls it via `asyncio.to_thread`.
+
 `backend/app/services/github_export.py` is the inverse: converts canonical artifacts back into this same directory layout and pushes them to a GitHub branch + PR via the REST API. Keep `artifacts_to_files()` (export) and the scanner's parsers (import) symmetric — a collection exported to GitHub should scan back to the same artifacts.
 
 ### 9. Compose File Strategy
@@ -160,11 +185,29 @@ Three compose files with layered overrides:
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.yml` | Base — single-machine prod on `:80` |
+| `docker-compose.yml` | Base — publishes **no** host ports; layer dev/prod (or your own `ports:` override) on top |
 | `docker-compose.dev.yml` | Dev — adds `:8000` for backend, mounts `~/` to `/host-home/`, CORS for Vite |
 | `docker-compose.prod.yml` | VPS — removes host ports, attaches external proxy network via `PROXY_NETWORK` |
 
 Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d`
+
+- **`PROXY_NETWORK` is real now**: `docker-compose.prod.yml` names its
+  external network `${PROXY_NETWORK:-proxy-net}`. Only `frontend` joins it —
+  the backend stays private and `/api/*` rides the frontend's nginx — so
+  there is no separate API hostname to proxy.
+- **The prod layer mounts `./backend:/app:ro`.** The base file bind-mounts
+  the host checkout over the image's code (dev hot reload); prod keeps that
+  (a deploy that does `git pull && docker compose up -d` without
+  `--build` still picks up new code) but read-only. Don't remove the mount
+  from the base file without checking how the VPS deploys.
+- **nginx security headers live in `frontend/security-headers.conf`**,
+  `include`d at server level *and* inside every location that declares its
+  own `add_header` — nginx drops inherited `add_header`s in a location that
+  sets any, which silently stripped the CSP/X-Frame-Options from the SPA
+  shell. A new `location` with an `add_header` must include it too.
+- **The backend image installs runtime dependencies only** (`pip install
+  -e .`, no `[dev]`); tests/lint run from the host. Both images carry an
+  informational `HEALTHCHECK` that nothing `depends_on`.
 
 ### 10. Security Rules
 
@@ -219,6 +262,34 @@ Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d
   schema validation layer (422) rather than at the business logic layer
   (400). Add `Literal` to any new field that has a fixed set of allowed
   values.
+
+- **SSO links to an existing account by email only when the provider
+  vouches for it.** `auth_callback()` requires OIDC `email_verified`
+  (GitHub's addresses are verified-only by construction) before attaching
+  an `oidc_sub` to a pre-existing user, never re-points an account that is
+  already linked to a different `(provider, sub)`, and honours
+  `SystemSettings.allow_registration` before creating a brand-new SSO user
+  (`_registration_allowed()`, shared with `/auth/register`). Registration
+  itself is unverified, so without this an attacker could pre-register a
+  victim's address and ride the link. Known, accepted gap: an SSO login
+  does not apply the account's local TOTP — the IdP is trusted for that.
+- **Credential-guessing routes carry `@auth_limiter.limit(...)`**:
+  `/auth/login`, `/register`, `/forgot-password`, `/reset-password` use
+  `settings.auth_rate_limit` (10/minute per client IP) and
+  `/login/mfa`, `/me/mfa/totp/verify|disable` use `settings.mfa_rate_limit`
+  (5/minute — a TOTP code is only 6 digits). Same in-memory, per-process
+  caveat as rule 36. `tests/conftest.py` switches `auth_limiter` off for
+  every test (they log in far more often than the limit) — a test of the
+  limiter itself must turn it back on and `reset()` it.
+- **One-time codes and the MFA login token travel in the JSON body**, not
+  the query string (access logs, browser history): `{"code"}` for
+  `/me/mfa/totp/verify|disable`, `{"mfa_token", "code"}` for `/login/mfa`.
+  The old query parameters are still accepted as a deprecated fallback so
+  existing clients don't break; new clients must use the body.
+  `/me/mfa/totp/setup` 400s if MFA is already enabled — it must never
+  silently replace an active secret.
+- **`DELETE /doc-cache/{id}` is admin-only** — the cache is one global
+  resource shared by every user, not owned by whoever fetched it.
 
 ### 11. Artifact Response Serialization
 
@@ -314,13 +385,23 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   self-serve publish anymore.** It moves `Collection.moderation_status`
   from `draft`/`denied` to `submitted` (409 otherwise) and never touches
   `published`/`visibility`. The *only* code path that sets
-  `published=True`/`visibility="public"` is
+  `published=True` (Community listing) is
   `POST /moderation/{collection_id}/approve` (moderator/admin only, via
   `require_moderator_or_admin` — never `authorize_access`, whose
   owner-bypass would let an owner approve their own submission).
   `GET /collections/community` still filters on
   `published=True AND is_active=True`, but that predicate is only ever
-  true for `moderation_status="approved"` rows now. See
+  true for `moderation_status="approved"` rows now.
+- **`visibility="public"` is a separate, owner-controlled flag — link
+  sharing, not Community listing.** The collection page's Share dialog
+  PATCHes `visibility` directly (`CollectionUpdate`), and that is
+  deliberate: a `public` collection is readable by any signed-in user who
+  has its ID (and usable in their profiles, see rule 13), but it never
+  appears in `/collections/community`, can't be rated or commented on, and
+  is not "published" — all of which still require `published=True` /
+  `moderation_status="approved"` via the moderation flow. Don't add a
+  moderation gate to the `visibility` PATCH, and don't treat `visibility`
+  as evidence a collection was reviewed. See
   [ADR-0008](docs/adr/0008-collection-moderation-state-machine.md) for the
   full state machine and rule 30 below for the role that gates it.
 - **This still isn't a GitHub PR.** The old self-serve flow described in a
@@ -552,6 +633,23 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   matter what the external proxy saw. See
   [debugging.md](docs/debugging.md#githubgoogleoidc-login-fails-with-redirect-uri-is-not-associated-with-this-application-behind-a-reverse-proxy).
 
+- **Every one of those checks is gated on `APP_ENV != development`, and
+  `.env.example` ships `APP_ENV=development`.** A deployment that
+  customises its secret/hosts/CORS but leaves that line alone runs with
+  none of them (no default-secret error, no `TRUSTED_HOSTS` requirement,
+  schema auto-created each boot). `app/main.py`'s lifespan now logs a
+  warning via `looks_like_real_deployment()` when it sees that combination;
+  `docs/deployment.md` lists `APP_ENV=production` as the first `.env` step.
+  Don't "fix" this by flipping the default to production — it would break
+  local dev for anyone without a `.env`.
+- **SQL logging is `SQL_ECHO`, not `DEBUG`, and never includes bound
+  parameters.** `get_engine()` (`app/core/database.py`) sets
+  `echo=settings.sql_echo` (default off) and `hide_parameters=True`
+  unconditionally — with `echo=settings.debug` (the old behaviour, and
+  `debug` defaults to true) every statement's parameters, including
+  `password_hash`, `totp_secret`, reset-token hashes and emails, went to
+  the log, against rule 10.
+
 ### 28. Frontend Structure Gotchas
 
 - **`CollectionDetail.tsx` no longer has an "Export to GitHub" button.** It
@@ -722,7 +820,12 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   ended up on disk for each path — a file the user declined to overwrite
   keeps its *old* on-disk hash, not the new server content's hash, or the
   very next `check` would wrongly report it as in sync. Filenames rejected
-  by `pull`'s path-traversal guard are excluded entirely (never written,
+  by `pull`'s path-traversal guard (`sync.py`'s `safe_output_path()` — rejects
+  absolute paths, `..`/empty segments, backslashes and NUL, but **allows
+  nested relative paths** like `.claude/agents/x.md`, which almost every
+  adapter emits; it is lexical on purpose, so a user's symlinked
+  `.claude/agents` still works; `pull`, `watch --auto-pull` and
+  `check`'s manifest reads all share it) are excluded entirely (never written,
   not real paths). Re-running `pull` overwrites the manifest in place —
   it never appends or merges with a previous run. See
   [ADR-0009](docs/adr/0009-manifest-based-drift-detection.md) for why this
@@ -880,7 +983,8 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   required plumbing for `@limiter.limit(...)` to raise 429s at all — it is
   **not** app-wide rate limiting. Only routes explicitly decorated with
   `@limiter.limit(...)` are throttled; as of this writing that's `POST
-  /demo/compile` alone. Don't assume adding this registration protects any
+  /demo/compile` (its own `limiter`) plus the credential-guessing-sensitive
+  auth routes (`auth_limiter` in `app/core/ratelimit.py` — see rule 10). Don't assume adding this registration protects any
   other route, and don't remove it thinking it's dead weight — every
   route that *does* carry the decorator depends on it.
 - **The rate limiter's storage is in-memory and per-process** — in a
@@ -1107,8 +1211,12 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   Add-rule form below) is the one field that isn't a plain blur-to-save
   input — it's a checkbox popover with an explicit "Done" button, since
   toggling several checkboxes needs to happen before committing.
-- **Validation is client-side only, mirroring the Canonical IR schema
-  (rule 5)**: priority is an integer 0–100; version must match
+- **Validation is client-side *and* enforced server-side by
+  `ArtifactCreate`/`ArtifactUpdate` (`backend/app/models/artifact.py`) —
+  422 on out-of-range values, a bad `artifact_type`, or an explicit `null`
+  for any field except `description`/`handoff_to`** (a stored `null` in
+  `tags`/`body`/etc. used to 500 every later read of that artifact). The
+  client rules mirror the Canonical IR schema (rule 5): priority is an integer 0–100; version must match
   `^\d+\.\d+\.\d+$` (plain `MAJOR.MINOR.PATCH`, no pre-release/build
   metadata); body must be non-empty after trimming. `target_compatibility`
   has no validation — despite looking like it constrains which adapters an

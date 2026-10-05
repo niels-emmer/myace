@@ -1,6 +1,8 @@
-# Single-machine production — everything behind a single host.
-# Accessible at http://localhost:80
-# Frontend nginx proxies /api/* to the backend.
+# Base stack — frontend nginx proxies /api/* to the backend.
+# Publishes NO host ports by itself: layer docker-compose.dev.yml (publishes
+# :80 and :8000) or docker-compose.prod.yml (behind a reverse proxy), or add
+# your own `ports: ["80:80"]` override for the frontend service. See
+# docs/deployment.md.
 
 services:
   backend:

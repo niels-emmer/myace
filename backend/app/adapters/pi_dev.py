@@ -34,7 +34,7 @@ import json
 
 import yaml
 
-from app.adapters.base import BaseAdapter
+from app.adapters.base import BaseAdapter, safe_path_component
 from app.models.artifact import CanonicalArtifact
 
 _AGENTS_MD_LABELS = {"rule": "Rule", "agent": "Agent"}
@@ -59,6 +59,7 @@ class PiDevAdapter(BaseAdapter):
         models: list[dict[str, str]] = []
 
         for artifact in artifacts:
+            slug = safe_path_component(artifact.name)
             if artifact.artifact_type in _AGENTS_MD_LABELS:
                 agents_md_sections.append(
                     self._format_agents_md_section(
@@ -66,9 +67,9 @@ class PiDevAdapter(BaseAdapter):
                     )
                 )
             elif artifact.artifact_type == "skill":
-                files[f".pi/skills/{artifact.name}/SKILL.md"] = self._format_skill(artifact)
+                files[f".pi/skills/{slug}/SKILL.md"] = self._format_skill(artifact)
             elif artifact.artifact_type == "workflow":
-                files[f".pi/prompts/{artifact.name}.md"] = self._format_prompt_template(artifact)
+                files[f".pi/prompts/{slug}.md"] = self._format_prompt_template(artifact)
             elif artifact.artifact_type == "model_config" and artifact.name.startswith("model:"):
                 self._collect_model(artifact, models)
 

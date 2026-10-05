@@ -13,7 +13,7 @@ artifacts are skipped: model selection isn't a repo-committed rules file
 in Q Developer.
 """
 
-from app.adapters.base import BaseAdapter
+from app.adapters.base import BaseAdapter, safe_path_component
 from app.models.artifact import CanonicalArtifact
 
 _FILENAME_PREFIXES = {"rule": "", "skill": "skill-", "agent": "agent-", "workflow": "workflow-"}
@@ -35,10 +35,11 @@ class AmazonQAdapter(BaseAdapter):
         files: dict[str, str] = {}
 
         for artifact in artifacts:
+            slug = safe_path_component(artifact.name)
             prefix = _FILENAME_PREFIXES.get(artifact.artifact_type)
             if prefix is None:
                 continue
-            files[f".amazonq/rules/{prefix}{artifact.name}.md"] = self._format_rule(artifact)
+            files[f".amazonq/rules/{prefix}{slug}.md"] = self._format_rule(artifact)
 
         return files
 

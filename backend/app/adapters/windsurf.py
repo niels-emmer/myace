@@ -1,6 +1,6 @@
 """Windsurf adapter — translates Canonical IR into Windsurf rules format."""
 
-from app.adapters.base import BaseAdapter
+from app.adapters.base import BaseAdapter, safe_path_component, yaml_scalar
 from app.models.artifact import CanonicalArtifact
 
 
@@ -22,7 +22,7 @@ class WindsurfAdapter(BaseAdapter):
         for artifact in artifacts:
             trigger = self._trigger_for_artifact(artifact)
             content = self._format_file(artifact, trigger)
-            name = artifact.name
+            name = safe_path_component(artifact.name)
             if artifact.artifact_type == "rule":
                 files[f".windsurf/rules/{name}.md"] = content
             elif artifact.artifact_type == "skill":
@@ -44,8 +44,8 @@ class WindsurfAdapter(BaseAdapter):
     def _format_file(self, artifact: CanonicalArtifact, trigger: str) -> str:
         return (
             f"---\n"
-            f"title: {artifact.name}\n"
-            f"description: {artifact.description}\n"
+            f"title: {yaml_scalar(artifact.name)}\n"
+            f"description: {yaml_scalar(artifact.description)}\n"
             f"type: {artifact.artifact_type}\n"
             f"trigger: {trigger}\n"
             f"priority: {artifact.priority}\n"

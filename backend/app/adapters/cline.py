@@ -13,7 +13,7 @@ confusing, not a functional risk — but there's no reason to emit it when
 plain files work correctly and are the documented default-active behavior).
 """
 
-from app.adapters.base import BaseAdapter
+from app.adapters.base import BaseAdapter, safe_path_component
 from app.models.artifact import CanonicalArtifact
 
 _KIND_LABELS = {"rule": "Rule", "skill": "Skill", "agent": "Agent", "workflow": "Workflow"}
@@ -36,11 +36,12 @@ class ClineAdapter(BaseAdapter):
         files: dict[str, str] = {}
 
         for artifact in artifacts:
+            slug = safe_path_component(artifact.name)
             prefix = _FILENAME_PREFIXES.get(artifact.artifact_type)
             label = _KIND_LABELS.get(artifact.artifact_type)
             if prefix is None or label is None:
                 continue
-            files[f".clinerules/{prefix}{artifact.name}.md"] = self._format_file(artifact, label)
+            files[f".clinerules/{prefix}{slug}.md"] = self._format_file(artifact, label)
 
         return files
 

@@ -16,7 +16,7 @@ target frameworks that only have one native artifact concept.
 
 import yaml
 
-from app.adapters.base import BaseAdapter
+from app.adapters.base import BaseAdapter, safe_path_component
 from app.models.artifact import CanonicalArtifact
 
 
@@ -46,8 +46,9 @@ class CursorAdapter(BaseAdapter):
         files: dict[str, str] = {}
 
         for artifact in artifacts:
+            slug = safe_path_component(artifact.name)
             if artifact.artifact_type in ("rule", "skill", "agent", "workflow"):
-                files[f".cursor/rules/{artifact.name}.mdc"] = self._format_mdc(artifact)
+                files[f".cursor/rules/{slug}.mdc"] = self._format_mdc(artifact)
 
         return files
 

@@ -315,13 +315,15 @@ export const authApi = {
     }),
 
   verifyTotp: (code: string) =>
-    request<import('@/types').MfaVerifyResult>(`/auth/me/mfa/totp/verify?code=${encodeURIComponent(code)}`, {
+    request<import('@/types').MfaVerifyResult>('/auth/me/mfa/totp/verify', {
       method: 'POST',
+      body: JSON.stringify({ code }),
     }),
 
   disableTotp: (code: string) =>
-    request<{ message: string }>(`/auth/me/mfa/totp/disable?code=${encodeURIComponent(code)}`, {
+    request<{ message: string }>('/auth/me/mfa/totp/disable', {
       method: 'POST',
+      body: JSON.stringify({ code }),
     }),
 };
 

@@ -23,7 +23,11 @@ async def _get_approved_collection_or_404(
 ) -> Collection:
     result = await session.execute(select(Collection).where(Collection.id == collection_id))
     collection = result.scalar_one_or_none()
-    if not collection or collection.moderation_status != "approved":
+    if (
+        not collection
+        or not collection.is_active
+        or collection.moderation_status != "approved"
+    ):
         raise HTTPException(status_code=404, detail="Collection not found")
     return collection
 
