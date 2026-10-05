@@ -50,8 +50,23 @@ step 1's "register your own account" above.
 
 ## Production (single machine)
 
+The base `docker-compose.yml` publishes **no host ports** (so the same file is
+safe to layer under `docker-compose.prod.yml`). To reach the SPA directly on a
+single machine, add a one-line override — `docker-compose.dev.yml` also
+publishes `:80`, but it additionally opens the backend on `:8000` and mounts
+your home directory, which you don't want in production:
+
+```yaml
+# docker-compose.local.yml (not committed)
+services:
+  frontend:
+    ports:
+      - "80:80"
+```
+
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+docker compose exec backend alembic upgrade head
 # Access at http://localhost:80
 ```
 
@@ -67,10 +82,14 @@ echo "PROXY_NETWORK=my-proxy-net" >> .env
 # 3. Start the stack (no host ports exposed):
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
-# 4. Configure your proxy to forward:
-#    http://frontend:80   → your domain (SPA)
-#    http://backend:8000  → api.your-domain.com (API)
+# 4. Configure your proxy to forward your domain to:
+#    http://frontend:80   (the SPA *and* /api/* — the frontend's nginx proxies
+#                          /api/ to the backend over the stack's private network)
 ```
+
+`PROXY_NETWORK` defaults to `proxy-net` if unset. The backend is deliberately
+**not** attached to the proxy network — only `frontend` is — so there is no
+separate API hostname to configure.
 
 ### Using nginx-proxy-manager
 
@@ -78,14 +97,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
    nginx-proxy-manager container is attached to (check with
    `docker network ls` / `docker inspect <npm-container>`), then
    `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`.
-   `frontend` and `backend` will join that network and be reachable by
-   container name from NPM, with no host ports of their own.
-2. Add two Proxy Hosts in NPM:
-   - Your main domain (e.g. `myace.example.com`) → Forward Hostname/IP
-     `frontend`, Forward Port `80`.
-   - An API subdomain (e.g. `api.myace.example.com`) → Forward Hostname/IP
-     `backend`, Forward Port `8000`.
-3. On both Proxy Hosts: enable **Force SSL** (request a cert via NPM's Let's
+   `frontend` will join that network and be reachable by container name
+   from NPM, with no host ports of its own (the backend stays on the
+   stack's private network).
+2. Add one Proxy Host in NPM: your domain (e.g. `myace.example.com`) →
+   Forward Hostname/IP `frontend`, Forward Port `80`. `/api/*` rides the
+   same host — the frontend's nginx forwards it to the backend.
+3. On that Proxy Host: enable **Force SSL** (request a cert via NPM's Let's
    Encrypt integration) and leave "Websockets Support" off — this app
    doesn't use any. NPM forwards `X-Forwarded-Proto`/`X-Forwarded-For` by
    default, which pairs with the backend's `--proxy-headers` uvicorn flag
@@ -111,9 +129,9 @@ Three Compose files layer on top of each other:
 
 | File | Command | Use case | Access |
 |------|---------|----------|--------|
-| `docker-compose.yml` | `docker compose up -d` | Single-machine prod | `http://localhost:80` |
+| `docker-compose.yml` | `docker compose up -d` | Base layer — no host ports; add your own `ports:` override for single-machine use (see above) | none |
 | `+ docker-compose.dev.yml` | `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d` | Development | Frontend `:80`, API `:8000`, home dir mounted at `/host-home` |
-| `+ docker-compose.prod.yml` | `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` | VPS behind proxy | No host ports; attach via `PROXY_NETWORK` env var |
+| `+ docker-compose.prod.yml` | `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` | VPS behind proxy | No host ports; frontend attaches to the `PROXY_NETWORK` network (default `proxy-net`); backend source mounted read-only |
 
 See [`AGENTS.md`](../AGENTS.md#9-compose-file-strategy) for what each
 override layer is responsible for.
