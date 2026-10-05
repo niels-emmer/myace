@@ -1,5 +1,6 @@
 """Collection management routes."""
 
+import asyncio
 import json
 import logging
 import uuid
@@ -71,7 +72,9 @@ def _artifact_to_canonical(artifact: Artifact) -> CanonicalArtifact:
 async def _get_collection_or_404(session: AsyncSession, collection_id: uuid.UUID) -> Collection:
     result = await session.execute(select(Collection).where(Collection.id == collection_id))
     collection = result.scalar_one_or_none()
-    if not collection:
+    # A soft-deleted collection (is_active=False, AGENTS.md rule 15) is gone
+    # as far as every route going through this helper is concerned.
+    if not collection or not collection.is_active:
         raise HTTPException(status_code=404, detail="Collection not found")
     return collection
 
@@ -465,7 +468,9 @@ async def bulk_delete_artifacts(
     await session.commit()
 
     count_result = await session.execute(
-        select(Artifact).where(Artifact.collection_id == collection_id)
+        select(Artifact).where(
+            Artifact.collection_id == collection_id, Artifact.deleted_at == None
+        )
     )
     collection.artifact_count = len(count_result.scalars().all())
     await session.commit()
@@ -545,12 +550,15 @@ async def bulk_export_artifacts(
             body=src.body,
             file_path=src.file_path,
             is_enabled=src.is_enabled,
+            handoff_to=src.handoff_to,
         ))
         exported += 1
     await session.commit()
 
     count_result = await session.execute(
-        select(Artifact).where(Artifact.collection_id == target_collection.id)
+        select(Artifact).where(
+            Artifact.collection_id == target_collection.id, Artifact.deleted_at == None
+        )
     )
     target_collection.artifact_count = len(count_result.scalars().all())
     await session.commit()
@@ -871,6 +879,7 @@ async def import_community_collection(
             body=src.body,
             file_path=src.file_path,
             is_enabled=src.is_enabled,
+            handoff_to=src.handoff_to,
         ))
         created += 1
     await session.commit()
@@ -922,7 +931,9 @@ async def scan_local_directory(
             from app.services.scanner import _redact_credentials, scan_git_repository
             if not request.git_url:
                 raise ValueError("git_url is required when source_type is 'git'")
-            artifacts = scan_git_repository(
+            # Blocking network clone — off the event loop.
+            artifacts = await asyncio.to_thread(
+                scan_git_repository,
                 request.git_url,
                 branch=request.git_branch or "main",
                 subdirectory=request.subdirectory,
@@ -932,7 +943,7 @@ async def scan_local_directory(
             from app.services.scanner import scan_directory
             if not request.path:
                 raise ValueError("path is required when source_type is 'local'")
-            artifacts = scan_directory(request.path)
+            artifacts = await asyncio.to_thread(scan_directory, request.path)
             source_label = request.path
 
         return {

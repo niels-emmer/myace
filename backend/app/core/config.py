@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     # Set this to the intended scan root for your deployment.
     scan_root: str = "/host-home"
 
+    # Wall-clock cap on a `source_type=git` scan's `git clone`, so a slow or
+    # hostile remote can't hold a worker thread (and temp disk) indefinitely.
+    git_clone_timeout_seconds: int = 60
+
     # Starter-pack collections — read by seed_starter_collections() on boot.
     # docker-compose.yml mounts the repo's collections/ directory at this path
     # inside the backend container. Running the backend outside Docker (e.g.
