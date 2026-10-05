@@ -15,6 +15,15 @@ For the three-file Compose layering these commands build on, see
 After forking, before exposing it beyond localhost:
 
 1. Update `.env`:
+   - Set **`APP_ENV=production`**. The shipped `.env.example` has
+     `APP_ENV=development`, which switches *off* the hardening checks
+     below (the default-secret and `TRUSTED_HOSTS` startup errors) and
+     auto-creates the schema on every boot — so nothing warns you about
+     the rest of this list unless this is set. (The backend logs a warning
+     if it sees `APP_ENV=development` alongside a customised secret,
+     `TRUSTED_HOSTS` or non-localhost `CORS_ORIGINS`.) Run
+     `docker compose exec backend alembic upgrade head` yourself in
+     production.
    - Set a real random `APP_SECRET_KEY` (it signs session cookies; the app
      **refuses to start** in production if you leave the default — it's a
      `RuntimeError`, not a warning). Generate with `openssl rand -hex 32`.

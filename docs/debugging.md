@@ -292,6 +292,23 @@ session cookie for any user.
 **Fix:** set a real random `APP_SECRET_KEY` in your `.env` before exposing a
 deployment beyond localhost. Generate with `openssl rand -hex 32`.
 
+## `APP_ENV=development but this looks like a real deployment` warning at startup
+
+**Symptom:** the backend logs `APP_ENV=development but this looks like a
+real deployment (custom secret key, TRUSTED_HOSTS or non-localhost
+CORS_ORIGINS)...`
+
+**Cause:** `.env.example` ships `APP_ENV=development`, and every
+production hardening check in `app/main.py` (the default-`APP_SECRET_KEY`
+`RuntimeError`, the `TRUSTED_HOSTS` requirement, the `DEBUG` and
+`ADMIN_BOOTSTRAP_ENABLED` warnings) is gated on `APP_ENV != development`.
+A deployment that customised its `.env` but left that one line alone
+therefore runs with none of them.
+
+**Fix:** set `APP_ENV=production` in `.env`. The backend will then refuse
+to start until `APP_SECRET_KEY` and `TRUSTED_HOSTS` are set — that's the
+intended behaviour, not a regression.
+
 ## `DEBUG` or `ADMIN_BOOTSTRAP_ENABLED` warning at startup
 
 **Symptom:** the backend logs one or both of:
