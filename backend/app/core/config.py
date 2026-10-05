@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_secret_key: str = "change-me-to-a-random-64-char-string"
     debug: bool = True
+    # Echo every SQL statement to the log. Deliberately separate from `debug`
+    # (which defaults to true and gates /docs + cookie flags): statement
+    # logging is only for deliberately chasing a query problem. Bound
+    # parameters are never logged either way — see core/database.py.
+    sql_echo: bool = False
 
     # Database
     database_url: str = "postgresql+asyncpg://myace:myace_secret@postgres:5432/myace"

@@ -561,6 +561,23 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   matter what the external proxy saw. See
   [debugging.md](docs/debugging.md#githubgoogleoidc-login-fails-with-redirect-uri-is-not-associated-with-this-application-behind-a-reverse-proxy).
 
+- **Every one of those checks is gated on `APP_ENV != development`, and
+  `.env.example` ships `APP_ENV=development`.** A deployment that
+  customises its secret/hosts/CORS but leaves that line alone runs with
+  none of them (no default-secret error, no `TRUSTED_HOSTS` requirement,
+  schema auto-created each boot). `app/main.py`'s lifespan now logs a
+  warning via `looks_like_real_deployment()` when it sees that combination;
+  `docs/deployment.md` lists `APP_ENV=production` as the first `.env` step.
+  Don't "fix" this by flipping the default to production — it would break
+  local dev for anyone without a `.env`.
+- **SQL logging is `SQL_ECHO`, not `DEBUG`, and never includes bound
+  parameters.** `get_engine()` (`app/core/database.py`) sets
+  `echo=settings.sql_echo` (default off) and `hide_parameters=True`
+  unconditionally — with `echo=settings.debug` (the old behaviour, and
+  `debug` defaults to true) every statement's parameters, including
+  `password_hash`, `totp_secret`, reset-token hashes and emails, went to
+  the log, against rule 10.
+
 ### 28. Frontend Structure Gotchas
 
 - **`CollectionDetail.tsx` no longer has an "Export to GitHub" button.** It
