@@ -1,8 +1,45 @@
 """Base adapter interface for target framework translation."""
 
+import json
+import re
 from abc import ABC, abstractmethod
 
+import yaml
+
 from app.models.artifact import CanonicalArtifact
+
+
+def safe_path_component(name: str) -> str:
+    """Make an artifact name safe to use as one path segment in a compiled
+    file path.
+
+    Artifact names are user-controlled (and public collections are readable
+    by other users), so a name like `../../.bashrc` or `a/b` would otherwise
+    become a traversing or unexpectedly nested path in the zip/`myace pull`
+    output. Path separators and control characters become `-`, leading dots
+    are stripped (no `..`, no hidden files), and an empty result falls back
+    to `unnamed`. Ordinary names — including spaces — are unchanged.
+    """
+    cleaned = re.sub(r"[\x00-\x1f/\\]", "-", name).strip().lstrip(".").strip()
+    return cleaned or "unnamed"
+
+
+def yaml_scalar(value: str) -> str:
+    """Render a string as a YAML scalar for a hand-written `key: value` line.
+
+    Plain when that round-trips to the same string (so ordinary names and
+    descriptions are emitted unchanged); otherwise a double-quoted JSON
+    string, which is valid YAML. Without this, a description like
+    `Use when: x`, `# note` or `true`, or one containing a newline, produced
+    invalid or differently-typed frontmatter.
+    """
+    if value and value == value.strip() and "\n" not in value:
+        try:
+            if yaml.safe_load(f"k: {value}") == {"k": value}:
+                return value
+        except yaml.YAMLError:
+            pass
+    return json.dumps(value, ensure_ascii=False)
 
 
 class BaseAdapter(ABC):

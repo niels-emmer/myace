@@ -93,6 +93,18 @@ class BaseAdapter(ABC):
 - `translate()` returns a dict of `{filename: file_content}` for the target framework.
 - `expected_paths()` (added Phase 4, rule 35) returns this adapter's conventional local file/directory names, used by the local setup audit — must match what `translate()` actually writes.
 - Adapters are stateless — all state lives in the composition engine.
+- **Artifact text is untrusted — escape it where an adapter embeds it.**
+  Names, descriptions and bodies are user-controlled (and public
+  collections are readable by other users). Use
+  `safe_path_component(artifact.name)` (`backend/app/adapters/base.py`) for
+  any name that becomes part of an output path — otherwise `../../.bashrc`
+  becomes a traversing zip entry — and `yaml_scalar()` for any value
+  written into a hand-built `key: value` frontmatter line (adapters that
+  use `yaml.safe_dump` already get this for free). TOML output
+  (`codex_cli.py`) goes through its `_toml_string`/`_toml_multiline_body`/
+  `_toml_key` helpers; never interpolate artifact text into TOML directly.
+  `model_config` artifacts named `mcp:<name>` are MCP servers, not models:
+  adapters with no MCP config (Aider, Codex, Pi) skip them.
 
 ### 4. API Versioning
 
