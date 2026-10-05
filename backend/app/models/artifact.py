@@ -2,10 +2,18 @@
 
 import uuid
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
+from pydantic import StringConstraints, model_validator
 from sqlalchemy import ForeignKey, Text, Uuid
 from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String
+
+# Plain MAJOR.MINOR.PATCH, matching the frontend's inline-edit validation
+# (AGENTS.md rule 41).
+SEMVER_PATTERN = r"^\d+\.\d+\.\d+$"
+# The only ArtifactUpdate fields whose explicit `null` is meaningful.
+SemverStr = Annotated[str, StringConstraints(pattern=SEMVER_PATTERN)]
+NULLABLE_UPDATE_FIELDS = frozenset({"description", "handoff_to"})
 
 
 class Artifact(SQLModel, table=True):
@@ -65,9 +73,9 @@ class ArtifactCreate(SQLModel):
     body field).
     """
     artifact_type: Literal["rule", "skill", "agent", "workflow", "model_config"]
-    name: str
-    version: str = "1.0.0"
-    priority: int = 50
+    name: str = Field(min_length=1, max_length=255)
+    version: SemverStr = "1.0.0"
+    priority: int = Field(default=50, ge=0, le=100)
     target_compatibility: list[str] = []
     tags: list[str] = []
     description: str | None = None
@@ -96,11 +104,18 @@ class ArtifactRead(SQLModel):
 
 
 class ArtifactUpdate(SQLModel):
-    """Schema for updating an artifact (all fields optional)."""
-    name: str | None = None
-    artifact_type: str | None = None
-    version: str | None = None
-    priority: int | None = None
+    """Schema for updating an artifact (partial update).
+
+    Every field is optional (omit it to leave it unchanged), but only
+    `description` and `handoff_to` may be set to an explicit `null` — the
+    rest map to NOT NULL columns or JSON-text lists, where a stored `null`
+    would 500 every later read of the artifact (and every profile
+    compiling it).
+    """
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    artifact_type: Literal["rule", "skill", "agent", "workflow", "model_config"] | None = None
+    version: SemverStr | None = None
+    priority: int | None = Field(default=None, ge=0, le=100)
     target_compatibility: list[str] | None = None
     tags: list[str] | None = None
     description: str | None = None
@@ -108,6 +123,13 @@ class ArtifactUpdate(SQLModel):
     file_path: str | None = None
     handoff_to: list[str] | None = None
     is_enabled: bool | None = None
+
+    @model_validator(mode="after")
+    def _reject_explicit_nulls(self) -> "ArtifactUpdate":
+        for field in self.model_fields_set - NULLABLE_UPDATE_FIELDS:
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+        return self
 
 
 class CanonicalArtifact(SQLModel):
