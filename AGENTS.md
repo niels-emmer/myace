@@ -619,11 +619,21 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `TRUSTED_HOSTS` is unset. This is what prevents Host-header injection
   behind a reverse proxy — never relax it to a default-allow in
   production.
-- `backend/Dockerfile`'s uvicorn `CMD` runs with
-  `--proxy-headers --forwarded-allow-ips=*`, which is safe only because
-  `docker-compose.prod.yml` exposes no host port (only the reverse-proxy
-  container on the same Docker network can reach it) — don't copy that
-  flag into a setup where the backend is directly internet-reachable.
+- `backend/Dockerfile`'s uvicorn `CMD` runs with `--proxy-headers` and
+  `--forwarded-allow-ips` set to the **private ranges** (`127.0.0.1,
+  10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`), **never `*`**. With `*`,
+  uvicorn takes the *left-most* `X-Forwarded-For` entry, which the client
+  controls: a forged header spoofed `request.client` and defeated every
+  per-IP rate limit (rule 10) — found on the live deployment, where
+  `X-Forwarded-For: 203.0.113.77` was logged as the client. With explicit
+  ranges uvicorn walks the header from the right and stops at the first
+  untrusted address, i.e. the real client as appended by the outermost
+  proxy. Every hop in the prod chain (reverse proxy, the frontend's nginx)
+  is a private Docker address, and `docker-compose.prod.yml` exposes no
+  host port. `tests/test_forwarded_ips.py` feeds the Dockerfile's actual
+  value through uvicorn's middleware; if you change the chain (another
+  proxy hop outside private ranges, a public-IP load balancer), add its
+  range here rather than reverting to `*`.
 - That `X-Forwarded-Proto` trust only helps if it survives the full hop
   chain. In `docker-compose.prod.yml`, requests pass through an external
   reverse proxy *and* the `frontend` nginx container's `/api/` location
