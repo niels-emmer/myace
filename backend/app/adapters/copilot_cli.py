@@ -2,7 +2,7 @@
 
 import json
 
-from app.adapters.base import BaseAdapter
+from app.adapters.base import BaseAdapter, safe_path_component, yaml_scalar
 from app.models.artifact import CanonicalArtifact
 
 
@@ -23,23 +23,24 @@ class CopilotCliAdapter(BaseAdapter):
         rules_entries: list[str] = []
 
         for artifact in artifacts:
+            slug = safe_path_component(artifact.name)
             if artifact.artifact_type == "rule":
                 rules_entries.append(self._format_copilot_rule(artifact))
             elif artifact.artifact_type == "skill":
                 files[
-                    f".github/instructions/{artifact.name}.instructions.md"
+                    f".github/instructions/{slug}.instructions.md"
                 ] = self._format_instructions_file(artifact, "skill")
             elif artifact.artifact_type == "agent":
                 files[
-                    f".github/instructions/agent-{artifact.name}.instructions.md"
+                    f".github/instructions/agent-{slug}.instructions.md"
                 ] = self._format_instructions_file(artifact, "agent")
             elif artifact.artifact_type == "workflow":
                 files[
-                    f".github/instructions/workflow-{artifact.name}.instructions.md"
+                    f".github/instructions/workflow-{slug}.instructions.md"
                 ] = self._format_instructions_file(artifact, "workflow")
             elif artifact.artifact_type == "model_config":
                 files[
-                    f".github/instructions/model-{artifact.name}.instructions.md"
+                    f".github/instructions/model-{slug}.instructions.md"
                 ] = self._format_instructions_file(artifact, "model_config")
 
         if rules_entries:
@@ -60,8 +61,8 @@ class CopilotCliAdapter(BaseAdapter):
         globs = self._targets_to_globs(artifact.target_compatibility)
         return (
             f"---\n"
-            f"title: {artifact.name}\n"
-            f"description: {artifact.description}\n"
+            f"title: {yaml_scalar(artifact.name)}\n"
+            f"description: {yaml_scalar(artifact.description)}\n"
             f"applyTo: {json.dumps(globs)}\n"
             f"type: {artifact_type}\n"
             f"priority: {artifact.priority}\n"

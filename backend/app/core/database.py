@@ -20,7 +20,11 @@ def get_engine() -> AsyncEngine:
     if engine is None:
         engine = create_async_engine(
             settings.database_url,
-            echo=settings.debug,
+            echo=settings.sql_echo,
+            # Never log bound parameters, even with SQL_ECHO on: they include
+            # password/reset-token hashes, TOTP secrets and emails
+            # (AGENTS.md rule 10).
+            hide_parameters=True,
             future=True,
         )
     return engine

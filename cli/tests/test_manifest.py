@@ -42,9 +42,6 @@ def _compile_response(files: dict[str, str], compiled_hash: str = "abc123") -> d
 def test_pull_writes_manifest_matching_written_files(
     httpx_mock: HTTPXMock, logged_in: None, tmp_path: Path
 ) -> None:
-    # Flat filenames only — pull's existing path-traversal guard rejects any
-    # filename containing "/", including legitimate adapter subdirectory
-    # output (a separate, pre-existing bug outside this feature's scope).
     files = {"CLAUDE.md": "hello world", "AGENTS.md": "an agent"}
     httpx_mock.add_response(
         method="POST",
@@ -198,3 +195,110 @@ def test_pull_without_compiled_hash_skips_manifest(
 
     assert result.exit_code == 0
     assert not manifest_file_path(out_dir, "claude-code").exists()
+
+
+def test_pull_writes_nested_adapter_paths_and_records_them_in_manifest(
+    httpx_mock: HTTPXMock, logged_in: None, tmp_path: Path
+) -> None:
+    """Regression: the traversal guard used to ban every "/", so everything
+    but the root file of a nested-layout adapter (.claude/agents/x.md, ...)
+    was skipped and missing from the manifest."""
+    files = {
+        "CLAUDE.md": "root",
+        ".claude/agents/builder.md": "an agent",
+        ".claude/skills/tdd/SKILL.md": "a skill",
+    }
+    httpx_mock.add_response(
+        method="POST",
+        url="http://testserver/api/v1/profiles/compile",
+        json=_compile_response(files, compiled_hash="hash-nested"),
+    )
+    out_dir = tmp_path / "out"
+
+    result = runner.invoke(
+        app,
+        ["pull", "--profile", PROFILE_ID, "--target", "claude-code",
+         "--path", str(out_dir), "--force"],
+    )
+
+    assert result.exit_code == 0
+    assert (out_dir / ".claude" / "agents" / "builder.md").read_text() == "an agent"
+    assert (out_dir / ".claude" / "skills" / "tdd" / "SKILL.md").read_text() == "a skill"
+    manifest = json.loads(manifest_file_path(out_dir, "claude-code").read_text())
+    assert sorted(manifest["files"]) == sorted(files)
+
+
+def test_pull_still_rejects_traversal_and_absolute_paths(
+    httpx_mock: HTTPXMock, logged_in: None, tmp_path: Path
+) -> None:
+    outside = tmp_path / "pwned.md"
+    files = {
+        "CLAUDE.md": "ok",
+        "../pwned.md": "x",
+        "a/../../pwned.md": "x",
+        str(outside): "x",
+    }
+    httpx_mock.add_response(
+        method="POST",
+        url="http://testserver/api/v1/profiles/compile",
+        json=_compile_response(files),
+    )
+    out_dir = tmp_path / "out"
+
+    result = runner.invoke(
+        app,
+        ["pull", "--profile", PROFILE_ID, "--target", "claude-code",
+         "--path", str(out_dir), "--force"],
+    )
+
+    assert result.exit_code == 0
+    assert not outside.exists()
+    assert (out_dir / "CLAUDE.md").exists()
+
+
+def test_pull_survives_rich_markup_in_server_supplied_filenames(
+    httpx_mock: HTTPXMock, logged_in: None, tmp_path: Path
+) -> None:
+    """A filename like "[/red]" used to raise rich's MarkupError and crash
+    the whole pull when interpolated unescaped."""
+    files = {"CLAUDE.md": "ok", "[/red]/../x": "x"}
+    httpx_mock.add_response(
+        method="POST",
+        url="http://testserver/api/v1/profiles/compile",
+        json=_compile_response(files),
+    )
+
+    result = runner.invoke(
+        app,
+        ["pull", "--profile", PROFILE_ID, "--target", "claude-code",
+         "--path", str(tmp_path / "out"), "--force"],
+    )
+
+    assert result.exit_code == 0
+    assert result.exception is None
+
+
+def test_import_push_sends_no_owner_id_and_survives_markup_in_error_body(
+    httpx_mock: HTTPXMock, logged_in: None, tmp_path: Path
+) -> None:
+    """Ownership comes from the bearer token (AGENTS.md rule 10); the CLI used
+    to send `?owner_id=` built from a credentials field that doesn't exist.
+    Matching the exact URL makes pytest-httpx fail on any query string."""
+    src = tmp_path / "cfg"
+    (src / "agents").mkdir(parents=True)
+    (src / "agents" / "builder.md").write_text("an agent")
+    httpx_mock.add_response(
+        method="POST",
+        url="http://testserver/api/v1/collections/import",
+        status_code=500,
+        text="boom [/red] [bold",
+    )
+
+    result = runner.invoke(
+        app,
+        ["import", "--path", str(src), "--name", "cfg", "--output", str(tmp_path / "o"),
+         "--push"],
+    )
+
+    assert result.exception is None
+    assert "server returned 500" in result.output

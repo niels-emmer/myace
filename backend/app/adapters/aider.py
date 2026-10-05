@@ -10,7 +10,7 @@ than being dropped.
 
 import json
 
-from app.adapters.base import BaseAdapter
+from app.adapters.base import BaseAdapter, yaml_scalar
 from app.models.artifact import CanonicalArtifact
 
 
@@ -41,6 +41,10 @@ class AiderAdapter(BaseAdapter):
             elif artifact.artifact_type == "workflow":
                 sections.append(self._format_section(artifact, "Workflow"))
             elif artifact.artifact_type == "model_config":
+                # `mcp:<name>` artifacts are MCP servers (scanner encoding);
+                # Aider has no MCP config, and they must not become `model:`.
+                if artifact.name.startswith("mcp:"):
+                    continue
                 model_name = self._parse_model_name(artifact)
 
         if sections:
@@ -50,7 +54,7 @@ class AiderAdapter(BaseAdapter):
         if "CONVENTIONS.md" in files:
             conf_lines.append("read: CONVENTIONS.md")
         if model_name:
-            conf_lines.append(f"model: {model_name}")
+            conf_lines.append(f"model: {yaml_scalar(model_name)}")
         if conf_lines:
             files[".aider.conf.yml"] = "\n".join(conf_lines) + "\n"
 

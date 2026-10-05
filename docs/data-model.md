@@ -170,8 +170,10 @@ write/delete — see the `collection_ratings` section below.
 `unpublished`) is the single source of truth for the community-publishing
 lifecycle — see [ADR-0008](adr/0008-collection-moderation-state-machine.md),
 [ADR-0013](adr/0013-post-hoc-unpublish.md), and the "Community collections"
-section below; `published`/`visibility` are only ever flipped to public by
-the approve action, never by submission itself. `unpublished` is reached
+section below; `published` is only ever set by the approve action, never
+by submission itself. `visibility` is a separate, owner-editable
+link-sharing flag (the Share dialog) that does not imply the collection
+was reviewed or is listed in Community. `unpublished` is reached
 from `approved` only, via the owner or a moderator/admin, and can only get
 back to `approved` through a fresh submit + approval — same as `denied`.
 `last_digest_download_count`/`last_digest_sent_at` are watermark fields

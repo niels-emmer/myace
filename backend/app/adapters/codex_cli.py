@@ -22,8 +22,9 @@ platform constraint, not an adapter bug.
 """
 
 import json
+import re
 
-from app.adapters.base import BaseAdapter
+from app.adapters.base import BaseAdapter, safe_path_component, yaml_scalar
 from app.models.artifact import CanonicalArtifact
 
 
@@ -46,13 +47,20 @@ class CodexCliAdapter(BaseAdapter):
         model_configs: list[dict[str, object]] = []
 
         for artifact in artifacts:
+            slug = safe_path_component(artifact.name)
             if artifact.artifact_type == "rule":
                 rules_sections.append(self._format_rule(artifact))
             elif artifact.artifact_type == "skill":
-                files[f".agents/skills/{artifact.name}/SKILL.md"] = self._format_skill(artifact)
+                files[f".agents/skills/{slug}/SKILL.md"] = self._format_skill(artifact)
             elif artifact.artifact_type == "agent":
-                files[f".codex/agents/{artifact.name}.toml"] = self._format_agent(artifact)
+                files[f".codex/agents/{slug}.toml"] = self._format_agent(artifact)
             elif artifact.artifact_type == "model_config":
+                # `mcp:<name>` artifacts (scanner encoding) are MCP servers,
+                # not models — config.toml's `model`/`[model_providers]`
+                # shape has no place for them, so they're skipped rather
+                # than emitted as a bogus `model = "mcp:foo"`.
+                if artifact.name.startswith("mcp:"):
+                    continue
                 model_configs.append(self._parse_model_config(artifact))
             # No "workflow" concept exists in Codex CLI — skipped.
 
@@ -73,8 +81,8 @@ class CodexCliAdapter(BaseAdapter):
     def _format_skill(self, artifact: CanonicalArtifact) -> str:
         return (
             f"---\n"
-            f"name: {artifact.name}\n"
-            f"description: {artifact.description}\n"
+            f"name: {yaml_scalar(artifact.name)}\n"
+            f"description: {yaml_scalar(artifact.description)}\n"
             f"---\n"
             f"{artifact.body.strip()}\n"
         )
@@ -86,7 +94,7 @@ class CodexCliAdapter(BaseAdapter):
             f"name = {self._toml_string(artifact.name)}",
             f"description = {self._toml_string(artifact.description)}",
             'developer_instructions = """',
-            artifact.body.strip(),
+            self._toml_multiline_body(artifact.body.strip()),
             '"""',
         ]
         return "\n".join(lines) + "\n"
@@ -101,10 +109,42 @@ class CodexCliAdapter(BaseAdapter):
         return {"name": artifact.name, "provider": "openai", "model": artifact.name}
 
     @staticmethod
+    def _toml_escape(value: str, *, keep_newlines: bool) -> str:
+        """Escape text for a TOML basic (multi-line) string: backslash and
+        quote, plus control characters TOML forbids raw (as \\uXXXX)."""
+        out: list[str] = []
+        for ch in value:
+            if ch == "\\":
+                out.append("\\\\")
+            elif ch == '"':
+                out.append('\\"')
+            elif ch == "\n":
+                out.append("\n" if keep_newlines else "\\n")
+            elif ch == "\t":
+                out.append("\t" if keep_newlines else "\\t")
+            elif ord(ch) < 0x20 or ord(ch) == 0x7F:
+                out.append(f"\\u{ord(ch):04x}")
+            else:
+                out.append(ch)
+        return "".join(out)
+
+    @staticmethod
     def _toml_string(value: str) -> str:
         """Escape a value as a single-line TOML basic string."""
-        escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
-        return f'"{escaped}"'
+        return f'"{CodexCliAdapter._toml_escape(value, keep_newlines=False)}"'
+
+    @staticmethod
+    def _toml_multiline_body(value: str) -> str:
+        """Escape a body for placement between `\"\"\"` delimiters. Every `"`
+        is escaped, so the body can never close the string early and inject
+        TOML keys, and a stray `\\d` is a literal backslash, not an invalid
+        escape."""
+        return CodexCliAdapter._toml_escape(value.replace("\r\n", "\n"), keep_newlines=True)
+
+    @staticmethod
+    def _toml_key(key: str) -> str:
+        """A TOML key: bare when it only uses A-Za-z0-9_-, else quoted."""
+        return key if re.fullmatch(r"[A-Za-z0-9_-]+", key) else CodexCliAdapter._toml_string(key)
 
     def _render_toml(self, model_configs: list[dict[str, object]]) -> str:
         """Render the real Codex CLI config.toml shape: a top-level `model`
@@ -122,9 +162,9 @@ class CodexCliAdapter(BaseAdapter):
             entry.update(extra)
 
         for provider_id, fields in providers.items():
-            lines.append(f"[model_providers.{provider_id}]")
+            lines.append(f"[model_providers.{self._toml_key(provider_id)}]")
             for key, value in fields.items():
-                lines.append(f"{key} = {self._toml_string(str(value))}")
+                lines.append(f"{self._toml_key(key)} = {self._toml_string(str(value))}")
             lines.append("")
 
         return "\n".join(lines).rstrip() + "\n"
