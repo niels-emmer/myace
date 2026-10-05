@@ -230,7 +230,7 @@ When two components fetch the same resource with different filters (e.g. an unfi
 
 ### 13. Authentication & Authorization
 
-- **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`, and (Phase 4) `POST /demo/compile` — see rule 36 for why that last one is a deliberate, narrowly-scoped exception rather than a precedent for public routes in general. Everything else requires it.
+- **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/mfa` (completes a login the caller already passed the password step of, via a signed 5-minute `mfa_token`), `/auth/logout` (clears the caller's own session; nothing to protect), `/auth/forgot-password` and `/auth/reset-password` (the caller can't be logged in — a signed one-hour reset token is the credential), `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`, and (Phase 4) `POST /demo/compile` — see rule 36 for why that last one is a deliberate, narrowly-scoped exception rather than a precedent for public routes in general. Everything else requires it.
 - **Authorization is ownership + visibility, not per-route roles.** Use `authorize_access()` (single resource) and `owner_or_public_clause()` (list endpoints) from `backend/app/core/authz.py` — don't hand-roll owner checks. `authorize_access` 404s (not 403s) on denial, matching the rest of the codebase's convention of not revealing a resource's existence to someone who can't see it. `current_user.is_admin` bypasses both.
 - **`Artifact` has no `owner_id` of its own.** Authorize against its parent `Collection` — load the collection first, call `authorize_access` on that, then proceed.
 - **Bulk/cross-resource operations need a check per resource touched.** `bulk_export_artifacts`'s target collection needs its own write-check independent of the source collection's read-check — don't assume checking one resource covers every resource an endpoint touches.
@@ -259,7 +259,8 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   maintain by hand.** `.github/workflows/wiki-sync.yml` runs
   `scripts/sync_wiki.py` on every push to `main` that touches `docs/**`,
   republishing the human-facing subset of `docs/` (architecture, data model,
-  invariants, extending, debugging, ADRs, adapter research — see the page
+  invariants, extending, debugging, deployment, CLI, backups, CI drift
+  check, ADRs, adapter research — see the page
   map in `scripts/sync_wiki.py`) as Wiki pages with rewritten links/images.
   `docs/plans/*.md`, `AGENTS.md`, and `CLAUDE.md` are deliberately excluded
   — they're design records and agent rules, not visitor-facing reference

@@ -2,8 +2,11 @@
 
 ## Supported Versions
 
-MyACE does not yet cut versioned releases — `main` is the only supported
-branch. Security fixes land there and you should track it directly.
+Security fixes land on `main`, which is the only supported branch — track it
+directly (or pull the latest tagged release, which is cut from `main`). Older
+tagged releases and the CLI binaries attached to them are not patched in
+place; upgrade to the newest release instead. The rolling `latest` build is
+produced from `main` on every push and is the most current CLI binary.
 
 ## Reporting a Vulnerability
 
