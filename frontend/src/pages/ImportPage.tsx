@@ -95,7 +95,7 @@ export default function ImportPage() {
         if (!companionReady) {
           throw new Error('Local scanner not detected. Follow the setup steps below.');
         }
-        const res = await fetch(`${COMPANION_URLS[0]}/scan`, {
+        const res = await fetch(`${companionQuery.data?.baseUrl ?? COMPANION_URLS[0]}/scan`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-MyACE-Companion': '1' },
           body: JSON.stringify({ path: sourcePath, framework }),

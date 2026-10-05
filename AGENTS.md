@@ -228,6 +228,15 @@ Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d
 
 When two components fetch the same resource with different filters (e.g. an unfiltered list vs. a `visibility=public` list), give them distinct query keys — fold the filter into the key, e.g. `['collections', { visibility: 'public' }]`. Reusing a bare `['collections']` key for differently-filtered queries causes cache collisions: whichever query resolves first silently overwrites the cached data for every other component using that key, and the wrong data can appear during client-side (non-reload) navigation.
 
+
+- **Concrete case, fixed:** `CollectionDetail.tsx` (`include_disabled: true`)
+  and `ProfileDetail.tsx`/`ProfileComposer.tsx` (`include_disabled: false`)
+  all fetch a collection's artifacts. Every one now folds the filter into
+  its key (`['artifacts', cid, { include_disabled: … }]`); invalidating the
+  bare `['artifacts', cid]` prefix still hits all of them.
+  `src/pages/ArtifactQueryKeys.test.tsx` pins this — a new page fetching
+  artifacts needs the same, not a bare `['artifacts', id]`.
+
 ### 13. Authentication & Authorization
 
 - **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`, and (Phase 4) `POST /demo/compile` — see rule 36 for why that last one is a deliberate, narrowly-scoped exception rather than a precedent for public routes in general. Everything else requires it.
@@ -444,6 +453,11 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   *module* globals — which don't include names only bound in
   `build_app()`'s local scope, so `Request`/the request model silently
   fail to resolve and every route 422s as if the parameters don't exist.
+- **Follow-up calls (`/scan`, `/audit`) go to the URL that answered
+  `/health`**, not `COMPANION_URLS[0]`: `useCompanionHealth()`
+  (`LocalCompanionSetup.tsx`) returns `baseUrl` alongside the health body.
+  The companion binds `127.0.0.1` only, so on a machine where `localhost`
+  resolves to `::1` the first candidate never answers.
 - The web UI's "Local Machine" import source (`ImportPage.tsx`) talks to
   this server exclusively. The backend's own
   `POST /collections/scan?source_type=local` route is left in place for
