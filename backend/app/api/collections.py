@@ -1,5 +1,6 @@
 """Collection management routes."""
 
+import asyncio
 import json
 import logging
 import uuid
@@ -930,7 +931,9 @@ async def scan_local_directory(
             from app.services.scanner import _redact_credentials, scan_git_repository
             if not request.git_url:
                 raise ValueError("git_url is required when source_type is 'git'")
-            artifacts = scan_git_repository(
+            # Blocking network clone — off the event loop.
+            artifacts = await asyncio.to_thread(
+                scan_git_repository,
                 request.git_url,
                 branch=request.git_branch or "main",
                 subdirectory=request.subdirectory,
@@ -940,7 +943,7 @@ async def scan_local_directory(
             from app.services.scanner import scan_directory
             if not request.path:
                 raise ValueError("path is required when source_type is 'local'")
-            artifacts = scan_directory(request.path)
+            artifacts = await asyncio.to_thread(scan_directory, request.path)
             source_label = request.path
 
         return {
