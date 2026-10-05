@@ -20,7 +20,7 @@ artifact type.
 
 import yaml
 
-from app.adapters.base import BaseAdapter
+from app.adapters.base import BaseAdapter, safe_path_component
 from app.models.artifact import CanonicalArtifact
 
 
@@ -51,14 +51,15 @@ class ClaudeCodeAdapter(BaseAdapter):
         rules_sections: list[str] = []
 
         for artifact in artifacts:
+            slug = safe_path_component(artifact.name)
             if artifact.artifact_type == "rule":
                 rules_sections.append(self._format_rule(artifact))
             elif artifact.artifact_type == "skill":
-                files[f".claude/skills/{artifact.name}/SKILL.md"] = self._format_skill(artifact)
+                files[f".claude/skills/{slug}/SKILL.md"] = self._format_skill(artifact)
             elif artifact.artifact_type == "agent":
-                files[f".claude/agents/{artifact.name}.md"] = self._format_agent(artifact)
+                files[f".claude/agents/{slug}.md"] = self._format_agent(artifact)
             elif artifact.artifact_type == "workflow":
-                files[f".claude/commands/{artifact.name}.md"] = self._format_command(artifact)
+                files[f".claude/commands/{slug}.md"] = self._format_command(artifact)
 
         if rules_sections:
             files["CLAUDE.md"] = "# Rules\n\n" + "\n".join(rules_sections)
