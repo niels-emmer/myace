@@ -150,6 +150,7 @@ async def compile_profile_endpoint(
             profile=profile,
             target=request.target,
             include_disabled=request.include_disabled,
+            requesting_user=current_user,
         )
     except (AdapterDisabledError, UnknownAdapterError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -183,6 +184,7 @@ async def compile_status_endpoint(
     try:
         compiled_hash = await compute_compile_status(
             session=session, profile=profile, target=target,
+            requesting_user=current_user,
         )
     except (AdapterDisabledError, UnknownAdapterError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -214,6 +216,7 @@ async def compile_profile_zip_endpoint(
             profile=profile,
             target=request.target,
             include_disabled=request.include_disabled,
+            requesting_user=current_user,
         )
     except (AdapterDisabledError, UnknownAdapterError) as e:
         raise HTTPException(status_code=400, detail=str(e))
