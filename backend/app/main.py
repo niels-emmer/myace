@@ -50,6 +50,35 @@ def looks_like_real_deployment() -> bool:
     return any(not any(marker in o for marker in local) for o in settings.cors_origin_list)
 
 
+def validate_cors_origins() -> None:
+    """Reject a wildcard CORS origin outside development (L-16).
+
+    `CORSMiddleware` below is registered with `allow_credentials=True`, so
+    `CORS_ORIGINS=*` either makes the browser reject every credentialed
+    cross-origin request (a mysteriously broken deployment) or reflects any
+    request `Origin` back in `Access-Control-Allow-Origin` with credentials
+    attached — letting any website read a logged-in user's authenticated API
+    responses. Fail at startup instead of shipping either outcome, the same
+    shape as the `TRUSTED_HOSTS` check below.
+
+    Development is exempt: a wildcard origin there is a deliberate local
+    convenience, and nothing is reachable beyond localhost.
+
+    Extracted from module scope (rather than left inline) so tests can call
+    it directly — see tests/test_prod_defaults.py.
+    """
+    if settings.app_env == "development":
+        return
+    if "*" in settings.cors_origin_list:
+        raise RuntimeError(
+            "CORS_ORIGINS contains '*', which is unsafe with allow_credentials=True: "
+            "it either breaks the browser's CORS check or reflects any Origin back "
+            "with credentials, letting any website read authenticated API responses. "
+            "List your real frontend origin(s) explicitly, e.g. "
+            "CORS_ORIGINS=https://myace.example.com"
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: initialize DB on startup."""
@@ -189,7 +218,9 @@ else:
     allowed_hosts = settings.trusted_host_list
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
 
-# CORS middleware
+# CORS middleware — reject a wildcard origin before registering it (L-16;
+# `*` with allow_credentials=True is unsafe — see validate_cors_origins).
+validate_cors_origins()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,

@@ -35,7 +35,11 @@ After forking, before exposing it beyond localhost:
      deployment becomes an admin too, not just the first.
    - Set `CORS_ORIGINS` to your real domain(s), and **`TRUSTED_HOSTS`** too
      (required in production — the app refuses to start without it, to
-     prevent Host-header injection attacks).
+     prevent Host-header injection attacks). Do **not** set `CORS_ORIGINS=*`:
+     with `allow_credentials=True` a wildcard either breaks the browser's
+     CORS check or reflects any Origin back with credentials, so the app
+     **refuses to start** on a wildcard outside development. List the
+     origins explicitly, comma-separated.
    - Set `SETTINGS_ENCRYPTION_KEY` if you plan to save SMTP or OAuth
      provider secrets from the System Settings UI (rather than only via
      `.env`) — required before those forms can save; generate with
