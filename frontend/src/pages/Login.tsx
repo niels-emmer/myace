@@ -10,19 +10,24 @@ const inputClass =
   'w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function Login() {
-  const { user, login, register } = useAuth();
+  const { user, login, completeMfaLogin, register } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<'login' | 'register'>(
     searchParams.get('mode') === 'register' ? 'register' : 'login'
   );
+  const [step, setStep] = useState<'credentials' | 'mfa'>('credentials');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [mfaToken, setMfaToken] = useState('');
+  const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Already authenticated (fresh login, or an existing session) — leave /login.
+  // `user` is only ever set after the server has issued a session, so the MFA
+  // challenge step (which does not set `user`) stays on this page.
   useEffect(() => {
     if (user) navigate('/', { replace: true });
   }, [user, navigate]);
@@ -37,8 +42,15 @@ export default function Login() {
     setError(null);
     setSubmitting(true);
     try {
-      if (mode === 'login') {
-        await login(email, password);
+      if (step === 'mfa') {
+        await completeMfaLogin(mfaToken, code);
+      } else if (mode === 'login') {
+        const outcome = await login(email, password);
+        if (outcome.status === 'mfa_required') {
+          setMfaToken(outcome.mfaToken);
+          setCode('');
+          setStep('mfa');
+        }
       } else {
         await register(email, password, displayName);
       }
@@ -66,73 +78,112 @@ export default function Login() {
         </div>
 
         <div className="bg-card rounded-xl border border-border p-6 space-y-4">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setMode('login')}
-              className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                mode === 'login'
-                  ? 'border-brand-500 bg-brand-50 text-brand-700'
-                  : 'border-border text-muted-foreground hover:border-input'
-              }`}
-            >
-              Log in
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('register')}
-              className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                mode === 'register'
-                  ? 'border-brand-500 bg-brand-50 text-brand-700'
-                  : 'border-border text-muted-foreground hover:border-input'
-              }`}
-            >
-              Register
-            </button>
-          </div>
+          {step === 'credentials' && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  mode === 'login'
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-border text-muted-foreground hover:border-input'
+                }`}
+              >
+                Log in
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('register')}
+                className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  mode === 'register'
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-border text-muted-foreground hover:border-input'
+                }`}
+              >
+                Register
+              </button>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            {mode === 'register' && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Display Name</label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className={inputClass}
-                  required
-                />
-              </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={inputClass}
-                required
-                autoFocus
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-foreground">Password</label>
-                {mode === 'login' && (
-                  <Link to="/reset-password" className="text-xs text-brand-600 hover:underline">
-                    Forgot password?
-                  </Link>
+            {step === 'mfa' ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Enter the 6-digit code from your authenticator app to finish signing in.
+                </p>
+                <div>
+                  <label htmlFor="mfa-code" className="block text-sm font-medium text-foreground mb-1">
+                    Authentication code
+                  </label>
+                  <input
+                    id="mfa-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    className={`${inputClass} font-mono`}
+                    placeholder="000000"
+                    maxLength={6}
+                    required
+                    autoFocus
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                {mode === 'register' && (
+                  <div>
+                    <label htmlFor="display-name" className="block text-sm font-medium text-foreground mb-1">
+                      Display Name
+                    </label>
+                    <input
+                      id="display-name"
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
                 )}
-              </div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={inputClass}
-                minLength={mode === 'register' ? 8 : undefined}
-                required
-              />
-            </div>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClass}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="password" className="block text-sm font-medium text-foreground">
+                      Password
+                    </label>
+                    {mode === 'login' && (
+                      <Link to="/reset-password" className="text-xs text-brand-600 hover:underline">
+                        Forgot password?
+                      </Link>
+                    )}
+                  </div>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={inputClass}
+                    minLength={mode === 'register' ? 8 : undefined}
+                    required
+                  />
+                </div>
+              </>
+            )}
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -142,11 +193,26 @@ export default function Login() {
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {mode === 'login' ? 'Log in' : 'Create account'}
+              {step === 'mfa' ? 'Verify' : mode === 'login' ? 'Log in' : 'Create account'}
             </button>
+
+            {step === 'mfa' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStep('credentials');
+                  setMfaToken('');
+                  setCode('');
+                  setError(null);
+                }}
+                className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Back to sign in
+              </button>
+            )}
           </form>
 
-          {anyProviderConfigured && (
+          {step === 'credentials' && anyProviderConfigured && (
             <>
               <div className="flex items-center gap-3">
                 <div className="h-px flex-1 bg-border" />

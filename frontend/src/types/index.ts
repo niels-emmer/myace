@@ -516,3 +516,8 @@ export interface LoginMfaResponse {
   mfa_token: string;
   message: string;
 }
+
+export interface MfaLoginResult {
+  message: string;
+  user_id: string;
+}
