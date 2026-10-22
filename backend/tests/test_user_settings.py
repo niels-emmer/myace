@@ -153,26 +153,42 @@ class TestChangePassword:
         assert resp.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_change_password_oidc_only(self, db_session: AsyncSession, async_client: AsyncClient):
-        """Should reject password change for OIDC-only accounts."""
-        from app.models.user import User
+    async def test_change_password_oidc_only(
+        self, db_session: AsyncSession, async_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """An OIDC-only account (password_hash=None) must be rejected with a
+        clear 400 — there is no stored password to check `current_password`
+        against, so the route must not fall through and set one.
 
-        user = User(
-            email="oidc@test.com",
-            display_name="OIDC User",
-            password_hash=None,
-            oidc_sub="sub123",
-            oidc_provider="github",
+        Authenticated the only way such an account can be: through the SSO
+        callback, which is what creates a user with no password_hash.
+        """
+
+        class _FakeOidcClient:
+            async def authorize_access_token(self, request, **kwargs):  # noqa: ANN001
+                return {
+                    "userinfo": {
+                        "sub": "sub-oidc-only",
+                        "email": "oidc@test.com",
+                        "email_verified": True,
+                        "name": "OIDC User",
+                    }
+                }
+
+        monkeypatch.setattr(
+            "app.api.auth.get_oauth_client", lambda provider, config: _FakeOidcClient()
         )
-        db_session.add(user)
-        await db_session.commit()
+        resp = await async_client.get(
+            "/api/v1/auth/callback/oidc?code=c&state=s", follow_redirects=False
+        )
+        assert resp.status_code == 302
 
-        await async_client.post("/api/v1/auth/login", json={"email": "oidc@test.com", "password": "irrelevant"})
-        # Actually OIDC users can't login with password, so let's use the session directly
-        # We need to set the session cookie. Let's use a different approach.
-        # For now, skip this test or use the API properly.
-        # Actually, OIDC users can't login via password endpoint, so we can't test this easily.
-        # Let's just verify the endpoint exists and is protected.
+        resp = await async_client.post(
+            "/api/v1/auth/me/password",
+            json={"current_password": "irrelevant", "new_password": "newpassword123"},
+        )
+        assert resp.status_code == 400
+        assert "OIDC" in resp.json()["detail"]
 
     @pytest.mark.asyncio
     async def test_unauthenticated(self, async_client: AsyncClient):
