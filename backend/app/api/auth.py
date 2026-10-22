@@ -751,6 +751,11 @@ async def auth_callback(
     session: AsyncSession = Depends(get_session),
 ):
     """OIDC/OAuth2 callback — create or authenticate user, establish a session."""
+    if provider not in ("oidc", "github", "google"):
+        # Same guard as login(): without it an unknown provider falls through
+        # to get_effective_oauth_config()'s ValueError and 500s.
+        raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
+
     if not await _is_provider_enabled(provider, session):
         raise HTTPException(status_code=403, detail=f"Provider is disabled: {provider}")
 

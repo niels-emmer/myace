@@ -422,6 +422,19 @@ async def test_admin_emails_does_not_promote_other_users(
     assert resp.json()["role"] == "user"
 
 
+# ─── L-5: unknown provider on the callback must be a 400, not a 500 ─
+
+
+@pytest.mark.asyncio
+async def test_unknown_oidc_provider_returns_400(async_client: AsyncClient) -> None:
+    """`login()` validates the provider; `auth_callback()` did not, so an
+    unknown provider fell through to get_effective_oauth_config()'s
+    ValueError and surfaced as an unhandled 500."""
+    resp = await async_client.get("/api/v1/auth/callback/notaprovider", follow_redirects=False)
+    assert resp.status_code == 400
+    assert "Unsupported provider" in resp.json()["detail"]
+
+
 # ─── L-2: forgot-password must not await the SMTP send ────────────
 
 
