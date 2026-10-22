@@ -1,4 +1,7 @@
-FROM python:3.14-slim
+# Keep this in lockstep with `requires-python` (pyproject.toml) and the
+# `python-version` CI tests on: shipping an interpreter the suite never ran
+# against means a green build says nothing about the image that serves traffic.
+FROM python:3.12-slim
 
 WORKDIR /app
 
