@@ -42,7 +42,8 @@ def looks_like_real_deployment() -> bool:
     deployment — a real secret key, a TRUSTED_HOSTS list, or a non-localhost
     CORS origin. Used only to warn when that coexists with
     `APP_ENV=development`, which silently turns off every production
-    hardening check below (default-secret and TRUSTED_HOSTS errors included).
+    hardening check below (the default-secret, TRUSTED_HOSTS, DEBUG and
+    CORS-wildcard startup errors included).
     """
     if settings.app_secret_key != DEFAULT_SECRET_KEY or settings.trusted_host_list:
         return True
@@ -98,8 +99,9 @@ async def lifespan(app: FastAPI):
         logger.warning(
             "APP_ENV=development but this looks like a real deployment (custom secret key, "
             "TRUSTED_HOSTS or non-localhost CORS_ORIGINS). Production hardening checks "
-            "(default-secret and TRUSTED_HOSTS errors) are OFF and the database schema is "
-            "auto-created on every boot — set APP_ENV=production in .env."
+            "(default-secret, TRUSTED_HOSTS, DEBUG and CORS-wildcard errors) are OFF and "
+            "the database schema is auto-created on every boot — set APP_ENV=production "
+            "in .env."
         )
     if settings.app_secret_key == DEFAULT_SECRET_KEY and settings.app_env != "development":
         raise RuntimeError(
@@ -108,10 +110,10 @@ async def lifespan(app: FastAPI):
             "running in production."
         )
     if settings.debug and settings.app_env != "development":
-        logger.warning(
-            "DEBUG is true outside app_env=development. This exposes /docs and /redoc "
-            "publicly and disables secure-only session cookies — set DEBUG=false for any "
-            "deployment reachable beyond localhost."
+        raise RuntimeError(
+            "DEBUG is true outside app_env=development. This serves /docs and /redoc "
+            "publicly. Set DEBUG=false in .env for any deployment reachable beyond "
+            "localhost."
         )
     if settings.admin_bootstrap_enabled and settings.app_env != "development":
         logger.warning(
@@ -132,8 +134,12 @@ app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
     lifespan=lifespan,
-    docs_url="/docs" if settings.debug else None,
-    redoc_url="/redoc" if settings.debug else None,
+    # Gated on app_env, not `debug` (L-14): the interactive docs expose the
+    # full API schema, so they belong to local development only. `debug`
+    # defaults to true, which used to mean a production deployment that
+    # never flipped it served /docs publicly.
+    docs_url="/docs" if settings.app_env == "development" else None,
+    redoc_url="/redoc" if settings.app_env == "development" else None,
 )
 
 # Rate limiter state + exception handler for app.api.demo's @limiter.limit(...)
@@ -230,13 +236,15 @@ app.add_middleware(
 )
 
 # Session middleware — backs both the OIDC login handshake (state/nonce) and
-# the web UI's authenticated session cookie.
+# the web UI's authenticated session cookie. `https_only` is derived from
+# FRONTEND_BASE_URL's scheme (Settings.session_cookie_secure), never from
+# `debug` — see L-14 in that property's docstring.
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.app_secret_key,
     session_cookie="myace_session",
     same_site="lax",
-    https_only=not settings.debug,
+    https_only=settings.session_cookie_secure,
     max_age=14 * 24 * 3600,
 )
 

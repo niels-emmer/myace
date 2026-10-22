@@ -88,3 +88,26 @@ def test_explicit_cors_origins_pass_validation(monkeypatch: pytest.MonkeyPatch) 
         settings, "cors_origins", "https://myace.example.com,https://app.example.com"
     )
     validate_cors_origins()
+
+
+def test_session_cookie_secure_follows_frontend_scheme(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """L-14: the session cookie's `Secure` flag is derived from
+    FRONTEND_BASE_URL's scheme, not from `debug` (which defaults to true and
+    used to leave a production deployment issuing a non-Secure cookie)."""
+    monkeypatch.setattr(settings, "frontend_base_url", "https://myace.example.com")
+    assert settings.session_cookie_secure is True
+
+    monkeypatch.setattr(settings, "frontend_base_url", "http://localhost:5173")
+    assert settings.session_cookie_secure is False
+
+
+def test_session_cookie_secure_does_not_depend_on_debug(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "frontend_base_url", "https://myace.example.com")
+    monkeypatch.setattr(settings, "debug", True)
+    assert settings.session_cookie_secure is True
+    monkeypatch.setattr(settings, "debug", False)
+    assert settings.session_cookie_secure is True

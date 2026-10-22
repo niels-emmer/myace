@@ -27,8 +27,12 @@ After forking, before exposing it beyond localhost:
    - Set a real random `APP_SECRET_KEY` (it signs session cookies; the app
      **refuses to start** in production if you leave the default — it's a
      `RuntimeError`, not a warning). Generate with `openssl rand -hex 32`.
-   - Set `DEBUG=false` (the default, `true`, exposes `/docs`/`/redoc`
-     publicly and disables secure-only cookies).
+   - Set `DEBUG=false`. The app **refuses to start** with `DEBUG=true`
+     outside development — that combination served `/docs`/`/redoc`
+     publicly and dropped the `Secure` flag from the session cookie. Set
+     `FRONTEND_BASE_URL` to your public `https://` origin as well: the
+     session cookie's `Secure` flag follows its scheme, so an `https://`
+     value is what keeps the cookie off plaintext HTTP.
    - Change `POSTGRES_PASSWORD` from the shipped default.
    - Register your own account, then set `ADMIN_BOOTSTRAP_ENABLED=false` and
      restart — otherwise the *next* person to register on a public
@@ -129,7 +133,9 @@ separate API hostname to configure.
    frontend proxies `/api/*` through its own origin (path-based, same
    domain). You'd only need `domain=".example.com"` added in
    `backend/app/main.py` if you instead split the frontend and API onto
-   different subdomains and called the API directly from browser JS.
+   different subdomains and called the API directly from browser JS. The
+   cookie's `Secure` flag follows `FRONTEND_BASE_URL`'s scheme (an
+   `https://` value sets it), so point that at your public https origin.
 
 If something doesn't resolve correctly behind a proxy (redirect URIs
 resolving to `http://` instead of `https://`, for example), see

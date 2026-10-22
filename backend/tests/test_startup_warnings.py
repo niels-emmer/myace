@@ -1,5 +1,6 @@
-"""Tests for the startup warnings in app.main.lifespan that flag unsafe
-config left at its default outside local development."""
+"""Tests for the startup checks in app.main.lifespan that flag unsafe
+config left at its default outside local development. The DEBUG case is a
+hard failure (L-14), not a warning — see also tests/test_prod_defaults.py."""
 
 import logging
 
@@ -39,17 +40,18 @@ async def test_no_secret_key_warning_in_development(monkeypatch, caplog):
 
 
 @pytest.mark.asyncio
-async def test_warns_on_debug_true_outside_dev(monkeypatch, caplog):
+async def test_raises_on_debug_true_outside_dev(monkeypatch):
+    """L-14: DEBUG=true outside development is now a hard startup failure,
+    not a warning — the warning was easy to miss and silently served /docs
+    publicly and dropped the Secure flag from the session cookie."""
     monkeypatch.setattr("app.main.settings.app_env", "production")
     monkeypatch.setattr("app.main.settings.app_secret_key", "a-real-random-secret")
     monkeypatch.setattr("app.main.settings.debug", True)
     monkeypatch.setattr("app.main.settings.admin_bootstrap_enabled", False)
 
-    with caplog.at_level(logging.WARNING, logger="myace"):
+    with pytest.raises(RuntimeError, match="DEBUG"):
         async with lifespan(app):
             pass
-
-    assert any("DEBUG" in r.message for r in caplog.records)
 
 
 @pytest.mark.asyncio
