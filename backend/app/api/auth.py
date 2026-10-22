@@ -328,12 +328,25 @@ async def update_profile(
 
 
 @router.post("/me/password")
+@auth_limiter.limit(_auth_limit)
 async def change_password(
+    request: Request,
     data: PasswordChange,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Change the current user's password."""
+    """Change the current user's password.
+
+    Rate-limited like the other credential-checking routes: the current
+    password is verified here, so unbounded attempts would be the same
+    guessing primitive `/auth/login` is throttled against.
+
+    A successful change deactivates the user's API tokens (a password change
+    is what you do after a suspected compromise) and re-issues the caller's
+    own session cookie. Outstanding *other* session cookies cannot be revoked
+    — sessions are stateless signed cookies (the accepted trade-off recorded
+    in docs/invariants.md), which is why the token revocation matters.
+    """
     if not current_user.password_hash:
         raise HTTPException(status_code=400, detail="Cannot change password for OIDC-only accounts")
 
@@ -346,7 +359,19 @@ async def change_password(
     current_user.password_hash = hash_password(data.new_password)
     current_user.updated_at = datetime.now(UTC)
     session.add(current_user)
+
+    result = await session.execute(
+        select(ApiToken).where(ApiToken.user_id == current_user.id, ApiToken.is_active == True)
+    )
+    for token in result.scalars().all():
+        token.is_active = False
+        session.add(token)
+
     await session.commit()
+
+    # Re-issue the caller's own session so the cookie reflects the change.
+    request.session.clear()
+    request.session["user_id"] = str(current_user.id)
     return {"message": "Password updated"}
 
 

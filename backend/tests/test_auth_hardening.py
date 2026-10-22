@@ -5,7 +5,8 @@ from datetime import UTC, datetime, timedelta
 
 import pyotp
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient as _BareClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from starlette.responses import RedirectResponse
@@ -13,6 +14,7 @@ from starlette.responses import RedirectResponse
 from app.core.config import settings
 from app.core.ratelimit import auth_limiter
 from app.core.security import hash_password
+from app.main import app as fastapi_app
 from app.models.doc_cache import DocCacheEntry
 from app.models.system_settings import SystemSettings
 from app.models.user import User
@@ -310,6 +312,71 @@ async def test_register_duplicate_email_still_pays_the_hashing_cost(
     resp = await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
     assert resp.status_code == 201
     assert seen == [REGISTER_BODY["password"]]
+
+
+# ─── L-3: password change is throttled and revokes API tokens ─────
+
+
+@pytest.mark.asyncio
+async def test_change_password_is_rate_limited(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`change_password` verifies the current password, so it needs the same
+    per-client-IP throttle `/auth/login` has."""
+    await _add_user(db_session, "rl@example.com")
+    # Log in while the limiter is off so only the password-change calls count.
+    await async_client.post(
+        "/api/v1/auth/login", json={"email": "rl@example.com", "password": "password123"}
+    )
+
+    auth_limiter.enabled = True
+    auth_limiter.reset()
+    monkeypatch.setattr(settings, "auth_rate_limit", "3/minute")
+
+    body = {"current_password": "wrong-password", "new_password": "newpassword123"}
+    codes = [
+        (await async_client.post("/api/v1/auth/me/password", json=body)).status_code
+        for _ in range(5)
+    ]
+    assert codes == [403, 403, 403, 429, 429]
+
+
+@pytest.mark.asyncio
+async def test_change_password_invalidates_tokens(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A password change is the response to a suspected compromise, so API
+    tokens minted before it must stop working — while the caller's own session
+    keeps working."""
+    await _add_user(db_session, "tok@example.com")
+    await async_client.post(
+        "/api/v1/auth/login", json={"email": "tok@example.com", "password": "password123"}
+    )
+    api_key = (
+        await async_client.post("/api/v1/auth/tokens", json={"name": "cli"})
+    ).json()["token"]
+
+    async def _token_is_accepted() -> bool:
+        # A cookie-less client, so only the Bearer token can authenticate.
+        async with _BareClient(
+            transport=ASGITransport(app=fastapi_app), base_url="http://test"
+        ) as bare:
+            resp = await bare.get(
+                "/api/v1/auth/tokens", headers={"Authorization": f"Bearer {api_key}"}
+            )
+            return resp.status_code == 200
+
+    assert await _token_is_accepted() is True
+
+    changed = await async_client.post(
+        "/api/v1/auth/me/password",
+        json={"current_password": "password123", "new_password": "newpassword123"},
+    )
+    assert changed.status_code == 200
+
+    assert await _token_is_accepted() is False
+    # The caller's own (re-issued) session still works.
+    assert (await async_client.get("/api/v1/auth/me")).status_code == 200
 
 
 # ─── L-2: forgot-password must not await the SMTP send ────────────
