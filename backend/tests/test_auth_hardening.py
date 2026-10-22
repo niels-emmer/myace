@@ -310,3 +310,36 @@ async def test_register_duplicate_email_still_pays_the_hashing_cost(
     resp = await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
     assert resp.status_code == 201
     assert seen == [REGISTER_BODY["password"]]
+
+
+# ─── L-2: forgot-password must not await the SMTP send ────────────
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_does_not_wait_for_the_smtp_send(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Awaiting the SMTP round-trip inline made the response time depend on
+    whether the account exists — a user-enumeration oracle (L-2). The send must
+    happen off the request path."""
+    import asyncio
+
+    await _add_user(db_session, "reset@example.com")
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _blocked_send(**kwargs: object) -> None:
+        started.set()
+        await release.wait()
+
+    monkeypatch.setattr("app.api.auth.send_email", _blocked_send)
+
+    # `wait_for` fails the test instead of hanging if the handler awaits the send.
+    resp = await asyncio.wait_for(
+        async_client.post(
+            "/api/v1/auth/forgot-password", json={"email": "reset@example.com"}
+        ),
+        timeout=2,
+    )
+    assert resp.status_code == 200
+    release.set()

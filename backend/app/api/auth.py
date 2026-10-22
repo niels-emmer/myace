@@ -1,5 +1,6 @@
 """Authentication routes — email/password, OIDC login, callback, token management."""
 
+import asyncio
 import base64
 import hashlib
 import logging
@@ -42,7 +43,11 @@ from app.models.user import (
     UserRoleUpdate,
     UserUpdate,
 )
-from app.services.effective_settings import get_effective_oauth_config, get_effective_smtp_config
+from app.services.effective_settings import (
+    SmtpConfig,
+    get_effective_oauth_config,
+    get_effective_smtp_config,
+)
 from app.services.email import EmailSendError, build_password_reset_email, send_email
 
 logger = logging.getLogger("myace")
@@ -58,6 +63,22 @@ def _auth_limit() -> str:
 
 def _mfa_limit() -> str:
     return settings.mfa_rate_limit
+
+
+# Fire-and-forget email sends. The task holds a strong reference here so the
+# event loop cannot garbage-collect it mid-flight; the done-callback drops it.
+_background_tasks: set[asyncio.Task[None]] = set()
+
+
+async def _send_password_reset_email(
+    config: SmtpConfig, to: str, subject: str, body: str
+) -> None:
+    """Send a password-reset email outside the request. Must not touch the
+    request's `AsyncSession` — it is closed by the time this runs."""
+    try:
+        await send_email(config=config, to=to, subject=subject, text_body=body)
+    except EmailSendError:
+        logger.exception("Failed to send password-reset email to a user.")
 
 
 class TotpCodeRequest(BaseModel):
@@ -182,7 +203,7 @@ async def register(
         # response shape.
         #
         # It must be indistinguishable in *body* and *latency*, or it becomes
-        # an account-existence oracle:
+        # an account-existence oracle (rule 6 of the review's L-1):
         #  - echo `data.display_name` — hardcoding "" leaked the answer, since
         #    the real path echoes whatever the caller supplied; and
         #  - pay the same bcrypt cost, since this path skips the insert.
@@ -360,14 +381,19 @@ async def forgot_password(
 
     reset_link = f"{settings.frontend_base_url.rstrip('/')}/reset-password?token={token}"
     subject, body = build_password_reset_email(reset_link)
-    try:
-        config = await get_effective_smtp_config(session)
-        if config.enabled:
-            await send_email(config=config, to=user.email, subject=subject, text_body=body)
-        else:
-            logger.warning("Password reset requested but SMTP is disabled in System Settings.")
-    except EmailSendError:
-        logger.exception("Failed to send password-reset email to a user.")
+    # Resolve the effective SMTP config on the request path (a cheap DB read),
+    # then hand the actual send to a background task. Awaiting the SMTP
+    # round-trip here made the response time depend on whether the address
+    # exists — a user-enumeration oracle — and held a worker for its duration.
+    config = await get_effective_smtp_config(session)
+    if config.enabled:
+        task = asyncio.create_task(
+            _send_password_reset_email(config, user.email, subject, body)
+        )
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+    else:
+        logger.warning("Password reset requested but SMTP is disabled in System Settings.")
 
     return generic_response
 
