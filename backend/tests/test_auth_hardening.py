@@ -435,6 +435,87 @@ async def test_unknown_oidc_provider_returns_400(async_client: AsyncClient) -> N
     assert "Unsupported provider" in resp.json()["detail"]
 
 
+# ─── L-6: TOTP replay and single-use MFA token ────────────────────
+
+
+async def _mfa_token_for(client: AsyncClient) -> str:
+    resp = await client.post(
+        "/api/v1/auth/login", json={"email": "mfa@example.com", "password": "password123"}
+    )
+    return resp.json()["mfa_token"]
+
+
+@pytest.mark.asyncio
+async def test_totp_code_cannot_be_replayed(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A TOTP code is valid for its whole 30-second step, so without a
+    last-used counter the same code completes the second factor repeatedly.
+
+    Both calls must land inside one step for the replay to be a replay at all;
+    the loop re-runs the scenario in the (rare) case the step rolls over
+    mid-test, and fails loudly if it never observes a same-step replay.
+    """
+    _, secret = await _mfa_user(db_session)
+    user = (
+        await db_session.execute(select(User).where(User.email == "mfa@example.com"))
+    ).scalar_one()
+
+    for _ in range(3):
+        # Clear the recorded step so a retry (after a step rollover) starts clean.
+        user.last_totp_counter = None
+        db_session.add(user)
+        await db_session.commit()
+
+        code = pyotp.TOTP(secret).now()
+        first = await async_client.post(
+            "/api/v1/auth/login/mfa",
+            json={"mfa_token": await _mfa_token_for(async_client), "code": code},
+        )
+        assert first.status_code == 200
+        await async_client.post("/api/v1/auth/logout")
+
+        # A brand-new token, but the same code: its step has been consumed.
+        replay = await async_client.post(
+            "/api/v1/auth/login/mfa",
+            json={"mfa_token": await _mfa_token_for(async_client), "code": code},
+        )
+        assert replay.status_code == 401
+        assert (await async_client.get("/api/v1/auth/me")).status_code == 401
+
+        if "already been used" in replay.json()["detail"]:
+            return
+        # Otherwise the step rolled over and the code simply expired first.
+    pytest.fail("never observed a same-step TOTP replay")
+
+
+@pytest.mark.asyncio
+async def test_mfa_login_token_is_single_use(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """The mfa_token is a bearer credential for the second login step; within
+    its 5-minute window it must not be usable twice."""
+    _, secret = await _mfa_user(db_session)
+    token = await _mfa_token_for(async_client)
+
+    first = await async_client.post(
+        "/api/v1/auth/login/mfa",
+        json={"mfa_token": token, "code": pyotp.TOTP(secret).now()},
+    )
+    assert first.status_code == 200
+    await async_client.post("/api/v1/auth/logout")
+
+    # The very same token is rejected on its own account — the error names the
+    # token, not the code, so this cannot be the counter check in disguise.
+    replay = await async_client.post(
+        "/api/v1/auth/login/mfa",
+        json={"mfa_token": token, "code": pyotp.TOTP(secret).now()},
+    )
+    assert replay.status_code == 401
+    assert "MFA token" in replay.json()["detail"]
+    assert (await async_client.get("/api/v1/auth/me")).status_code == 401
+
+
 # ─── L-2: forgot-password must not await the SMTP send ────────────
 
 

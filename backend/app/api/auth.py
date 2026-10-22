@@ -286,11 +286,9 @@ async def login_with_password(
 
     # Check if MFA is required
     if user.mfa_enabled:
-        s = _mfa_serializer()
-        mfa_token = s.dumps(str(user.id))
         return {
             "mfa_required": True,
-            "mfa_token": mfa_token,
+            "mfa_token": _issue_mfa_token(user),
             "message": "MFA code required",
         }
 
@@ -951,6 +949,48 @@ def _mfa_serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(settings.app_secret_key, salt="mfa-verify")
 
 
+def _issue_mfa_token(user: User) -> str:
+    """Serialize an MFA login token for `user`.
+
+    The payload carries a random nonce so two tokens issued in the same second
+    are still distinct: itsdangerous' timestamp only has one-second resolution,
+    so without it the single-use check (which compares token hashes) would
+    reject a token minted moments after a previous login.
+    """
+    return _mfa_serializer().dumps({"uid": str(user.id), "nonce": secrets.token_urlsafe(16)})
+
+
+def _mfa_token_user_id(token: str) -> uuid.UUID | None:
+    """Decode an MFA login token, or return None if invalid/expired."""
+    try:
+        payload = _mfa_serializer().loads(token, max_age=MFA_TOKEN_MAX_AGE)
+    except Exception:
+        return None
+    # Tokens issued before the nonce existed carried the bare user id.
+    raw = payload.get("uid") if isinstance(payload, dict) else payload
+    if not isinstance(raw, str):
+        return None
+    try:
+        return uuid.UUID(raw)
+    except ValueError:
+        return None
+
+
+def _totp_counter(secret: str, code: str) -> int | None:
+    """Return the TOTP time-step `code` matches, or None if it matches none.
+
+    Mirrors pyotp's default `valid_window=0` (only the current step counts)
+    while also reporting *which* step matched, so the caller can record it and
+    reject a replay of the same code.
+    """
+    import pyotp
+
+    totp = pyotp.TOTP(secret)
+    if not totp.verify(code):
+        return None
+    return int(totp.timecode(datetime.now(UTC)))
+
+
 @router.post("/me/mfa/totp/setup")
 async def setup_totp(
     current_user: User = Depends(_current_user_or_enrolling),
@@ -1067,19 +1107,14 @@ async def login_with_mfa(
 ):
     """Complete MFA-challenged login by verifying a TOTP code (JSON body
     `{"mfa_token": ..., "code": ...}`)."""
-    import pyotp
-
     mfa_token = _body_or_query(body.mfa_token if body else None, mfa_token, "mfa_token")
     code = _body_or_query(body.code if body else None, code, "code")
 
     # Decode the MFA token
-    s = _mfa_serializer()
-    try:
-        user_id_str = s.loads(mfa_token, max_age=MFA_TOKEN_MAX_AGE)
-    except Exception:
+    user_id = _mfa_token_user_id(mfa_token)
+    if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid or expired MFA token")
 
-    user_id = uuid.UUID(user_id_str)
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
@@ -1089,9 +1124,27 @@ async def login_with_mfa(
     if not user.mfa_enabled or not user.totp_secret:
         raise HTTPException(status_code=400, detail="MFA is not enabled for this user")
 
-    totp = pyotp.TOTP(user.totp_secret)
-    if not totp.verify(code):
+    # Single-use token: a captured mfa_token must not be replayable inside its
+    # 5-minute window. Checked before the code so a reused token is rejected
+    # for that reason, not incidentally.
+    token_hash = hashlib.sha256(mfa_token.encode("utf-8")).hexdigest()
+    if user.mfa_token_used_hash == token_hash:
+        raise HTTPException(status_code=401, detail="Invalid or expired MFA token")
+
+    counter = _totp_counter(user.totp_secret, code)
+    if counter is None:
         raise HTTPException(status_code=401, detail="Invalid verification code")
+    # A code is valid for its whole 30-second step; reject a replay of a step
+    # that has already completed a login.
+    if user.last_totp_counter is not None and counter <= user.last_totp_counter:
+        raise HTTPException(
+            status_code=401, detail="This verification code has already been used"
+        )
+
+    user.last_totp_counter = counter
+    user.mfa_token_used_hash = token_hash
+    session.add(user)
+    await session.commit()
 
     request.session["user_id"] = str(user.id)
     return {"message": "MFA verified", "user_id": str(user.id)}
