@@ -14,6 +14,8 @@ vi.mock('../lib/api', () => ({
     loginMfa: vi.fn(),
     providers: vi.fn(),
     loginWithProvider: vi.fn(),
+    setupTotp: vi.fn(),
+    verifyTotp: vi.fn(),
   },
 }));
 
@@ -127,5 +129,76 @@ describe('Login — MFA challenge', () => {
 
     expect(await screen.findByText(/invalid verification code/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/authentication code/i)).toBeInTheDocument();
+  });
+});
+
+describe('Login — forced MFA enrolment', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    me().mockRejectedValue(new Error('401'));
+    (authApi.providers as ReturnType<typeof vi.fn>).mockResolvedValue({
+      oidc: false,
+      github: false,
+      google: false,
+    });
+  });
+
+  it('offers enrolment instead of authenticating when the server forces MFA', async () => {
+    loginApi().mockResolvedValue({
+      mfa_enrollment_required: true,
+      message: 'MFA is required on this server.',
+    });
+    renderLogin();
+    await submitCredentials();
+
+    expect(await screen.findByText(/MFA is required on this server/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /set up mfa/i })).toBeInTheDocument();
+    // No session exists yet — the app must not be authenticated. The only
+    // /auth/me call is AuthProvider's own mount-time session probe.
+    await waitFor(() => expect(me()).toHaveBeenCalledTimes(1));
+  });
+
+  it('reuses the existing enrolment flow and authenticates once it completes', async () => {
+    loginApi().mockResolvedValue({
+      mfa_enrollment_required: true,
+      message: 'MFA is required on this server.',
+    });
+    (authApi.setupTotp as ReturnType<typeof vi.fn>).mockResolvedValue({
+      secret: 'JBSWY3DPEHPK3PXP',
+      provisioning_uri: 'otpauth://totp/MyACE:u@test.com?secret=JBSWY3DPEHPK3PXP',
+    });
+    (authApi.verifyTotp as ReturnType<typeof vi.fn>).mockResolvedValue({
+      message: 'MFA enabled',
+      mfa_enabled: true,
+    });
+    renderLogin();
+    await submitCredentials();
+
+    fireEvent.click(await screen.findByRole('button', { name: /set up mfa/i }));
+    expect(await screen.findByText('JBSWY3DPEHPK3PXP')).toBeInTheDocument();
+
+    me().mockResolvedValue(mockUser);
+    fireEvent.change(screen.getByLabelText(/authentication code/i), {
+      target: { value: '123456' },
+    });
+    clickSubmit(/^verify & enable$/i);
+
+    await waitFor(() => expect(authApi.verifyTotp).toHaveBeenCalledWith('123456'));
+    await waitFor(() => expect(me()).toHaveBeenCalled());
+  });
+
+  it('opens the enrolment step directly when the SSO callback redirects with ?enroll=1', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/login?enroll=1']}>
+          <AuthProvider>
+            <Login />
+          </AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText(/MFA is required on this server/i)).toBeInTheDocument();
   });
 });

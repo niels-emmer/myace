@@ -18,7 +18,7 @@ from sqlmodel import func, select
 from app.core.authz import authorize_access
 from app.core.config import settings
 from app.core.database import get_session
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import UNAUTHORIZED, get_current_user, require_admin
 from app.core.ratelimit import auth_limiter
 from app.core.security import (
     default_token_expiry,
@@ -97,6 +97,64 @@ async def _is_bootstrap_admin(session: AsyncSession, email: str) -> bool:
         return False
     count = (await session.execute(select(func.count()).select_from(User))).scalar_one()
     return count == 0
+
+
+# Session key for the short-lived "enrolment session" issued when `mfa_forced`
+# blocks a login. It is deliberately *not* `user_id`: `get_current_user()`
+# (core/deps.py) resolves only `user_id`, so this authenticates nothing in the
+# app except the two TOTP enrolment routes below.
+_MFA_ENROLL_SESSION_KEY = "mfa_enroll_user_id"
+
+
+async def _mfa_forced(session: AsyncSession) -> bool:
+    """Whether an admin has made MFA mandatory for every account.
+
+    Requires `mfa_enabled` *and* `mfa_forced`: `setup_totp()` refuses to run
+    when the feature is off, so enforcing `mfa_forced` alone would lock every
+    unenrolled account out with no way to comply. The admin UI only offers the
+    Force MFA toggle when `mfa_enabled` is on, so this matches what an operator
+    can actually configure.
+    """
+    result = await session.execute(select(SystemSettings).where(SystemSettings.id == 1))
+    sys_settings = result.scalar_one_or_none()
+    return bool(sys_settings and sys_settings.mfa_enabled and sys_settings.mfa_forced)
+
+
+async def _enrolling_user(request: Request, session: AsyncSession) -> User | None:
+    """Resolve the caller from the enrolment session, if one is present."""
+    raw_user_id = request.session.get(_MFA_ENROLL_SESSION_KEY)
+    if not raw_user_id:
+        return None
+    try:
+        user_id = uuid.UUID(raw_user_id)
+    except ValueError:
+        return None
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    return user if user and user.is_active else None
+
+
+async def _current_user_or_enrolling(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> User:
+    """Auth for the TOTP enrolment routes.
+
+    Accepts a normal session cookie or Bearer API token (unchanged), or — when
+    `mfa_forced` blocked the login — the enrolment session issued by
+    `login_with_password()`/`auth_callback()`. That session carries no
+    `user_id`, so it reaches only these two routes; everything else in the app
+    still 401s until enrolment is complete.
+    """
+    try:
+        return await get_current_user(request, session)
+    except HTTPException:
+        pass
+
+    user = await _enrolling_user(request, session)
+    if user is None:
+        raise UNAUTHORIZED
+    return user
 
 
 # ─── Email + Password Auth ─────────────────────────────────────
@@ -178,6 +236,18 @@ async def login_with_password(
             "mfa_required": True,
             "mfa_token": mfa_token,
             "message": "MFA code required",
+        }
+
+    # An admin can make MFA mandatory for every account. An unenrolled user is
+    # blocked here — no session — and given a session that can only reach the
+    # TOTP enrolment routes, so they can comply rather than being locked out.
+    if await _mfa_forced(session):
+        request.session[_MFA_ENROLL_SESSION_KEY] = str(user.id)
+        return {
+            "mfa_enrollment_required": True,
+            "message": (
+                "MFA is required on this server. Set up an authenticator app to continue."
+            ),
         }
 
     request.session["user_id"] = str(user.id)
@@ -697,6 +767,14 @@ async def auth_callback(
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
 
+    # Same `mfa_forced` gate as password login. A user who already has MFA
+    # enabled is *not* challenged here: the SSO flow has no second-factor step
+    # (a pre-existing gap, out of scope for this change) — but they must at
+    # least have enrolled, which is what `mfa_forced` is about.
+    if not user.mfa_enabled and await _mfa_forced(session):
+        request.session[_MFA_ENROLL_SESSION_KEY] = str(user.id)
+        return RedirectResponse(url="/login?enroll=1", status_code=status.HTTP_302_FOUND)
+
     request.session["user_id"] = str(user.id)
     return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
@@ -784,7 +862,7 @@ def _mfa_serializer() -> URLSafeTimedSerializer:
 
 @router.post("/me/mfa/totp/setup")
 async def setup_totp(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_current_user_or_enrolling),
     session: AsyncSession = Depends(get_session),
 ):
     """Generate a TOTP secret and return the provisioning URI for QR code setup."""
@@ -825,10 +903,14 @@ async def verify_totp(
     request: Request,
     body: TotpCodeRequest | None = None,
     code: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_current_user_or_enrolling),
     session: AsyncSession = Depends(get_session),
 ):
-    """Verify a TOTP code (JSON body `{"code": ...}`) and enable MFA for the user."""
+    """Verify a TOTP code (JSON body `{"code": ...}`) and enable MFA for the user.
+
+    Reachable with a normal session *or* the `mfa_forced` enrolment session —
+    in the latter case, completing enrolment also completes the login.
+    """
     import pyotp
 
     code = _body_or_query(body.code if body else None, code, "code")
@@ -843,6 +925,11 @@ async def verify_totp(
     current_user.mfa_enabled = True
     session.add(current_user)
     await session.commit()
+
+    # Promote a pending enrolment session into a real one (no-op for callers
+    # that already had one) so a forced-enrolment login ends authenticated.
+    request.session.pop(_MFA_ENROLL_SESSION_KEY, None)
+    request.session["user_id"] = str(current_user.id)
     return {"message": "MFA enabled", "mfa_enabled": True}
 
 

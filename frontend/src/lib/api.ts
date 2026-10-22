@@ -234,9 +234,14 @@ export const authApi = {
     }),
 
   // The password step returns either a real `User` (a session cookie was set)
-  // or a `LoginMfaResponse` challenge (no session yet) — see AuthProvider.login.
+  // or an MFA challenge/enrolment-required state (no session yet) — see
+  // AuthProvider.login.
   login: (data: import('@/types').UserLogin) =>
-    request<import('@/types').User | import('@/types').LoginMfaResponse>('/auth/login', {
+    request<
+      | import('@/types').User
+      | import('@/types').LoginMfaResponse
+      | import('@/types').MfaEnrollmentRequiredResponse
+    >('/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

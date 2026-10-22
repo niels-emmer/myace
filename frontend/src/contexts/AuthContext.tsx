@@ -8,11 +8,14 @@ import type { User } from '../types';
  * `authenticated` means the server issued a session cookie and `user` is set.
  * `mfa_required` means the password step succeeded but **no session exists
  * yet** — the caller must complete the second factor before any authenticated
- * UI state is established.
+ * UI state is established. `mfa_enrollment_required` means an admin has made
+ * MFA mandatory (`mfa_forced`) and this account has not enrolled: it is
+ * blocked at login until it does.
  */
 export type LoginOutcome =
   | { status: 'authenticated' }
-  | { status: 'mfa_required'; mfaToken: string };
+  | { status: 'mfa_required'; mfaToken: string }
+  | { status: 'mfa_enrollment_required' };
 
 interface AuthContextValue {
   user: User | null;
@@ -50,6 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string): Promise<LoginOutcome> => {
     const result = await authApi.login({ email, password });
+    if ('mfa_enrollment_required' in result) {
+      return { status: 'mfa_enrollment_required' };
+    }
     if ('mfa_required' in result) {
       // A challenge object is not a session: do not touch `user`, or the app
       // would render an authenticated shell that every API call rejects.

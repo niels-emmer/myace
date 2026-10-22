@@ -10,18 +10,24 @@ const inputClass =
   'w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500';
 
 export default function Login() {
-  const { user, login, completeMfaLogin, register } = useAuth();
+  const { user, login, completeMfaLogin, register, refresh } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<'login' | 'register'>(
     searchParams.get('mode') === 'register' ? 'register' : 'login'
   );
-  const [step, setStep] = useState<'credentials' | 'mfa'>('credentials');
+  // `?enroll=1` is where the SSO callback lands a user that `mfa_forced`
+  // blocked (see backend auth_callback) — they have a pending enrolment
+  // session but no authenticated one.
+  const [step, setStep] = useState<'credentials' | 'mfa' | 'enroll'>(
+    searchParams.get('enroll') === '1' ? 'enroll' : 'credentials'
+  );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [mfaToken, setMfaToken] = useState('');
   const [code, setCode] = useState('');
+  const [enrollSecret, setEnrollSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -44,16 +50,38 @@ export default function Login() {
     try {
       if (step === 'mfa') {
         await completeMfaLogin(mfaToken, code);
+      } else if (step === 'enroll') {
+        // Reuses the existing enrolment flow's endpoints (the same ones
+        // Settings → Account calls) — the pending enrolment session
+        // authenticates them.
+        await authApi.verifyTotp(code);
+        await refresh();
       } else if (mode === 'login') {
         const outcome = await login(email, password);
         if (outcome.status === 'mfa_required') {
           setMfaToken(outcome.mfaToken);
           setCode('');
           setStep('mfa');
+        } else if (outcome.status === 'mfa_enrollment_required') {
+          setCode('');
+          setStep('enroll');
         }
       } else {
         await register(email, password, displayName);
       }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const startEnrollment = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const result = await authApi.setupTotp();
+      setEnrollSecret(result.secret);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -106,7 +134,7 @@ export default function Login() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            {step === 'mfa' ? (
+            {step === 'mfa' && (
               <>
                 <p className="text-sm text-muted-foreground">
                   Enter the 6-digit code from your authenticator app to finish signing in.
@@ -130,7 +158,46 @@ export default function Login() {
                   />
                 </div>
               </>
-            ) : (
+            )}
+
+            {step === 'enroll' && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  MFA is required on this server. Set up an authenticator app to continue.
+                </p>
+                {enrollSecret && (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Add this secret to your authenticator app (e.g. Google Authenticator,
+                      Authy), then enter the 6-digit code it shows.
+                    </p>
+                    <code className="block px-3 py-2 bg-card border border-amber-300 rounded text-sm font-mono break-all">
+                      {enrollSecret}
+                    </code>
+                    <div>
+                      <label htmlFor="mfa-code" className="block text-sm font-medium text-foreground mb-1">
+                        Authentication code
+                      </label>
+                      <input
+                        id="mfa-code"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        className={`${inputClass} font-mono`}
+                        placeholder="000000"
+                        maxLength={6}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {step === 'credentials' && (
               <>
                 {mode === 'register' && (
                   <div>
@@ -187,22 +254,41 @@ export default function Login() {
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
-            >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {step === 'mfa' ? 'Verify' : mode === 'login' ? 'Log in' : 'Create account'}
-            </button>
+            {step === 'enroll' && !enrollSecret ? (
+              <button
+                type="button"
+                onClick={startEnrollment}
+                disabled={submitting}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Set Up MFA
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {step === 'mfa'
+                  ? 'Verify'
+                  : step === 'enroll'
+                    ? 'Verify & Enable'
+                    : mode === 'login'
+                      ? 'Log in'
+                      : 'Create account'}
+              </button>
+            )}
 
-            {step === 'mfa' && (
+            {step !== 'credentials' && (
               <button
                 type="button"
                 onClick={() => {
                   setStep('credentials');
                   setMfaToken('');
                   setCode('');
+                  setEnrollSecret(null);
                   setError(null);
                 }}
                 className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
