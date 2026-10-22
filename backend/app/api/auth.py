@@ -180,10 +180,17 @@ async def register(
         # proceed to login with their password. Returning a fake UserRead
         # avoids leaking whether the email exists while keeping the same
         # response shape.
+        #
+        # It must be indistinguishable in *body* and *latency*, or it becomes
+        # an account-existence oracle:
+        #  - echo `data.display_name` — hardcoding "" leaked the answer, since
+        #    the real path echoes whatever the caller supplied; and
+        #  - pay the same bcrypt cost, since this path skips the insert.
+        hash_password(data.password)
         return UserRead(
-            id=uuid.uuid4(), email=data.email, display_name="",
+            id=uuid.uuid4(), email=data.email, display_name=data.display_name,
             is_active=True, is_admin=False,
-            created_at=datetime.now(UTC), updated_at=datetime.now(UTC),
+            created_at=datetime.now(UTC),
         )
 
     is_admin = await _is_bootstrap_admin(session, data.email)

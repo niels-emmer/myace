@@ -251,3 +251,62 @@ async def test_doc_cache_delete_is_admin_only(
         "/api/v1/auth/login", json={"email": "boss@example.com", "password": "password123"}
     )
     assert (await async_client.delete(f"/api/v1/doc-cache/{entry.id}")).status_code == 200
+
+
+# ─── L-1: register must not leak account existence ────────────────
+
+REGISTER_BODY = {
+    "email": "probe@example.com",
+    "password": "password123",
+    "display_name": "Probe Name",
+}
+
+
+@pytest.mark.asyncio
+async def test_register_response_does_not_leak_account_existence(
+    async_client: AsyncClient,
+) -> None:
+    """The duplicate-email response must be indistinguishable from a real
+    registration: echoing `display_name` (rather than hardcoding "") is what
+    stops the body being an account-existence oracle."""
+    created = await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
+    assert created.status_code == 201
+
+    duplicate = await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
+    fresh = await async_client.post(
+        "/api/v1/auth/register", json={**REGISTER_BODY, "email": "other@example.com"}
+    )
+
+    assert duplicate.status_code == fresh.status_code == 201
+    # `email` differs because the caller sent a different one; `id`/`created_at`
+    # are volatile by design. Everything else must match exactly.
+    volatile = {"id", "created_at", "email"}
+    assert {k: v for k, v in duplicate.json().items() if k not in volatile} == {
+        k: v for k, v in fresh.json().items() if k not in volatile
+    }
+    assert duplicate.json()["display_name"] == REGISTER_BODY["display_name"]
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_email_still_pays_the_hashing_cost(
+    async_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The duplicate path skips the insert, so it must still run the same
+    bcrypt work — otherwise response latency alone reveals whether the address
+    is registered."""
+    import app.api.auth as auth_module
+
+    await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
+
+    seen: list[str] = []
+    real_hash = auth_module.hash_password
+
+    def _spy(password: str) -> str:
+        seen.append(password)
+        return real_hash(password)
+
+    monkeypatch.setattr(auth_module, "hash_password", _spy)
+
+    resp = await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
+    assert resp.status_code == 201
+    assert seen == [REGISTER_BODY["password"]]
