@@ -1,5 +1,6 @@
 """Tests for TOTP MFA support."""
 
+import pyotp
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -295,6 +296,49 @@ async def _set_system_mfa(
 
     db.add(SystemSettings(id=1, mfa_enabled=mfa_enabled, mfa_forced=mfa_forced))
     await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_login_requires_mfa_challenge(
+    db_session: AsyncSession, async_client: AsyncClient
+):
+    """An MFA-enabled account is not authenticated by the password step alone.
+
+    This is the server half of M-1: the response is a challenge, and no session
+    exists until the challenge is answered — so a client that stores the
+    challenge as a user is storing something that authenticates nothing.
+    """
+    secret = pyotp.random_base32()
+    user = User(
+        email="challenge@test.com",
+        display_name="Challenge",
+        password_hash=hash_password("challengepass123"),
+        mfa_enabled=True,
+        totp_secret=secret,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    resp = await async_client.post(
+        "/api/v1/auth/login",
+        json={"email": "challenge@test.com", "password": "challengepass123"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["mfa_required"] is True
+    assert body["mfa_token"]
+    assert "email" not in body
+    # The password step alone establishes no authenticated state.
+    assert (await async_client.get("/api/v1/auth/me")).status_code == 401
+
+    done = await async_client.post(
+        "/api/v1/auth/login/mfa",
+        json={"mfa_token": body["mfa_token"], "code": pyotp.TOTP(secret).now()},
+    )
+    assert done.status_code == 200
+    me = await async_client.get("/api/v1/auth/me")
+    assert me.status_code == 200
+    assert me.json()["email"] == "challenge@test.com"
 
 
 class TestMfaForced:
