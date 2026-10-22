@@ -155,6 +155,16 @@ Three Compose files layer on top of each other:
 See [`AGENTS.md`](../AGENTS.md#9-compose-file-strategy) for what each
 override layer is responsible for.
 
+## Container users
+
+Both images run as a non-root user, so a compromise inside a container is
+not root: the backend runs as `app` (uid 10001), and the frontend's nginx
+runs as the upstream `nginx` user (uid 101), with only
+`CAP_NET_BIND_SERVICE` granted to the nginx *binary* — enough to bind port
+80, nothing more. If you add a volume the app must write to, make it
+writable by that uid; the paths the app already writes to (`/tmp`, and in
+prod nothing else) work as shipped.
+
 ## Request body size limits
 
 Every request body is capped, at two layers, so no route can be handed an
