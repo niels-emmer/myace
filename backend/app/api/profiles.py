@@ -102,7 +102,10 @@ async def list_profiles(
     clause = owner_or_public_clause(Profile.owner_id, Profile.is_public == True, current_user)
     if clause is not None:
         query = query.where(clause)
-    if owner_id and current_user.is_admin:
+    # Same rule as list_collections: any caller may narrow to their own id (to
+    # fetch strictly-owned profiles, excluding public ones they don't own);
+    # only admins may narrow to someone else's.
+    if owner_id and (current_user.is_admin or owner_id == current_user.id):
         query = query.where(Profile.owner_id == owner_id)
     if is_public is not None:
         query = query.where(Profile.is_public == is_public)
