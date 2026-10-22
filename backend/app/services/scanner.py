@@ -43,7 +43,9 @@ def _resolve_path(path: str) -> Path:
         target = Path(base.readlink())
         if target.is_absolute():
             # Try rewriting the absolute target path through known mount points
-            for mount, host_prefix in [("/host-home", "/Users/nemmer"),
+            # "/Users" rather than a specific account's home directory, so this
+            # works for any macOS user, not just the one it was written on.
+            for mount, host_prefix in [("/host-home", "/Users"),
                                         ("/host-home", "/home"),
                                         ("/host", "/Users"),
                                         ("/mnt/host", "/Users")]:
@@ -70,7 +72,7 @@ def _resolve_path(path: str) -> Path:
                 # Also check if the alt is a broken symlink we can resolve
                 if alt.is_symlink():
                     target = Path(alt.readlink())
-                    for m, hp in [("/host-home", "/Users/nemmer"),
+                    for m, hp in [("/host-home", "/Users"),
                                   ("/host-home", "/home")]:
                         resolved_alt = Path(str(target).replace(hp, m, 1))
                         if resolved_alt.exists():
@@ -308,11 +310,19 @@ def _parse_agent_file(path: Path) -> dict | None:
     content = path.read_text(encoding="utf-8")
     frontmatter, body = _parse_yaml_frontmatter(content)
     name = path.stem
-    tags = []
+    # Start from any explicit `tags:` list so an agent that was exported and
+    # re-scanned keeps its tags (github_export writes them); `mode:`/`model:`
+    # are still derived from their own frontmatter keys, de-duplicated against
+    # that list so a round trip can't double them up.
+    tags = list(frontmatter.get("tags") or [])
     if frontmatter.get("mode"):
-        tags.append(f"mode:{frontmatter['mode']}")
+        tag = f"mode:{frontmatter['mode']}"
+        if tag not in tags:
+            tags.append(tag)
     if frontmatter.get("model"):
-        tags.append(f"model:{frontmatter['model']}")
+        tag = f"model:{frontmatter['model']}"
+        if tag not in tags:
+            tags.append(tag)
     # Optional machine-readable pipeline-routing field (AGENTS.md rule 32's
     # sibling for orchestration UX) — the list of agent names this agent may
     # hand work off to. None (key absent from frontmatter) is distinct from
