@@ -1,5 +1,6 @@
 """Authentication routes — email/password, OIDC login, callback, token management."""
 
+import asyncio
 import base64
 import hashlib
 import logging
@@ -18,7 +19,7 @@ from sqlmodel import func, select
 from app.core.authz import authorize_access
 from app.core.config import settings
 from app.core.database import get_session
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import UNAUTHORIZED, get_current_user, require_admin
 from app.core.ratelimit import auth_limiter
 from app.core.security import (
     default_token_expiry,
@@ -42,7 +43,11 @@ from app.models.user import (
     UserRoleUpdate,
     UserUpdate,
 )
-from app.services.effective_settings import get_effective_oauth_config, get_effective_smtp_config
+from app.services.effective_settings import (
+    SmtpConfig,
+    get_effective_oauth_config,
+    get_effective_smtp_config,
+)
 from app.services.email import EmailSendError, build_password_reset_email, send_email
 
 logger = logging.getLogger("myace")
@@ -58,6 +63,22 @@ def _auth_limit() -> str:
 
 def _mfa_limit() -> str:
     return settings.mfa_rate_limit
+
+
+# Fire-and-forget email sends. The task holds a strong reference here so the
+# event loop cannot garbage-collect it mid-flight; the done-callback drops it.
+_background_tasks: set[asyncio.Task[None]] = set()
+
+
+async def _send_password_reset_email(
+    config: SmtpConfig, to: str, subject: str, body: str
+) -> None:
+    """Send a password-reset email outside the request. Must not touch the
+    request's `AsyncSession` — it is closed by the time this runs."""
+    try:
+        await send_email(config=config, to=to, subject=subject, text_body=body)
+    except EmailSendError:
+        logger.exception("Failed to send password-reset email to a user.")
 
 
 class TotpCodeRequest(BaseModel):
@@ -99,6 +120,90 @@ async def _is_bootstrap_admin(session: AsyncSession, email: str) -> bool:
     return count == 0
 
 
+async def _promote_if_admin_email(session: AsyncSession, user: User) -> None:
+    """Promote an account whose address is in ADMIN_EMAILS.
+
+    `.env.example` documents the variable as "auto-promoted to admin on
+    register/login", but it was only ever consulted on register and on SSO
+    account creation — an operator adding an *existing* user's address got
+    nothing, and their fallback (hand-editing the row) can leave `is_admin`
+    and `role` out of sync. Both are set here together, as rule 30 requires,
+    or the user is an "admin" who still fails `require_moderator_or_admin`.
+
+    Runs once the password has been verified, before the second factor: the
+    promotion is the operator's declared intent for that specific address, and
+    without a session it grants nothing.
+    """
+    if user.is_admin and user.role == "admin":
+        return
+    if user.email.lower() not in settings.admin_email_list:
+        return
+    user.is_admin = True
+    user.role = "admin"
+    user.updated_at = datetime.now(UTC)
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+
+# Session key for the short-lived "enrolment session" issued when `mfa_forced`
+# blocks a login. It is deliberately *not* `user_id`: `get_current_user()`
+# (core/deps.py) resolves only `user_id`, so this authenticates nothing in the
+# app except the two TOTP enrolment routes below.
+_MFA_ENROLL_SESSION_KEY = "mfa_enroll_user_id"
+
+
+async def _mfa_forced(session: AsyncSession) -> bool:
+    """Whether an admin has made MFA mandatory for every account.
+
+    Requires `mfa_enabled` *and* `mfa_forced`: `setup_totp()` refuses to run
+    when the feature is off, so enforcing `mfa_forced` alone would lock every
+    unenrolled account out with no way to comply. The admin UI only offers the
+    Force MFA toggle when `mfa_enabled` is on, so this matches what an operator
+    can actually configure.
+    """
+    result = await session.execute(select(SystemSettings).where(SystemSettings.id == 1))
+    sys_settings = result.scalar_one_or_none()
+    return bool(sys_settings and sys_settings.mfa_enabled and sys_settings.mfa_forced)
+
+
+async def _enrolling_user(request: Request, session: AsyncSession) -> User | None:
+    """Resolve the caller from the enrolment session, if one is present."""
+    raw_user_id = request.session.get(_MFA_ENROLL_SESSION_KEY)
+    if not raw_user_id:
+        return None
+    try:
+        user_id = uuid.UUID(raw_user_id)
+    except ValueError:
+        return None
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    return user if user and user.is_active else None
+
+
+async def _current_user_or_enrolling(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> User:
+    """Auth for the TOTP enrolment routes.
+
+    Accepts a normal session cookie or Bearer API token (unchanged), or — when
+    `mfa_forced` blocked the login — the enrolment session issued by
+    `login_with_password()`/`auth_callback()`. That session carries no
+    `user_id`, so it reaches only these two routes; everything else in the app
+    still 401s until enrolment is complete.
+    """
+    try:
+        return await get_current_user(request, session)
+    except HTTPException:
+        pass
+
+    user = await _enrolling_user(request, session)
+    if user is None:
+        raise UNAUTHORIZED
+    return user
+
+
 # ─── Email + Password Auth ─────────────────────────────────────
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -122,10 +227,17 @@ async def register(
         # proceed to login with their password. Returning a fake UserRead
         # avoids leaking whether the email exists while keeping the same
         # response shape.
+        #
+        # It must be indistinguishable in *body* and *latency*, or it becomes
+        # an account-existence oracle (rule 6 of the review's L-1):
+        #  - echo `data.display_name` — hardcoding "" leaked the answer, since
+        #    the real path echoes whatever the caller supplied; and
+        #  - pay the same bcrypt cost, since this path skips the insert.
+        hash_password(data.password)
         return UserRead(
-            id=uuid.uuid4(), email=data.email, display_name="",
+            id=uuid.uuid4(), email=data.email, display_name=data.display_name,
             is_active=True, is_admin=False,
-            created_at=datetime.now(UTC), updated_at=datetime.now(UTC),
+            created_at=datetime.now(UTC),
         )
 
     is_admin = await _is_bootstrap_admin(session, data.email)
@@ -170,14 +282,26 @@ async def login_with_password(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
+    await _promote_if_admin_email(session, user)
+
     # Check if MFA is required
     if user.mfa_enabled:
-        s = _mfa_serializer()
-        mfa_token = s.dumps(str(user.id))
         return {
             "mfa_required": True,
-            "mfa_token": mfa_token,
+            "mfa_token": _issue_mfa_token(user),
             "message": "MFA code required",
+        }
+
+    # An admin can make MFA mandatory for every account. An unenrolled user is
+    # blocked here — no session — and given a session that can only reach the
+    # TOTP enrolment routes, so they can comply rather than being locked out.
+    if await _mfa_forced(session):
+        request.session[_MFA_ENROLL_SESSION_KEY] = str(user.id)
+        return {
+            "mfa_enrollment_required": True,
+            "message": (
+                "MFA is required on this server. Set up an authenticator app to continue."
+            ),
         }
 
     request.session["user_id"] = str(user.id)
@@ -230,12 +354,25 @@ async def update_profile(
 
 
 @router.post("/me/password")
+@auth_limiter.limit(_auth_limit)
 async def change_password(
+    request: Request,
     data: PasswordChange,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Change the current user's password."""
+    """Change the current user's password.
+
+    Rate-limited like the other credential-checking routes: the current
+    password is verified here, so unbounded attempts would be the same
+    guessing primitive `/auth/login` is throttled against.
+
+    A successful change deactivates the user's API tokens (a password change
+    is what you do after a suspected compromise) and re-issues the caller's
+    own session cookie. Outstanding *other* session cookies cannot be revoked
+    — sessions are stateless signed cookies (the accepted trade-off recorded
+    in docs/invariants.md), which is why the token revocation matters.
+    """
     if not current_user.password_hash:
         raise HTTPException(status_code=400, detail="Cannot change password for OIDC-only accounts")
 
@@ -248,7 +385,19 @@ async def change_password(
     current_user.password_hash = hash_password(data.new_password)
     current_user.updated_at = datetime.now(UTC)
     session.add(current_user)
+
+    result = await session.execute(
+        select(ApiToken).where(ApiToken.user_id == current_user.id, ApiToken.is_active == True)
+    )
+    for token in result.scalars().all():
+        token.is_active = False
+        session.add(token)
+
     await session.commit()
+
+    # Re-issue the caller's own session so the cookie reflects the change.
+    request.session.clear()
+    request.session["user_id"] = str(current_user.id)
     return {"message": "Password updated"}
 
 
@@ -283,14 +432,19 @@ async def forgot_password(
 
     reset_link = f"{settings.frontend_base_url.rstrip('/')}/reset-password?token={token}"
     subject, body = build_password_reset_email(reset_link)
-    try:
-        config = await get_effective_smtp_config(session)
-        if config.enabled:
-            await send_email(config=config, to=user.email, subject=subject, text_body=body)
-        else:
-            logger.warning("Password reset requested but SMTP is disabled in System Settings.")
-    except EmailSendError:
-        logger.exception("Failed to send password-reset email to a user.")
+    # Resolve the effective SMTP config on the request path (a cheap DB read),
+    # then hand the actual send to a background task. Awaiting the SMTP
+    # round-trip here made the response time depend on whether the address
+    # exists — a user-enumeration oracle — and held a worker for its duration.
+    config = await get_effective_smtp_config(session)
+    if config.enabled:
+        task = asyncio.create_task(
+            _send_password_reset_email(config, user.email, subject, body)
+        )
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+    else:
+        logger.warning("Password reset requested but SMTP is disabled in System Settings.")
 
     return generic_response
 
@@ -595,6 +749,11 @@ async def auth_callback(
     session: AsyncSession = Depends(get_session),
 ):
     """OIDC/OAuth2 callback — create or authenticate user, establish a session."""
+    if provider not in ("oidc", "github", "google"):
+        # Same guard as login(): without it an unknown provider falls through
+        # to get_effective_oauth_config()'s ValueError and 500s.
+        raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
+
     if not await _is_provider_enabled(provider, session):
         raise HTTPException(status_code=403, detail=f"Provider is disabled: {provider}")
 
@@ -697,6 +856,14 @@ async def auth_callback(
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
 
+    # Same `mfa_forced` gate as password login. A user who already has MFA
+    # enabled is *not* challenged here: the SSO flow has no second-factor step
+    # (a pre-existing gap, out of scope for this change) — but they must at
+    # least have enrolled, which is what `mfa_forced` is about.
+    if not user.mfa_enabled and await _mfa_forced(session):
+        request.session[_MFA_ENROLL_SESSION_KEY] = str(user.id)
+        return RedirectResponse(url="/login?enroll=1", status_code=status.HTTP_302_FOUND)
+
     request.session["user_id"] = str(user.id)
     return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
@@ -782,9 +949,51 @@ def _mfa_serializer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(settings.app_secret_key, salt="mfa-verify")
 
 
+def _issue_mfa_token(user: User) -> str:
+    """Serialize an MFA login token for `user`.
+
+    The payload carries a random nonce so two tokens issued in the same second
+    are still distinct: itsdangerous' timestamp only has one-second resolution,
+    so without it the single-use check (which compares token hashes) would
+    reject a token minted moments after a previous login.
+    """
+    return _mfa_serializer().dumps({"uid": str(user.id), "nonce": secrets.token_urlsafe(16)})
+
+
+def _mfa_token_user_id(token: str) -> uuid.UUID | None:
+    """Decode an MFA login token, or return None if invalid/expired."""
+    try:
+        payload = _mfa_serializer().loads(token, max_age=MFA_TOKEN_MAX_AGE)
+    except Exception:
+        return None
+    # Tokens issued before the nonce existed carried the bare user id.
+    raw = payload.get("uid") if isinstance(payload, dict) else payload
+    if not isinstance(raw, str):
+        return None
+    try:
+        return uuid.UUID(raw)
+    except ValueError:
+        return None
+
+
+def _totp_counter(secret: str, code: str) -> int | None:
+    """Return the TOTP time-step `code` matches, or None if it matches none.
+
+    Mirrors pyotp's default `valid_window=0` (only the current step counts)
+    while also reporting *which* step matched, so the caller can record it and
+    reject a replay of the same code.
+    """
+    import pyotp
+
+    totp = pyotp.TOTP(secret)
+    if not totp.verify(code):
+        return None
+    return int(totp.timecode(datetime.now(UTC)))
+
+
 @router.post("/me/mfa/totp/setup")
 async def setup_totp(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_current_user_or_enrolling),
     session: AsyncSession = Depends(get_session),
 ):
     """Generate a TOTP secret and return the provisioning URI for QR code setup."""
@@ -825,10 +1034,14 @@ async def verify_totp(
     request: Request,
     body: TotpCodeRequest | None = None,
     code: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_current_user_or_enrolling),
     session: AsyncSession = Depends(get_session),
 ):
-    """Verify a TOTP code (JSON body `{"code": ...}`) and enable MFA for the user."""
+    """Verify a TOTP code (JSON body `{"code": ...}`) and enable MFA for the user.
+
+    Reachable with a normal session *or* the `mfa_forced` enrolment session —
+    in the latter case, completing enrolment also completes the login.
+    """
     import pyotp
 
     code = _body_or_query(body.code if body else None, code, "code")
@@ -843,6 +1056,11 @@ async def verify_totp(
     current_user.mfa_enabled = True
     session.add(current_user)
     await session.commit()
+
+    # Promote a pending enrolment session into a real one (no-op for callers
+    # that already had one) so a forced-enrolment login ends authenticated.
+    request.session.pop(_MFA_ENROLL_SESSION_KEY, None)
+    request.session["user_id"] = str(current_user.id)
     return {"message": "MFA enabled", "mfa_enabled": True}
 
 
@@ -889,19 +1107,14 @@ async def login_with_mfa(
 ):
     """Complete MFA-challenged login by verifying a TOTP code (JSON body
     `{"mfa_token": ..., "code": ...}`)."""
-    import pyotp
-
     mfa_token = _body_or_query(body.mfa_token if body else None, mfa_token, "mfa_token")
     code = _body_or_query(body.code if body else None, code, "code")
 
     # Decode the MFA token
-    s = _mfa_serializer()
-    try:
-        user_id_str = s.loads(mfa_token, max_age=MFA_TOKEN_MAX_AGE)
-    except Exception:
+    user_id = _mfa_token_user_id(mfa_token)
+    if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid or expired MFA token")
 
-    user_id = uuid.UUID(user_id_str)
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
@@ -911,9 +1124,27 @@ async def login_with_mfa(
     if not user.mfa_enabled or not user.totp_secret:
         raise HTTPException(status_code=400, detail="MFA is not enabled for this user")
 
-    totp = pyotp.TOTP(user.totp_secret)
-    if not totp.verify(code):
+    # Single-use token: a captured mfa_token must not be replayable inside its
+    # 5-minute window. Checked before the code so a reused token is rejected
+    # for that reason, not incidentally.
+    token_hash = hashlib.sha256(mfa_token.encode("utf-8")).hexdigest()
+    if user.mfa_token_used_hash == token_hash:
+        raise HTTPException(status_code=401, detail="Invalid or expired MFA token")
+
+    counter = _totp_counter(user.totp_secret, code)
+    if counter is None:
         raise HTTPException(status_code=401, detail="Invalid verification code")
+    # A code is valid for its whole 30-second step; reject a replay of a step
+    # that has already completed a login.
+    if user.last_totp_counter is not None and counter <= user.last_totp_counter:
+        raise HTTPException(
+            status_code=401, detail="This verification code has already been used"
+        )
+
+    user.last_totp_counter = counter
+    user.mfa_token_used_hash = token_hash
+    session.add(user)
+    await session.commit()
 
     request.session["user_id"] = str(user.id)
     return {"message": "MFA verified", "user_id": str(user.id)}

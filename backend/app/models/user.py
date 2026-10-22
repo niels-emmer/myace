@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from sqlalchemy import Text
-from sqlmodel import Boolean, Column, DateTime, Field, SQLModel, String
+from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String
 
 
 class User(SQLModel, table=True):
@@ -38,6 +38,17 @@ class User(SQLModel, table=True):
         default=False, sa_column=Column("mfa_enabled", Boolean, default=False)
     )
     totp_secret: str | None = Field(default=None, sa_column=Column("totp_secret", String(64)))
+    # The TOTP time-step of the last accepted code. A code is valid for its
+    # whole 30-second step, so without this the same code completes the second
+    # factor repeatedly inside that window.
+    last_totp_counter: int | None = Field(
+        default=None, sa_column=Column("last_totp_counter", Integer)
+    )
+    # SHA-256 of the most recently consumed MFA login token, making it
+    # single-use within its 5-minute validity window.
+    mfa_token_used_hash: str | None = Field(
+        default=None, sa_column=Column("mfa_token_used_hash", String(64))
+    )
     reset_token_hash: str | None = Field(
         default=None, sa_column=Column("reset_token_hash", String(64))
     )

@@ -5,7 +5,8 @@ from datetime import UTC, datetime, timedelta
 
 import pyotp
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient as _BareClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from starlette.responses import RedirectResponse
@@ -13,6 +14,7 @@ from starlette.responses import RedirectResponse
 from app.core.config import settings
 from app.core.ratelimit import auth_limiter
 from app.core.security import hash_password
+from app.main import app as fastapi_app
 from app.models.doc_cache import DocCacheEntry
 from app.models.system_settings import SystemSettings
 from app.models.user import User
@@ -251,3 +253,297 @@ async def test_doc_cache_delete_is_admin_only(
         "/api/v1/auth/login", json={"email": "boss@example.com", "password": "password123"}
     )
     assert (await async_client.delete(f"/api/v1/doc-cache/{entry.id}")).status_code == 200
+
+
+# ─── L-1: register must not leak account existence ────────────────
+
+REGISTER_BODY = {
+    "email": "probe@example.com",
+    "password": "password123",
+    "display_name": "Probe Name",
+}
+
+
+@pytest.mark.asyncio
+async def test_register_response_does_not_leak_account_existence(
+    async_client: AsyncClient,
+) -> None:
+    """The duplicate-email response must be indistinguishable from a real
+    registration: echoing `display_name` (rather than hardcoding "") is what
+    stops the body being an account-existence oracle."""
+    created = await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
+    assert created.status_code == 201
+
+    duplicate = await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
+    fresh = await async_client.post(
+        "/api/v1/auth/register", json={**REGISTER_BODY, "email": "other@example.com"}
+    )
+
+    assert duplicate.status_code == fresh.status_code == 201
+    # `email` differs because the caller sent a different one; `id`/`created_at`
+    # are volatile by design. Everything else must match exactly.
+    volatile = {"id", "created_at", "email"}
+    assert {k: v for k, v in duplicate.json().items() if k not in volatile} == {
+        k: v for k, v in fresh.json().items() if k not in volatile
+    }
+    assert duplicate.json()["display_name"] == REGISTER_BODY["display_name"]
+
+
+@pytest.mark.asyncio
+async def test_register_duplicate_email_still_pays_the_hashing_cost(
+    async_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The duplicate path skips the insert, so it must still run the same
+    bcrypt work — otherwise response latency alone reveals whether the address
+    is registered."""
+    import app.api.auth as auth_module
+
+    await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
+
+    seen: list[str] = []
+    real_hash = auth_module.hash_password
+
+    def _spy(password: str) -> str:
+        seen.append(password)
+        return real_hash(password)
+
+    monkeypatch.setattr(auth_module, "hash_password", _spy)
+
+    resp = await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
+    assert resp.status_code == 201
+    assert seen == [REGISTER_BODY["password"]]
+
+
+# ─── L-3: password change is throttled and revokes API tokens ─────
+
+
+@pytest.mark.asyncio
+async def test_change_password_is_rate_limited(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`change_password` verifies the current password, so it needs the same
+    per-client-IP throttle `/auth/login` has."""
+    await _add_user(db_session, "rl@example.com")
+    # Log in while the limiter is off so only the password-change calls count.
+    await async_client.post(
+        "/api/v1/auth/login", json={"email": "rl@example.com", "password": "password123"}
+    )
+
+    auth_limiter.enabled = True
+    auth_limiter.reset()
+    monkeypatch.setattr(settings, "auth_rate_limit", "3/minute")
+
+    body = {"current_password": "wrong-password", "new_password": "newpassword123"}
+    codes = [
+        (await async_client.post("/api/v1/auth/me/password", json=body)).status_code
+        for _ in range(5)
+    ]
+    assert codes == [403, 403, 403, 429, 429]
+
+
+@pytest.mark.asyncio
+async def test_change_password_invalidates_tokens(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A password change is the response to a suspected compromise, so API
+    tokens minted before it must stop working — while the caller's own session
+    keeps working."""
+    await _add_user(db_session, "tok@example.com")
+    await async_client.post(
+        "/api/v1/auth/login", json={"email": "tok@example.com", "password": "password123"}
+    )
+    api_key = (
+        await async_client.post("/api/v1/auth/tokens", json={"name": "cli"})
+    ).json()["token"]
+
+    async def _token_is_accepted() -> bool:
+        # A cookie-less client, so only the Bearer token can authenticate.
+        async with _BareClient(
+            transport=ASGITransport(app=fastapi_app), base_url="http://test"
+        ) as bare:
+            resp = await bare.get(
+                "/api/v1/auth/tokens", headers={"Authorization": f"Bearer {api_key}"}
+            )
+            return resp.status_code == 200
+
+    assert await _token_is_accepted() is True
+
+    changed = await async_client.post(
+        "/api/v1/auth/me/password",
+        json={"current_password": "password123", "new_password": "newpassword123"},
+    )
+    assert changed.status_code == 200
+
+    assert await _token_is_accepted() is False
+    # The caller's own (re-issued) session still works.
+    assert (await async_client.get("/api/v1/auth/me")).status_code == 200
+
+
+# ─── L-4: ADMIN_EMAILS must apply on login, not just register ─────
+
+
+@pytest.mark.asyncio
+async def test_admin_emails_promotes_an_existing_user_on_login(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """.env.example documents ADMIN_EMAILS as "auto-promoted to admin on
+    register/login", but it was only consulted on register and SSO create."""
+    monkeypatch.setattr(settings, "admin_emails", "promote@example.com")
+    await _add_user(db_session, "promote@example.com")
+
+    resp = await async_client.post(
+        "/api/v1/auth/login", json={"email": "promote@example.com", "password": "password123"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_admin"] is True
+    assert resp.json()["role"] == "admin"
+
+    user = (
+        await db_session.execute(select(User).where(User.email == "promote@example.com"))
+    ).scalar_one()
+    await db_session.refresh(user)
+    # Rule 30: is_admin and role must move together.
+    assert user.is_admin is True
+    assert user.role == "admin"
+
+
+@pytest.mark.asyncio
+async def test_admin_emails_does_not_promote_other_users(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "admin_emails", "someone-else@example.com")
+    await _add_user(db_session, "ordinary@example.com")
+
+    resp = await async_client.post(
+        "/api/v1/auth/login", json={"email": "ordinary@example.com", "password": "password123"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_admin"] is False
+    assert resp.json()["role"] == "user"
+
+
+# ─── L-5: unknown provider on the callback must be a 400, not a 500 ─
+
+
+@pytest.mark.asyncio
+async def test_unknown_oidc_provider_returns_400(async_client: AsyncClient) -> None:
+    """`login()` validates the provider; `auth_callback()` did not, so an
+    unknown provider fell through to get_effective_oauth_config()'s
+    ValueError and surfaced as an unhandled 500."""
+    resp = await async_client.get("/api/v1/auth/callback/notaprovider", follow_redirects=False)
+    assert resp.status_code == 400
+    assert "Unsupported provider" in resp.json()["detail"]
+
+
+# ─── L-6: TOTP replay and single-use MFA token ────────────────────
+
+
+async def _mfa_token_for(client: AsyncClient) -> str:
+    resp = await client.post(
+        "/api/v1/auth/login", json={"email": "mfa@example.com", "password": "password123"}
+    )
+    return resp.json()["mfa_token"]
+
+
+@pytest.mark.asyncio
+async def test_totp_code_cannot_be_replayed(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A TOTP code is valid for its whole 30-second step, so without a
+    last-used counter the same code completes the second factor repeatedly.
+
+    Both calls must land inside one step for the replay to be a replay at all;
+    the loop re-runs the scenario in the (rare) case the step rolls over
+    mid-test, and fails loudly if it never observes a same-step replay.
+    """
+    _, secret = await _mfa_user(db_session)
+    user = (
+        await db_session.execute(select(User).where(User.email == "mfa@example.com"))
+    ).scalar_one()
+
+    for _ in range(3):
+        # Clear the recorded step so a retry (after a step rollover) starts clean.
+        user.last_totp_counter = None
+        db_session.add(user)
+        await db_session.commit()
+
+        code = pyotp.TOTP(secret).now()
+        first = await async_client.post(
+            "/api/v1/auth/login/mfa",
+            json={"mfa_token": await _mfa_token_for(async_client), "code": code},
+        )
+        assert first.status_code == 200
+        await async_client.post("/api/v1/auth/logout")
+
+        # A brand-new token, but the same code: its step has been consumed.
+        replay = await async_client.post(
+            "/api/v1/auth/login/mfa",
+            json={"mfa_token": await _mfa_token_for(async_client), "code": code},
+        )
+        assert replay.status_code == 401
+        assert (await async_client.get("/api/v1/auth/me")).status_code == 401
+
+        if "already been used" in replay.json()["detail"]:
+            return
+        # Otherwise the step rolled over and the code simply expired first.
+    pytest.fail("never observed a same-step TOTP replay")
+
+
+@pytest.mark.asyncio
+async def test_mfa_login_token_is_single_use(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """The mfa_token is a bearer credential for the second login step; within
+    its 5-minute window it must not be usable twice."""
+    _, secret = await _mfa_user(db_session)
+    token = await _mfa_token_for(async_client)
+
+    first = await async_client.post(
+        "/api/v1/auth/login/mfa",
+        json={"mfa_token": token, "code": pyotp.TOTP(secret).now()},
+    )
+    assert first.status_code == 200
+    await async_client.post("/api/v1/auth/logout")
+
+    # The very same token is rejected on its own account — the error names the
+    # token, not the code, so this cannot be the counter check in disguise.
+    replay = await async_client.post(
+        "/api/v1/auth/login/mfa",
+        json={"mfa_token": token, "code": pyotp.TOTP(secret).now()},
+    )
+    assert replay.status_code == 401
+    assert "MFA token" in replay.json()["detail"]
+    assert (await async_client.get("/api/v1/auth/me")).status_code == 401
+
+
+# ─── L-2: forgot-password must not await the SMTP send ────────────
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_does_not_wait_for_the_smtp_send(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Awaiting the SMTP round-trip inline made the response time depend on
+    whether the account exists — a user-enumeration oracle (L-2). The send must
+    happen off the request path."""
+    import asyncio
+
+    await _add_user(db_session, "reset@example.com")
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _blocked_send(**kwargs: object) -> None:
+        started.set()
+        await release.wait()
+
+    monkeypatch.setattr("app.api.auth.send_email", _blocked_send)
+
+    # `wait_for` fails the test instead of hanging if the handler awaits the send.
+    resp = await asyncio.wait_for(
+        async_client.post(
+            "/api/v1/auth/forgot-password", json={"email": "reset@example.com"}
+        ),
+        timeout=2,
+    )
+    assert resp.status_code == 200
+    release.set()
