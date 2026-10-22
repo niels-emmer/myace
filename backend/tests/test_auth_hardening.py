@@ -379,6 +379,49 @@ async def test_change_password_invalidates_tokens(
     assert (await async_client.get("/api/v1/auth/me")).status_code == 200
 
 
+# ─── L-4: ADMIN_EMAILS must apply on login, not just register ─────
+
+
+@pytest.mark.asyncio
+async def test_admin_emails_promotes_an_existing_user_on_login(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """.env.example documents ADMIN_EMAILS as "auto-promoted to admin on
+    register/login", but it was only consulted on register and SSO create."""
+    monkeypatch.setattr(settings, "admin_emails", "promote@example.com")
+    await _add_user(db_session, "promote@example.com")
+
+    resp = await async_client.post(
+        "/api/v1/auth/login", json={"email": "promote@example.com", "password": "password123"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_admin"] is True
+    assert resp.json()["role"] == "admin"
+
+    user = (
+        await db_session.execute(select(User).where(User.email == "promote@example.com"))
+    ).scalar_one()
+    await db_session.refresh(user)
+    # Rule 30: is_admin and role must move together.
+    assert user.is_admin is True
+    assert user.role == "admin"
+
+
+@pytest.mark.asyncio
+async def test_admin_emails_does_not_promote_other_users(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "admin_emails", "someone-else@example.com")
+    await _add_user(db_session, "ordinary@example.com")
+
+    resp = await async_client.post(
+        "/api/v1/auth/login", json={"email": "ordinary@example.com", "password": "password123"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_admin"] is False
+    assert resp.json()["role"] == "user"
+
+
 # ─── L-2: forgot-password must not await the SMTP send ────────────
 
 

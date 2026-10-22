@@ -120,6 +120,32 @@ async def _is_bootstrap_admin(session: AsyncSession, email: str) -> bool:
     return count == 0
 
 
+async def _promote_if_admin_email(session: AsyncSession, user: User) -> None:
+    """Promote an account whose address is in ADMIN_EMAILS.
+
+    `.env.example` documents the variable as "auto-promoted to admin on
+    register/login", but it was only ever consulted on register and on SSO
+    account creation — an operator adding an *existing* user's address got
+    nothing, and their fallback (hand-editing the row) can leave `is_admin`
+    and `role` out of sync. Both are set here together, as rule 30 requires,
+    or the user is an "admin" who still fails `require_moderator_or_admin`.
+
+    Runs once the password has been verified, before the second factor: the
+    promotion is the operator's declared intent for that specific address, and
+    without a session it grants nothing.
+    """
+    if user.is_admin and user.role == "admin":
+        return
+    if user.email.lower() not in settings.admin_email_list:
+        return
+    user.is_admin = True
+    user.role = "admin"
+    user.updated_at = datetime.now(UTC)
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+
 # Session key for the short-lived "enrolment session" issued when `mfa_forced`
 # blocks a login. It is deliberately *not* `user_id`: `get_current_user()`
 # (core/deps.py) resolves only `user_id`, so this authenticates nothing in the
@@ -255,6 +281,8 @@ async def login_with_password(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
+
+    await _promote_if_admin_email(session, user)
 
     # Check if MFA is required
     if user.mfa_enabled:
