@@ -29,7 +29,7 @@ from app.models.artifact import CanonicalArtifact
 
 
 class ContinueAdapter(BaseAdapter):
-    """Adapter for Continue — generates .continue/rules/*.md, .continue/prompts/*.prompt,
+    """Adapter for Continue — generates .continue/rules/*.md, .continue/prompts/*.md,
     and config.yaml."""
 
     def adapter_name(self) -> str:

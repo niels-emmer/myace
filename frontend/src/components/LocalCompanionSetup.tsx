@@ -42,8 +42,10 @@ export function useCompanionHealth(enabled: boolean = true): UseQueryResult<Comp
             console.info(`[myace] Companion detected at ${baseUrl}`, data);
             return data;
           }
-        } catch (err) {
-          console.debug(`[myace] Companion not found at ${baseUrl}:`, err);
+        } catch {
+          // This candidate didn't answer — try the next base URL. Deliberately
+          // not logged: this runs on every retry of a 3s poll, so a log line
+          // here floods the console for anyone without the companion installed.
         }
       }
       throw new Error('Companion unreachable at localhost:8765 or 127.0.0.1:8765');

@@ -34,7 +34,7 @@ Add exactly one public, unauthenticated route: `POST /api/v1/demo/compile`
   skills, agents, model-configs, git URLs, or file uploads — the smallest
   input surface that still demonstrates the real compilation pipeline.
 - **Capped at 20KB of input.**
-- **Compiled through 3 adapters, not all 11** (`claude-code`, `cursor`,
+- **Compiled through 3 adapters, not all 12** (`claude-code`, `cursor`,
   `opencode`) — enough to show the "one input, many outputs" story without
   the response ballooning or every adapter's edge cases becoming part of
   this route's abuse surface.
@@ -68,7 +68,7 @@ Add exactly one public, unauthenticated route: `POST /api/v1/demo/compile`
   self-hosted on a single VPS behind a plain reverse proxy (`docs/
   deployment.md`), not necessarily behind a CDN with its own rate limiting.
   An unauthenticated, unlimited compile endpoint on a small VPS is a
-  trivial CPU-exhaustion vector (11 adapters' worth of `translate()` calls,
+  trivial CPU-exhaustion vector (12 adapters' worth of `translate()` calls,
   even scoped to 3, run per request); the limit needs to be true regardless
   of what's in front of the box.
 - **Rate-limit by something other than IP** (e.g. a per-session cookie) —

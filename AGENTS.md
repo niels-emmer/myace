@@ -20,7 +20,7 @@ pytest                           # run all tests
 pytest tests/test_adapters.py    # run one test file
 pytest tests/test_adapters.py::test_name -v   # run a single test
 ruff check .                     # lint
-mypy app                         # type check (strict mode)
+mypy app                         # type check (strict mode; advisory in CI — see rule 1)
 alembic revision --autogenerate -m "description"   # new migration
 alembic upgrade head              # apply migrations
 ```
@@ -61,6 +61,27 @@ Dev stack: frontend on `:80`, backend on `:8000` directly, home dir mounted at `
 - Use `Pydantic v2` for all API request/response schemas.
 - Never use `Any` or `dict` without a concrete type parameter.
 - Use `X | None` (PEP 604), not `Optional[X]` — enforced by ruff's `UP` rules (`backend/pyproject.toml`), which run in CI.
+- **`mypy --strict` is advisory, not a gate.** CI runs `mypy app || true`
+  (`.github/workflows/ci.yml`), so a type error reports but never fails the
+  build — treat the rules above as review standards, not something the build
+  enforces. Measured at the time of writing: **131 errors across 18 files**.
+  The large majority are SQLAlchemy/SQLModel stub artifacts, not real defects:
+  `type-arg` on bare `dict`, `attr-defined`/`union-attr` on column expressions
+  mypy resolves as plain Python scalars (e.g. `Collection.avg_rating.desc()`
+  read as `float.desc()`, and `.is_starter_pack.is_()` as `bool.is_()` — the
+  same class rule 37 documents for a `date` column), and `arg-type` on
+  `.join(... == ...)`. ~76 are missing return annotations, mostly on route
+  handlers whose shape is already pinned by `response_model=`. Making this a
+  gate means clearing that backlog first — a deliberate, separate project, not
+  a drive-by change. Annotating a helper's return type clears its own
+  `no-untyped-def` error, but the `attr-defined`/`union-attr` ones on the same
+  lines persist — mypy still evaluates `Collection.avg_rating.desc()` as
+  `float.desc()`, so those need a narrowly-scoped `# type: ignore[...]` with a
+  comment, exactly as rule 37 does for the `date` column. Don't assume an
+  annotation fixes them. The one deliberate `Any` in the backend is
+  `freshness.py`'s `stale_collections_query() -> Any`: `select(Entity)`
+  resolves through SQLModel's stubs to a scalar-select generic with no
+  cleanly importable name, so naming it precisely is not worth the coupling.
 
 **Frontend (TypeScript):**
 - All function parameters and return types MUST be annotated.
@@ -384,7 +405,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 
 - **`POST /{collection_id}/publish` only submits for review — it is not a
   self-serve publish anymore.** It moves `Collection.moderation_status`
-  from `draft`/`denied` to `submitted` (409 otherwise) and never touches
+  from `draft`/`denied`/`unpublished` to `submitted` (409 otherwise) and never touches
   `published`/`visibility`. The *only* code path that sets
   `published=True` (Community listing) is
   `POST /moderation/{collection_id}/approve` (moderator/admin only, via
@@ -569,7 +590,8 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   as a security boundary against arbitrary *user-supplied* local-machine
   paths, which doesn't apply to these hardcoded, trusted paths. It reuses
   the scanner's private per-file parsers (`_parse_skill_file`,
-  `_parse_agent_file`, `_parse_command_file`, `_parse_agents_md`) directly
+  `_parse_agent_file`, `_parse_command_file`, `_parse_agents_md`,
+  `_parse_opencode_json`) directly
   against a local directory walk instead, so the on-disk format stays in
   sync with what the scanner (and therefore the community-import flow)
   already understands.
@@ -1125,8 +1147,8 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   oversight. `RequireModerator`/`RequireAdmin` still gate the real
   `/settings/moderation`/`/settings/system` routes exactly as they gated
   the old `/moderation`/`/admin/system` ones; the legacy paths are plain,
-  ungated `Navigate` redirects because the gate at the destination already
-  covers them.
+  ungated `Navigate` redirects, not role-gated (they do still sit behind
+  `RequireAuth`, but the destination's own gate is what enforces the role).
 - If you add a new top-level page, decide up front whether it belongs
   inside an existing group (add it to that group's `children` in
   `navigation.ts`) or genuinely needs a new group — don't add a new flat,
