@@ -147,13 +147,30 @@ def _handle_rate_limit_exceeded(request: Request, exc: Exception) -> Response:
 
 app.add_exception_handler(RateLimitExceeded, _handle_rate_limit_exceeded)
 
-# Transport-level body-size cap for the one fully-public route in this app
-# (POST /demo/compile) — see app.core.body_limit's module docstring for why
-# this can't be done inside a Pydantic validator alone. Scoped to exactly
-# this (method, path) pair; every other route is unaffected.
+# Transport-level request-body caps (see app.core.body_limit for why this
+# has to live at the ASGI layer rather than in a Pydantic validator).
+#
+# DEFAULT_REQUEST_BODY_MAX_BYTES applies to EVERY route without its own
+# entry below, so an unauthenticated route such as /auth/register can no
+# longer be handed an unbounded body to buffer into memory (M-3). 1 MB
+# matches nginx's long-standing implicit default — now declared explicitly
+# in frontend/nginx.conf so the deployed limit is intentional rather than
+# inherited — and is comfortably above any legitimate JSON request in this
+# API.
+DEFAULT_REQUEST_BODY_MAX_BYTES = 1024 * 1024
+# Bulk import legitimately carries many artifact bodies in a single request,
+# so it gets its own, larger entry. frontend/nginx.conf's client_max_body_size
+# must be >= this, or nginx would reject the request before the backend sees it.
+BULK_IMPORT_REQUEST_BODY_MAX_BYTES = 10 * 1024 * 1024
+
 app.add_middleware(
     MaxBodySizeMiddleware,
-    limits={("POST", "/api/v1/demo/compile"): DEMO_REQUEST_BODY_MAX_BYTES},
+    limits={
+        # Tighter than the default: this is the one fully-public route.
+        ("POST", "/api/v1/demo/compile"): DEMO_REQUEST_BODY_MAX_BYTES,
+        ("POST", "/api/v1/collections/import"): BULK_IMPORT_REQUEST_BODY_MAX_BYTES,
+    },
+    default_max_bytes=DEFAULT_REQUEST_BODY_MAX_BYTES,
 )
 
 # Trusted hosts — always enforce. In development, allow all hosts (safe

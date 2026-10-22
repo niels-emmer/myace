@@ -22,10 +22,22 @@ actual received bytes as they stream in, not `Content-Length` alone
 (which a client can omit, lie about, or which doesn't exist at all under
 chunked transfer encoding).
 
-Scoped to specific `(method, path)` pairs passed in by the caller — every
-other route is completely unaffected, matching the same
-don't-apply-globally pattern as `app.api.demo`'s per-route `slowapi` rate
-limiter (AGENTS.md rule 36).
+Two layers of scope, both set by the caller:
+
+- `limits` — an explicit, tighter-or-larger cap for specific
+  `(method, path)` pairs (the demo route's 128 KB; bulk import's larger
+  need).
+- `default_max_bytes` — the cap applied to **every** route that has no
+  explicit entry. Before M-3 the middleware returned early for any
+  unmatched route, so the *only* route in the whole app with a body cap
+  was `POST /demo/compile`: every other route — including the
+  unauthenticated `/auth/register` and `/auth/login` — buffered an
+  unbounded body into memory. The default closes that.
+
+`default_max_bytes` defaults to `None`, which preserves the original
+"only these exact routes are capped" behaviour for callers (and the unit
+tests) that want it; `app/main.py` passes a real value so nothing in the
+running app is uncapped.
 """
 
 from starlette.responses import JSONResponse
@@ -33,12 +45,22 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 class MaxBodySizeMiddleware:
-    """Reject with 413 once a matched request's body exceeds its configured
-    byte cap, checked incrementally as chunks arrive."""
+    """Reject with 413 once a request's body exceeds its configured byte
+    cap, checked incrementally as chunks arrive.
 
-    def __init__(self, app: ASGIApp, limits: dict[tuple[str, str], int]) -> None:
+    `limits` overrides `default_max_bytes` for the `(method, path)` pairs it
+    names; every other route uses `default_max_bytes`.
+    """
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        limits: dict[tuple[str, str], int],
+        default_max_bytes: int | None = None,
+    ) -> None:
         self.app = app
         self.limits = limits
+        self.default_max_bytes = default_max_bytes
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -46,6 +68,8 @@ class MaxBodySizeMiddleware:
             return
 
         max_bytes = self.limits.get((scope["method"], scope["path"]))
+        if max_bytes is None:
+            max_bytes = self.default_max_bytes
         if max_bytes is None:
             await self.app(scope, receive, send)
             return

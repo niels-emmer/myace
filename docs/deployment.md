@@ -145,6 +145,28 @@ Three Compose files layer on top of each other:
 See [`AGENTS.md`](../AGENTS.md#9-compose-file-strategy) for what each
 override layer is responsible for.
 
+## Request body size limits
+
+Every request body is capped, at two layers, so no route can be handed an
+unbounded body to buffer into memory:
+
+| Layer | Limit | Where |
+|-------|-------|-------|
+| nginx (frontend container) | 10 MB, all of `/api/*` and the SPA | `frontend/nginx.conf` (`client_max_body_size`) |
+| Backend, per route | 1 MB default; 128 KB for `POST /api/v1/demo/compile`; 10 MB for `POST /api/v1/collections/import` | `backend/app/main.py` (`DEFAULT_REQUEST_BODY_MAX_BYTES` et al.) |
+
+The backend's cap is the one that matters — it is enforced at the ASGI
+layer (`backend/app/core/body_limit.py`), before FastAPI buffers and parses
+the body, and it counts actual received bytes so a chunked request with no
+`Content-Length` is capped too. The nginx limit is a coarse outer bound;
+keep it **greater than or equal to** the backend's largest per-route cap
+(the 10 MB bulk-import entry) or nginx would reject that request before the
+backend ever sees it.
+
+If you add a route that legitimately accepts a body larger than 1 MB, give
+it an explicit entry in the `limits` dict in `backend/app/main.py` — it does
+not inherit one — and raise nginx's `client_max_body_size` to match.
+
 ## Download-digest cron job
 
 Owners who opt into "notify me on downloads" (per-profile preference, see
