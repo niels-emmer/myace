@@ -19,6 +19,16 @@ RUN pip install --no-cache-dir -e .
 # Copy application code
 COPY . .
 
+# Run as a non-root user (L-15). The app writes nothing outside /tmp and the
+# code checkout (read-only in prod), and uvicorn binds 8000, which needs no
+# capability — so an unprivileged uid is safe and removes root from any
+# future RCE or volume-write primitive. The image's /app is bind-mounted at
+# runtime (docker-compose*.yml), so this chown only matters for the
+# standalone-image case; the mounted host files just have to stay readable.
+RUN useradd --create-home --uid 10001 app \
+    && chown -R app:app /app
+USER app
+
 # Expose port
 EXPOSE 8000
 
