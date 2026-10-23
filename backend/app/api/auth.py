@@ -125,7 +125,7 @@ async def register(
         return UserRead(
             id=uuid.uuid4(), email=data.email, display_name="",
             is_active=True, is_admin=False,
-            created_at=datetime.now(UTC), updated_at=datetime.now(UTC),
+            created_at=datetime.now(UTC),
         )
 
     is_admin = await _is_bootstrap_admin(session, data.email)

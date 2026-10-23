@@ -108,7 +108,12 @@ async def list_sync_status(
     result = await session.execute(
         select(SyncStatus, Profile.name)
         .join(Profile, Profile.id == SyncStatus.profile_id)
-        .where(SyncStatus.user_id == current_user.id)
+        .where(
+            SyncStatus.user_id == current_user.id,
+            # A status row outlives a soft-deleted profile it points at
+            # (rule 15) — don't render a row for a profile the user deleted.
+            Profile.deleted_at == None,  # noqa: E711
+        )
         .order_by(SyncStatus.last_checked_at.desc())
     )
     return [_to_read(status, profile_name) for status, profile_name in result.all()]
