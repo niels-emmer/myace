@@ -311,6 +311,15 @@ Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d
   silently replace an active secret.
 - **`DELETE /doc-cache/{id}` is admin-only** — the cache is one global
   resource shared by every user, not owned by whoever fetched it.
+- **Frontend transitive security pins live in `frontend/package.json`'s
+  `overrides`, never a hand-edited lockfile.** When a Dependabot alert on a
+  transitive frontend dep needs a version outside its parent's semver range
+  — e.g. `postcss-selector-parser`, patched only at `7.x`, under
+  `tailwindcss@3.4`'s `^6` — pin it there and prove it with a
+  byte-identical CSS-output diff. There is no `npm audit` gate in CI, so
+  that diff is the verification. Never remove an existing override; it
+  re-opens the alert it was added to close. See
+  [debugging.md](docs/debugging.md#a-dependabot-security-alert-on-a-transitive-frontend-dependency-wont-clear).
 
 ### 11. Artifact Response Serialization
 
