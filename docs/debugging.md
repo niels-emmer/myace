@@ -352,6 +352,42 @@ again, check whether the failing PR is a major-version bump that should
 never have been grouped in the first place, rather than trying to patch
 around the peer-dependency error directly.
 
+## A Dependabot security alert on a transitive frontend dependency won't clear
+
+**Symptom:** a Dependabot alert on a transitive dependency in
+`frontend/package-lock.json` stays open after `npm update`, or re-opens on
+the next scan, even though a patched version of that package exists. Two
+live examples are pinned in `frontend/package.json`'s `overrides`:
+`brace-expansion` (patched at `5.0.12`) and `postcss-selector-parser`
+(patched at `7.1.6`).
+
+**Cause — this comes in two shapes:**
+
+- The patched version is *inside* the parent's semver range, but a stale
+  lockfile still pins an older one. `minimatch` allows `brace-expansion
+  ^5.0.8`, so `5.0.12` already satisfies it — nothing forces a refresh.
+- The patched version is a **major bump outside** the parent's range. The
+  only patched `postcss-selector-parser` is `7.1.6+`, but `tailwindcss@3.4`
+  and `postcss-nested@6` both declare `^6`, so a normal install can never
+  reach it. (The maintainer did backport the fix to `6.1.5` for the Tailwind
+  3 line, but advisory `GHSA-rj75-hqrm-r3gf` still lists `< 7.1.6` as
+  vulnerable, so Dependabot holds the alert open until `7.x` lands.)
+
+**Fix:** pin the patched version with an `overrides` block in
+`frontend/package.json`. This is the one dependency change CI cannot verify
+for you — there is no `npm audit` gate — so prove it locally:
+
+1. `npm install` to regenerate `package-lock.json`, keeping the diff to the
+   affected packages only.
+2. `npm ci && npm run build`, then diff the emitted CSS against the previous
+   build. For a Tailwind-3-compatible `postcss-selector-parser` 7.x override
+   the production CSS is byte-identical — that diff *is* the evidence the
+   forced major is safe.
+3. `npm run lint` and `npx vitest run`.
+
+Do not delete the `overrides` block as cruft: removing it re-resolves the
+parent's `^6` range and re-opens the alert it was added to close.
+
 ## `TypeError: can't compare offset-naive and offset-aware datetimes` comparing an expiry field
 
 **Symptom:** comparing a stored `datetime` column (e.g. `expires_at`,
