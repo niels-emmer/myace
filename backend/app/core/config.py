@@ -130,5 +130,22 @@ class Settings(BaseSettings):
     def trusted_host_list(self) -> list[str]:
         return [h.strip() for h in self.trusted_hosts.split(",") if h.strip()]
 
+    @property
+    def session_cookie_secure(self) -> bool:
+        """Whether the session cookie carries the `Secure` flag (L-14).
+
+        Derived from FRONTEND_BASE_URL's scheme rather than from `debug`
+        (which defaults to true). Keying it off `debug` meant a production
+        deployment that left the shipped `DEBUG=true` in place issued a
+        cookie the browser would happily send over plaintext HTTP.
+
+        An `https://` frontend origin means the cookie is only ever
+        transmitted over TLS; an `http://` one (local dev, or a
+        single-machine deployment served over plain http) must not set the
+        flag, or the browser would refuse to send the cookie back. Set
+        FRONTEND_BASE_URL to your real public origin in production.
+        """
+        return self.frontend_base_url.startswith("https://")
+
 
 settings = Settings()

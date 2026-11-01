@@ -27,15 +27,23 @@ After forking, before exposing it beyond localhost:
    - Set a real random `APP_SECRET_KEY` (it signs session cookies; the app
      **refuses to start** in production if you leave the default — it's a
      `RuntimeError`, not a warning). Generate with `openssl rand -hex 32`.
-   - Set `DEBUG=false` (the default, `true`, exposes `/docs`/`/redoc`
-     publicly and disables secure-only cookies).
+   - Set `DEBUG=false`. The app **refuses to start** with `DEBUG=true`
+     outside development — that combination served `/docs`/`/redoc`
+     publicly and dropped the `Secure` flag from the session cookie. Set
+     `FRONTEND_BASE_URL` to your public `https://` origin as well: the
+     session cookie's `Secure` flag follows its scheme, so an `https://`
+     value is what keeps the cookie off plaintext HTTP.
    - Change `POSTGRES_PASSWORD` from the shipped default.
    - Register your own account, then set `ADMIN_BOOTSTRAP_ENABLED=false` and
      restart — otherwise the *next* person to register on a public
      deployment becomes an admin too, not just the first.
    - Set `CORS_ORIGINS` to your real domain(s), and **`TRUSTED_HOSTS`** too
      (required in production — the app refuses to start without it, to
-     prevent Host-header injection attacks).
+     prevent Host-header injection attacks). Do **not** set `CORS_ORIGINS=*`:
+     with `allow_credentials=True` a wildcard either breaks the browser's
+     CORS check or reflects any Origin back with credentials, so the app
+     **refuses to start** on a wildcard outside development. List the
+     origins explicitly, comma-separated.
    - Set `SETTINGS_ENCRYPTION_KEY` if you plan to save SMTP or OAuth
      provider secrets from the System Settings UI (rather than only via
      `.env`) — required before those forms can save; generate with
@@ -125,7 +133,9 @@ separate API hostname to configure.
    frontend proxies `/api/*` through its own origin (path-based, same
    domain). You'd only need `domain=".example.com"` added in
    `backend/app/main.py` if you instead split the frontend and API onto
-   different subdomains and called the API directly from browser JS.
+   different subdomains and called the API directly from browser JS. The
+   cookie's `Secure` flag follows `FRONTEND_BASE_URL`'s scheme (an
+   `https://` value sets it), so point that at your public https origin.
 
 If something doesn't resolve correctly behind a proxy (redirect URIs
 resolving to `http://` instead of `https://`, for example), see
@@ -144,6 +154,38 @@ Three Compose files layer on top of each other:
 
 See [`AGENTS.md`](../AGENTS.md#9-compose-file-strategy) for what each
 override layer is responsible for.
+
+## Container users
+
+Both images run as a non-root user, so a compromise inside a container is
+not root: the backend runs as `app` (uid 10001), and the frontend's nginx
+runs as the upstream `nginx` user (uid 101), with only
+`CAP_NET_BIND_SERVICE` granted to the nginx *binary* — enough to bind port
+80, nothing more. If you add a volume the app must write to, make it
+writable by that uid; the paths the app already writes to (`/tmp`, and in
+prod nothing else) work as shipped.
+
+## Request body size limits
+
+Every request body is capped, at two layers, so no route can be handed an
+unbounded body to buffer into memory:
+
+| Layer | Limit | Where |
+|-------|-------|-------|
+| nginx (frontend container) | 10 MB, all of `/api/*` and the SPA | `frontend/nginx.conf` (`client_max_body_size`) |
+| Backend, per route | 1 MB default; 128 KB for `POST /api/v1/demo/compile`; 10 MB for `POST /api/v1/collections/import` | `backend/app/main.py` (`DEFAULT_REQUEST_BODY_MAX_BYTES` et al.) |
+
+The backend's cap is the one that matters — it is enforced at the ASGI
+layer (`backend/app/core/body_limit.py`), before FastAPI buffers and parses
+the body, and it counts actual received bytes so a chunked request with no
+`Content-Length` is capped too. The nginx limit is a coarse outer bound;
+keep it **greater than or equal to** the backend's largest per-route cap
+(the 10 MB bulk-import entry) or nginx would reject that request before the
+backend ever sees it.
+
+If you add a route that legitimately accepts a body larger than 1 MB, give
+it an explicit entry in the `limits` dict in `backend/app/main.py` — it does
+not inherit one — and raise nginx's `client_max_body_size` to match.
 
 ## Download-digest cron job
 
