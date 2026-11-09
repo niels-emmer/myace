@@ -1,7 +1,9 @@
 # Keep this in lockstep with `requires-python` (pyproject.toml) and the
 # `python-version` CI tests on: shipping an interpreter the suite never ran
 # against means a green build says nothing about the image that serves traffic.
-FROM python:3.12-slim
+# The `Backend (pytest, ruff, Python 3.15)` job in .github/workflows/ci.yml is
+# the one that runs the suite on this exact version — move it with this line.
+FROM python:3.15-slim
 
 WORKDIR /app
 

@@ -229,6 +229,20 @@ Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d
 - **The backend image installs runtime dependencies only** (`pip install
   -e .`, no `[dev]`); tests/lint run from the host. Both images carry an
   informational `HEALTHCHECK` that nothing `depends_on`.
+- **The backend image's `FROM python:X-slim` must be a version CI actually
+  runs the suite on.** Shipping an interpreter the tests never ran against
+  means a green build says nothing about the image that serves traffic — a
+  Dependabot PR that edits only that `FROM` line is exactly how that happens.
+  CI therefore has two backend jobs: the required `Backend (pytest, ruff)`
+  job stays on the `requires-python` floor (3.12), and `Backend (pytest,
+  ruff, Python 3.15)` runs the same steps on the shipped version. A Python
+  bump moves `backend/Dockerfile` and that job's `python-version` together,
+  in one PR. Don't convert the existing job into a matrix to avoid the
+  duplication: GitHub appends matrix values to check-run names, so the
+  required `Backend (pytest, ruff)` check would stop being reported and every
+  PR would sit at "Expected — Waiting for status to be reported". Raising
+  `requires-python` itself is a separate compatibility decision (the CLI's
+  PyInstaller release builds run on 3.12), not part of a routine image bump.
 
 ### 10. Security Rules
 
