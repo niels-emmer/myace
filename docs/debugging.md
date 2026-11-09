@@ -356,10 +356,11 @@ around the peer-dependency error directly.
 
 **Symptom:** a Dependabot alert on a transitive dependency in
 `frontend/package-lock.json` stays open after `npm update`, or re-opens on
-the next scan, even though a patched version of that package exists. Two
+the next scan, even though a patched version of that package exists. Three
 live examples are pinned in `frontend/package.json`'s `overrides`:
-`brace-expansion` (patched at `5.0.12`) and `postcss-selector-parser`
-(patched at `7.1.6`).
+`brace-expansion` (patched at `5.0.12`), `postcss-selector-parser` (patched
+at `7.1.6`) and `minimatch` (patched at `11.0.1`, advisory
+`GHSA-g3hv-75wg-m249` / CVE-2026-118764).
 
 **Cause — this comes in two shapes:**
 
@@ -372,6 +373,9 @@ live examples are pinned in `frontend/package.json`'s `overrides`:
   reach it. (The maintainer did backport the fix to `6.1.5` for the Tailwind
   3 line, but advisory `GHSA-rj75-hqrm-r3gf` still lists `< 7.1.6` as
   vulnerable, so Dependabot holds the alert open until `7.x` lands.)
+  `minimatch` is the same shape: `eslint@10`, `@eslint/config-array` and
+  `@typescript-eslint/typescript-estree` all declare `^10`, and the fix
+  landed only in `11.x`.
 
 **Fix:** pin the patched version with an `overrides` block in
 `frontend/package.json`. This is the one dependency change CI cannot verify
@@ -379,14 +383,22 @@ for you — there is no `npm audit` gate — so prove it locally:
 
 1. `npm install` to regenerate `package-lock.json`, keeping the diff to the
    affected packages only.
-2. `npm ci && npm run build`, then diff the emitted CSS against the previous
-   build. For a Tailwind-3-compatible `postcss-selector-parser` 7.x override
-   the production CSS is byte-identical — that diff *is* the evidence the
-   forced major is safe.
-3. `npm run lint` and `npx vitest run`.
+2. For a CSS-affecting pin (`postcss-selector-parser`): `npm ci &&
+   npm run build`, then diff the emitted CSS against the previous build. For
+   a Tailwind-3-compatible `7.x` override the production CSS is
+   byte-identical — that diff *is* the evidence the forced major is safe.
+   For a JS-only pin, check the forced major's changelog against how the
+   parents actually call it — `minimatch@11` removed `makeRe()` and
+   `.regexp`, but ESLint's chain only uses `new Minimatch(...).match()` and
+   `minimatch()`, both retained. Pinning it cleared ten advisories at once,
+   because the whole eslint/typescript-eslint chain hung off the vulnerable
+   `minimatch`.
+3. `npm run lint` and `npx vitest run`. Lint is real evidence here, not a
+   formality: it globs every source file, so an ignore-pattern regression
+   from the forced major shows up as `dist/` being linted instead of skipped.
 
 Do not delete the `overrides` block as cruft: removing it re-resolves the
-parent's `^6` range and re-opens the alert it was added to close.
+parent's `^6`/`^10` range and re-opens the alert it was added to close.
 
 ## A Dependabot PR bumps the backend image's Python ahead of what CI tests
 
