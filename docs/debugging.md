@@ -388,6 +388,37 @@ for you — there is no `npm audit` gate — so prove it locally:
 Do not delete the `overrides` block as cruft: removing it re-resolves the
 parent's `^6` range and re-opens the alert it was added to close.
 
+## A Dependabot PR bumps the backend image's Python ahead of what CI tests
+
+**Symptom:** a `chore(docker): bump python from X-slim to Y-slim in /backend`
+PR changes only `backend/Dockerfile`, CI is green, and it looks free to
+merge — but the image it builds now runs an interpreter the test suite has
+never run on.
+
+**Cause:** that `FROM` line is the production runtime. Dependabot edits the
+tag and nothing else, so unless a CI job's `python-version` moves with it,
+the only thing verified is that the image *builds*, not that the app works
+on it. The comment above the line in `backend/Dockerfile` spells out the
+lockstep requirement; see
+[`AGENTS.md` rule 9](../AGENTS.md#9-compose-file-strategy).
+
+**Fix:** move `.github/workflows/ci.yml`'s `Backend (pytest, ruff, Python
+<version>)` job to the new version **in the same PR** (leave the required
+`Backend (pytest, ruff)` job on the `requires-python` floor), and run the
+suite on the new interpreter before merging. The exact image works for that:
+
+```bash
+docker run --rm -v "$PWD:/repo" -w /repo/backend python:3.15-slim \
+  sh -c "apt-get update -qq && apt-get install -y -qq git && \
+         pip install -e '.[dev]' && pytest"
+```
+
+Mount the whole repo, not just `backend/`: `tests/test_seed_collections.py`
+scans `collections/` from the repo root, and a `backend/`-only mount makes
+those tests fail with `assert 0 == 23` — an artifact of the mount, not a
+Python incompatibility. Rather than merging an untested bump, revert the
+`FROM` line and leave the image where CI can vouch for it.
+
 ## `TypeError: can't compare offset-naive and offset-aware datetimes` comparing an expiry field
 
 **Symptom:** comparing a stored `datetime` column (e.g. `expires_at`,
