@@ -96,8 +96,12 @@ GET /api/v1/collections/community/{collection_id}/install.md?target=<adapter>
   best answer is the guidance document, not a validation error, the handler owns
   the decision:
   1. **omitted** → `200 text/markdown`: a short "which framework?" document
-     listing every registered adapter with its full install URL. This is what
-     makes a bare pasted link useful instead of a 422.
+     listing every **enabled** adapter with its full install URL, so the links
+     it publishes are exactly the ones that will compile. Admin-disabled
+     adapters are named in a separate "currently disabled by an administrator"
+     line, with no URL — advertising a link that case 4 answers with a 400 would
+     be the same contradiction in a different place. This is what makes a bare
+     pasted link useful instead of a 422.
   2. **known** → the compiled install document.
   3. **unrecognised** → also `200 text/markdown`, the same guidance document,
      with one extra line naming the requested value as unknown. Returning 200
@@ -260,7 +264,11 @@ with the per-file sha256s below, so a later hand-edit is detectable locally:
 <<<END FILE>>>
 ```
 
-**What that trailer does and does not buy — be precise.** `check_target()`
+**What that trailer does and does not buy — be precise.** It writes `pack_id`,
+never the envelope's `profile_id`. That is not cosmetic: `_report_results()`
+(`cli/myace_cli/main.py:362`) skips a result only when it has **no** `profile_id`
+or has an `error`, so a copied `profile_id` would put a bogus pack id on the
+sync dashboard instead of being skipped. `check_target()`
 (`cli/myace_cli/sync.py:157`) reads `profile_id` out of the manifest and then
 calls `GET /api/v1/profiles/{profile_id}/compile-status` (line 171) to decide
 `stale`. A pack-scoped install has no setup id, so:
@@ -294,10 +302,35 @@ a Phase 2 item, since it needs a small CLI change (`cli/myace_cli/sync.py`) as
 well as the route. Until then the trailer is a self-check convenience for the
 agent, and the plan's phasing treats the manifest as optional and unverified.
 
-`?format=json` returns the raw `ProfileCompileResponse` shape
-(`{files, warnings, compiled_hash, artifact_count}`) for agents that prefer
-structure; `?format=zip` returns the same archive `/compile/zip` builds. All
-three share one `compile_pack()` call.
+`?format=json` returns the `ProfileCompileResponse` fields
+(`{files, warnings, compiled_hash, artifact_count, profile_name, profile_id}`)
+**plus the discriminator described in §3.2** —
+
+```json
+{
+  "subject": "pack",
+  "pack_id": "0b0f…",
+  "profile_id": "0b0f…",
+  "profile_name": "Software Engineer",
+  "target": "claude-code",
+  "artifact_count": 17,
+  "compiled_hash": "9f2c…",
+  "files": { "CLAUDE.md": "…" },
+  "warnings": []
+}
+```
+
+`profile_id` is present only because the response model requires it; `subject`
+and `pack_id` are what a client should branch on, and the two id fields are
+equal by construction. A consumer that ignores `subject` and treats
+`profile_id` as a setup id will 404 on `/api/v1/profiles/{id}` — the docstring
+must say so.
+
+`?format=zip` returns the same archive `/compile/zip` builds. It deliberately
+carries **no** discriminator file: the URL is already pack-scoped, and injecting
+an extra `_pack.json` would drop a MyACE bookkeeping file into the directory the
+user just unzipped into the install root. All three formats share one
+`compile_pack()` call.
 
 ### 3.4 Size and abuse
 
@@ -479,20 +512,21 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
    the existing compiler tests are the regression net.
 2. `collections.py`: `GET /community/{collection_id}/install.md`
    - `target: str | None = Query(None)` — **not** `CompileTarget` (§3.1);
-     omitted → guidance doc; unrecognised → guidance doc; disabled → 400
-   - `format: Literal["md","json","zip"] = "md"`,
-     `with_: list[uuid.UUID] = Query([], alias="with")`
+     omitted → guidance doc; unrecognised → guidance doc; registered-but-disabled
+     → 400 with `AdapterDisabledError`'s message
+   - `format: Literal["md","json","zip"] = "md"` — the `json` variant includes
+     the `{"subject": "pack", "pack_id": …}` discriminator (§3.3)
+   - `with_: list[uuid.UUID] = Query([], alias="with")`
    - `_get_public_collection_or_404()` for the pack and each `with=` pack
    - `@storefront_limiter.limit(settings.storefront_rate_limit)`
    - ETag from `compiled_hash`, `Cache-Control`, `X-Robots-Tag`,
      `Content-Disposition` via `slugify()`
-   - omitted / unrecognised `target` → 200 guidance document;
-     registered-but-disabled → 400 (reuse `AdapterDisabledError`'s message)
    - size guard → 413 with a zip suggestion
 3. `config.py`: `pack_install_max_bytes` (default 2 MiB). No default-target
    setting — an omitted `target` returns the guidance document, never a guess.
-4. Docstring on the route stating the ADR-0014 auth exception it inherits and
-   why no counter moves.
+4. Docstring on the route stating the ADR-0014 auth exception it inherits, why
+   no counter moves, and that `profile_id` in the envelope carries a **pack**
+   id (branch on `subject`).
 5. No migration, no model change, no adapter change.
 
 ### Frontend
@@ -532,8 +566,10 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
   unrecognised case an unreachable 422, so assert the 200-guidance behaviour
   explicitly.
 - Payload contains every enabled item's target file and **no** disabled ones.
-- `format=json` matches `ProfileCompileResponse`; `format=zip` opens and
-  contains the same filenames.
+- `format=json` returns the `ProfileCompileResponse` fields **plus**
+  `subject: "pack"` and `pack_id`, with `profile_id == pack_id`; assert the
+  discriminator, not just the field names. `format=zip` opens and contains the
+  same filenames with no added bookkeeping file.
 - `with=<base>` composes two packs and emits `name_collision` warnings when
   they collide.
 - ETag/304 round trip.
@@ -553,7 +589,7 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
 | Phase | Scope | Effort |
 |---|---|---|
 | 0 | Decide Q1/Q2 and the payload format (this doc) | — |
-| 1 | `compile_pack()` + `install.md` (with the omitted/unknown `target` cases) + JSON/zip formats + tests | ~1 day |
+| 1 | `compile_pack()` + `install.md` (the omitted / unrecognised / disabled `target` cases) + JSON/zip formats + tests | ~1 day |
 | 1.5 | `AgentInstallPanel` in `PackDetail` + `PACK_TARGETS` + `packApi` helper + tests + docs/ADR | ~0.5 day |
 | 2 | Authenticated `/{collection_id}/install.md`; `Agent` tab in `InstallMethodPanel`; pack-scoped `.../compile-status` + `check_target()` change so an agent-written manifest can report `stale` | ~1 day |
 | 2.5 | `myace install <url>` — fetch the JSON form, reuse `/apply`'s diff+backup+409-on-change machinery so the CLI path and the agent path share one safety story | ~1–2 days |
