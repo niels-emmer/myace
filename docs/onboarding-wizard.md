@@ -89,7 +89,7 @@ is only a default suggestion here, never a ranking or popularity claim.
 | Method | What happens | Claim `method` |
 |---|---|---|
 | Download `.zip` | `POST /profiles/compile/zip`, browser save | `zip` |
-| CLI | Copies `myace pull --profile '<name>' --target <target>` (the name is POSIX single-quoted) | `cli` |
+| CLI | Copies `myace pull --profile '<name>' --target '<target>'` (both values are POSIX single-quoted) | `cli` |
 | Install directly | Companion `/apply/preview` → explicit diff confirm → `/apply` | `apply` |
 
 Every successful action posts `POST /profiles/{id}/installs

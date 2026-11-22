@@ -749,7 +749,12 @@ export default function ProfileDetail() {
               <p className="mb-2 text-xs text-muted-foreground">Frameworks in this setup</p>
               <div className="flex flex-wrap gap-2">
                 {(adapters ?? [])
-                  .filter((adapter) => adapter.enabled)
+                  .filter(
+                    (adapter) =>
+                      // Keep a selected framework visible even if an admin has
+                      // since disabled its adapter, so it can be removed.
+                      adapter.enabled || profileFrameworks.includes(adapter.name),
+                  )
                   .map((adapter) => {
                     const selected = profileFrameworks.includes(adapter.name);
                     return (
@@ -769,7 +774,9 @@ export default function ProfileDetail() {
                       </button>
                     );
                   })}
-                {(adapters ?? []).filter((adapter) => adapter.enabled).length === 0 && (
+                {(adapters ?? []).filter(
+                  (adapter) => adapter.enabled || profileFrameworks.includes(adapter.name),
+                ).length === 0 && (
                   <span className="text-xs text-muted-foreground">
                     No adapters are enabled.
                   </span>
