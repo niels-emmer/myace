@@ -1,4 +1,4 @@
-"""Tests for install-time starter-pack seeding (app/services/seed_collections.py)."""
+"""Tests for install-time starter/community pack seeding (app/services/seed_collections.py)."""
 
 from pathlib import Path
 
@@ -11,6 +11,7 @@ from app.models.artifact import Artifact
 from app.models.collection import Collection
 from app.models.user import User
 from app.services.seed_collections import (
+    COMMUNITY_CONTRIBUTED_COLLECTIONS,
     STARTER_COLLECTIONS,
     SYSTEM_USER_EMAIL,
     get_or_create_system_user,
@@ -21,11 +22,28 @@ from app.services.seed_collections import (
 REPO_COLLECTIONS_ROOT = Path(__file__).resolve().parents[2] / "collections"
 
 EXPECTED_COLLECTION_COUNT = sum(len(c) for c in STARTER_COLLECTIONS.values())
+EXPECTED_COMMUNITY_COUNT = sum(len(c) for c in COMMUNITY_CONTRIBUTED_COLLECTIONS.values())
 
 
 async def _seed_against_repo_collections(db_session: AsyncSession, monkeypatch) -> None:
     monkeypatch.setattr(settings, "collections_root", str(REPO_COLLECTIONS_ROOT))
     await seed_starter_collections(db_session)
+
+
+def test_seed_registries_do_not_overlap() -> None:
+    """A slug listed in both maps would make its classification depend on
+    iteration order; keep the starter and community registries disjoint."""
+    starter_refs = {
+        (collection_type, slug)
+        for collection_type, collections in STARTER_COLLECTIONS.items()
+        for slug in collections
+    }
+    community_refs = {
+        (collection_type, slug)
+        for collection_type, collections in COMMUNITY_CONTRIBUTED_COLLECTIONS.items()
+        for slug in collections
+    }
+    assert starter_refs.isdisjoint(community_refs)
 
 
 async def test_seed_creates_expected_collections(db_session: AsyncSession, monkeypatch) -> None:
@@ -55,6 +73,83 @@ async def test_seed_creates_expected_collections(db_session: AsyncSession, monke
             assert len(artifacts) == collection.artifact_count
 
 
+async def test_seed_creates_community_contributed_collections(
+    db_session: AsyncSession, monkeypatch
+) -> None:
+    await _seed_against_repo_collections(db_session, monkeypatch)
+
+    result = await db_session.execute(
+        select(Collection).where(Collection.is_starter_pack.is_(False))
+    )
+    seeded = result.scalars().all()
+    assert len(seeded) == EXPECTED_COMMUNITY_COUNT
+
+    by_name = {c.name: c for c in seeded}
+    for collection_type, collections in COMMUNITY_CONTRIBUTED_COLLECTIONS.items():
+        for slug, meta in collections.items():
+            collection = by_name[meta["name"]]
+            assert collection.collection_type == collection_type
+            assert collection.git_url == f"seed://{collection_type}/{slug}"
+            assert collection.visibility == "public"
+            assert collection.published is True
+            assert collection.moderation_status == "approved"
+            assert collection.category == meta["category"]
+            assert collection.artifact_count > 0
+
+
+async def test_seeded_community_packs_are_listed_publicly(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch
+) -> None:
+    """The community shelf starts non-empty: the seeded community-contributed
+    add-ons are published + approved, so an anonymous visitor sees them at
+    /community and Home's highlights filter can surface them."""
+    await _seed_against_repo_collections(db_session, monkeypatch)
+
+    res = await async_client.get("/api/v1/collections/community?limit=100")
+    assert res.status_code == 200
+
+    items = res.json()["items"]
+    community_names = {item["name"] for item in items if not item["is_starter_pack"]}
+    expected = {
+        meta["name"]
+        for collections in COMMUNITY_CONTRIBUTED_COLLECTIONS.values()
+        for meta in collections.values()
+    }
+    assert community_names == expected
+
+    # Starter packs still fill the same endpoint; the client filters them out
+    # of the community highlights (Home.tsx).
+    assert any(item["is_starter_pack"] for item in items)
+
+
+async def test_seed_reclassifies_a_slug_moved_to_community(
+    db_session: AsyncSession, monkeypatch
+) -> None:
+    """A slug that moved from the starter map to the community map must flip
+    its existing row's flag in place, not insert a duplicate."""
+    await _seed_against_repo_collections(db_session, monkeypatch)
+
+    seed_ref = "seed://additional/eu-ai-act"
+    collection = (
+        await db_session.execute(select(Collection).where(Collection.git_url == seed_ref))
+    ).scalars().one()
+    assert collection.is_starter_pack is False
+
+    # Simulate the pre-change state: this community slug used to seed as a
+    # starter pack.
+    collection.is_starter_pack = True
+    db_session.add(collection)
+    await db_session.commit()
+
+    await _seed_against_repo_collections(db_session, monkeypatch)
+
+    rows = (
+        await db_session.execute(select(Collection).where(Collection.git_url == seed_ref))
+    ).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].is_starter_pack is False
+
+
 async def test_seed_is_idempotent(db_session: AsyncSession, monkeypatch) -> None:
     await _seed_against_repo_collections(db_session, monkeypatch)
     await _seed_against_repo_collections(db_session, monkeypatch)
@@ -63,6 +158,11 @@ async def test_seed_is_idempotent(db_session: AsyncSession, monkeypatch) -> None
         select(Collection).where(Collection.is_starter_pack.is_(True))
     )
     assert len(result.scalars().all()) == EXPECTED_COLLECTION_COUNT
+
+    community = await db_session.execute(
+        select(Collection).where(Collection.is_starter_pack.is_(False))
+    )
+    assert len(community.scalars().all()) == EXPECTED_COMMUNITY_COUNT
 
     users = (
         await db_session.execute(select(User).where(User.email == SYSTEM_USER_EMAIL))
@@ -211,10 +311,11 @@ async def test_additional_collections_compile_clean_on_software_engineer(
     await _seed_against_repo_collections(db_session, monkeypatch)
     await _register(async_client)
 
+    # Every seeded collection, starter and community-contributed alike: the
+    # community-contributed add-ons still ship the same content and must keep
+    # compiling cleanly onto these bases.
     collections = (
-        await db_session.execute(
-            select(Collection).where(Collection.is_starter_pack.is_(True))
-        )
+        await db_session.execute(select(Collection).where(Collection.git_url.like("seed://%")))
     ).scalars().all()
     by_name = {c.name: c for c in collections}
 
@@ -382,10 +483,11 @@ async def test_additional_collections_compile_clean_on_devops_engineer(
     await _seed_against_repo_collections(db_session, monkeypatch)
     await _register(async_client)
 
+    # Every seeded collection, starter and community-contributed alike: the
+    # community-contributed add-ons still ship the same content and must keep
+    # compiling cleanly onto these bases.
     collections = (
-        await db_session.execute(
-            select(Collection).where(Collection.is_starter_pack.is_(True))
-        )
+        await db_session.execute(select(Collection).where(Collection.git_url.like("seed://%")))
     ).scalars().all()
     by_name = {c.name: c for c in collections}
 

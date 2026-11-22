@@ -610,34 +610,35 @@ collection before your change landed. A brand-new install (empty
 database) picks up the edit just fine.
 
 **Cause:** `seed_starter_collections()`
-(`backend/app/services/seed_collections.py`) is idempotent by `(name,
-is_starter_pack)` at the **collection** level only (AGENTS.md rule 25):
-`if existing.scalar_one_or_none() is not None: continue` skips the
-entire collection — including re-reading any of its source files — the
-moment a same-named starter collection row already exists. It was
-designed to make repeated startups/restarts/replicas safe (never
-duplicate a starter pack), not to propagate in-place content edits to
-files it already imported once. Adding a brand-new starter pack (a new
-slug/name in `STARTER_COLLECTIONS`) always works, because that's a
-collection that's never existed before; editing an *existing* one's
-files does not, because the collection row this check keys off of
-already exists from the previous seed.
+(`backend/app/services/seed_collections.py`) is idempotent by the stable
+`seed://<collection_type>/<slug>` `git_url` at the **collection** level
+only (AGENTS.md rule 25): an existing row is skipped before any artifact
+is looked at, so its source files are never re-read. It was designed to
+make repeated startups/restarts/replicas safe (never duplicate a seeded
+pack), not to propagate in-place content edits to files it already
+imported once. Adding a brand-new pack (a new slug in
+`STARTER_COLLECTIONS` or `COMMUNITY_CONTRIBUTED_COLLECTIONS`) always
+works, because that's a collection that's never existed before; editing an
+*existing* one's files does not, because the collection row this check
+keys off of already exists from the previous seed. (The `is_starter_pack`
+flag itself *is* reconciled on each boot, so moving a slug between those
+two maps reclassifies it in place.)
 
-**Fix:** there is no automatic propagation path today — this is a known
-gap in the seeding mechanism, not a bug to patch around per edit. On an
-already-seeded deployment, either:
+**Fix:** there is no automatic content-propagation path today — this is a
+known gap in the seeding mechanism, not a bug to patch around per edit. On
+an already-seeded deployment, either:
 
-1. Delete the affected starter collection's row (and its artifacts —
-   respect the `is_starter_pack=True` + owner filter so you don't touch
-   user data) from the database and restart the backend so
+1. Delete the affected seeded pack's row (and its artifacts — respect the
+   `seed://` system-owner filter so you don't touch user data) from the
+   database and restart the backend so
    `seed_starter_collections()` re-imports it fresh, or
 2. Hand-edit the specific artifact row(s) directly (e.g. a one-off `UPDATE
    artifacts SET handoff_to = '...' WHERE ...`) if a full reseed isn't
    practical.
 
-A fresh install (or one where that specific starter collection has never
-been seeded before) always reflects the current state of `collections/`
-in this repo, since idempotency only ever short-circuits on a match.
+A fresh install (or one where that specific pack has never been seeded
+before) always reflects the current state of `collections/` in this repo,
+since idempotency only ever short-circuits on a match.
 
 ## A compiled profile is missing a rule/skill/agent that's definitely enabled in one of its collections
 

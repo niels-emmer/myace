@@ -51,7 +51,7 @@ erDiagram
         bool published "true only once moderation_status = approved"
         string category "nullable — browse category"
         string license "nullable — SPDX-style identifier"
-        bool is_starter_pack "true for the seeded starter collections"
+        bool is_starter_pack "true for seeded starter collections; false for community-contributed seeded add-ons"
         float avg_rating "denormalized cache of collection_ratings"
         int rating_count "denormalized cache of collection_ratings"
         string moderation_status "draft | submitted | approved | denied | unpublished"
@@ -176,17 +176,20 @@ A named bag of artifacts. `git_url` is a real repository URL for
 GitHub-imported collections, or a synthetic URI for anything that didn't
 come from a real git remote — `imported://<name>` for a local scan or
 bulk-exported artifacts, `imported://community/<name>` for a community
-import, `seed://<collection_type>/<slug>` for the built-in starter packs
-(`seed_collections.py`) — don't assume it's always dereferenceable.
+import, `seed://<collection_type>/<slug>` for the built-in seeded packs
+(`seed_collections.py` — starter and community-contributed alike) — don't
+assume it's always dereferenceable.
 `visibility` (`private`/`public`) is the only access-control dimension
 beyond ownership; there is no per-collaborator sharing. `is_active` is a
 soft-delete flag — deleted collections are never physically removed.
 `artifact_count` is a denormalized cache updated by every route that
 adds/removes artifacts (import, bulk delete, bulk export) — if you add a new
 artifact-mutating route, update it there too or the count will drift.
-`is_starter_pack` marks the collections seeded on every backend startup from
-`collections/base/` and `collections/additional/`, owned by a dedicated
-passwordless system account — see AGENTS.md rule 25.
+`is_starter_pack` distinguishes the two seeded sets owned by a dedicated
+passwordless system account, both seeded from `collections/base/` and
+`collections/additional/` on every backend startup: `True` for the starter
+packs in `STARTER_COLLECTIONS`, `False` for the community-contributed add-ons
+in `COMMUNITY_CONTRIBUTED_COLLECTIONS` — see AGENTS.md rule 25.
 `avg_rating`/`rating_count` are a denormalized cache of
 `collection_ratings`, recomputed transactionally on every rating
 write/delete — see the `collection_ratings` section below.
@@ -563,10 +566,12 @@ to a non-admin moderator once `moderation_status != "draft"`, so they can
 actually open a submission's contents to review it, not just its queue-row
 metadata — see rule 40 in `AGENTS.md`.
 
-This is entirely separate from the seeded starter-pack set (`is_starter_pack
-= True`, owned by the system account — see the `collections` table above):
-starter packs are grandfathered straight to `moderation_status = "approved"`
-at seed time, never routed through the queue. The migration that introduced
+This is entirely separate from the seeded starter/community sets (all owned
+by the system account — see the `collections` table above): both starter
+packs (`is_starter_pack = True`) and the small community-contributed add-on
+set (`is_starter_pack = False`) are grandfathered straight to
+`moderation_status = "approved"` at seed time, never routed through the
+queue. The migration that introduced
 `moderation_status` did the same one-time grandfathering for every
 collection that was already `published = True AND is_active = True`,
 matching this exact query's filter — nothing already visible in the
