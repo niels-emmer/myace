@@ -53,6 +53,10 @@ After forking, before exposing it beyond localhost:
    ([`.env.example`](../.env.example)) or from System Settings → Authentication
    Providers in the admin UI. See
    [extending.md#adding-an-sso-provider](extending.md#adding-an-sso-provider).
+   **Force MFA is enforced, not advisory:** with the MFA feature on, turning
+   on System Settings → Force MFA blocks every account without a TOTP factor
+   at login (password *and* SSO) until it enrols. Enable it deliberately; it
+   is inert while the MFA feature itself is off.
 3. Optionally configure SMTP for password-reset emails, the same way — via
    `.env` or System Settings → Email (SMTP), with a "Send Test Email"
    button to verify it. See

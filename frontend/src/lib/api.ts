@@ -233,8 +233,21 @@ export const authApi = {
       body: JSON.stringify(data),
     }),
 
+  // The password step returns either a real `User` (a session cookie was set)
+  // or an MFA challenge/enrolment-required state (no session yet) — see
+  // AuthProvider.login.
   login: (data: import('@/types').UserLogin) =>
-    request<import('@/types').User>('/auth/login', {
+    request<
+      | import('@/types').User
+      | import('@/types').LoginMfaResponse
+      | import('@/types').MfaEnrollmentRequiredResponse
+    >('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  loginMfa: (data: { mfa_token: string; code: string }) =>
+    request<import('@/types').MfaLoginResult>('/auth/login/mfa', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

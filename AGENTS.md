@@ -327,6 +327,17 @@ Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d
   existing clients don't break; new clients must use the body.
   `/me/mfa/totp/setup` 400s if MFA is already enabled — it must never
   silently replace an active secret.
+- **`mfa_forced` is enforced at login, for password and SSO alike.** With the
+  MFA feature on and System Settings → Force MFA enabled, an account with no
+  enrolled TOTP factor gets **no session** from either `login_with_password()`
+  or `auth_callback()` — only a scoped enrolment challenge, which it must
+  complete via `POST /me/mfa/totp/setup` + `.../verify` before entering the
+  app. `mfa_forced` is deliberately inert while `mfa_enabled` is off:
+  `setup_totp()` refuses to run then, so enforcing it alone would lock every
+  unenrolled account out with no way to comply. Enabling Force MFA is a
+  deliberate operator decision, never a side effect of upgrading. The MFA
+  login token is single-use (`users.mfa_token_used_hash`) and a TOTP code
+  cannot be replayed inside its 30-second step (`users.last_totp_counter`).
 - **`DELETE /doc-cache/{id}` is admin-only** — the cache is one global
   resource shared by every user, not owned by whoever fetched it.
 - **Frontend transitive security pins live in `frontend/package.json`'s
