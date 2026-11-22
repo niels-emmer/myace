@@ -34,6 +34,12 @@ class User(SQLModel, table=True):
     notify_on_comment: bool = Field(
         default=False, sa_column=Column("notify_on_comment", Boolean, nullable=False, default=False)
     )
+    # Set when the first-run wizard finishes or is skipped (cross-device);
+    # localStorage remains the draft store. See PATCH /auth/me/onboarding.
+    onboarding_completed_at: datetime | None = Field(
+        default=None,
+        sa_column=Column("onboarding_completed_at", DateTime(timezone=True), nullable=True),
+    )
     mfa_enabled: bool = Field(
         default=False, sa_column=Column("mfa_enabled", Boolean, default=False)
     )
@@ -91,7 +97,17 @@ class UserRead(SQLModel):
     role: Literal["user", "moderator", "admin"] = "user"
     notify_on_download: bool = False
     notify_on_comment: bool = False
+    onboarding_completed_at: datetime | None = None
     created_at: datetime
+
+
+class OnboardingUpdate(SQLModel):
+    """Body for `PATCH /auth/me/onboarding`.
+
+    Only ever touches the calling user's own row — there is no user id in
+    the body (ownership comes from `current_user.id`, rule 13).
+    """
+    completed: bool
 
 
 class UserRegister(SQLModel):

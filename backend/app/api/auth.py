@@ -34,6 +34,7 @@ from app.models.system_settings import SystemSettings
 from app.models.token import ApiToken, ApiTokenCreate, ApiTokenCreateResponse, ApiTokenRead
 from app.models.user import (
     ForgotPasswordRequest,
+    OnboardingUpdate,
     PasswordChange,
     ResetPasswordRequest,
     User,
@@ -346,6 +347,26 @@ async def update_profile(
     for field, value in update_data.items():
         setattr(current_user, field, value)
 
+    current_user.updated_at = datetime.now(UTC)
+    session.add(current_user)
+    await session.commit()
+    await session.refresh(current_user)
+    return current_user
+
+
+@router.patch("/me/onboarding", response_model=UserRead)
+async def update_onboarding(
+    data: OnboardingUpdate,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Mark the first-run wizard complete or clear that state.
+
+    Always touches the calling user's own row only (`current_user.id`,
+    rule 13) — there is no user id in the body. Cross-device; the draft
+    itself stays in the browser's localStorage.
+    """
+    current_user.onboarding_completed_at = datetime.now(UTC) if data.completed else None
     current_user.updated_at = datetime.now(UTC)
     session.add(current_user)
     await session.commit()

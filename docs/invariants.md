@@ -160,8 +160,10 @@ names where it's enforced so you can verify it hasn't regressed.
 19. **`Profile.additional_collection_ids` and `disabled_artifact_ids` are
     JSON UUID lists, not real foreign keys.** The database will not stop you
     from storing a reference to a collection that's later deleted or made
-    private. `compile_profile()` resolves these at request time and
-    silently skips anything it can't find — it does not error. Don't assume
+    private. `compile_profile()` resolves these at request time; a
+    collection it can't resolve is no longer skipped silently — it falls
+    back to the profile's reference snapshot when one exists, and emits a
+    `pack_unavailable` warning either way (invariant 24). Don't assume
     referential integrity here that the schema doesn't actually provide.
 
 20. **`Collection.artifact_count` is a denormalized cache**, not a computed
@@ -204,16 +206,45 @@ names where it's enforced so you can verify it hasn't regressed.
     login token is single-use, and a TOTP code cannot be replayed inside its
     30-second step.
 
+24. **An unavailable pack compiles from a frozen reference snapshot, and a
+    pack that can't be resolved is never skipped silently.** On profile
+    create/update, `capture_pack_snapshots()` records the enabled live
+    artifact ids (plus a hash and timestamp) for every referenced collection
+    the requesting user does **not** own — owned collections are never
+    snapshotted. When `compile_profile()` finds a referenced collection
+    missing, inactive, or unreadable, it loads those artifact ids by
+    `(id, collection_id)` with no live collection-read check and emits
+    `ValidationIssue(code="pack_unavailable")`. With no snapshot it skips the
+    collection but still emits `pack_unavailable` — the old silent-skip
+    behaviour is gone. That reload is the one deliberate compile-time
+    authorization bypass; it is scoped to ids the profile owner could read
+    when the snapshot was captured, and it relies on artifacts being
+    soft-deleted at most (invariant 18), never hard-deleted. See
+    [ADR-0015](adr/0015-pack-reference-freeze.md).
+
+25. **Install claims are not verification.** A `ProfileInstall` row records
+    only that a user *said* they installed a profile to a target at a
+    location. The only verified source of "the files match the compiled
+    output" remains `SyncStatus`, fed by `myace check --report`. Like sync
+    status (invariant 21), install claims are self-scoped: `POST`/`GET
+    /profiles/{id}/installs` read and write only the caller's own rows, with
+    no admin bypass. `POST /collections/{id}/use` is likewise a count of
+    *references*, not installs — it increments `download_count` once per
+    call, and an owner is blocked (400) from inflating their own count. See
+    [ADR-0015](adr/0015-pack-reference-freeze.md).
+
 ## A gap that's accepted, not fixed
 
 **Profile visibility doesn't cascade to its collections.** A profile marked
 `is_public=True` can reference a collection that's private to its owner (or
-becomes private later). `compile_profile()` does not re-check the
-visibility of the collections it pulls from — the profile's own
-owner/public flag is the only gate checked before compilation. Concretely:
-if you can see a public profile, you can compile it and see the (otherwise
-private) artifacts it references. This is a deliberate simplification
-consistent with "no granular per-resource sharing" (see
+becomes private later). `compile_profile()` does check
+`_can_read_collection()` for the requesting user, but when that check fails
+it falls back to the profile's reference snapshot (invariant 24) — so a
+public profile compiled by someone else still exposes the artifacts the
+profile's owner could see when the snapshot was captured. Concretely: if you
+can see a public profile, you can compile it and see the (otherwise private)
+artifacts it references. This is a deliberate simplification consistent with
+"no granular per-resource sharing" (see
 [ADR-0003](adr/0003-ownership-based-authorization.md)), not an oversight —
 but it's worth knowing before you rely on collection privacy as a hard
 boundary.

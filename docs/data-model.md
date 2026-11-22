@@ -13,11 +13,13 @@ erDiagram
     USER ||--o{ API_TOKEN : owns
     USER ||--o{ COLLECTION_RATING : rates
     USER ||--o{ COLLECTION_COMMENT : writes
+    USER ||--o{ PROFILE_INSTALL : claims
     COLLECTION ||--o{ ARTIFACT : contains
     COLLECTION ||--o{ COLLECTION_RATING : "rated by"
     COLLECTION ||--o{ COLLECTION_COMMENT : "commented on"
     PROFILE }o--|| COLLECTION : "base_collection_id"
     PROFILE }o--o{ COLLECTION : "additional_collection_ids (JSON list, not FK)"
+    PROFILE ||--o{ PROFILE_INSTALL : "installed as"
 
     USER {
         uuid id PK
@@ -31,6 +33,7 @@ erDiagram
         string role "user | moderator | admin"
         bool notify_on_download "daily digest opt-in"
         bool notify_on_comment "immediate email opt-in"
+        datetime onboarding_completed_at "nullable — first-run wizard done/skipped"
         bool mfa_enabled
         string totp_secret "nullable — set once MFA is enrolled"
     }
@@ -46,6 +49,7 @@ erDiagram
         int download_count "tracked for community collections"
         bool published "true only once moderation_status = approved"
         string category "nullable — browse category"
+        string license "nullable — SPDX-style identifier"
         bool is_starter_pack "true for the seeded starter collections"
         float avg_rating "denormalized cache of collection_ratings"
         int rating_count "denormalized cache of collection_ratings"
@@ -78,10 +82,22 @@ erDiagram
         uuid base_collection_id FK
         string additional_collection_ids "JSON-encoded list[uuid]"
         string disabled_artifact_ids "JSON-encoded list[uuid]"
-        string target_framework "nullable — preferred compile target, informational only"
+        string target_framework "nullable, deprecated — single preferred compile target"
+        string target_frameworks "JSON-encoded list[str] of adapter names"
+        string pack_snapshots "JSON-encoded dict of frozen non-owned pack references"
         bool is_public
         datetime deleted_at "nullable — soft-delete timestamp"
         int version "incremented on every update"
+    }
+    PROFILE_INSTALL {
+        uuid id PK
+        uuid user_id FK
+        uuid profile_id FK
+        string target "adapter name"
+        string location "project | machine"
+        string method "cli | zip | ..."
+        datetime created_at
+        datetime updated_at
     }
     API_TOKEN {
         uuid id PK
@@ -145,6 +161,11 @@ moderation routes. The two are kept in sync by
 `notify_on_download`/`notify_on_comment` (both default `false`) are
 per-user, self-service opt-ins for community-collection notification
 emails — see the "Community collections" section below.
+`onboarding_completed_at` (nullable) records that the first-run wizard was
+finished or explicitly skipped. It is written only by `PATCH
+/auth/me/onboarding` (`{"completed": true|false}`), which always touches the
+calling user's own row, and is exposed on `UserRead` so the wizard never
+repeats on another device. The in-progress draft stays in localStorage.
 
 ### `collections`
 
@@ -181,6 +202,9 @@ for the daily download-digest script
 (`app/scripts/send_download_digests.py`), not exposed via the API.
 `last_verified_at`/`verified_by` back manual freshness verification (Epic
 4.5) — see the "Freshness verification" section below.
+`license` (nullable `String(64)`) is an optional SPDX-style identifier
+surfaced in the publish flow and pack detail. There is no validation beyond
+the length cap — existing packs have no license, and nothing gates on it.
 
 ### `artifacts`
 
@@ -248,13 +272,38 @@ with the existing all-routes-require-auth convention instead.
 `disabled_artifact_ids` are **not** — they're JSON-encoded UUID lists,
 resolved and validated at request time rather than enforced by the database.
 This means the database will happily store a profile referencing a
-collection that's since been deleted or made private; the compiler
-(`compile_profile()`) silently skips any collection ID it can't resolve
-rather than erroring. `version` increments on every `PUT` — there's no
-history table, just the counter. `target_framework` is an optional,
-free-string "preferred target" hint shown in the UI — it's never validated
-against the adapter registry and has no effect on compilation; the actual
-target is chosen per-compile-request. `is_public` is the profile's own
+collection that's since been deleted or made private; `compile_profile()`
+now falls back to a reference snapshot or emits a `pack_unavailable`
+warning instead of skipping silently (see below and
+[ADR-0015](adr/0015-pack-reference-freeze.md)). `version` increments on every
+`PUT` — there's no history table, just the counter.
+
+`target_framework` (nullable, deprecated) is the old single-value "preferred
+target" hint. It is still read and written for compatibility but no longer
+drives anything; `target_frameworks` (JSON-encoded `list[str]`, default
+`"[]"`) is the new field, exposed on `ProfileRead`/`ProfileCreate`. The
+migration backfills `[target_framework]` for every row that had a non-null
+legacy value. Values are filtered against the registered adapter names on
+write — unknown values are dropped silently rather than 422'd, so an admin
+disabling an adapter can never brick an existing setup. The actual compile
+target is still chosen per-compile-request; this list is what the UI shows as
+"installed on these frameworks" and what the install panel pre-fills.
+
+`pack_snapshots` (JSON-encoded `Text`, default `"{}"`) is the reference
+freeze: `{collection_id: {"artifact_ids": [...], "hash": "<sha256>",
+"captured_at": "<iso8601>"}}`. It is captured/refreshed on profile create
+and update **only for referenced collections the requesting user does not
+own** — an owned collection is always readable, so freezing it would add
+nothing. `compile_profile()` falls back to these artifact ids when a
+referenced collection is missing, inactive, or unreadable, and emits a
+`pack_unavailable` validation warning either way (with or without a
+snapshot). Artifacts are soft-deleted at most (rule 15), so a frozen id still
+resolves; a later soft-delete of the pack does not remove it from the frozen
+set. This is the one deliberate compile-time authorization bypass, scoped to
+ids the profile owner already had access to at capture time — see
+[ADR-0015](adr/0015-pack-reference-freeze.md).
+
+`is_public` is the profile's own
 visibility flag, independent of the visibility of the collections it
 references (see the documented gap in
 [invariants.md](invariants.md#a-gap-thats-accepted-not-fixed)). `deleted_at`
@@ -353,6 +402,24 @@ the same triple updates `in_sync`/`locally_modified_files`/
 cross-user visibility here, not even for admins (this is personal local-
 machine state, not a community feature); see
 [invariants.md](invariants.md).
+
+### `profile_installs`
+
+A user's *claim* that they installed a profile to a target at a location —
+never verification. `SyncStatus` (fed by `myace check --report`) remains the
+only verified source of "the files on disk match the compiled output"; a row
+here only means the user said "I installed this". Four columns identify a
+claim: `user_id`, `profile_id`, `target` (adapter name), `location`
+(`project`/`machine`), with a unique constraint on that tuple so `POST
+/profiles/{id}/installs` upserts rather than duplicating; `method` (e.g.
+`cli`/`zip`) is descriptive. `GET /profiles/{id}/installs` returns only the
+caller's own rows — like `sync_statuses`, this is personal local-machine
+state, not a community feature, so it is never visible to another user (not
+even an admin). Both routes authorize reading the parent profile via the
+existing profile rule (owner or public), and `target` reuses `CompileTarget`
+so an unknown adapter is a 422. See
+[ADR-0015](adr/0015-pack-reference-freeze.md) and the "Install claims are
+not verification" invariant.
 
 ### `api_tokens`
 

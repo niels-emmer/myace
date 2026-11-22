@@ -36,6 +36,9 @@ class Collection(SQLModel, table=True):
     download_count: int = Field(default=0, sa_column=Column("download_count", Integer, default=0))
     published: bool = Field(default=False, sa_column=Column("published", Boolean, default=False))
     category: str | None = Field(default=None, sa_column=Column("category", String(128)))
+    # SPDX-style license identifier, optional. No validation beyond the
+    # String(64) length cap — existing packs have no license.
+    license: str | None = Field(default=None, sa_column=Column("license", String(64)))
     is_starter_pack: bool = Field(
         default=False, sa_column=Column("is_starter_pack", Boolean, nullable=False, default=False)
     )
@@ -100,6 +103,7 @@ class CollectionCreate(SQLModel):
     collection_type: Literal["base", "additional"] = "base"
     visibility: Literal["private", "public"] = "private"
     category: str | None = None
+    license: str | None = None
 
 
 class CollectionUpdate(SQLModel):
@@ -109,6 +113,7 @@ class CollectionUpdate(SQLModel):
     collection_type: Literal["base", "additional"] | None = None
     visibility: Literal["private", "public"] | None = None
     category: str | None = None
+    license: str | None = None
 
 
 class CollectionRead(SQLModel):
@@ -126,6 +131,7 @@ class CollectionRead(SQLModel):
     download_count: int = 0
     published: bool = False
     category: str | None = None
+    license: str | None = None
     is_starter_pack: bool = False
     avg_rating: float = 0.0
     rating_count: int = 0

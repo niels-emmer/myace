@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from app.adapters import list_adapters
 from app.core.authz import authorize_access, owner_or_public_clause
 from app.core.database import get_session
 from app.core.deps import get_current_user
@@ -23,10 +24,16 @@ from app.models.profile import (
     ProfileCreate,
     ProfileRead,
 )
+from app.models.profile_install import (
+    ProfileInstall,
+    ProfileInstallCreate,
+    ProfileInstallRead,
+)
 from app.models.user import User
 from app.services.compiler import (
     AdapterDisabledError,
     UnknownAdapterError,
+    capture_pack_snapshots,
     compile_profile,
     compute_compile_status,
 )
@@ -58,6 +65,50 @@ async def _assert_readable_collection(
     )
 
 
+def _known_adapter_names() -> set[str]:
+    return {adapter.adapter_name() for adapter in list_adapters()}
+
+
+def _resolve_target_frameworks(profile_data: ProfileCreate) -> list[str]:
+    """Filter `target_frameworks` to known adapter names, dropping unknown
+    values silently (never 422 — an admin disabling an adapter must not
+    brick an existing setup, per docs/adr/0015-pack-reference-freeze.md).
+
+    Falls back to the deprecated `target_framework` field when no valid new
+    value was supplied, so an old client that only writes the legacy field
+    still records the framework.
+    """
+    known = _known_adapter_names()
+    selected = list(dict.fromkeys(
+        name for name in profile_data.target_frameworks if name in known
+    ))
+    if not selected and profile_data.target_framework in known:
+        selected = [profile_data.target_framework]
+    return selected
+
+
+def _parse_target_frameworks(raw: str) -> list[str]:
+    try:
+        parsed = json.loads(raw or "[]")
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [str(value) for value in parsed]
+
+
+def _install_to_read(install: ProfileInstall) -> ProfileInstallRead:
+    return ProfileInstallRead(
+        id=install.id,
+        profile_id=install.profile_id,
+        target=install.target,
+        location=install.location,
+        method=install.method,
+        created_at=install.created_at,
+        updated_at=install.updated_at,
+    )
+
+
 @router.post("", response_model=ProfileRead, status_code=status.HTTP_201_CREATED)
 async def create_profile(
     profile_data: ProfileCreate,
@@ -68,6 +119,9 @@ async def create_profile(
     await _assert_readable_collection(session, profile_data.base_collection_id, current_user)
     for cid in profile_data.additional_collection_ids:
         await _assert_readable_collection(session, cid, current_user)
+
+    referenced = [profile_data.base_collection_id, *profile_data.additional_collection_ids]
+    snapshots = await capture_pack_snapshots(session, referenced, current_user.id)
 
     db_profile = Profile(
         owner_id=current_user.id,
@@ -81,6 +135,8 @@ async def create_profile(
             [str(aid) for aid in profile_data.disabled_artifact_ids]
         ),
         target_framework=profile_data.target_framework,
+        target_frameworks=json.dumps(_resolve_target_frameworks(profile_data)),
+        pack_snapshots=json.dumps(snapshots),
         is_public=profile_data.is_public,
     )
     session.add(db_profile)
@@ -128,6 +184,82 @@ async def get_profile(
         is_public=profile.is_public, resource_name="Profile",
     )
     return _profile_to_read(profile)
+
+
+@router.get("/{profile_id}/installs", response_model=list[ProfileInstallRead])
+async def list_profile_installs(
+    profile_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """List the caller's claimed installs of this profile.
+
+    Install claims are personal local-machine state, like `SyncStatus` —
+    only the calling user's own rows are returned, not any other user's,
+    even for admins. A claim is not verification; `SyncStatus` remains the
+    only verified source (docs/adr/0015-pack-reference-freeze.md).
+    """
+    profile = await _get_profile_or_404(session, profile_id)
+    authorize_access(
+        owner_id=profile.owner_id, current_user=current_user,
+        is_public=profile.is_public, resource_name="Profile",
+    )
+
+    result = await session.execute(
+        select(ProfileInstall)
+        .where(
+            ProfileInstall.profile_id == profile_id,
+            ProfileInstall.user_id == current_user.id,
+        )
+        .order_by(ProfileInstall.created_at)
+    )
+    return [_install_to_read(row) for row in result.scalars().all()]
+
+
+@router.post("/{profile_id}/installs", response_model=ProfileInstallRead)
+async def claim_profile_install(
+    profile_id: uuid.UUID,
+    install_data: ProfileInstallCreate,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Record (upsert) the caller's claim that they installed this profile.
+
+    Unique per `(user, profile, target, location)`; a repeat claim updates
+    `method`/`updated_at` in place rather than inserting a duplicate. This
+    is a claim, never verification — see docs/adr/0015-pack-reference-freeze.md.
+    """
+    profile = await _get_profile_or_404(session, profile_id)
+    authorize_access(
+        owner_id=profile.owner_id, current_user=current_user,
+        is_public=profile.is_public, resource_name="Profile",
+    )
+
+    result = await session.execute(
+        select(ProfileInstall).where(
+            ProfileInstall.user_id == current_user.id,
+            ProfileInstall.profile_id == profile_id,
+            ProfileInstall.target == install_data.target,
+            ProfileInstall.location == install_data.location,
+        )
+    )
+    install = result.scalar_one_or_none()
+    if install is None:
+        install = ProfileInstall(
+            user_id=current_user.id,
+            profile_id=profile_id,
+            target=install_data.target,
+            location=install_data.location,
+            method=install_data.method,
+        )
+        session.add(install)
+    else:
+        install.method = install_data.method
+        install.updated_at = datetime.now(UTC)
+
+    await session.commit()
+    await session.refresh(install)
+    return _install_to_read(install)
 
 
 @router.post("/compile", response_model=ProfileCompileResponse)
@@ -266,6 +398,9 @@ async def update_profile(
     for cid in profile_data.additional_collection_ids:
         await _assert_readable_collection(session, cid, current_user)
 
+    referenced = [profile_data.base_collection_id, *profile_data.additional_collection_ids]
+    snapshots = await capture_pack_snapshots(session, referenced, current_user.id)
+
     profile.name = profile_data.name
     profile.description = profile_data.description
     profile.base_collection_id = profile_data.base_collection_id
@@ -276,6 +411,8 @@ async def update_profile(
         [str(aid) for aid in profile_data.disabled_artifact_ids]
     )
     profile.target_framework = profile_data.target_framework
+    profile.target_frameworks = json.dumps(_resolve_target_frameworks(profile_data))
+    profile.pack_snapshots = json.dumps(snapshots)
     profile.is_public = profile_data.is_public
     profile.version += 1
 
@@ -317,6 +454,7 @@ def _profile_to_read(profile: Profile) -> ProfileRead:
             uuid.UUID(aid) for aid in json.loads(profile.disabled_artifact_ids)
         ],
         target_framework=profile.target_framework,
+        target_frameworks=_parse_target_frameworks(profile.target_frameworks),
         is_public=profile.is_public,
         version=profile.version,
         created_at=profile.created_at,
