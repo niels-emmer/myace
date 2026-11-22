@@ -3,11 +3,14 @@
 collections/base/<slug>/ and collections/additional/<slug>/ hold hand-authored
 example content in the same on-disk shape the scanner already reads (skills/,
 agents/, commands/, AGENTS.md) and reuses its exact per-file parsers — see
-_scan_starter_collection() below for why this doesn't go through
+_scan_seeded_collection() below for why this doesn't go through
 scanner.scan_directory() itself. This module walks those directories and
 turns them into Collection/Artifact rows, owned by a dedicated system
-account, on every backend startup. It's idempotent: each collection is
-looked up by name before insertion, so repeated boots/restarts and
+account, on every backend startup. Most are seeded as starter packs
+(is_starter_pack=True); a small set of highly-specialized add-ons is seeded
+from COMMUNITY_CONTRIBUTED_COLLECTIONS with is_starter_pack=False so they
+classify as community packs. It's idempotent: each collection is looked up by
+its stable seed:// git_url before insertion, so repeated boots/restarts and
 multi-replica startups never create duplicates.
 """
 
@@ -130,16 +133,6 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "iac-expert collection."
             ),
         },
-        "scaleway": {
-            "name": "Scaleway Cloud Architect",
-            "category": "Infrastructure",
-            "description": (
-                "For Scaleway infrastructure and governance. Organization/project "
-                "structure, IAM permission scoping, VPC/private-network topology, "
-                "security groups, and WAF edge protection. Layers on the "
-                "cloud-agnostic iac-expert collection."
-            ),
-        },
         "auditor": {
             "name": "Security Auditor",
             "category": "Governance & Security",
@@ -184,22 +177,6 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "injection discipline, Spring conventions, and reproducible builds."
             ),
         },
-        "ios-developer": {
-            "name": "iOS Developer",
-            "category": "Frontend",
-            "description": (
-                "For building iOS apps. SwiftUI-first development, state management "
-                "patterns, offline-first architecture, and App Store readiness."
-            ),
-        },
-        "android-developer": {
-            "name": "Android Developer",
-            "category": "Frontend",
-            "description": (
-                "For building Android apps. Jetpack Compose-first development, state "
-                "hoisting, lifecycle-aware architecture, and Play Store readiness."
-            ),
-        },
         "spec-driven-dev": {
             "name": "Spec-Driven Development",
             "category": "Process & Methodology",
@@ -216,15 +193,6 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "For building features around LLMs. Prompt iteration backed by evals, "
                 "treating model output as untrusted input, and deliberate "
                 "context-window curation — grounded in the 12-factor-agents principles."
-            ),
-        },
-        "eu-ai-act": {
-            "name": "EU AI Act Compliance",
-            "category": "Governance & Security",
-            "description": (
-                "For assessing AI systems against the EU AI Act (Regulation "
-                "2024/1689). Risk-tier classification, high-risk/transparency/GPAI "
-                "obligation reviews, and compliance documentation drafts."
             ),
         },
         "database": {
@@ -285,15 +253,64 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
     },
 }
 
+# Highly-specialized add-ons that ship on the community shelf rather than as
+# starter packs. Content and metadata are identical in shape to a starter
+# entry and live in the same `collections/additional/<slug>/` directory, but
+# these are seeded with `is_starter_pack=False` (still public + published +
+# approved) so `packSource()` classifies them as Community and the Home /
+# landing highlights have real content to show. Moving a slug between the two
+# maps reclassifies the existing seeded row in place — see
+# `seed_starter_collections()` — so don't add the same slug to both.
+COMMUNITY_CONTRIBUTED_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
+    "additional": {
+        "eu-ai-act": {
+            "name": "EU AI Act Compliance",
+            "category": "Governance & Security",
+            "description": (
+                "For assessing AI systems against the EU AI Act (Regulation "
+                "2024/1689). Risk-tier classification, high-risk/transparency/GPAI "
+                "obligation reviews, and compliance documentation drafts."
+            ),
+        },
+        "scaleway": {
+            "name": "Scaleway Cloud Architect",
+            "category": "Infrastructure",
+            "description": (
+                "For Scaleway infrastructure and governance. Organization/project "
+                "structure, IAM permission scoping, VPC/private-network topology, "
+                "security groups, and WAF edge protection. Layers on the "
+                "cloud-agnostic iac-expert collection."
+            ),
+        },
+        "ios-developer": {
+            "name": "iOS Developer",
+            "category": "Frontend",
+            "description": (
+                "For building iOS apps. SwiftUI-first development, state management "
+                "patterns, offline-first architecture, and App Store readiness."
+            ),
+        },
+        "android-developer": {
+            "name": "Android Developer",
+            "category": "Frontend",
+            "description": (
+                "For building Android apps. Jetpack Compose-first development, state "
+                "hoisting, lifecycle-aware architecture, and Play Store readiness."
+            ),
+        },
+    },
+}
 
-def _scan_starter_collection(collection_dir: Path) -> list[dict]:
+
+def _scan_seeded_collection(collection_dir: Path) -> list[dict]:
     """Parse one starter-collection directory into canonical artifact dicts.
 
     Mirrors scanner.scan_directory()'s skills/agents/commands/AGENTS.md walk
     and reuses its exact per-file parsers, but skips scanner._resolve_path()'s
     scan_root confinement — that check exists to sandbox arbitrary,
     user-supplied paths from the local-machine-scan API route. collection_dir
-    here is always one of our own hardcoded STARTER_COLLECTIONS entries, never
+    here is always one of our own hardcoded STARTER_COLLECTIONS or
+    COMMUNITY_CONTRIBUTED_COLLECTIONS entries, never
     derived from user input, so that confinement doesn't apply.
     """
     artifacts: list[dict] = []
@@ -359,10 +376,14 @@ async def get_or_create_system_user(session: AsyncSession) -> User:
 
 
 async def seed_starter_collections(session: AsyncSession) -> None:
-    """Idempotently seed starter Collections/Artifacts from collections/{base,additional}/.
+    """Idempotently seed starter and community-contributed Collections/Artifacts.
 
-    Safe to call on every backend startup — each collection is matched by
-    name + is_starter_pack before insertion, so nothing is ever duplicated.
+    Safe to call on every backend startup — each seeded collection is matched
+    by its stable `seed://<collection_type>/<slug>` `git_url` before
+    insertion, so nothing is ever duplicated. Matching on the seed ref (rather
+    than `(name, is_starter_pack)`) also lets a slug move between
+    `STARTER_COLLECTIONS` and `COMMUNITY_CONTRIBUTED_COLLECTIONS`: the
+    existing row is reclassified in place instead of being duplicated.
     """
     collections_root = Path(settings.collections_root)
     if not collections_root.is_dir():
@@ -375,70 +396,93 @@ async def seed_starter_collections(session: AsyncSession) -> None:
 
     system_user: User | None = None
 
-    for collection_type, collections in STARTER_COLLECTIONS.items():
-        type_dir = collections_root / collection_type
-        for slug, meta in collections.items():
-            collection_dir = type_dir / slug
-            if not collection_dir.is_dir():
-                logger.warning(
-                    "Starter collection directory missing: %s — skipping.", collection_dir
-                )
-                continue
+    seeded_sets = (
+        (True, STARTER_COLLECTIONS),
+        (False, COMMUNITY_CONTRIBUTED_COLLECTIONS),
+    )
 
-            existing = await session.execute(
-                select(Collection).where(
-                    Collection.name == meta["name"],
-                    Collection.is_starter_pack.is_(True),
-                )
-            )
-            if existing.scalar_one_or_none() is not None:
-                continue
-
-            if system_user is None:
-                system_user = await get_or_create_system_user(session)
-
-            scanned = _scan_starter_collection(collection_dir)
-
-            collection = Collection(
-                owner_id=system_user.id,
-                name=meta["name"],
-                description=meta["description"],
-                git_url=f"seed://{collection_type}/{slug}",
-                collection_type=collection_type,
-                visibility="public",
-                published=True,
-                moderation_status="approved",
-                category=meta["category"],
-                is_starter_pack=True,
-                artifact_count=len(scanned),
-            )
-            session.add(collection)
-            await session.commit()
-            await session.refresh(collection)
-
-            for item in scanned:
-                session.add(
-                    Artifact(
-                        collection_id=collection.id,
-                        artifact_type=item["artifact_type"],
-                        name=item["name"],
-                        version=item.get("version", "1.0.0"),
-                        priority=item.get("priority", 50),
-                        target_compatibility=json.dumps(item.get("target_compatibility", [])),
-                        tags=json.dumps(item.get("tags", [])),
-                        description=item.get("description", ""),
-                        body=item.get("body", ""),
-                        file_path=item.get("file_path", ""),
-                        handoff_to=(
-                            json.dumps(item["handoff_to"])
-                            if item.get("handoff_to") is not None
-                            else None
-                        ),
+    for is_starter_pack, collection_types in seeded_sets:
+        for collection_type, collections in collection_types.items():
+            type_dir = collections_root / collection_type
+            for slug, meta in collections.items():
+                collection_dir = type_dir / slug
+                if not collection_dir.is_dir():
+                    logger.warning(
+                        "Seeded collection directory missing: %s — skipping.", collection_dir
                     )
-                )
+                    continue
 
-            await session.commit()
-            logger.info(
-                "Seeded starter collection %r (%s) with %d artifacts.",
-                meta["name"], collection_type, len(scanned),
-            )
+                seed_url = f"seed://{collection_type}/{slug}"
+                existing = (
+                    await session.execute(
+                        select(Collection).where(Collection.git_url == seed_url)
+                    )
+                ).scalars().first()
+                if existing is not None:
+                    # The collection already exists. Reconcile only its
+                    # classification: a slug moved between the starter and
+                    # community maps must flip its flag here, not be
+                    # duplicated. Its artifacts are left untouched — that's
+                    # the in-place-content-edit gap documented in rule 25.
+                    if existing.is_starter_pack != is_starter_pack:
+                        existing.is_starter_pack = is_starter_pack
+                        session.add(existing)
+                        await session.commit()
+                        logger.info(
+                            "Reclassified seeded collection %r as %s.",
+                            meta["name"],
+                            "starter" if is_starter_pack else "community",
+                        )
+                    continue
+
+                if system_user is None:
+                    system_user = await get_or_create_system_user(session)
+
+                scanned = _scan_seeded_collection(collection_dir)
+
+                collection = Collection(
+                    owner_id=system_user.id,
+                    name=meta["name"],
+                    description=meta["description"],
+                    git_url=seed_url,
+                    collection_type=collection_type,
+                    visibility="public",
+                    published=True,
+                    moderation_status="approved",
+                    category=meta["category"],
+                    is_starter_pack=is_starter_pack,
+                    artifact_count=len(scanned),
+                )
+                session.add(collection)
+                await session.commit()
+                await session.refresh(collection)
+
+                for item in scanned:
+                    session.add(
+                        Artifact(
+                            collection_id=collection.id,
+                            artifact_type=item["artifact_type"],
+                            name=item["name"],
+                            version=item.get("version", "1.0.0"),
+                            priority=item.get("priority", 50),
+                            target_compatibility=json.dumps(item.get("target_compatibility", [])),
+                            tags=json.dumps(item.get("tags", [])),
+                            description=item.get("description", ""),
+                            body=item.get("body", ""),
+                            file_path=item.get("file_path", ""),
+                            handoff_to=(
+                                json.dumps(item["handoff_to"])
+                                if item.get("handoff_to") is not None
+                                else None
+                            ),
+                        )
+                    )
+
+                await session.commit()
+                logger.info(
+                    "Seeded %s collection %r (%s) with %d artifacts.",
+                    "starter" if is_starter_pack else "community",
+                    meta["name"],
+                    collection_type,
+                    len(scanned),
+                )
