@@ -778,6 +778,7 @@ export default function Onboarding() {
                       </span>
                     </p>
                     <InstallMethodPanel
+                      key={`${selectedInstallTarget}:${selectedInstallLocation}`}
                       profileId={draft.profileId}
                       profileName={draft.name.trim() || 'My setup'}
                       target={selectedInstallTarget}

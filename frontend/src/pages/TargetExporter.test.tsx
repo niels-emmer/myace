@@ -30,7 +30,7 @@ const mockProfile: Profile = {
   base_collection_id: 'collection-1',
   additional_collection_ids: [],
   disabled_artifact_ids: [],
-  target_frameworks: ['claude-code'],
+  target_frameworks: ['claude-code', 'opencode'],
   is_public: false,
   version: 1,
   created_at: '2026-01-01T00:00:00Z',
@@ -160,8 +160,22 @@ describe('TargetExporter install panel', () => {
       }),
     );
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-      'myace pull --profile "my-defaults" --target claude-code',
+      "myace pull --profile 'my-defaults' --target claude-code",
     );
+  });
+
+  it('resets preview state when the framework changes', async () => {
+    renderInstall();
+    await waitForProfile();
+
+    fireEvent.click(screen.getByRole('button', { name: /Preview files/i }));
+    expect(await screen.findByText('CLAUDE.md')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Framework'), {
+      target: { value: 'opencode' },
+    });
+
+    await waitFor(() => expect(screen.queryByText('CLAUDE.md')).not.toBeInTheDocument());
   });
 
   it('hides direct install entirely when the companion does not advertise apply', async () => {

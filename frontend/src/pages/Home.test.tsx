@@ -265,6 +265,7 @@ describe('Home', () => {
     renderHome();
 
     expect(await screen.findByText('Installed, not verified yet')).toBeInTheDocument();
+    expect(screen.queryByText('Your setup is ready — install it')).not.toBeInTheDocument();
     expect(screen.getByText('claude-code — installed, not verified')).toBeInTheDocument();
     expect(screen.getByText('opencode — not installed')).toBeInTheDocument();
   });

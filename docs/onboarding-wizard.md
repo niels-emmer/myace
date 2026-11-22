@@ -3,10 +3,11 @@
 Phase 2 of the v2.0 onboarding/usage revamp is **frontend-only**. It adds the
 five-step first-run wizard, folds pack acquisition into one import branch, and
 turns the setup page and install panel into the place that answers *"what is
-installed, and is it current?"*. The design proposal lives in
-`/Users/nemmer/.ao/data/artifacts/myace1-5/onboarding-usage-flow.md`
-(sections 4.3, 6.2, 6.2b, 6.6, 6.7, 7.2, and Phase 2 of section 9); this file
-records what was actually built and the rules that must survive future edits.
+installed, and is it current?"*. The design proposal is recorded in
+[`plans/v2.0-onboarding-revamp.md`](plans/v2.0-onboarding-revamp.md) and the
+accepted review artifact's sections 4.3, 6.2, 6.2b, 6.6, 6.7, 7.2, and Phase 2
+of section 9; this file records what was actually built and the rules that must
+survive future edits.
 
 Vocabulary follows AGENTS.md rule 42: **Pack** (`Collection`), **Setup**
 (`Profile`), **Install** (compile + pull/apply), **Item** (`Artifact`).
@@ -88,7 +89,7 @@ is only a default suggestion here, never a ranking or popularity claim.
 | Method | What happens | Claim `method` |
 |---|---|---|
 | Download `.zip` | `POST /profiles/compile/zip`, browser save | `zip` |
-| CLI | Copies `myace pull --profile "<name>" --target <target>` | `cli` |
+| CLI | Copies `myace pull --profile '<name>' --target <target>` (the name is POSIX single-quoted) | `cli` |
 | Install directly | Companion `/apply/preview` → explicit diff confirm → `/apply` | `apply` |
 
 Every successful action posts `POST /profiles/{id}/installs
@@ -122,9 +123,15 @@ collisions do not vary by target.
 `pack_unavailable` copy **must branch on who is looking**, because the server's
 freeze fallback is scoped to the setup owner (and admins):
 
-- **Owner/admin:** "Pack X is no longer available" + "Your setup keeps using a
-  frozen copy, so nothing breaks", with **Keep frozen** and **Customize a
-  copy**.
+- **Owner/admin, warning says a frozen copy was used:** "Pack X is no longer
+  available" + "Your setup keeps using a frozen copy, so nothing breaks", with
+  **Keep frozen** (dismisses the notice for the session; the frozen compile is
+  already the behavior) and **Customize a copy** (opens the import branch so
+  the user can create an owned pack from their current configs — the frozen
+  pack itself is not readable as an artifact list).
+- **Owner/admin, warning says the pack was skipped** (no snapshot was
+  captured): the same skipped copy as a non-owner. The message, not the role
+  alone, decides whether a frozen copy is claimed.
 - **Non-owner viewing a public setup:** "Pack X is no longer available" +
   "It is skipped in this setup's compiled output." No frozen-copy claim, no
   frozen actions, and the word "frozen" must never appear. The compile really

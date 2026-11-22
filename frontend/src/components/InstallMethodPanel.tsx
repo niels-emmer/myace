@@ -28,6 +28,11 @@ import type {
 
 type MethodTab = 'download' | 'cli' | 'direct';
 
+/** POSIX single-quote escaping: a profile name is attacker-controlled free text. */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
 const METHOD_LABELS: Record<MethodTab, string> = {
   download: 'Download',
   cli: 'CLI',
@@ -91,7 +96,7 @@ export default function InstallMethodPanel({
   // fall back to Download rather than rendering an empty panel.
   const activeMethod: MethodTab = method === 'direct' && !directSupported ? 'download' : method;
 
-  const cliCommand = `myace pull --profile "${profileName}" --target ${target}`;
+  const cliCommand = `myace pull --profile ${shellQuote(profileName)} --target ${target}`;
   const verifyCommand = `myace check --target ${target} --report`;
 
   const claim = async (claimMethod: InstallMethod) => {

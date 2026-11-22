@@ -171,7 +171,7 @@ export default function Home() {
             </div>
           )}
 
-          {setups.length > 0 && syncRows.length === 0 && (
+          {setups.length > 0 && syncRows.length === 0 && !hasAnyClaim && (
             <div className="flex flex-col gap-4 rounded-xl border border-brand-200 bg-brand-50 p-6 sm:flex-row sm:items-center">
               <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
                 <Download className="h-5 w-5" />

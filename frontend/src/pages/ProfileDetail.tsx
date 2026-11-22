@@ -167,6 +167,7 @@ export default function ProfileDetail() {
     base_collection_id: profile!.base_collection_id,
     additional_collection_ids: [...profile!.additional_collection_ids],
     disabled_artifact_ids: [...profile!.disabled_artifact_ids],
+    target_framework: profile!.target_framework,
     target_frameworks: profileTargets(profile!),
     is_public: profile!.is_public,
     ...patch,
@@ -227,14 +228,10 @@ export default function ProfileDetail() {
         additional_collection_ids: editForm.additional_collection_ids ?? [],
         disabled_artifact_ids: editForm.disabled_artifact_ids ?? [],
         is_public: editForm.is_public,
-        // The legacy single "preferred target" only narrows the multi-target
-        // list when the user actually changes it; editing the name must not
-        // silently drop the other frameworks.
-        target_frameworks:
-          editForm.target_framework &&
-          editForm.target_framework !== profile.target_framework
-            ? [editForm.target_framework]
-            : profileFrameworks,
+        // The legacy single "preferred target" is a preference, not the
+        // multi-framework list. Persist it without dropping frameworks.
+        target_framework: editForm.target_framework,
+        target_frameworks: profileFrameworks,
       }),
     );
   };
@@ -276,14 +273,20 @@ export default function ProfileDetail() {
     setTimeout(() => setCopiedCommand(null), 2000);
   };
 
-  /** Packs named by a `pack_unavailable` warning, for the frozen/unavailable badge. */
-  const unavailableWarningPackIds = new Set<string>();
+  /**
+   * Packs named by a `pack_unavailable` warning -> whether the server said a
+   * frozen copy was used. The *message* decides, not the viewer: an owner can
+   * receive the "skipped" variant when no snapshot was captured.
+   */
+  const unavailableWarningPacks = new Map<string, boolean>();
   for (const warning of warnings) {
     if (warning.code !== 'pack_unavailable') continue;
     const known = [...baseCollections, ...additionalCollections].find(
       (collection) => warning.message.includes(collection.name),
     );
-    if (known) unavailableWarningPackIds.add(known.id);
+    if (known) {
+      unavailableWarningPacks.set(known.id, /frozen copy/i.test(warning.message));
+    }
   }
 
   const visibleWarnings = warnings.filter(
@@ -466,9 +469,11 @@ export default function ProfileDetail() {
               >
                 {collectionName(profile.base_collection_id)}
               </Link>
-              {unavailableWarningPackIds.has(profile.base_collection_id) && (
+              {unavailableWarningPacks.has(profile.base_collection_id) && (
                 <span className="ml-auto rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-                  {canSeeFrozen ? 'frozen' : 'unavailable'}
+                  {canSeeFrozen && unavailableWarningPacks.get(profile.base_collection_id)
+                    ? 'frozen'
+                    : 'unavailable'}
                 </span>
               )}
             </div>
@@ -483,9 +488,11 @@ export default function ProfileDetail() {
                 >
                   {collectionName(cid)}
                 </Link>
-                {unavailableWarningPackIds.has(cid) && (
+                {unavailableWarningPacks.has(cid) && (
                   <span className="rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-                    {canSeeFrozen ? 'frozen' : 'unavailable'}
+                    {canSeeFrozen && unavailableWarningPacks.get(cid)
+                      ? 'frozen'
+                      : 'unavailable'}
                   </span>
                 )}
                 <button
@@ -524,6 +531,11 @@ export default function ProfileDetail() {
             const key = `${warning.code}:${warning.message}`;
             if (warning.code === 'pack_unavailable') {
               const label = packUnavailableLabel(warning.message);
+              // Both the server variant and the viewer matter: never claim a
+              // frozen copy that the compile did not actually fall back to,
+              // and never reveal one to a non-owner.
+              const usesFrozenCopy =
+                canSeeFrozen && /frozen copy/i.test(warning.message);
               return (
                 <div
                   key={key}
@@ -534,7 +546,7 @@ export default function ProfileDetail() {
                     <p className="text-sm font-semibold text-amber-900">
                       Pack {label} is no longer available
                     </p>
-                    {canSeeFrozen ? (
+                    {usesFrozenCopy ? (
                       <>
                         <p className="mt-1 text-sm text-amber-800">
                           Your setup keeps using a frozen copy, so nothing breaks. Find a

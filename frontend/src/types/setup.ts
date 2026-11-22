@@ -9,7 +9,7 @@
  * docs/onboarding-wizard.md.
  */
 
-import type { Profile, ProfileCreate, SyncStatus, User } from './index';
+import type { Profile, ProfileCreate, SyncStatus } from './index';
 
 export type InstallLocation = 'project' | 'machine';
 export type InstallMethod = 'zip' | 'cli' | 'apply';
@@ -226,15 +226,6 @@ export interface CompanionApplyResult {
 }
 
 // ─── Onboarding draft ───────────────────────────────────────
-
-/** A user row including the Phase 3 onboarding timestamp. */
-export interface OnboardingAwareUser extends User {
-  onboarding_completed_at?: string | null;
-}
-
-export function hasCompletedOnboarding(user: OnboardingAwareUser | null | undefined): boolean {
-  return Boolean(user?.onboarding_completed_at);
-}
 
 export interface OnboardingDraft {
   step: number;

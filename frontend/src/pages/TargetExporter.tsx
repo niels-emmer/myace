@@ -137,6 +137,7 @@ export default function TargetExporter() {
 
         {selectedTarget && (
           <InstallMethodPanel
+            key={`${selectedTarget}:${location}`}
             profileId={profile.id}
             profileName={profile.name}
             target={selectedTarget}

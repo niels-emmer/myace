@@ -200,6 +200,25 @@ describe('ProfileDetail framework matrix', () => {
     expect(screen.getByRole('link', { name: /Customize a copy/i })).toBeInTheDocument();
   });
 
+  it('does not claim a frozen copy for an owner when the pack was skipped', async () => {
+    vi.mocked(profilesApi.compile).mockResolvedValue(
+      compileResult([
+        {
+          level: 'warning',
+          code: 'pack_unavailable',
+          message:
+            "Pack 'QA / Test Engineer' (abcd1234) is not available to you; it was skipped.",
+        },
+      ]),
+    );
+
+    renderSetup();
+
+    expect(await screen.findByText(/skipped in this setup/i)).toBeInTheDocument();
+    expect(screen.queryByText(/frozen/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Keep frozen/i })).not.toBeInTheDocument();
+  });
+
   it('never claims frozen content to a non-owner viewing a public setup', async () => {
     vi.mocked(profilesApi.get).mockResolvedValue({
       ...profile,
