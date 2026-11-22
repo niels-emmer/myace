@@ -19,7 +19,14 @@ import type { Collection, Profile } from '../types';
  *
  * Kept as its own component so the pack-detail pages just mount it.
  */
-export default function AddToSetup({ collection }: { collection: Collection }) {
+export default function AddToSetup({
+  collection,
+  showUse = true,
+}: {
+  collection: Collection;
+  /** PackDetail often keeps its own "Use this pack" flow; then mount the menu only. */
+  showUse?: boolean;
+}) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -118,15 +125,17 @@ export default function AddToSetup({ collection }: { collection: Collection }) {
 
   return (
     <div className="space-y-2">
-      <button
-        type="button"
-        onClick={startUse}
-        disabled={busy || (!isBase && basePacks.length === 0)}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
-      >
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-        Use this pack
-      </button>
+      {showUse && (
+        <button
+          type="button"
+          onClick={startUse}
+          disabled={busy || (!isBase && basePacks.length === 0)}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+          Use this pack
+        </button>
+      )}
 
       <div>
         <button
