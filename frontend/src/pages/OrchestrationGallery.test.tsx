@@ -52,6 +52,7 @@ const collection: Collection = {
   artifact_count: 2,
   download_count: 0,
   published: true,
+  is_starter_pack: false,
   avg_rating: 0,
   rating_count: 0,
   moderation_status: 'approved',

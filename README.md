@@ -303,8 +303,8 @@ companion health check, setup audit, and per-framework sync report. Full command
 │   │   │                          #   CollectionsManager (My packs), CollectionDetail, NewArtifactRule (add a rule),
 │   │   │                          #   CommunityCollectionDetail, ProfileComposer (Setups), ProfileDetail,
 │   │   │                          #   OrchestrationGallery (Pipelines), OrchestratorBuilder, TargetExporter (Install),
-│   │   │                          #   MachinePage (tabbed Overview/Audit/Sync) wrapping ImportPage, SetupAudit,
-│   │   │                          #   SyncDashboard, SettingsHub, UserSettings (Account),
+│   │   │                          #   MachinePage (tabbed Overview/Audit/Sync) wrapping SetupAudit and
+│   │   │                          #   SyncDashboard; ImportPage (Packs → Import), SettingsHub, UserSettings (Account),
 │   │   │                          #   ModerationQueue (moderator/admin-gated), SystemSettings (admin-gated)
 │   │   ├── lib/                   # API client, navigation.ts (sidebar + breadcrumbs — AGENTS.md #38),
 │   │   │                          #   bundles.ts (curated starter bundles), packs.ts (pack badges/links)

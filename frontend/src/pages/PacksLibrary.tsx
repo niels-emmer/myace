@@ -210,7 +210,7 @@ export default function PacksLibrary() {
           {bundlePacks.map(({ bundle, pack }) => (
             <Link
               key={bundle.id}
-              to="/packs/mine"
+              to={pack ? `/packs/${pack.id}` : '/packs'}
               className="rounded-lg border border-border px-3 py-2 transition-colors hover:border-brand-300 hover:bg-brand-50/50"
             >
               <p className="text-sm font-medium text-card-foreground">{bundle.name}</p>

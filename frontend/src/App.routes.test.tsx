@@ -24,12 +24,27 @@ vi.mock('./pages/ProfileDetail', async () => {
   }
   return { default: SetupDetailStub };
 });
-vi.mock('./pages/TargetExporter', () => ({ default: () => <div>install-page</div> }));
+vi.mock('./pages/TargetExporter', async () => {
+  const { useParams, useSearchParams } = await import('react-router-dom');
+  function InstallStub() {
+    const { id } = useParams();
+    const [params] = useSearchParams();
+    return <div>install-page:{id ?? ''}:{params.get('profile') ?? ''}</div>;
+  }
+  return { default: InstallStub };
+});
 vi.mock('./pages/PacksLibrary', () => ({ default: () => <div>packs-page</div> }));
 vi.mock('./pages/CollectionsManager', () => ({ default: () => <div>my-packs-page</div> }));
 vi.mock('./pages/OrchestrationGallery', () => ({ default: () => <div>pipelines-page</div> }));
 vi.mock('./pages/OrchestratorBuilder', () => ({ default: () => <div>pipeline-new-page</div> }));
-vi.mock('./pages/ImportPage', () => ({ default: () => <div>import-page</div> }));
+vi.mock('./pages/ImportPage', async () => {
+  const { useSearchParams } = await import('react-router-dom');
+  function ImportStub() {
+    const [params] = useSearchParams();
+    return <div>import-page:{params.get('source') ?? ''}</div>;
+  }
+  return { default: ImportStub };
+});
 vi.mock('./pages/CommunityCollectionDetail', async () => {
   const { useParams } = await import('react-router-dom');
   function CommunityDetailStub() {
@@ -104,12 +119,12 @@ describe('canonical routes', () => {
     ['/', 'home-page'],
     ['/setups', 'setups-page'],
     ['/setups/abc', 'setup-detail:abc'],
-    ['/setups/abc/install', 'install-page'],
+    ['/setups/abc/install', 'install-page:abc:'],
     ['/packs', 'packs-page'],
     ['/packs/mine', 'my-packs-page'],
     ['/packs/pipelines', 'pipelines-page'],
     ['/packs/pipelines/new', 'pipeline-new-page'],
-    ['/packs/import', 'import-page'],
+    ['/packs/import', 'import-page:'],
     ['/packs/community/abc', 'community-detail:abc'],
     ['/packs/abc', 'pack-detail:abc'],
     ['/packs/abc/items/new', 'new-item:abc'],
@@ -151,13 +166,19 @@ describe('legacy route redirects', () => {
     ['/export', 'setups-page'],
     ['/orchestration', 'pipelines-page'],
     ['/orchestration/build', 'pipeline-new-page'],
-    ['/import', 'import-page'],
+    ['/import', 'import-page:'],
     ['/setup-audit', 'machine-page:audit'],
     ['/sync', 'machine-page:sync'],
     ['/machine/audit', 'machine-page:audit'],
     ['/machine/sync', 'machine-page:sync'],
+    ['/machine/import', 'import-page:'],
     ['/moderation', 'moderation-page'],
     ['/admin/system', 'system-page'],
+    // Query-preserving legacy redirects (old bookmarks preselected these).
+    ['/compile?profile=abc', 'install-page:abc:'],
+    ['/build/compile?profile=abc', 'install-page:abc:'],
+    ['/import?source=git', 'import-page:git'],
+    ['/machine/import?source=local', 'import-page:local'],
   ])('%s redirects to its canonical page', async (path, expectedText) => {
     renderAt(path);
     expect(await screen.findByText(expectedText)).toBeInTheDocument();

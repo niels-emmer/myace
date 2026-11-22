@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useLocation, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
@@ -29,6 +29,20 @@ import ModerationQueue from './pages/ModerationQueue';
 function ParamRedirect({ to }: { to: (id: string) => string }) {
   const { id } = useParams<{ id: string }>();
   return <Navigate to={id ? to(id) : '/'} replace />;
+}
+
+// Some legacy paths preselected something via the query string
+// (`/compile?profile=...`, `/import?source=...`). Keep that intent rather
+// than dropping the query on redirect.
+function RedirectWithSearch({ to }: { to: string }) {
+  const { search } = useLocation();
+  return <Navigate to={`${to}${search}`} replace />;
+}
+
+function LegacyCompileRedirect() {
+  const { search } = useLocation();
+  const profile = new URLSearchParams(search).get('profile');
+  return <Navigate to={profile ? `/setups/${profile}/install` : '/setups'} replace />;
 }
 
 function RequireAuth() {
@@ -135,19 +149,20 @@ export default function App() {
           <Route path="/build" element={<Navigate to="/setups" replace />} />
           <Route path="/build/profiles" element={<Navigate to="/setups" replace />} />
           <Route path="/build/profiles/:id" element={<ParamRedirect to={(id) => `/setups/${id}`} />} />
-          <Route path="/build/compile" element={<Navigate to="/setups" replace />} />
+          <Route path="/build/compile" element={<LegacyCompileRedirect />} />
           <Route path="/build/orchestration" element={<Navigate to="/packs/pipelines" replace />} />
           <Route path="/build/orchestration/build" element={<Navigate to="/packs/pipelines/new" replace />} />
 
           <Route path="/profiles" element={<Navigate to="/setups" replace />} />
           <Route path="/profiles/:id" element={<ParamRedirect to={(id) => `/setups/${id}`} />} />
-          <Route path="/compile" element={<Navigate to="/setups" replace />} />
-          <Route path="/export" element={<Navigate to="/setups" replace />} />
+          <Route path="/compile" element={<LegacyCompileRedirect />} />
+          <Route path="/export" element={<LegacyCompileRedirect />} />
           <Route path="/orchestration" element={<Navigate to="/packs/pipelines" replace />} />
           <Route path="/orchestration/build" element={<Navigate to="/packs/pipelines/new" replace />} />
-          <Route path="/import" element={<Navigate to="/packs/import" replace />} />
+          <Route path="/import" element={<RedirectWithSearch to="/packs/import" />} />
           <Route path="/setup-audit" element={<Navigate to="/machine?tab=audit" replace />} />
           <Route path="/sync" element={<Navigate to="/machine?tab=sync" replace />} />
+          <Route path="/machine/import" element={<RedirectWithSearch to="/packs/import" />} />
           <Route path="/machine/audit" element={<Navigate to="/machine?tab=audit" replace />} />
           <Route path="/machine/sync" element={<Navigate to="/machine?tab=sync" replace />} />
           <Route path="/moderation" element={<Navigate to="/settings/moderation" replace />} />

@@ -123,6 +123,9 @@ export default function CommandPalette({ open, onOpen, onClose }: CommandPalette
       });
 
     const setupItems: PaletteItem[] = (profiles ?? [])
+      // `GET /profiles` also returns other users' public profiles; the
+      // palette is a personal shortcut surface, so only list your own.
+      .filter((profile) => profile.owner_id === user?.id)
       .filter((profile) => matches(`${profile.name} ${profile.description ?? ''}`, query))
       .slice(0, 5)
       .map((profile) => ({

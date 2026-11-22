@@ -66,6 +66,7 @@ const mockOwnedCollection: Collection = {
   artifact_count: 0,
   download_count: 0,
   published: false,
+  is_starter_pack: false,
   avg_rating: 0,
   rating_count: 0,
   moderation_status: 'draft',

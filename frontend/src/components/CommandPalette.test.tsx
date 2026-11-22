@@ -36,6 +36,19 @@ const pack: Collection = {
   updated_at: '2026-01-01T00:00:00Z',
 };
 
+const publicProfile: Profile = {
+  id: 'public-setup',
+  owner_id: 'user-2',
+  name: 'Public setup',
+  base_collection_id: 'pack-1',
+  additional_collection_ids: [],
+  disabled_artifact_ids: [],
+  is_public: true,
+  version: 1,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+};
+
 const profile: Profile = {
   id: 'setup-1',
   owner_id: 'user-1',
@@ -73,7 +86,7 @@ describe('CommandPalette', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(collectionsApi.list).mockResolvedValue([pack]);
-    vi.mocked(profilesApi.list).mockResolvedValue([profile]);
+    vi.mocked(profilesApi.list).mockResolvedValue([profile, publicProfile]);
   });
 
   it('opens on Ctrl+K / Cmd+K when closed', () => {
@@ -96,6 +109,7 @@ describe('CommandPalette', () => {
 
     expect(await screen.findByRole('option', { name: /Software Engineer/ })).toBeInTheDocument();
     expect(await screen.findByRole('option', { name: /My software setup/ })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Public setup/ })).not.toBeInTheDocument();
   });
 
   it('moves with arrow keys and opens the active item with Enter', async () => {

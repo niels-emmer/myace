@@ -40,7 +40,7 @@ export interface Collection {
   download_count: number;
   published: boolean;
   category?: string;
-  is_starter_pack?: boolean;
+  is_starter_pack: boolean;
   avg_rating: number;
   rating_count: number;
   moderation_status: ModerationStatus;

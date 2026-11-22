@@ -6,6 +6,10 @@ import Home from './Home';
 import { adaptersApi, collectionsApi, profilesApi, syncApi } from '../lib/api';
 import type { Collection, Profile, SyncStatus } from '../types';
 
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'user-1' } }),
+}));
+
 vi.mock('../lib/api', () => ({
   profilesApi: { list: vi.fn() },
   syncApi: { getStatus: vi.fn() },
@@ -93,8 +97,26 @@ describe('Home', () => {
     renderHome();
 
     expect(await screen.findByText('Build your first setup')).toBeInTheDocument();
+    expect(profilesApi.list).toHaveBeenCalledWith({ owner_id: 'user-1' });
     const cta = screen.getByRole('link', { name: /Start setup/i });
     expect(cta).toHaveAttribute('href', '/setups');
+  });
+
+  it('never treats another user\'s public profile as one of your setups', async () => {
+    const publicProfile: Profile = {
+      ...profile,
+      id: 'public-setup',
+      owner_id: 'user-2',
+      name: 'Someone else\'s setup',
+      is_public: true,
+    };
+    // Model a response that still contains a public profile owned by someone
+    // else — Home must filter it out even if an older API ignores owner_id.
+    vi.mocked(profilesApi.list).mockResolvedValue([publicProfile]);
+    renderHome();
+
+    expect(await screen.findByText('Build your first setup')).toBeInTheDocument();
+    expect(screen.queryByText('Someone else\'s setup')).not.toBeInTheDocument();
   });
 
   it('tells a user with a setup but no sync reports to install it', async () => {
@@ -140,6 +162,25 @@ describe('Home', () => {
     expect(screen.getByText('claude-code — changed')).toBeInTheDocument();
   });
 
+  it('counts only the setup the drift banner names', async () => {
+    const secondSetup: Profile = { ...profile, id: 'setup-2', name: 'Second setup' };
+    vi.mocked(profilesApi.list).mockResolvedValue([profile, secondSetup]);
+    vi.mocked(syncApi.getStatus).mockResolvedValue([
+      syncRow({ locally_modified_files: ['CLAUDE.md'] }),
+      syncRow({
+        id: 'sync-2',
+        profile_id: 'setup-2',
+        profile_name: 'Second setup',
+        locally_modified_files: ['A', 'B', 'C'],
+      }),
+    ]);
+    renderHome();
+
+    expect(
+      await screen.findByText('My software setup: 1 change since install'),
+    ).toBeInTheDocument();
+  });
+
   it('shows a quiet healthy line when every sync row is clean', async () => {
     vi.mocked(profilesApi.list).mockResolvedValue([profile]);
     vi.mocked(syncApi.getStatus).mockResolvedValue([syncRow()]);
@@ -170,6 +211,24 @@ describe('Home', () => {
       'href',
       '/packs/community/community-1',
     );
+  });
+
+  it('filters starter packs out before slicing community highlights', async () => {
+    vi.mocked(collectionsApi.listCommunity).mockResolvedValue({
+      items: [
+        { ...basePack, id: 'starter-1', name: 'Starter One' },
+        { ...basePack, id: 'starter-2', name: 'Starter Two' },
+        { ...basePack, id: 'starter-3', name: 'Starter Three' },
+        { ...basePack, id: 'starter-4', name: 'Starter Four' },
+        { ...basePack, id: 'community-real', name: 'Real Community Pack', is_starter_pack: false },
+      ],
+      total: 5,
+    });
+    renderHome();
+
+    expect(await screen.findByText('Real Community Pack')).toBeInTheDocument();
+    expect(screen.queryByText('Starter One')).not.toBeInTheDocument();
+    expect(screen.queryByText('No community packs yet. Publish one of yours to start the shelf.')).not.toBeInTheDocument();
   });
 
   it('keeps the single footer line with no object-count cards', async () => {

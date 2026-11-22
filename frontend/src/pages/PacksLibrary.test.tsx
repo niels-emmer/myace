@@ -216,5 +216,12 @@ describe('PacksLibrary', () => {
       'href',
       '/packs/starter-pack',
     );
+
+    // The "Start here" bundle strip links to the actual starter pack, not
+    // the generic My packs landing page.
+    const bundleLink = screen
+      .getAllByRole('link', { name: /Software Engineer/ })
+      .find((link) => link.getAttribute('href') === '/packs/starter-pack');
+    expect(bundleLink).toBeDefined();
   });
 });

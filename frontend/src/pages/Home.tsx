@@ -11,8 +11,9 @@ import {
   Star,
 } from 'lucide-react';
 import { adaptersApi, collectionsApi, profilesApi, syncApi } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import { BUNDLES } from '../lib/bundles';
-import { packSourceLabel, packSource } from '../lib/packs';
+import { formatUses, packHref, packSource, packSourceLabel } from '../lib/packs';
 import type { Profile, SyncStatus } from '../types';
 
 type InstallState = 'verified' | 'changed' | 'not-verified' | 'not-installed';
@@ -51,9 +52,14 @@ function driftCount(rows: SyncStatus[]): number {
 }
 
 export default function Home() {
+  const { user } = useAuth();
+  // `GET /profiles` also returns other users' public profiles. Home is about
+  // *your* setups, so scope the query to the current user (rule 12: the owner
+  // filter is part of the query key) rather than filtering a mixed list.
   const { data: profiles } = useQuery({
-    queryKey: ['profiles'],
-    queryFn: () => profilesApi.list(),
+    queryKey: ['profiles', { owner_id: user?.id }],
+    queryFn: () => profilesApi.list({ owner_id: user?.id }),
+    enabled: !!user,
   });
   const { data: syncStatuses } = useQuery({
     queryKey: ['sync-status'],
@@ -67,16 +73,24 @@ export default function Home() {
     queryKey: ['adapters'],
     queryFn: () => adaptersApi.list(),
   });
+  // Starter packs are published too, so they fill the community endpoint.
+  // Fetch a wider page and filter them out *before* slicing to four, or a
+  // starter-heavy page can show fewer than four highlights (or none).
   const { data: community } = useQuery({
-    queryKey: ['community-collections', { limit: 4, sort: 'rating' }],
-    queryFn: () => collectionsApi.listCommunity({ limit: 4, sort: 'rating' }),
+    queryKey: ['community-collections', { limit: 100, sort: 'rating' }],
+    queryFn: () => collectionsApi.listCommunity({ limit: 100, sort: 'rating' }),
   });
 
-  const setups = profiles ?? [];
+  // Defensive as well as owner-scoped: a cached/older API response must never
+  // surface another user's public profile as one of your setups.
+  const setups = (profiles ?? []).filter((profile) => profile.owner_id === user?.id);
   const syncRows = syncStatuses ?? [];
   const driftRows = syncRows.filter(
     (row) => !row.in_sync || row.locally_modified_files.length > 0,
   );
+  // The banner names one setup, so count only that setup's rows — not drift
+  // reported against a different setup.
+  const driftSetupRows = driftRows.filter((row) => row.profile_id === driftRows[0]?.profile_id);
   const appVersion: string = import.meta.env.VITE_APP_VERSION ?? 'dev';
   const frameworkCount = adapters?.length ?? 12;
 
@@ -152,11 +166,11 @@ export default function Home() {
               </div>
               <div className="flex-1">
                 <h2 className="font-semibold text-amber-900">
-                  {driftRows[0].profile_name}: {driftCount(driftRows)}{' '}
-                  {driftCount(driftRows) === 1 ? 'change' : 'changes'} since install
+                  {driftRows[0].profile_name}: {driftCount(driftSetupRows)}{' '}
+                  {driftCount(driftSetupRows) === 1 ? 'change' : 'changes'} since install
                 </h2>
                 <p className="mt-1 text-sm text-amber-800">
-                  {driftRows.some((row) => row.locally_modified_files.length > 0)
+                  {driftSetupRows.some((row) => row.locally_modified_files.length > 0)
                     ? 'Files were edited locally. Reinstall to overwrite, or keep your edits and re-verify.'
                     : 'A framework is out of date with the compiled setup. Reinstall when you are ready.'}
                 </p>
@@ -273,7 +287,7 @@ export default function Home() {
                     </span>
                   )}
                   {pack && <span>{pack.artifact_count} items</span>}
-                  {pack && <span>{pack.download_count} uses</span>}
+                  {pack && <span>{formatUses(pack.download_count)}</span>}
                 </div>
               </>
             );
@@ -281,7 +295,7 @@ export default function Home() {
             return pack ? (
               <Link
                 key={bundle.id}
-                to={`/packs/${pack.id}`}
+                to={packHref(pack, packSource(pack, user?.id))}
                 className="rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-sm"
               >
                 {body}
@@ -308,7 +322,7 @@ export default function Home() {
             {communityHighlights.map((collection) => (
               <Link
                 key={collection.id}
-                to={`/packs/community/${collection.id}`}
+                to={packHref(collection, 'community')}
                 className="rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-sm"
               >
                 <div className="flex items-center justify-between gap-2">
@@ -316,7 +330,7 @@ export default function Home() {
                     {collection.collection_type === 'base' ? 'Starting point' : 'Add-on'}
                   </span>
                   <span className="rounded border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                    Community
+                    {packSourceLabel('community')}
                   </span>
                 </div>
                 <h3 className="mt-3 font-semibold text-card-foreground">{collection.name}</h3>
@@ -330,7 +344,7 @@ export default function Home() {
                       {collection.avg_rating.toFixed(1)}
                     </span>
                   )}
-                  <span>{collection.download_count} uses</span>
+                  <span>{formatUses(collection.download_count)}</span>
                   {collection.last_verified_at && <span>verified</span>}
                 </div>
               </Link>

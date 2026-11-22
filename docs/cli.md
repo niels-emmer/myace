@@ -143,7 +143,7 @@ exactly what CI diffs against.
 Both `check` and `watch` accept `--report`, which is **opt-in only** —
 nothing is ever sent to the server otherwise. With `--report`, each check's
 result is POSTed to `/api/v1/sync/report` and shows up on your own Sync
-Dashboard (`/machine/sync` in the web UI) under a machine label (defaults to your
+Sync report (`/machine?tab=sync` in the web UI) under a machine label (defaults to your
 hostname). Reports are always scoped to the reporting user — nobody else
 can see them, not even admins.
 
