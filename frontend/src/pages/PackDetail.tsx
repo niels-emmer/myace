@@ -144,13 +144,20 @@ export default function PackDetail() {
     mutationFn: (stars: number) => ratingsApi.rate(id!, stars),
     onSuccess: (data) => {
       queryClient.setQueryData(['pack-rating', id], data);
+      // Signed-in reads use ['collection', id]; anonymous reads use
+      // ['public-pack', id]. Refresh whichever the header is rendering.
+      queryClient.invalidateQueries({ queryKey: ['collection', id] });
       queryClient.invalidateQueries({ queryKey: ['public-pack', id] });
     },
   });
 
   const removeRatingMutation = useMutation({
     mutationFn: () => ratingsApi.remove(id!),
-    onSuccess: (data) => queryClient.setQueryData(['pack-rating', id], data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['pack-rating', id], data);
+      queryClient.invalidateQueries({ queryKey: ['collection', id] });
+      queryClient.invalidateQueries({ queryKey: ['public-pack', id] });
+    },
   });
 
   const createCommentMutation = useMutation({
@@ -231,6 +238,9 @@ export default function PackDetail() {
     basePacks?.items?.[0]?.id ??
     '';
   const selectedBaseId = pickedBaseId || preferredBaseId;
+  const selectedBaseName = (basePacks?.items ?? []).find(
+    (base) => base.id === selectedBaseId,
+  )?.name;
 
   const visibleArtifacts = useMemo(() => {
     const filtered =
@@ -715,13 +725,19 @@ export default function PackDetail() {
             )}
 
             {useResult && (
-              <p className="flex items-center gap-1.5 text-xs text-green-700">
-                <Check className="h-3.5 w-3.5" />
-                Added as a reference. Finish it in{' '}
-                <Link to="/setups" className="font-medium underline">
-                  Setups
-                </Link>
-                .
+              <p className="text-xs text-green-700">
+                <span className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5" />
+                  Recorded a use
+                  {isAddon && selectedBaseName ? ` (paired with ${selectedBaseName})` : ''}.
+                </span>
+                <span className="mt-1 block">
+                  Build the setup that installs it in{' '}
+                  <Link to="/setups" className="font-medium underline">
+                    Setups
+                  </Link>
+                  .
+                </span>
               </p>
             )}
             {copyMutation.isError && (
@@ -815,7 +831,8 @@ export default function PackDetail() {
               Pair this add-on with a starting point
             </h2>
             <p className="text-sm text-muted-foreground">
-              Add-ons layer onto a starting point. Pick the one this setup begins from.
+              Add-ons layer onto a starting point. This records a use and notes the starting
+              point you pick; build the setup itself in Setups.
             </p>
             <select
               value={selectedBaseId}

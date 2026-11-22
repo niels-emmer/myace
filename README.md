@@ -50,9 +50,9 @@ pack, or browse the community library for ready-made content.
 
 The storefront at `/welcome` and the **Packs** library at `/packs` are
 browsable **without an account** — pack listings, detail pages, contents,
-ratings and comments are public read-only until you choose to rate, build a
-setup, install, or publish. The screenshots above show the signed-in app;
-there is no separate storefront capture yet.
+and each pack's aggregate rating are public read-only. Writing (rating,
+commenting, using, installing, publishing) needs an account. The screenshots
+above show the signed-in app; there is no separate storefront capture yet.
 
 ## How it works
 

@@ -239,5 +239,6 @@ describe('PackDetail', () => {
     await waitFor(() => expect(confirm).toBeEnabled());
     fireEvent.click(confirm);
     await waitFor(() => expect(packApi.usePack).toHaveBeenCalledWith('pack-1'));
+    expect(await screen.findByText(/paired with Software Engineer/)).toBeInTheDocument();
   });
 });

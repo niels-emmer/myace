@@ -52,6 +52,32 @@ export const FRAMEWORK_LABELS: string[] = [
 ];
 
 /**
+ * Adapter name/alias → display label. `target_compatibility` is hand-entered
+ * metadata (AGENTS.md rule 41), so it can carry any adapter alias; map what
+ * the 12 adapters actually declare and leave unknown values untouched.
+ */
+const FRAMEWORK_LABEL_BY_TARGET: Record<string, string> = {
+  'claude-code': 'Claude Code',
+  claude: 'Claude Code',
+  'codex-cli': 'Codex CLI',
+  codex: 'Codex CLI',
+  cursor: 'Cursor',
+  opencode: 'OpenCode',
+  'copilot-cli': 'Copilot CLI',
+  copilot: 'Copilot CLI',
+  cline: 'Cline',
+  windsurf: 'Windsurf',
+  aider: 'Aider',
+  continue: 'Continue',
+  'continue-dev': 'Continue',
+  goose: 'Goose',
+  'amazon-q': 'Amazon Q',
+  amazonq: 'Amazon Q',
+  'pi-dev': 'pi.dev',
+  pi: 'pi.dev',
+};
+
+/**
  * "Works with" labels for a pack, derived from its items' descriptive
  * `target_compatibility`. That field is metadata and does not gate
  * compilation (AGENTS.md rule 41) — an empty union means no item narrowed
@@ -62,9 +88,16 @@ export function packFrameworks(
 ): string[] {
   const found = new Set<string>();
   for (const artifact of artifacts) {
-    for (const target of artifact.target_compatibility) found.add(target);
+    for (const target of artifact.target_compatibility) {
+      found.add(FRAMEWORK_LABEL_BY_TARGET[target] ?? target);
+    }
   }
-  return found.size > 0 ? [...found] : FRAMEWORK_LABELS;
+  if (found.size === 0) return FRAMEWORK_LABELS;
+  const order = (label: string) => {
+    const index = FRAMEWORK_LABELS.indexOf(label);
+    return index === -1 ? FRAMEWORK_LABELS.length : index;
+  };
+  return [...found].sort((a, b) => order(a) - order(b) || a.localeCompare(b));
 }
 
 export function formatUses(downloadCount: number): string {

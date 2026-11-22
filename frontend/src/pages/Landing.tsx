@@ -133,8 +133,12 @@ export default function Landing() {
             Browse packs
             <ArrowRight className="h-4 w-4" />
           </Link>
+          {/* Phase 2 owns `/onboarding`; until its parallel branch lands,
+              send the visitor to sign-up so this CTA has a real
+              destination on a standalone Phase 5 branch. Flip to
+              `/onboarding` in integration. */}
           <Link
-            to="/onboarding"
+            to="/login?mode=register"
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-6 py-3 text-base font-medium text-foreground transition-colors hover:border-brand-600 hover:text-brand-600"
           >
             Set up mine — 2 minutes
