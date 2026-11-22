@@ -63,6 +63,12 @@ export const onboardingApi = {
     }),
 };
 
+/** Record a pack reference ("used N times"); advisory only, best-effort. */
+export const packUsageApi = {
+  use: (collectionId: string) =>
+    request<unknown>(`/collections/${collectionId}/use`, { method: 'POST' }),
+};
+
 /** Install *claims* — never verification (docs/adr/0015-pack-reference-freeze.md). */
 export const installsApi = {
   list: (profileId: string) =>
@@ -216,6 +222,30 @@ export function resolveInitialDraft(
     draft.bundleId = null;
   }
   return draft;
+}
+
+/** Full update payload from an existing profile, with the Phase 3 fields included. */
+export function profileToCreate(
+  profile: Profile,
+  overrides: Partial<SetupProfileCreate> = {},
+): SetupProfileCreate {
+  const frameworks =
+    profile.target_frameworks && profile.target_frameworks.length > 0
+      ? profile.target_frameworks
+      : profile.target_framework
+        ? [profile.target_framework]
+        : [];
+  return {
+    name: profile.name,
+    description: profile.description,
+    base_collection_id: profile.base_collection_id,
+    additional_collection_ids: [...profile.additional_collection_ids],
+    disabled_artifact_ids: [...profile.disabled_artifact_ids],
+    target_framework: profile.target_framework,
+    target_frameworks: frameworks,
+    is_public: profile.is_public,
+    ...overrides,
+  };
 }
 
 /** Profile payload derived from a draft. `target_frameworks` is the Phase 3 field. */

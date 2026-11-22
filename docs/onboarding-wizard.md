@@ -30,6 +30,10 @@ Supporting modules created by this phase, kept out of the Phase 5 hotspots
   the owner-scoped `pack_unavailable` helpers.
 - `components/InstallMethodPanel.tsx` — the per-target methods shared by the
   wizard's final step and the install page, so the two cannot drift.
+- `components/AddToSetup.tsx` — "Use this pack" / "Add to a setup" against the
+  setup API; a starting point creates a setup, an add-on asks for a base
+  first, and "Add to a setup" updates an existing setup instead of only
+  bumping the advisory use counter.
 
 ## The five steps
 
@@ -75,6 +79,21 @@ Creating the setup happens on the step 4 → 5 transition:
   {completed:true}`, clear the draft, refresh the user, and navigate — Home for
   a skip, `/setups/{id}` after a finish. `User.onboarding_completed_at` is
   cross-device; localStorage is only the draft.
+
+## Use this pack / Add to a setup
+
+`AddToSetup` is the pack-detail action surface. It never treats
+`POST /collections/{id}/use` as the operation — that only increments the
+advisory counter and is called best-effort alongside the real change:
+
+| Action | Starting point | Add-on |
+|---|---|---|
+| **Use this pack** | Creates a setup with this pack as its base | Asks which starting point to pair with (most-used preselected), then creates a setup with both |
+| **Add to a setup…** | Replaces that setup's base (and drops the pack from its add-ons) | Appends the pack to that setup's add-ons |
+
+Both paths navigate to the affected setup. The component is mounted by the
+pack-detail page; Phase 5 owns that page's markup, so the mount is applied
+after its branch lands.
 
 ## Add-on pairing
 
@@ -159,6 +178,9 @@ This Phase 2 task deliberately does not edit `AGENTS.md`, the root `README.md`,
 the same base and the integration pass owns those files. Apply these when the
 branches are consolidated (they are the only outstanding review threads):
 
+0. **Mount `AddToSetup` on the pack-detail pages** once Phase 5's branch lands
+   (one import + one component per detail page); the component and its tests
+   already exist in Phase 2.
 1. **`AGENTS.md` rule 42** — add `/onboarding` to the canonical-route list; note
    that `/setups/:id/install` no longer accepts a legacy `?profile=` (only
    `LegacyCompileRedirect` maps it); and record Home's second state banner,
