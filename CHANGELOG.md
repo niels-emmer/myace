@@ -63,9 +63,11 @@ existing deployments keep working through the upgrade.
   retraction for third parties.
 - **`download_count` is advisory**, displayed as "used N times" and never
   used for ranking or "most used" sorting.
-- **The CLI derives its version from package metadata** (`importlib.metadata`),
-  instead of the stale hardcoded `0.1.0` — both for the module version and the
-  client version recorded with stored credentials.
+- **`myace --version` now reports the release version**, derived from package
+  metadata (`importlib.metadata`) instead of the stale hardcoded `0.1.0` —
+  the same value recorded as the client version in stored credentials. The
+  Python package manager canonicalises `2.0.0-pre.1` to `2.0.0rc1`, which is
+  what the CLI prints.
 
 ### Security
 
