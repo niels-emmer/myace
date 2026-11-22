@@ -62,7 +62,6 @@ export default function AddToSetup({ collection }: { collection: Collection }) {
     setBusy(true);
     setError(null);
     try {
-      recordUse();
       const created = await setupProfilesApi.create({
         name: `${collection.name} setup`,
         description: collection.description,
@@ -71,6 +70,7 @@ export default function AddToSetup({ collection }: { collection: Collection }) {
         disabled_artifact_ids: [],
         target_frameworks: [],
       });
+      recordUse();
       finish(created);
     } catch (err) {
       setError((err as Error).message);
@@ -83,7 +83,6 @@ export default function AddToSetup({ collection }: { collection: Collection }) {
     setBusy(true);
     setError(null);
     try {
-      recordUse();
       const additional = isBase
         ? // A pack becoming the base must not also remain an add-on.
           profile.additional_collection_ids.filter((id) => id !== collection.id)
@@ -97,6 +96,7 @@ export default function AddToSetup({ collection }: { collection: Collection }) {
           additional_collection_ids: additional,
         }),
       );
+      recordUse();
       setMenuOpen(false);
       finish(updated);
     } catch (err) {
