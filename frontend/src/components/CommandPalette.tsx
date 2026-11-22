@@ -219,7 +219,7 @@ export default function CommandPalette({ open, onOpen, onClose }: CommandPalette
             aria-activedescendant={activeItem ? `command-option-${activeItem.id}` : undefined}
             aria-label="Search commands, packs, and setups"
             placeholder="Search commands, packs, and setups…"
-            className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="w-full bg-transparent text-sm text-foreground outline-hidden placeholder:text-muted-foreground"
           />
           <kbd className="hidden shrink-0 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline">
             Esc

@@ -55,4 +55,9 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Tailwind 3's preflight set this on buttons; v4's does not. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }

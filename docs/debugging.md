@@ -386,9 +386,14 @@ and several utilities were renamed without aliases.
   source files; the JS `content` globs are no longer what selects them, but
   `index.html` and `src/**` are still scanned.
 - `flex-shrink-0` → `shrink-0` and `shadow-sm` → `shadow-xs`. v4 renamed these
-  scales and does **not** alias the old names. A dropped utility emits no CSS
-  and fails silently — `flex-shrink-0` was used ~74 times and would have
-  disabled every intentionally non-shrinking flex item.
+  **suffixed** scale names and does not alias the old suffixes (bare `rounded`
+  and `shadow` survive as deprecated aliases in 4.3.5, but the suffixed names
+  do not). A dropped utility emits no CSS and fails silently —
+  `flex-shrink-0` was used ~74 times and would have disabled every
+  intentionally non-shrinking flex item.
+- v4's preflight also stopped setting `cursor: pointer` on buttons, so
+  `index.css` carries a `button:not(:disabled), [role="button"]:not(:disabled)`
+  base rule. Without it every real `<button>` falls back to the arrow cursor.
 - No `dark:` *utility variants* are used in this app; dark mode comes from the
   `.dark` CSS-variable block, so no `@custom-variant dark` is required. If a
   `dark:` utility is added later, define that variant or it will fall back to

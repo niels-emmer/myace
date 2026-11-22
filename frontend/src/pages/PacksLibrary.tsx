@@ -173,7 +173,7 @@ export default function PacksLibrary() {
               onChange={(event) => setSearch(event.target.value)}
               aria-label="Search packs"
               placeholder="Search packs, tags, categories…"
-              className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground focus:border-brand-500 focus:outline-hidden focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
