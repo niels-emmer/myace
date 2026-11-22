@@ -21,7 +21,7 @@ Scope is deliberately narrow to bound both abuse surface and response
 size: rule-type artifacts only (parsed via the same `##`-section splitter
 `scan_directory()` uses for AGENTS.md, `_parse_agents_md_content()`) — no
 skills/agents/model-configs, no git URLs, no file uploads — compiled
-through 3 adapters (claude-code, cursor, opencode), not all 11. Input is
+through 3 adapters (claude-code, cursor, opencode), not all 12. Input is
 capped at 20KB (`MAX_MARKDOWN_BYTES`, enforced by `DemoCompileRequest`'s
 `field_validator`) — but that check runs only *after* FastAPI has already
 buffered and JSON-parsed the whole request body, so a transport-level cap

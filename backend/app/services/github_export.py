@@ -41,7 +41,12 @@ def _frontmatter(artifact: CanonicalArtifact) -> str:
         "type": artifact.artifact_type,
         "name": artifact.name,
         "version": artifact.version,
-        "target_compatibility": artifact.target_compatibility,
+        # `compatibility`, not `target_compatibility`: that is the key both
+        # scanners actually read back (`_parse_skill_file` / `_parse_agent_file`
+        # / `_parse_command_file`, each defaulting to ["opencode"]). Emitting
+        # `target_compatibility` here silently dropped the field on every
+        # re-scan, breaking the export↔scan symmetry AGENTS.md rule 8 promises.
+        "compatibility": artifact.target_compatibility,
         "priority": artifact.priority,
         "tags": artifact.tags,
         "description": artifact.description,
@@ -51,7 +56,7 @@ def _frontmatter(artifact: CanonicalArtifact) -> str:
         # (app/services/scanner.py::_parse_agent_file) — only emitted when
         # present, since non-agent artifact types never carry it.
         fm["handoff_to"] = artifact.handoff_to
-    return yaml.safe_dump(fm, sort_keys=False).strip()
+    return str(yaml.safe_dump(fm, sort_keys=False)).strip()
 
 
 def artifacts_to_files(artifacts: list[CanonicalArtifact]) -> dict[str, str]:

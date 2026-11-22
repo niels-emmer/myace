@@ -120,11 +120,20 @@ def _parse_agent_file(path: Path) -> dict | None:
     frontmatter, body = _parse_yaml_frontmatter(content)
     name = path.stem
 
-    tags = []
+    # Start from any explicit `tags:` list so an agent that was exported and
+    # re-scanned keeps its tags (github_export writes them); `mode:`/`model:`
+    # are still derived from their own frontmatter keys, de-duplicated against
+    # that list so a round trip can't double them up. Kept in sync with
+    # backend/app/services/scanner.py::_parse_agent_file (AGENTS.md rule 8).
+    tags = list(frontmatter.get("tags") or [])
     if frontmatter.get("mode"):
-        tags.append(f"mode:{frontmatter['mode']}")
+        tag = f"mode:{frontmatter['mode']}"
+        if tag not in tags:
+            tags.append(tag)
     if frontmatter.get("model"):
-        tags.append(f"model:{frontmatter['model']}")
+        tag = f"model:{frontmatter['model']}"
+        if tag not in tags:
+            tags.append(tag)
 
     # Optional machine-readable pipeline-routing field — kept in sync with
     # the backend scanner's app/services/scanner.py::_parse_agent_file

@@ -5,11 +5,11 @@ import json
 import logging
 import uuid
 from datetime import UTC, date, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import case, func
+from sqlalchemy import ColumnElement, case, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -154,10 +154,21 @@ class CommunityCollectionsResponse(BaseModel):
     total: int
 
 
-def _community_order_by(sort: Literal["rating", "downloads", "alpha"]):
-    """Shared sort-column resolution for community listing endpoints."""
+def _community_order_by(
+    sort: Literal["rating", "downloads", "alpha"]
+) -> tuple[ColumnElement[Any], ...]:
+    """Shared sort-column resolution for community listing endpoints.
+
+    Every branch ends with `Collection.id.asc()` as a deterministic
+    tie-breaker: `/community` is paginated (offset/limit), and ordering on a
+    non-unique key alone lets rows repeat or disappear across pages when keys
+    tie.
+
+    The `type: ignore`s are the same SQLModel/mypy stub gap rule 37 documents —
+    mypy reads these columns as plain Python scalars, not column expressions.
+    """
     if sort == "rating":
-        return (Collection.avg_rating.desc(),)
+        return (Collection.avg_rating.desc(), Collection.id.asc())  # type: ignore[attr-defined]
     if sort == "alpha":
         # 'additional' < 'base' alphabetically, so use a CASE expression to
         # force the correct order: base → 0, additional → 1, then name.
@@ -166,8 +177,8 @@ def _community_order_by(sort: Literal["rating", "downloads", "alpha"]):
             (Collection.collection_type == "additional", 1),
             else_=2,
         )
-        return (type_order, Collection.name.asc())
-    return (Collection.download_count.desc(),)
+        return (type_order, Collection.name.asc(), Collection.id.asc())  # type: ignore[attr-defined]
+    return (Collection.download_count.desc(), Collection.id.asc())  # type: ignore[attr-defined]
 
 
 @router.get("/community", response_model=CommunityCollectionsResponse)
@@ -216,7 +227,7 @@ async def list_community_collections(
 
 @router.get("/community/top", response_model=list[CollectionRead])
 async def list_top_community_collections(
-    limit: int = 10,
+    limit: int = Query(10, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -237,12 +248,18 @@ async def list_community_categories(
     session: AsyncSession = Depends(get_session),
 ):
     """List all distinct categories among published community collections."""
-    from sqlalchemy import distinct
-
-    query = select(distinct(Collection.category)).where(
-        Collection.published == True,
-        Collection.is_active == True,
-        Collection.category != None,
+    # `select(...).distinct()`, not a column-level `distinct(Collection.category)`:
+    # the latter is a column-expression-level construct SQLAlchemy warns about
+    # outside an aggregate ("unary distinct() should not be used outside of an
+    # aggregate function"), and it emits the same SELECT DISTINCT here anyway.
+    query = (
+        select(Collection.category)
+        .where(
+            Collection.published == True,
+            Collection.is_active == True,
+            Collection.category != None,
+        )
+        .distinct()
     )
     result = await session.execute(query)
     return [row[0] for row in result.all() if row[0]]
@@ -465,8 +482,10 @@ async def bulk_delete_artifacts(
     now = datetime.now(UTC)
     for artifact in artifacts:
         artifact.deleted_at = now
-    await session.commit()
 
+    # Re-count before the single commit: `session.execute` autoflushes, so this
+    # SELECT already sees the soft-deletes just applied. Committing once keeps
+    # the artifacts and the denormalized counter atomic (invariant 20).
     count_result = await session.execute(
         select(Artifact).where(
             Artifact.collection_id == collection_id, Artifact.deleted_at == None
@@ -484,7 +503,7 @@ class BulkExportRequest(BaseModel):
     target_collection_id: uuid.UUID | None = None
     new_collection_name: str | None = None
     new_collection_description: str = ""
-    new_collection_type: str = "base"
+    new_collection_type: Literal["base", "additional"] = "base"
 
 
 @router.post("/{collection_id}/artifacts/bulk-export")
@@ -553,8 +572,10 @@ async def bulk_export_artifacts(
             handoff_to=src.handoff_to,
         ))
         exported += 1
-    await session.commit()
 
+    # `session.execute` autoflushes, so this re-count already sees the pending
+    # inserts: the artifacts and the denormalized counter land in one commit
+    # (a second commit after a failure would leave `artifact_count` wrong).
     count_result = await session.execute(
         select(Artifact).where(
             Artifact.collection_id == target_collection.id, Artifact.deleted_at == None
@@ -741,7 +762,7 @@ class UnpublishRequest(BaseModel):
 @router.post("/{collection_id}/unpublish", response_model=CollectionRead)
 async def unpublish_collection(
     collection_id: uuid.UUID,
-    request: UnpublishRequest = UnpublishRequest(),
+    request: UnpublishRequest | None = None,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -772,7 +793,7 @@ async def unpublish_collection(
     collection.published = False
     collection.visibility = "private"
     collection.moderation_status = "unpublished"
-    collection.moderation_reason = request.reason.strip() if request.reason else None
+    collection.moderation_reason = request.reason.strip() if request and request.reason else None
     collection.moderated_at = datetime.now(UTC)
     collection.moderated_by = current_user.id
     await session.commit()
@@ -882,9 +903,9 @@ async def import_community_collection(
             handoff_to=src.handoff_to,
         ))
         created += 1
-    await session.commit()
 
-    # Update counts
+    # Counts land in the same commit as the artifacts they describe (invariant
+    # 20) — a separate commit could leave the counter permanently stale.
     target.artifact_count = created
     source.download_count = (source.download_count or 0) + 1
     await session.commit()
@@ -908,7 +929,7 @@ class ScanRequest(BaseModel):
 
 class ScanResult(BaseModel):
     """A discovered artifact from a local scan."""
-    artifact_type: str
+    artifact_type: Literal["rule", "skill", "agent", "workflow", "model_config"]
     name: str
     version: str = "1.0.0"
     priority: int = 50
@@ -981,8 +1002,8 @@ class BulkImportRequest(BaseModel):
     collection_name: str
     collection_description: str = ""
     git_url: str = ""
-    collection_type: str = "base"
-    visibility: str = "private"
+    collection_type: Literal["base", "additional"] = "base"
+    visibility: Literal["private", "public"] = "private"
     artifacts: list[BulkImportItem]
 
 
@@ -1024,9 +1045,7 @@ async def bulk_import(
         session.add(artifact)
         created += 1
 
-    await session.commit()
-
-    # Update artifact count
+    # Artifact count lands in the same commit as the artifacts it counts.
     collection.artifact_count = created
     await session.commit()
 

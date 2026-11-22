@@ -43,6 +43,38 @@ jobs:
       - name: Mypy (advisory)
         run: mypy app || true
 
+  # The backend image ships Python 3.15 (backend/Dockerfile), so the suite has
+  # to run on 3.15 too. The `backend` job above stays on 3.12 to pin the floor
+  # declared in `requires-python`; this job pins what actually serves traffic.
+  # Keep the two in lockstep — see AGENTS.md rule 9. Deliberately a separate
+  # job rather than a matrix on `backend`: GitHub appends matrix values to
+  # check-run names, and `Backend (pytest, ruff)` is one of main's required
+  # status checks, so renaming it would stall every PR at "Expected".
+  backend-image-python:
+    name: Backend (pytest, ruff, Python 3.15)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.15"
+          cache: "pip"
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Pytest
+        run: pytest
+
   cli:
     name: CLI (pytest, ruff)
     runs-on: ubuntu-latest

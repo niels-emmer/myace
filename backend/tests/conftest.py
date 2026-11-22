@@ -43,8 +43,19 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async def _override_get_session() -> AsyncGenerator[AsyncSession, None]:
+        # Mirrors app.core.database.get_session (commit on success, rollback on
+        # error) so a handler that relies on the dependency's implicit commit
+        # behaves in tests exactly as it does in production — rather than
+        # passing here and failing there.
         async with factory() as session:
-            yield session
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+            finally:
+                await session.close()
 
     fastapi_app.dependency_overrides[get_session] = _override_get_session
 
