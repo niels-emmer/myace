@@ -44,7 +44,7 @@ export default function AddToSetup({
   frameworks = [],
 }: {
   collection: AddToSetupPack;
-  /** PackDetail often keeps its own "Use this pack" flow; then mount the menu only. */
+  /** Callers that supply their own "Use this pack" flow mount the menu only. */
   showUse?: boolean;
   /** Adapter names the pack declares (artifact target_compatibility); filtered server-side. */
   frameworks?: string[];
