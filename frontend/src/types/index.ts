@@ -516,3 +516,13 @@ export interface LoginMfaResponse {
   mfa_token: string;
   message: string;
 }
+
+export interface MfaLoginResult {
+  message: string;
+  user_id: string;
+}
+
+export interface MfaEnrollmentRequiredResponse {
+  mfa_enrollment_required: boolean;
+  message: string;
+}

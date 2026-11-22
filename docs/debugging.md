@@ -301,7 +301,8 @@ CORS_ORIGINS)...`
 **Cause:** `.env.example` ships `APP_ENV=development`, and every
 production hardening check in `app/main.py` (the default-`APP_SECRET_KEY`
 `RuntimeError`, the `TRUSTED_HOSTS` requirement, the `DEBUG` and
-`ADMIN_BOOTSTRAP_ENABLED` warnings) is gated on `APP_ENV != development`.
+CORS-wildcard `RuntimeError`s, the cookie-`Secure` warning, and the
+`ADMIN_BOOTSTRAP_ENABLED` warning) is gated on `APP_ENV != development`.
 A deployment that customised its `.env` but left that one line alone
 therefore runs with none of them.
 
@@ -309,22 +310,34 @@ therefore runs with none of them.
 to start until `APP_SECRET_KEY` and `TRUSTED_HOSTS` are set — that's the
 intended behaviour, not a regression.
 
-## `DEBUG` or `ADMIN_BOOTSTRAP_ENABLED` warning at startup
+## Backend refuses to start: `RuntimeError: DEBUG is true outside app_env=development`
 
-**Symptom:** the backend logs one or both of:
-`DEBUG is true outside app_env=development...` /
-`ADMIN_BOOTSTRAP_ENABLED is true...`
+**Symptom:** the backend (or its container) exits on boot with
+`RuntimeError: DEBUG is true outside app_env=development...`
 
-**Cause:** same pattern as the `APP_SECRET_KEY` warning above — both
-default to values that are convenient for local dev but unsafe left on for
-a deployment reachable beyond localhost. `DEBUG=true` publicly exposes
-`/docs`/`/redoc` and disables the session cookie's `https_only` flag.
-`ADMIN_BOOTSTRAP_ENABLED=true` means the *next* person to register becomes
-an admin, not just the very first person ever.
+**Cause:** `.env.example` ships `DEBUG=true` for local convenience, so a
+deployment that copied the file without reviewing it is exactly the case this
+check catches. `/docs` and `/redoc` are gated on `APP_ENV` now, not `DEBUG`,
+so the check is a shipped-default tripwire rather than the thing that hides
+the API schema.
 
-**Fix:** set `DEBUG=false` in `.env`, and set `ADMIN_BOOTSTRAP_ENABLED=false`
-once you've registered your own admin account. Both warnings only fire
-when `APP_ENV != development`, so a local dev setup is unaffected.
+**Fix:** set `DEBUG=false` in `.env`. Do **not** dodge it by setting
+`APP_ENV=development` — that switches off every other hardening check too,
+including the default-secret and `TRUSTED_HOSTS` errors.
+
+## `ADMIN_BOOTSTRAP_ENABLED` warning at startup
+
+**Symptom:** the backend logs `ADMIN_BOOTSTRAP_ENABLED is true: the next
+person to register becomes an admin...`
+
+**Cause:** the same pattern as the `APP_SECRET_KEY` check — it defaults to a
+value that is convenient for local dev but unsafe to leave on for a deployment
+reachable beyond localhost. `ADMIN_BOOTSTRAP_ENABLED=true` means the *next*
+person to register becomes an admin, not just the very first person ever.
+
+**Fix:** set `ADMIN_BOOTSTRAP_ENABLED=false` in `.env` once you've registered
+your own admin account. The warning only fires when `APP_ENV != development`,
+so a local dev setup is unaffected.
 
 ## A Dependabot PR fails CI with an unrelated-looking peer dependency error
 

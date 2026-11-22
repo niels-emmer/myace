@@ -1,8 +1,12 @@
 """Tests for TOTP MFA support."""
 
+import pyotp
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.security import hash_password
+from app.models.user import User
 
 
 @pytest.mark.asyncio
@@ -283,3 +287,160 @@ class TestMfaLogin:
         data = resp.json()
         assert "mfa_required" not in data
         assert data["email"] == user_email
+
+
+async def _set_system_mfa(
+    db: AsyncSession, *, mfa_enabled: bool = True, mfa_forced: bool = False
+) -> None:
+    from app.models.system_settings import SystemSettings
+
+    db.add(SystemSettings(id=1, mfa_enabled=mfa_enabled, mfa_forced=mfa_forced))
+    await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_login_requires_mfa_challenge(
+    db_session: AsyncSession, async_client: AsyncClient
+):
+    """An MFA-enabled account is not authenticated by the password step alone.
+
+    This is the server half of M-1: the response is a challenge, and no session
+    exists until the challenge is answered — so a client that stores the
+    challenge as a user is storing something that authenticates nothing.
+    """
+    secret = pyotp.random_base32()
+    user = User(
+        email="challenge@test.com",
+        display_name="Challenge",
+        password_hash=hash_password("challengepass123"),
+        mfa_enabled=True,
+        totp_secret=secret,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    resp = await async_client.post(
+        "/api/v1/auth/login",
+        json={"email": "challenge@test.com", "password": "challengepass123"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["mfa_required"] is True
+    assert body["mfa_token"]
+    assert "email" not in body
+    # The password step alone establishes no authenticated state.
+    assert (await async_client.get("/api/v1/auth/me")).status_code == 401
+
+    done = await async_client.post(
+        "/api/v1/auth/login/mfa",
+        json={"mfa_token": body["mfa_token"], "code": pyotp.TOTP(secret).now()},
+    )
+    assert done.status_code == 200
+    me = await async_client.get("/api/v1/auth/me")
+    assert me.status_code == 200
+    assert me.json()["email"] == "challenge@test.com"
+
+
+class TestMfaForced:
+    """`mfa_forced` must actually be enforced, not just stored (M-2)."""
+
+    @pytest.mark.asyncio
+    async def test_mfa_forced_blocks_unenrolled_login(
+        self, db_session: AsyncSession, async_client: AsyncClient
+    ):
+        """An unenrolled account is blocked at login and can reach enrolment."""
+        import pyotp
+
+        await _set_system_mfa(db_session, mfa_enabled=True, mfa_forced=True)
+        email, password = await _create_user(db_session, "forced@test.com", "forcedpass123")
+
+        resp = await async_client.post(
+            "/api/v1/auth/login", json={"email": email, "password": password}
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["mfa_enrollment_required"] is True
+        assert "mfa_token" not in data
+
+        # No session was issued — the account is blocked, not merely nagged.
+        assert (await async_client.get("/api/v1/auth/me")).status_code == 401
+        # The pending enrolment session reaches nothing but the TOTP routes.
+        assert (await async_client.get("/api/v1/auth/tokens")).status_code == 401
+
+        # ...and it can reach the existing enrolment flow.
+        setup = await async_client.post("/api/v1/auth/me/mfa/totp/setup")
+        assert setup.status_code == 200
+        secret = setup.json()["secret"]
+        verify = await async_client.post(
+            "/api/v1/auth/me/mfa/totp/verify", json={"code": pyotp.TOTP(secret).now()}
+        )
+        assert verify.status_code == 200
+
+        # Completing enrolment completes the login.
+        me = await async_client.get("/api/v1/auth/me")
+        assert me.status_code == 200
+        assert me.json()["email"] == email
+
+    @pytest.mark.asyncio
+    async def test_mfa_forced_off_leaves_login_unchanged(
+        self, db_session: AsyncSession, async_client: AsyncClient
+    ):
+        await _set_system_mfa(db_session, mfa_enabled=True, mfa_forced=False)
+        email, password = await _create_user(db_session, "unforced@test.com", "unforcedpass123")
+
+        resp = await async_client.post(
+            "/api/v1/auth/login", json={"email": email, "password": password}
+        )
+        assert resp.status_code == 200
+        assert "mfa_enrollment_required" not in resp.json()
+        assert resp.json()["email"] == email
+        assert (await async_client.get("/api/v1/auth/me")).status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_mfa_forced_is_ignored_when_the_feature_is_off(
+        self, db_session: AsyncSession, async_client: AsyncClient
+    ):
+        """`mfa_forced` without `mfa_enabled` must not block anyone: enrolment
+        itself 400s when the feature is off, so enforcing would lock every
+        unenrolled account out with no way to comply."""
+        await _set_system_mfa(db_session, mfa_enabled=False, mfa_forced=True)
+        email, password = await _create_user(db_session, "featureoff@test.com", "featureoff123")
+
+        resp = await async_client.post(
+            "/api/v1/auth/login", json={"email": email, "password": password}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["email"] == email
+        assert (await async_client.get("/api/v1/auth/me")).status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_mfa_forced_enrolled_user_is_challenged_not_blocked(
+        self, db_session: AsyncSession, async_client: AsyncClient
+    ):
+        import pyotp
+
+        await _set_system_mfa(db_session, mfa_enabled=True, mfa_forced=True)
+        secret = pyotp.random_base32()
+        user = User(
+            email="enrolled@test.com",
+            display_name="Enrolled",
+            password_hash=hash_password("enrolledpass123"),
+            mfa_enabled=True,
+            totp_secret=secret,
+        )
+        db_session.add(user)
+        await db_session.commit()
+
+        resp = await async_client.post(
+            "/api/v1/auth/login",
+            json={"email": "enrolled@test.com", "password": "enrolledpass123"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["mfa_required"] is True
+
+        done = await async_client.post(
+            "/api/v1/auth/login/mfa",
+            json={"mfa_token": resp.json()["mfa_token"], "code": pyotp.TOTP(secret).now()},
+        )
+        assert done.status_code == 200
+        assert (await async_client.get("/api/v1/auth/me")).status_code == 200
