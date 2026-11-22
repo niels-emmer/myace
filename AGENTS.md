@@ -686,16 +686,24 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 - To add a starter pack: create the directory under
   `collections/{base,additional}/<slug>/` in the scanner's format, then
   add an entry to `STARTER_COLLECTIONS` in `seed_collections.py` with its
-  display `name`/`category`/`description` — no migration needed.
-- **A content-only edit to an already-shipped starter-pack file (no new
-  collection, no new `STARTER_COLLECTIONS` entry) will NOT reach an
-  already-seeded deployment on its own.** The `(name, is_starter_pack)`
-  idempotency check above is collection-level, and it short-circuits
-  before any artifact is looked at — `if existing.scalar_one_or_none() is
-  not None: continue` skips the whole collection, including
-  re-scanning its files, the moment a same-named starter collection
-  already exists. Restarting (or redeploying) an install that already
-  seeded `software-engineer` will not pick up a changed
+  display `name`/`category`/`description` — no migration needed. To ship a
+  highly-specialized add-on on the community shelf instead — still
+  published + approved + public, but `is_starter_pack=False`, so
+  `packSource()` calls it Community and the Home/landing highlights can
+  show it — add it to `COMMUNITY_CONTRIBUTED_COLLECTIONS` instead. Never
+  list the same slug in both maps.
+- **Seeding is idempotent by the stable `seed://<collection_type>/<slug>`
+  `git_url`, not by name.** An existing row is skipped for *content*, but
+  its `is_starter_pack` flag is reconciled to whichever map currently
+  holds the slug, so moving a pack between the starter and
+  community-contributed sets reclassifies the existing row in place on the
+  next restart rather than inserting a duplicate.
+- **A content-only edit to an already-shipped pack file (no new
+  collection, no new registry entry) will NOT reach an already-seeded
+  deployment on its own.** The seed skips any collection whose `seed://`
+  ref already exists, before any artifact is looked at — it never
+  re-scans that collection's files. Restarting (or redeploying) an install
+  that already seeded `software-engineer` will not pick up a changed
   `orchestrator.md`, an added `handoff_to:` field, or any other
   in-place edit to that collection's source files — only a *new*
   collection (new slug/name) is ever picked up automatically. On an
