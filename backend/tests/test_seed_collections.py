@@ -251,19 +251,41 @@ async def test_additional_collections_compile_clean_on_software_engineer(
 
 
 NEW_ADDON_PACKS: dict[str, set[str]] = {
-    "Git Practices": {"Git Workflow Discipline", "github", "precommit", "release"},
+    "Git Practices": {
+        "Git Workflow Discipline",
+        "github",
+        "precommit",
+        "release",
+        "Never Commit Secrets",
+        "Commit One Concern At A Time",
+        "Protect Shared Branches",
+        "Green Before Merge",
+    },
     "Design & Scaffold": {
         "Design Grilling",
         "New App Scaffold",
         "scout",
         "decision-log",
         "handoff",
+        "Decide Before Building",
+        "Scaffold Complete On Day One",
+        "Verify Dependency Provenance",
     },
-    "Self-Hosted Deployment": {"Self-Hosted App", "Docker Patterns"},
+    "Self-Hosted Deployment": {
+        "Self-Hosted App",
+        "Docker Patterns",
+        "One Container, One Database By Default",
+        "Back Up Before You Change State",
+        "Health Checks Gate Every Deploy",
+    },
     "Enterprise AI Governance": {
         "Agent Guardrails",
         "Model Routing Policy",
         "Audit Trail and Attribution",
+        "Classify Before You Send",
+        "Confirm Before Production Or Publication",
+        "Keep A Zero-Egress Path",
+        "Attribute AI-Authored Changes",
     },
 }
 

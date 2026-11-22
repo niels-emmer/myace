@@ -67,8 +67,8 @@ Keep the source small and single-purpose:
 
 ## Backup and restore
 
-- Backup is a consistent snapshot of the database file (or a logical dump),
-  downloadable by an admin.
+- Backup is a consistent snapshot of the database file — for SQLite, `VACUUM
+  INTO` or the `.backup` command — downloadable by an admin.
 - Restore is upload, validate, replace, restart — and it must be reversible.
 - Never expose a backup without the admin session; keep the last few with
   timestamps.

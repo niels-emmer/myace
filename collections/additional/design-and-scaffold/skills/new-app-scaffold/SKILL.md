@@ -16,7 +16,7 @@ a working skeleton a new contributor — human or agent — can pick up immediat
 
 Creating a brand-new application repository. Pair it with the self-hosted-app
 conventions when the app fits the single-container shape, and with a
-public-repo checklist when the repository will be open to the world.
+repository-publication checklist when the repository will be open to the world.
 
 ## The baseline file set
 

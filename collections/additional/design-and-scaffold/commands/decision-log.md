@@ -6,9 +6,7 @@ compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline
 ---
 Record one decision-log entry.
 
-Decision input:
-
-$ARGUMENTS
+Decision input: the decision described when this command is invoked.
 
 ## Rules
 

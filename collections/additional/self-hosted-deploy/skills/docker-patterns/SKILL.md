@@ -126,7 +126,6 @@ networks:
 ## Docker summary
 - Compose files: <count and layering>
 - Services: <list>
-- Non-root user: yes / no
 - Healthchecks: yes / no
 - Resource limits: yes / no
 - Read-only root / dropped capabilities: yes / no
