@@ -56,6 +56,11 @@ export default function ProfileDetail() {
   });
 
   const targets = (adapters ?? []).map((a) => a.name);
+  const profileFrameworks = profile?.target_frameworks?.length
+    ? profile.target_frameworks
+    : profile?.target_framework
+      ? [profile.target_framework]
+      : [];
   const baseCollections = collections?.filter((c) => c.collection_type === 'base') ?? [];
   const additionalCollections = collections?.filter((c) => c.collection_type === 'additional') ?? [];
   const collectionName = (cid: string) => collections?.find((c) => c.id === cid)?.name ?? cid;
@@ -106,16 +111,16 @@ export default function ProfileDetail() {
     mutationFn: () => profilesApi.delete(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
-      navigate('/profiles');
+      navigate('/setups');
     },
   });
 
   if (loadingProfile) {
-    return <div className="text-center py-12 text-muted-foreground">Loading profile...</div>;
+    return <div className="text-center py-12 text-muted-foreground">Loading setup…</div>;
   }
 
   if (!profile) {
-    return <div className="text-center py-12 text-muted-foreground">Profile not found.</div>;
+    return <div className="text-center py-12 text-muted-foreground">Setup not found.</div>;
   }
 
   const startEdit = () => {
@@ -133,7 +138,7 @@ export default function ProfileDetail() {
   };
 
   const handleClone = () => {
-    navigate('/profiles', { state: { cloneFrom: profile } });
+    navigate('/setups', { state: { cloneFrom: profile } });
   };
 
   return (
@@ -141,9 +146,9 @@ export default function ProfileDetail() {
       {/* Header */}
       <div className="flex items-start gap-4">
         <button
-          onClick={() => navigate('/profiles')}
+          onClick={() => navigate('/setups')}
           className="p-2 -ml-2 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors"
-          title="Back to profiles"
+          title="Back to setups"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -207,11 +212,11 @@ export default function ProfileDetail() {
           ) : (
             <>
               <button
-                onClick={() => navigate(`/compile?profile=${profile.id}`)}
+                onClick={() => navigate(`/setups/${profile.id}/install`)}
                 className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-foreground hover:bg-accent transition-colors"
               >
                 <Download className="h-3.5 w-3.5" />
-                Compile & Preview
+                Install
               </button>
               <button
                 onClick={handleClone}
@@ -249,7 +254,7 @@ export default function ProfileDetail() {
       {!isEditing && (
         <div className="bg-card rounded-xl border border-border p-6 space-y-4">
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-2">Base Collection</h2>
+            <h2 className="text-sm font-medium text-muted-foreground mb-2">Starting point pack</h2>
             <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-brand-500 bg-brand-50 text-brand-700 text-sm w-fit">
               <FolderGit2 className="h-4 w-4" />
               {collectionName(profile.base_collection_id)}
@@ -257,7 +262,7 @@ export default function ProfileDetail() {
           </div>
 
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-2">Additional Collections</h2>
+            <h2 className="text-sm font-medium text-muted-foreground mb-2">Add-on packs</h2>
             {profile.additional_collection_ids.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {profile.additional_collection_ids.map((cid) => (
@@ -277,10 +282,10 @@ export default function ProfileDetail() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <h2 className="text-sm font-medium text-muted-foreground mb-2">Default Target</h2>
+              <h2 className="text-sm font-medium text-muted-foreground mb-2">Frameworks</h2>
               <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-muted text-foreground text-sm w-fit">
                 <Target className="h-4 w-4 text-muted-foreground" />
-                {profile.target_framework || 'None'}
+                {profileFrameworks.length > 0 ? profileFrameworks.join(', ') : 'None'}
               </div>
             </div>
             <div>
@@ -294,8 +299,8 @@ export default function ProfileDetail() {
 
           {profile.disabled_artifact_ids.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              {profile.disabled_artifact_ids.length} individually-disabled artifact
-              {profile.disabled_artifact_ids.length === 1 ? '' : 's'} carried over from collection edits.
+              {profile.disabled_artifact_ids.length} individually-disabled item
+              {profile.disabled_artifact_ids.length === 1 ? '' : 's'} carried over from pack edits.
             </p>
           )}
         </div>
@@ -306,16 +311,16 @@ export default function ProfileDetail() {
         <div className="bg-card rounded-xl border border-border p-6 space-y-3">
           <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
             <Layers className="h-4 w-4" />
-            Combined Resources
+            Combined items
           </h2>
           {resourcesLoading || !resourceCounts ? (
             <p className="text-sm text-muted-foreground">Loading resource overview...</p>
           ) : (
             <>
               <p className="text-sm text-foreground">
-                This profile's stack offers{' '}
-                <span className="font-semibold">{resourceTotal}</span> component
-                {resourceTotal === 1 ? '' : 's'} once compiled.
+                This setup's stack offers{' '}
+                <span className="font-semibold">{resourceTotal}</span> item
+                {resourceTotal === 1 ? '' : 's'} once installed.
               </p>
               <div className="flex flex-wrap gap-2">
                 {TYPE_ORDER.filter((type) => resourceCounts?.[type]).map((type) => (

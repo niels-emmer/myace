@@ -52,7 +52,7 @@ function scoreRingColor(score: number): string {
   return 'stroke-destructive';
 }
 
-export default function SetupAudit() {
+export default function SetupAudit({ embedded = false }: { embedded?: boolean }) {
   const [rootPath, setRootPath] = useState(DEFAULT_PATH);
   const [result, setResult] = useState<AuditResult | null>(null);
 
@@ -86,18 +86,20 @@ export default function SetupAudit() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <ShieldCheck className="h-6 w-6 text-brand-600" />
-          Setup Audit
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Scan your actual local machine for every supported target framework's config, and see
-          where they disagree. This is a rough signal, not a certified metric — it compares
-          artifact names across each tool's conventional config location, not full content
-          fidelity for every format.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <ShieldCheck className="h-6 w-6 text-brand-600" />
+            Setup audit
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Scan your actual local machine for every supported framework's config, and see where
+            they disagree. This is a rough signal, not a certified metric — it compares item names
+            across each tool's conventional config location, not full content fidelity for every
+            format.
+          </p>
+        </div>
+      )}
 
       <div className="bg-card rounded-xl border border-border p-6 space-y-4">
         <div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Copy, Terminal, Check, AlertTriangle, X } from 'lucide-react';
 import { profilesApi, adaptersApi } from '../lib/api';
@@ -7,7 +7,8 @@ import type { CompileResult } from '../types';
 
 export default function TargetExporter() {
   const [searchParams] = useSearchParams();
-  const [selectedProfile, setSelectedProfile] = useState(searchParams.get('profile') ?? '');
+  const { id } = useParams<{ id: string }>();
+  const [selectedProfile, setSelectedProfile] = useState(searchParams.get('profile') ?? id ?? '');
   const [selectedTarget, setSelectedTarget] = useState('opencode');
   const [result, setResult] = useState<CompileResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -97,9 +98,9 @@ export default function TargetExporter() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Compile Profile</h1>
+        <h1 className="text-2xl font-bold text-foreground">Install setup</h1>
         <p className="text-muted-foreground mt-1">
-          Turn a profile into the config files a target framework expects (CLAUDE.md, AGENTS.md, etc.) — copy them out or pull with the CLI.
+          Turn a setup into the config files a framework expects (CLAUDE.md, AGENTS.md, etc.) — copy them out or pull with the CLI.
         </p>
       </div>
 
@@ -107,13 +108,13 @@ export default function TargetExporter() {
       <div className="bg-card rounded-xl border border-border p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Profile</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Setup</label>
             <select
               value={selectedProfile}
               onChange={(e) => setSelectedProfile(e.target.value)}
               className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm"
             >
-              <option value="">Select a profile...</option>
+              <option value="">Select a setup…</option>
               {profiles?.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -122,7 +123,7 @@ export default function TargetExporter() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Target Framework</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Framework</label>
             <select
               value={selectedTarget}
               onChange={(e) => setSelectedTarget(e.target.value)}
@@ -142,7 +143,7 @@ export default function TargetExporter() {
               className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium"
             >
               <Download className="h-4 w-4" />
-              {loading ? 'Compiling...' : 'Compile'}
+              {loading ? 'Installing…' : 'Install'}
             </button>
           </div>
         </div>
@@ -190,7 +191,7 @@ export default function TargetExporter() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">
-              Output — {result.artifact_count} artifacts, {Object.keys(result.files).length} files
+              Output — {result.artifact_count} items, {Object.keys(result.files).length} files
             </h2>
           </div>
 
@@ -204,8 +205,8 @@ export default function TargetExporter() {
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-amber-800">
                   {result.warnings.length === 1
-                    ? '1 warning from compilation'
-                    : `${result.warnings.length} warnings from compilation`}
+                    ? '1 warning from install'
+                    : `${result.warnings.length} warnings from install`}
                 </h3>
                 <ul className="mt-2 space-y-1.5">
                   {result.warnings.map((warning, index) => (

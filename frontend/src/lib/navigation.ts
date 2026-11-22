@@ -1,16 +1,14 @@
 import {
+  Compass,
   FolderGit2,
-  Globe,
-  SlidersHorizontal,
-  Workflow,
-  Download,
-  Upload,
-  Search,
-  RefreshCw,
+  Home,
+  Laptop,
   Settings,
-  UserCircle,
-  ShieldCheck,
   Shield,
+  ShieldCheck,
+  SlidersHorizontal,
+  UserCircle,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react';
 import type { User } from '../types';
@@ -20,6 +18,9 @@ export interface NavChild {
   label: string;
   icon: LucideIcon;
   description: string;
+  /** Match exactly — used for a group's own hub link so it isn't highlighted
+   *  for every child route beneath it. */
+  end?: boolean;
 }
 
 export interface NavGroup {
@@ -32,89 +33,39 @@ export interface NavGroup {
   children: NavChild[];
 }
 
-export const collectionsGroup: NavGroup = {
-  id: 'collections',
-  label: 'Collections',
+/** Single-link areas (not collapsible groups). */
+export const homeNav = { to: '/', label: 'Home', icon: Home } as const;
+export const setupsNav = { to: '/setups', label: 'Setups', icon: SlidersHorizontal } as const;
+export const machineNav = { to: '/machine', label: 'My machine', icon: Laptop } as const;
+
+export const packsGroup: NavGroup = {
+  id: 'packs',
+  label: 'Packs',
   icon: FolderGit2,
   description: [
-    'Collections are groups of artifacts — rules, skills, agents, and workflows — that serve a role or specific function in agentic coding. Curate your own, or bring in ready-made ones from a GitHub repository, your local machine, or the community.',
-    'Base collections set the foundation for your coding profile; additional collections layer in specific roles and skills on top. Combine them into a Profile, then compile that profile to any supported framework.',
+    'A pack is a bundle of rules, skills, agents, and workflows around a role or capability. Starting points give you a complete baseline; add-ons layer a specialty on top.',
+    'Compose packs into a setup, then install that setup into every framework you use. Pipelines show how a pack’s agents hand work to one another (running tasks, coding, planning) and let you compose your own handoff chain.',
   ],
-  hubPath: '/collections',
+  hubPath: '/packs',
   children: [
     {
-      to: '/collections/mine',
-      label: 'My Collections',
+      to: '/packs',
+      label: 'Browse packs',
+      icon: Compass,
+      description: 'Search starter, community, and your own packs by kind, source, and category.',
+      end: true,
+    },
+    {
+      to: '/packs/mine',
+      label: 'My packs',
       icon: FolderGit2,
-      description: 'Create, edit, and organize the rules, skills, and agents you own.',
+      description: 'Create, edit, and organize the packs and items you own.',
     },
     {
-      to: '/collections/community',
-      label: 'Community',
-      icon: Globe,
-      description: 'Browse and import collections published by other users.',
-    },
-  ],
-};
-
-export const buildGroup: NavGroup = {
-  id: 'build',
-  label: 'Build',
-  icon: SlidersHorizontal,
-  description: [
-    "A Profile is a named recipe — a base collection plus any additional ones, with individual rules, skills, and agents toggled on or off — not a duplicated file tree. Build one once, then compile it to as many target frameworks as you need.",
-    "Agents can also declare who they hand work off to. Browse existing multi-agent pipelines in the Orchestration Gallery, or compose your own from a profile's agents without writing frontmatter by hand.",
-  ],
-  hubPath: '/build',
-  children: [
-    {
-      to: '/build/profiles',
-      label: 'Profiles',
-      icon: SlidersHorizontal,
-      description: 'Combine a base + additional collections into a profile.',
-    },
-    {
-      to: '/build/orchestration',
-      label: 'Orchestration',
+      to: '/packs/pipelines',
+      label: 'Pipelines',
       icon: Workflow,
       description: 'Browse and build multi-agent pipelines with handoffs between agents.',
-    },
-    {
-      to: '/build/compile',
-      label: 'Compile & Export',
-      icon: Download,
-      description: 'Turn a profile into files for your target framework.',
-    },
-  ],
-};
-
-export const machineGroup: NavGroup = {
-  id: 'machine',
-  label: 'My Machine',
-  icon: Upload,
-  description: [
-    "MyACE only does anything useful once it's connected to the tools actually running on your machine. Import scans a local config directory or a GitHub repo and turns what it finds into a portable Collection; Setup Audit checks your machine's existing configs against what MyACE expects and reports gaps.",
-    "Once you've pulled a compiled profile down with the CLI, Sync keeps you honest — it flags whenever a local file has been hand-edited or has drifted out of date against the server, so nothing silently goes stale.",
-  ],
-  hubPath: '/machine',
-  children: [
-    {
-      to: '/machine/import',
-      label: 'Import',
-      icon: Upload,
-      description: 'Scan your local machine or a GitHub repo to bring in existing configs.',
-    },
-    {
-      to: '/machine/audit',
-      label: 'Setup Audit',
-      icon: Search,
-      description: "Check your local machine's tool configs against what MyACE expects.",
-    },
-    {
-      to: '/machine/sync',
-      label: 'Sync',
-      icon: RefreshCw,
-      description: 'See which pulled targets have drifted from their compiled profile.',
     },
   ],
 };
@@ -134,7 +85,7 @@ export function getSettingsGroup(user: User | null): NavGroup {
       to: '/settings/moderation',
       label: 'Moderation',
       icon: ShieldCheck,
-      description: 'Review, approve, or deny community collection submissions.',
+      description: 'Review, approve, or deny community pack submissions.',
     });
   }
 
@@ -155,11 +106,74 @@ export function getSettingsGroup(user: User | null): NavGroup {
       'Manage your own account — profile details, notification preferences, and the API tokens the CLI uses to authenticate.',
       ...(user?.role === 'moderator' || user?.role === 'admin'
         ? [
-            "If you hold a moderator or admin role, this is also where you review community submissions and, for admins, configure system-wide behavior like SMTP, OAuth providers, and adapter availability.",
+            'If you hold a moderator or admin role, this is also where you review community pack submissions and, for admins, configure system-wide behavior like SMTP, OAuth providers, and adapter availability.',
           ]
         : []),
     ],
     hubPath: '/settings',
     children,
   };
+}
+
+export interface Crumb {
+  label: string;
+  to?: string;
+}
+
+const SETTINGS_CRUMBS: Record<string, string> = {
+  '/settings': 'Settings',
+  '/settings/account': 'Account',
+  '/settings/moderation': 'Moderation',
+  '/settings/system': 'System',
+};
+
+/**
+ * Breadcrumb trail for the slim top bar. Only the first crumb is a link —
+ * intermediate dynamic segments ("Setup", "Pack") have no stable label until
+ * the page loads its own data.
+ */
+export function getBreadcrumb(pathname: string): Crumb[] {
+  const path = pathname.replace(/\/+$/, '') || '/';
+
+  if (path === '/') return [{ label: 'Home' }];
+  if (path === '/setups') return [{ label: 'Setups' }];
+  if (path.startsWith('/setups/')) {
+    const [id, child] = path.slice('/setups/'.length).split('/');
+    const crumbs: Crumb[] = [{ label: 'Setups', to: '/setups' }];
+    crumbs.push({ label: 'Setup', to: child ? `/setups/${id}` : undefined });
+    if (child === 'install') crumbs.push({ label: 'Install' });
+    return crumbs;
+  }
+  if (path === '/packs') return [{ label: 'Packs' }];
+  if (path === '/packs/mine') {
+    return [{ label: 'Packs', to: '/packs' }, { label: 'My packs' }];
+  }
+  if (path === '/packs/pipelines') {
+    return [{ label: 'Packs', to: '/packs' }, { label: 'Pipelines' }];
+  }
+  if (path === '/packs/pipelines/new') {
+    return [
+      { label: 'Packs', to: '/packs' },
+      { label: 'Pipelines', to: '/packs/pipelines' },
+      { label: 'New pipeline' },
+    ];
+  }
+  if (path === '/packs/import') {
+    return [{ label: 'Packs', to: '/packs' }, { label: 'Import packs' }];
+  }
+  if (path.startsWith('/packs/community/')) {
+    return [{ label: 'Packs', to: '/packs' }, { label: 'Community pack' }];
+  }
+  if (path.startsWith('/packs/')) {
+    const rest = path.slice('/packs/'.length).split('/');
+    const crumbs: Crumb[] = [{ label: 'Packs', to: '/packs' }, { label: 'Pack' }];
+    if (rest[1] === 'items') crumbs.push({ label: 'New item' });
+    return crumbs;
+  }
+  if (path === '/machine') return [{ label: 'My machine' }];
+  if (path === '/settings') return [{ label: 'Settings' }];
+  if (path.startsWith('/settings/')) {
+    return [{ label: 'Settings', to: '/settings' }, { label: SETTINGS_CRUMBS[path] ?? 'Settings' }];
+  }
+  return [{ label: 'Home', to: '/' }];
 }

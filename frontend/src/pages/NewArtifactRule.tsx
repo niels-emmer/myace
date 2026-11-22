@@ -42,7 +42,7 @@ export default function NewArtifactRule() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['artifacts', id] });
       queryClient.invalidateQueries({ queryKey: ['collection', id] });
-      navigate(`/collections/${id}`);
+      navigate(`/packs/${id}`);
     },
   });
 
@@ -71,16 +71,16 @@ export default function NewArtifactRule() {
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center gap-4">
         <Link
-          to={`/collections/${id}`}
+          to={`/packs/${id}`}
           className="p-2 -ml-2 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors"
-          title="Back to collection"
+          title="Back to pack"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-foreground">Add rule</h1>
           <p className="text-muted-foreground mt-1">
-            Add a new rule directly to this collection.
+            Add a new rule directly to this pack.
           </p>
         </div>
       </div>
@@ -185,7 +185,7 @@ export default function NewArtifactRule() {
 
         <div className="flex justify-end gap-3 pt-2">
           <Link
-            to={`/collections/${id}`}
+            to={`/packs/${id}`}
             className="px-4 py-2 text-sm text-muted-foreground hover:text-accent-foreground"
           >
             Cancel

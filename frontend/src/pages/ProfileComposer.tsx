@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, SlidersHorizontal, Save, Download } from 'lucide-react';
 import { adaptersApi, collectionsApi, profilesApi } from '../lib/api';
@@ -130,21 +130,18 @@ export default function ProfileComposer() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Profile Composer</h1>
+        <h1 className="text-2xl font-bold text-foreground">Setups</h1>
         <p className="text-muted-foreground mt-1">
-          A profile is a named recipe: one base collection plus optional additional
-          collections, layered by priority. View and edit your profiles here, or{' '}
+          A setup is a named recipe: one starting-point pack plus optional add-on packs, layered by
+          priority. View and edit your setups here, or{' '}
           <button
             onClick={openNewProfileForm}
             className="text-brand-600 hover:underline font-medium"
           >
-            add a new profile
+            add a new setup
           </button>{' '}
-          to your exact liking. Then,{' '}
-          <Link to="/build/compile" className="text-brand-600 hover:underline font-medium">
-            compile your profile
-          </Link>{' '}
-          to produce the actual files for a target framework.
+          to your exact liking. Open a setup to install it and produce the actual files for a
+          framework.
         </p>
       </div>
 
@@ -154,7 +151,7 @@ export default function ProfileComposer() {
           className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium transition-colors"
         >
           <Plus className="h-4 w-4" />
-          Add profile
+          Add setup
         </button>
       </div>
 
@@ -187,7 +184,7 @@ export default function ProfileComposer() {
               className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium"
             >
               <Save className="h-4 w-4" />
-              {createMutation.isPending ? 'Saving...' : 'Save Profile'}
+              {createMutation.isPending ? 'Saving...' : 'Save setup'}
             </button>
           </div>
         </form>
@@ -204,12 +201,12 @@ export default function ProfileComposer() {
         <div className="text-center py-12 bg-card rounded-xl border border-border">
           <SlidersHorizontal className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground">
-            No profiles yet.{' '}
+            No setups yet.{' '}
             <button
               onClick={openNewProfileForm}
               className="text-brand-600 hover:underline font-medium"
             >
-              Create your first composition!
+              Create your first setup!
             </button>
           </p>
         </div>
@@ -223,11 +220,11 @@ function ProfileCard({ profile }: { profile: Profile }) {
 
   return (
     <div
-      onClick={() => navigate(`/profiles/${profile.id}`)}
+      onClick={() => navigate(`/setups/${profile.id}`)}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') navigate(`/profiles/${profile.id}`);
+        if (e.key === 'Enter' || e.key === ' ') navigate(`/setups/${profile.id}`);
       }}
       className="text-left bg-card rounded-xl border border-border p-5 hover:shadow-sm hover:border-input transition-shadow cursor-pointer"
     >
@@ -239,18 +236,18 @@ function ProfileCard({ profile }: { profile: Profile }) {
         <span className="text-xs text-muted-foreground">v{profile.version}</span>
       </div>
       <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-        <span>{profile.additional_collection_ids.length + 1} collections</span>
+        <span>{profile.additional_collection_ids.length + 1} packs</span>
         <span>{profile.is_public ? 'Public' : 'Private'}</span>
       </div>
       <button
         onClick={(e) => {
           e.stopPropagation();
-          navigate(`/compile?profile=${profile.id}`);
+          navigate(`/setups/${profile.id}/install`);
         }}
         className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-muted border border-border rounded-lg text-sm text-muted-foreground hover:bg-accent transition-colors"
       >
         <Download className="h-4 w-4" />
-        Compile & Preview
+        Install
       </button>
     </div>
   );

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { collectionsApi, moderationApi, ratingsApi, commentsApi } from '../lib/api';
 import { FreshnessBadge } from '../components/FreshnessBadge';
+import { packKindLabel } from '../lib/packs';
 import { useAuth } from '../contexts/AuthContext';
 import type { Artifact, ArtifactType } from '../types';
 
@@ -202,13 +203,13 @@ export default function CommunityCollectionDetail() {
 
   if (loadingCollection) {
     return (
-      <div className="text-center py-12 text-muted-foreground">Loading collection...</div>
+      <div className="text-center py-12 text-muted-foreground">Loading pack…</div>
     );
   }
 
   if (!collection) {
     return (
-      <div className="text-center py-12 text-muted-foreground">Collection not found.</div>
+      <div className="text-center py-12 text-muted-foreground">Pack not found.</div>
     );
   }
 
@@ -224,9 +225,9 @@ export default function CommunityCollectionDetail() {
       {/* Header */}
       <div className="flex flex-wrap items-start gap-4">
         <Link
-          to="/collections/community"
+          to="/packs"
           className="p-2 -ml-2 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors"
-          title="Back to community collections"
+          title="Back to packs"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
@@ -240,7 +241,7 @@ export default function CommunityCollectionDetail() {
                   : 'bg-purple-50 text-purple-700'
               }`}
             >
-              {collection.collection_type}
+              {packKindLabel(collection.collection_type)}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
@@ -252,12 +253,12 @@ export default function CommunityCollectionDetail() {
             <FreshnessBadge lastVerifiedAt={collection.last_verified_at} />
             <span className="flex items-center gap-1">
               <Download className="h-3 w-3" />
-              {collection.download_count} downloads
+              {collection.download_count} uses
             </span>
-            <span>{collection.artifact_count} artifacts</span>
+            <span>{collection.artifact_count} items</span>
             <span className="flex items-center gap-1">
               <BookOpen className="h-3 w-3" />
-              Community collection
+              Community pack
             </span>
           </div>
           <p className="text-muted-foreground mt-1">
@@ -271,7 +272,7 @@ export default function CommunityCollectionDetail() {
             <button
               onClick={() => verifyMutation.mutate()}
               disabled={verifyMutation.isPending}
-              title="Confirm you've manually reviewed this collection and it's still good — not an automated check."
+              title="Confirm you've manually reviewed this pack and it's still good — not an automated check."
               className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
             >
               {verifyMutation.isPending ? (
@@ -294,7 +295,7 @@ export default function CommunityCollectionDetail() {
           {canEditMeta && collection.moderation_status === 'approved' && (
             <button
               onClick={openUnpublishModal}
-              title="Remove this collection from the community store"
+              title="Remove this pack from the community library"
               className="flex items-center gap-1.5 px-4 py-2 bg-muted border border-border rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
             >
               <AlertTriangle className="h-3.5 w-3.5" />
@@ -308,7 +309,7 @@ export default function CommunityCollectionDetail() {
                 Imported
               </span>
               <button
-                onClick={() => navigate(`/collections/${importSuccess}`)}
+                onClick={() => navigate(`/packs/${importSuccess}`)}
                 className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium transition-colors"
               >
                 <ExternalLink className="h-4 w-4" />
@@ -329,7 +330,7 @@ export default function CommunityCollectionDetail() {
               ) : (
                 <>
                   <Download className="h-4 w-4" />
-                  Import Collection
+                  Import pack
                 </>
               )}
             </button>
@@ -370,7 +371,7 @@ export default function CommunityCollectionDetail() {
 
       {/* Artifact List */}
       {loadingArtifacts ? (
-        <div className="text-center py-12 text-muted-foreground">Loading artifacts...</div>
+        <div className="text-center py-12 text-muted-foreground">Loading items…</div>
       ) : visibleArtifacts.length > 0 ? (
         <div className="bg-card rounded-xl border border-border divide-y divide-border">
           {visibleArtifacts.map((artifact) => (
@@ -389,8 +390,8 @@ export default function CommunityCollectionDetail() {
           <FolderGit2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground">
             {typeFilter === 'all'
-              ? 'This collection has no artifacts.'
-              : `No ${typeFilter} artifacts in this collection.`}
+              ? 'This pack has no items.'
+              : `No ${typeFilter} items in this pack.`}
           </p>
         </div>
       )}
@@ -422,7 +423,7 @@ export default function CommunityCollectionDetail() {
 
         {isOwner ? (
           <p className="text-xs text-muted-foreground">
-            You can&rsquo;t rate your own collection.
+            You can&rsquo;t rate your own pack.
           </p>
         ) : (
           <div className="flex items-center gap-2">
@@ -539,7 +540,7 @@ export default function CommunityCollectionDetail() {
               Unpublish &ldquo;{collection.name}&rdquo;?
             </h2>
             <p className="text-sm text-muted-foreground -mt-2">
-              This removes it from the community store and makes it private again. The owner
+              This removes it from the community library and makes it private again. The owner
               can edit it and resubmit for another review. They&rsquo;ll be emailed if you give
               a reason below.
             </p>
@@ -591,7 +592,7 @@ export default function CommunityCollectionDetail() {
               Edit Metadata
             </h2>
             <p className="text-sm text-muted-foreground -mt-2">
-              Moderator edit — only name, description, and category. Artifact content isn't
+              Moderator edit — only name, description, and category. Item content isn't
               affected.
             </p>
             <div>

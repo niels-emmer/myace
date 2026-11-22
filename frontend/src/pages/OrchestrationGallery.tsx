@@ -205,11 +205,11 @@ export default function OrchestrationGallery() {
             onClick={() => setSelectedKey(null)}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-foreground"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to gallery
+            <ArrowLeft className="h-4 w-4" /> Back to pipelines
           </button>
           <button
             onClick={() =>
-              navigate('/build/orchestration/build', {
+              navigate('/packs/pipelines/new', {
                 state: {
                   editRecipe: {
                     collectionId: selectedRecipe.collectionId,
@@ -246,16 +246,16 @@ export default function OrchestrationGallery() {
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Workflow className="h-6 w-6 text-muted-foreground" />
-            Orchestration Gallery
+            Pipelines
           </h1>
           <p className="text-muted-foreground mt-1">
-            Multi-agent pipelines declared across your collections and the community — a primary
+            Multi-agent pipelines declared across your packs and the community — a primary
             agent that routes work to a sequence of specialists via <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">handoff_to</code>.
             Select one to see how it routes.
           </p>
         </div>
         <Link
-          to="/build/orchestration/build"
+          to="/packs/pipelines/new"
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors flex-shrink-0"
         >
           <Wrench className="h-4 w-4" /> Compose your pipeline
@@ -263,7 +263,7 @@ export default function OrchestrationGallery() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Scanning collections for orchestration recipes...</p>
+        <p className="text-sm text-muted-foreground">Scanning packs for pipelines…</p>
       ) : recipes.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {recipes.map((recipe) => (
@@ -276,7 +276,7 @@ export default function OrchestrationGallery() {
           <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">mode: primary</code> tag
           and a non-empty <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">handoff_to</code>{' '}
           list — the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">software-engineer</code> starter
-          collection's <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">orchestrator</code> agent is
+          pack's <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">orchestrator</code> agent is
           a good example, or use "Compose your pipeline" above to build your own.
         </p>
       )}

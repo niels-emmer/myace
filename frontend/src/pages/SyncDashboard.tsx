@@ -56,7 +56,7 @@ function Hint({ status }: { status: SyncStatus }) {
   );
 }
 
-export default function SyncDashboard() {
+export default function SyncDashboard({ embedded = false }: { embedded?: boolean }) {
   const { data: statuses, isLoading, isError, error } = useQuery({
     queryKey: ['sync-status'],
     queryFn: () => syncApi.getStatus(),
@@ -64,19 +64,21 @@ export default function SyncDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <RefreshCw className="h-6 w-6 text-muted-foreground" />
-          Sync Dashboard
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Drift status reported by <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">myace check --report</code>{' '}
-          or <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">myace watch --report</code> from
-          your own machines. Nothing appears here unless you opt in with{' '}
-          <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">--report</code> — this
-          page only ever shows your own reports, never anyone else's.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <RefreshCw className="h-6 w-6 text-muted-foreground" />
+            Sync
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Drift status reported by <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">myace check --report</code>{' '}
+            or <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">myace watch --report</code> from
+            your own machines. Nothing appears here unless you opt in with{' '}
+            <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">--report</code> — this
+            page only ever shows your own reports, never anyone else's.
+          </p>
+        </div>
+      )}
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading sync status...</p>
@@ -88,7 +90,7 @@ export default function SyncDashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Profile</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Setup</th>
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Target</th>
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Machine</th>
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
@@ -101,7 +103,7 @@ export default function SyncDashboard() {
                   <tr key={s.id} className="border-b border-border/50 last:border-0">
                     <td className="py-3 px-4 text-card-foreground font-medium">
                       <Link
-                        to={`/profiles/${s.profile_id}`}
+                        to={`/setups/${s.profile_id}`}
                         className="hover:text-brand-600 inline-flex items-center gap-1"
                       >
                         {s.profile_name}

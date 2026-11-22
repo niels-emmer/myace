@@ -66,7 +66,7 @@ export default function ModerationQueue() {
           Moderation Queue
         </h1>
         <p className="text-muted-foreground mt-1">
-          Collections submitted for community publishing. Approving makes a collection public
+          Packs submitted for community publishing. Approving makes a pack public
           immediately; denying requires a reason the submitter will see.
         </p>
       </div>
@@ -105,7 +105,7 @@ export default function ModerationQueue() {
                   <tr key={c.id} className="border-b border-border/50 last:border-0">
                     <td className="py-3 px-4 text-card-foreground font-medium">
                       <Link
-                        to={`/collections/${c.id}`}
+                        to={`/packs/${c.id}`}
                         className="hover:text-brand-600 inline-flex items-center gap-1"
                       >
                         {c.name}
@@ -165,7 +165,7 @@ export default function ModerationQueue() {
               Deny &ldquo;{denyTarget.name}&rdquo;?
             </h2>
             <p className="text-sm text-muted-foreground -mt-2">
-              The submitter will see this reason and can edit their collection and resubmit it
+              The submitter will see this reason and can edit their pack and resubmit it
               for another review.
             </p>
             <div>
