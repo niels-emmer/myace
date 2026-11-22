@@ -518,7 +518,21 @@ oldest-first by default, accepting the same three `sort` values as an
 override. `download_count` is the "used N times" counter — incremented by
 community import (a fork) and by `POST /collections/{id}/use` (a reference,
 once per call, with no per-user dedupe — see invariant 25); it is advisory,
-not a verified metric. `category` is a free-text browse string.
+not a verified metric. `category` is a free-text browse string, and
+`license` is an optional SPDX-style string (`String(64)`, no validation) set
+by the publish wizard before submission.
+
+The community read surface is **anonymous** (ADR-0014): `GET
+/collections/community`, `/community/top`, `/community/categories`,
+`/community/{id}` and `/community/{id}/artifacts` require no session. Detail
+and contents routes return only active + published + approved rows (404
+otherwise) and the contents route exposes enabled items only; all five are
+rate-limited per client IP by `storefront_limiter`. They serialize through
+`PublicCollectionRead`, not `CollectionRead`, so `git_url`/`git_branch`,
+`visibility`, and the moderation-workflow fields never reach an anonymous
+client. `download_count` remains
+advisory — the storefront shows it as "used N times" and never offers a
+"Most used" sort or ranking.
 
 Denying (`POST /moderation/{id}/deny`, body `{reason}`) sets
 `moderation_status = "denied"` and `moderation_reason`, leaves

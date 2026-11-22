@@ -10,7 +10,7 @@ from sqlmodel import SQLModel
 
 import app.models  # noqa: F401  populate SQLModel.metadata with every table
 from app.core.database import get_session
-from app.core.ratelimit import auth_limiter
+from app.core.ratelimit import auth_limiter, storefront_limiter
 from app.main import app as fastapi_app
 
 # In-memory SQLite, single shared connection for the engine's lifetime so every
@@ -22,11 +22,19 @@ TEST_DATABASE_URL = "sqlite+aiosqlite://"
 def _disable_auth_rate_limit() -> Generator[None, None, None]:
     """Most tests log in/register many times from one fake client IP, which
     would trip the per-IP auth limits. Tests that exercise the limiter turn it
-    back on themselves (see tests/test_auth_hardening.py)."""
+    back on themselves (see tests/test_auth_hardening.py).
+
+    The public storefront limiter is switched off for the same reason — the
+    community tests make many anonymous reads from one fake IP. The
+    rate-limit test turns it back on and resets it (see
+    tests/test_public_storefront.py)."""
     auth_limiter.enabled = False
+    storefront_limiter.enabled = False
     yield
     auth_limiter.reset()
     auth_limiter.enabled = True
+    storefront_limiter.reset()
+    storefront_limiter.enabled = True
 
 
 @pytest.fixture

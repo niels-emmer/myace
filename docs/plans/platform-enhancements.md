@@ -563,7 +563,7 @@ content.
 **Commit:** `feat: add public landing page with live demo`
 
 ### Epic 4.5: Backend + Frontend — freshness expiry
-**Files:** `backend/app/models/collection.py`, `backend/app/api/collections.py` (or a new small router), `backend/app/scripts/check_collection_freshness.py` (new), `backend/app/services/email.py`, `frontend/src/pages/CommunityCollections.tsx`, `frontend/src/pages/CommunityCollectionDetail.tsx`, `backend/alembic/versions/`
+**Files:** `backend/app/models/collection.py`, `backend/app/api/collections.py` (or a new small router), `backend/app/scripts/check_collection_freshness.py` (new), `backend/app/services/email.py`, `frontend/src/pages/CommunityCollections.tsx`, `frontend/src/pages/PackDetail.tsx` (merged from the old community detail page), `backend/alembic/versions/`
 
 **Dependency note:** this epic's queue/verify actions are gated on
 `role in ("moderator", "admin")`. **If `community-enhancements.md` hasn't

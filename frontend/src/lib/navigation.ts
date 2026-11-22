@@ -161,13 +161,14 @@ export function getBreadcrumb(pathname: string): Crumb[] {
   if (path === '/packs/import') {
     return [{ label: 'Packs', to: '/packs' }, { label: 'Import packs' }];
   }
-  if (path.startsWith('/packs/community/')) {
-    return [{ label: 'Packs', to: '/packs' }, { label: 'Community pack' }];
-  }
   if (path.startsWith('/packs/')) {
+    // `/packs/community/:id` is only a redirect now (decision A), so there is
+    // no separate "Community pack" crumb; the destination is a plain pack.
     const rest = path.slice('/packs/'.length).split('/');
     const crumbs: Crumb[] = [{ label: 'Packs', to: '/packs' }, { label: 'Pack' }];
     if (rest[1] === 'items') crumbs.push({ label: 'New item' });
+    if (rest[1] === 'publish') crumbs.push({ label: 'Publish' });
+    if (rest[1] === 'manage') crumbs.push({ label: 'Manage items' });
     return crumbs;
   }
   if (path === '/machine') return [{ label: 'My machine' }];

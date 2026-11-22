@@ -4,14 +4,21 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PacksLibrary from './PacksLibrary';
 import { collectionsApi } from '../lib/api';
+import { packApi } from '../lib/packApi';
 import type { Collection } from '../types';
 
+let mockUser: { id: string } | null = { id: 'user-1' };
+
 vi.mock('../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'user-1' } }),
+  useAuth: () => ({ user: mockUser, isLoading: false }),
 }));
 
 vi.mock('../lib/api', () => ({
   collectionsApi: { list: vi.fn(), listCommunityCategories: vi.fn() },
+}));
+
+vi.mock('../lib/packApi', () => ({
+  packApi: { listCommunity: vi.fn(), communityCategories: vi.fn() },
 }));
 
 const minePack: Collection = {
@@ -100,6 +107,7 @@ async function results() {
 describe('PacksLibrary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUser = { id: 'user-1' };
     vi.mocked(collectionsApi.list).mockResolvedValue([
       minePack,
       starterPack,
@@ -158,7 +166,7 @@ describe('PacksLibrary', () => {
     expect(grid.getByText('Security & Compliance')).toBeInTheDocument();
   });
 
-  it('filters to community packs and links them to the community detail route', async () => {
+  it('filters to community packs and links them to the unified pack detail', async () => {
     renderLibrary();
     await results();
 
@@ -169,11 +177,11 @@ describe('PacksLibrary', () => {
     expect(grid.queryByText('Software Engineer')).not.toBeInTheDocument();
     expect(grid.getByRole('link', { name: /Security & Compliance/ })).toHaveAttribute(
       'href',
-      '/packs/community/community-addon',
+      '/packs/community-addon',
     );
     expect(grid.getByRole('link', { name: /ML Research Assistant/ })).toHaveAttribute(
       'href',
-      '/packs/community/community-base',
+      '/packs/community-base',
     );
   });
 
@@ -204,6 +212,15 @@ describe('PacksLibrary', () => {
     expect(screen.getAllByRole('link', { name: /Import packs/i }).length).toBeGreaterThan(0);
   });
 
+  it('does not offer a "Most used" ranking', async () => {
+    renderLibrary();
+    await results();
+
+    const sort = screen.getByRole('combobox', { name: 'Sort packs' });
+    expect(within(sort).queryByRole('option', { name: /Most used/i })).not.toBeInTheDocument();
+    expect(within(sort).getByRole('option', { name: 'Highest rated' })).toBeInTheDocument();
+  });
+
   it('links owned and starter packs to the pack detail route', async () => {
     renderLibrary();
     const grid = await results();
@@ -225,5 +242,40 @@ describe('PacksLibrary', () => {
       'href',
       '/packs/starter-pack',
     );
+  });
+});
+
+describe('PacksLibrary — anonymous storefront', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUser = null;
+    vi.mocked(packApi.listCommunity).mockResolvedValue({
+      items: [starterPack, communityAddon, communityBase],
+      total: 3,
+    });
+    vi.mocked(packApi.communityCategories).mockResolvedValue([
+      'Base Profiles',
+      'Governance & Security',
+    ]);
+  });
+
+  it('browses published packs without an account', async () => {
+    renderLibrary();
+    const grid = await results();
+
+    expect(grid.getByText('Software Engineer')).toBeInTheDocument();
+    expect(grid.getByText('Security & Compliance')).toBeInTheDocument();
+    expect(packApi.listCommunity).toHaveBeenCalled();
+    expect(collectionsApi.list).not.toHaveBeenCalled();
+  });
+
+  it('hides My packs and owner actions, and shows a sign-up CTA', async () => {
+    renderLibrary();
+    await results();
+
+    expect(screen.queryByRole('button', { name: 'Mine' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /New pack/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Import packs/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /Sign up free/i }).length).toBeGreaterThan(0);
   });
 });

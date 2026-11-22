@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
-import { Loader2, Play, Package, Boxes, Layers } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Loader2, Play, Package, Boxes, Layers, ArrowRight, Star } from 'lucide-react';
 import GithubIcon from '../components/GithubIcon';
 import { demoApi } from '../lib/api';
+import { packApi } from '../lib/packApi';
+import {
+  FRAMEWORK_LABELS,
+  formatUses,
+  packKindLabel,
+  packSource,
+  packSourceLabel,
+} from '../lib/packs';
 import { useAuth } from '../contexts/AuthContext';
 
 const SAMPLE_MARKDOWN = `## Formatting
@@ -42,6 +50,21 @@ export default function Landing() {
     mutationFn: () => demoApi.compile(markdown),
   });
 
+  // Public storefront data (ADR-0014) — works with no session. Featured shows
+  // the four starter packs first, then the best-rated community packs.
+  // `download_count` is deliberately not used as a ranking (invariant 25).
+  const { data: community } = useQuery({
+    queryKey: ['public-featured-packs'],
+    queryFn: () => packApi.listCommunity({ limit: 50, sort: 'alpha' }),
+  });
+  const featured = [
+    ...(community?.items ?? []).filter((pack) => pack.is_starter_pack).slice(0, 4),
+    ...(community?.items ?? [])
+      .filter((pack) => !pack.is_starter_pack)
+      .sort((a, b) => b.avg_rating - a.avg_rating || b.rating_count - a.rating_count)
+      .slice(0, 2),
+  ];
+
   const result = demoMutation.data;
   const activeFiles = result?.targets[activeTarget] ?? {};
 
@@ -55,6 +78,12 @@ export default function Landing() {
             <span className="text-lg font-bold text-foreground">MyACE</span>
           </div>
           <div className="flex items-center gap-3">
+            <Link
+              to="/packs"
+              className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:block"
+            >
+              Browse packs
+            </Link>
             <a
               href="https://github.com/niels-emmer/myace"
               target="_blank"
@@ -92,16 +121,108 @@ export default function Landing() {
           Write your AI agent rules once. Compile them everywhere.
         </h1>
         <p className="text-muted-foreground text-lg">
-          MyACE stores your rules, skills, agents, and workflows as a portable Canonical
-          Intermediate Representation, then translates them into the exact config files 12
-          different coding-agent frameworks expect — Claude Code, Cursor, OpenCode, Codex CLI,
-          and more.
+          Browse best-practice packs, assemble them into one setup, and install that setup into
+          Claude Code, Codex, Cursor, OpenCode, and eight more — without maintaining a separate
+          copy per tool.
         </p>
-        <p className="text-sm text-muted-foreground">
-          Think packages vs. a lockfile: a <strong className="text-foreground">Collection</strong>{' '}
-          is where your rules live; a <strong className="text-foreground">Profile</strong> is a
-          named recipe assembled from them, compiled for one target framework at a time.
-        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <Link
+            to="/packs"
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-brand-700"
+          >
+            Browse packs
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          {/* Phase 2 owns `/onboarding`; until its parallel branch lands,
+              send the visitor to sign-up so this CTA has a real
+              destination on a standalone Phase 5 branch. Flip to
+              `/onboarding` in integration. */}
+          <Link
+            to="/login?mode=register"
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-6 py-3 text-base font-medium text-foreground transition-colors hover:border-brand-600 hover:text-brand-600"
+          >
+            Set up mine — 2 minutes
+          </Link>
+        </div>
+
+        {/* The one four-step story every screen repeats (design §4.2). */}
+        <div className="grid grid-cols-1 gap-3 pt-6 text-left sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ['Browse packs', 'Best-practice rules, skills and agents.'],
+            ['Build a setup', 'Combine packs into one recipe.'],
+            ['Install everywhere', 'One setup, many frameworks.'],
+            ['Publish', 'Share your own pack.'],
+          ].map(([title, caption], index) => (
+            <div
+              key={title}
+              className="flex items-start gap-3 rounded-xl border border-border bg-card p-4"
+            >
+              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
+                {index + 1}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-card-foreground">{title}</p>
+                <p className="text-xs text-muted-foreground">{caption}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Featured packs — the storefront's front door. */}
+      <section className="mx-auto max-w-5xl px-4 pb-16">
+        <div className="mb-4 flex items-end justify-between gap-3">
+          <h2 className="text-xl font-semibold text-foreground">Start from a proven pack</h2>
+          <Link to="/packs" className="text-sm text-brand-600 hover:underline">
+            Browse all packs →
+          </Link>
+        </div>
+        {featured.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {featured.map((pack) => {
+              const source = packSource(pack);
+              return (
+                <Link
+                  key={pack.id}
+                  to={`/packs/${pack.id}`}
+                  className="flex flex-col rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      {packKindLabel(pack.collection_type)}
+                    </span>
+                    <span className="rounded border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      {packSourceLabel(source)}
+                    </span>
+                  </div>
+                  <h3 className="mt-3 font-semibold text-card-foreground">{pack.name}</h3>
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                    {pack.description || 'No description'}
+                  </p>
+                  <div className="mt-auto flex flex-wrap items-center gap-3 pt-4 text-xs text-muted-foreground">
+                    {pack.rating_count > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Star className="h-3 w-3" />
+                        {pack.avg_rating.toFixed(1)}
+                      </span>
+                    )}
+                    <span>{formatUses(pack.download_count)}</span>
+                    <span>·</span>
+                    <span>All 12 frameworks</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+            Packs will appear here as soon as the community library has an approved pack.{' '}
+            <Link to="/packs" className="text-brand-600 hover:underline">
+              Browse packs
+            </Link>
+            .
+          </p>
+        )}
       </section>
 
       {/* Live demo */}
@@ -109,7 +230,8 @@ export default function Landing() {
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <div className="px-6 py-4 border-b border-border flex items-center gap-2">
             <Play className="h-4 w-4 text-brand-600" />
-            <h2 className="text-lg font-semibold text-card-foreground">Try it — no account needed</h2>
+            <h2 className="text-lg font-semibold text-card-foreground">See the translation</h2>
+            <span className="text-xs text-muted-foreground">No account needed</span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:divide-x divide-border">
@@ -221,14 +343,39 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Framework strip */}
+      <section className="mx-auto max-w-5xl px-4 pb-12 text-center">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Compiles to {FRAMEWORK_LABELS.length} frameworks
+        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          {FRAMEWORK_LABELS.map((framework) => (
+            <span
+              key={framework}
+              className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground"
+            >
+              {framework}
+            </span>
+          ))}
+        </div>
+      </section>
+
       {/* Call to action */}
-      <section className="max-w-5xl mx-auto px-4 pb-20 text-center">
-        <Link
-          to="/login?mode=register"
-          className="inline-block px-6 py-3 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-base font-semibold transition-colors"
-        >
-          Accounts are free, register today and start building!
-        </Link>
+      <section className="mx-auto max-w-5xl px-4 pb-20 text-center">
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            to="/packs"
+            className="inline-block rounded-lg border border-border bg-card px-6 py-3 text-base font-medium text-foreground transition-colors hover:border-brand-600 hover:text-brand-600"
+          >
+            Browse packs
+          </Link>
+          <Link
+            to="/login?mode=register"
+            className="inline-block rounded-lg bg-brand-600 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-brand-700"
+          >
+            Sign up free — start building
+          </Link>
+        </div>
       </section>
 
       <footer className="border-t border-border py-8 text-center">
