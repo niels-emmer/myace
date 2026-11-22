@@ -53,9 +53,9 @@ router = APIRouter()
 
 # A dedicated Limiter instance for this route only — app/main.py registers
 # it on app.state.limiter and adds the RateLimitExceeded exception handler
-# globally (required for @limiter.limit(...) to function at all), but no
-# other route carries the @limiter.limit(...) decorator, so no other route
-# is actually rate-limited by this.
+# globally (required for @limiter.limit(...) to function at all). The
+# credential-guessing auth routes use their own separate `auth_limiter`
+# (app/core/ratelimit.py), so this instance governs /demo/compile only.
 limiter = Limiter(key_func=get_remote_address)
 
 MAX_MARKDOWN_BYTES = 20 * 1024

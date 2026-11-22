@@ -28,13 +28,14 @@ within v1.
 | Path | Availability | What it is |
 |---|---|---|
 | `/openapi.json` | Always | The full OpenAPI spec — source of truth for endpoints and schemas |
-| `/docs` (Swagger UI) | Dev only (`DEBUG=true`) | Interactive API explorer |
-| `/redoc` | Dev only (`DEBUG=true`) | ReDoc rendering |
+| `/docs` (Swagger UI) | Dev only (`APP_ENV=development`) | Interactive API explorer |
+| `/redoc` | Dev only (`APP_ENV=development`) | ReDoc rendering |
 
 ## Authentication
 
 Two mechanisms feed one `get_current_user` dependency. Every route except
 `/health`, the auth entry points (`/api/v1/auth/register`, `/login`,
+`/login/mfa`, `/logout`, `/forgot-password`, `/reset-password`,
 `/login/{provider}`, `/callback/{provider}`, `/providers`), and
 `POST /api/v1/demo/compile` requires one of them:
 
@@ -134,8 +135,12 @@ curl -X POST http://localhost:8000/api/v1/demo/compile \
 
 ## Notes
 
-- **Rate limiting**: only `POST /api/v1/demo/compile` is rate-limited
-  (per-IP, in-memory, per-process).
+- **Rate limiting**: `POST /api/v1/demo/compile` is capped at 10/minute per
+  IP. The credential-guessing auth routes are also throttled per client IP:
+  `/auth/login`, `/register`, `/forgot-password`, `/reset-password` at
+  10/minute, and `/auth/login/mfa`, `/me/mfa/totp/verify|disable` at
+  5/minute. Storage is in-memory and per-process, so the effective limit
+  multiplies with replica count.
 - **Body size cap**: `POST /api/v1/demo/compile` is capped at 20 KB.
 - **Errors**: non-2xx responses use the shape `{"detail": ...}`.
 - **IDs**: all resource IDs are UUIDs.

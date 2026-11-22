@@ -152,8 +152,10 @@ re-imported from that same repo should scan back to the same artifacts.
 
 Every API route requires an authenticated user, except a short, explicit
 public list: `/health`, the auth entry points (`/auth/register`,
-`/auth/login`, `/auth/login/{provider}`, `/auth/callback/{provider}`,
-`/auth/providers`), and — new in Phase 4 — `POST /demo/compile`, the
+`/auth/login`, `/auth/login/mfa`, `/auth/logout`, `/auth/forgot-password`,
+`/auth/reset-password`, `/auth/login/{provider}`,
+`/auth/callback/{provider}`, `/auth/providers`), and — new in Phase 4 —
+`POST /demo/compile`, the
 stateless public demo endpoint behind the `/welcome` landing page (see
 [ADR-0011](adr/0011-public-demo-sandbox.md) and AGENTS.md rule 36 for why
 this one earns the exception). Everything else goes through one of two

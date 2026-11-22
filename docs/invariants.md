@@ -9,7 +9,9 @@ names where it's enforced so you can verify it hasn't regressed.
 
 1. **Every API route requires an authenticated user**, except the explicit
    public list: `/health`, `/auth/register`, `/auth/login`,
-   `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`,
+   `/auth/login/mfa`, `/auth/logout`, `/auth/forgot-password`,
+   `/auth/reset-password`, `/auth/login/{provider}`,
+   `/auth/callback/{provider}`, `/auth/providers`,
    and `POST /demo/compile` (added in Phase 4 — see
    [ADR-0011](adr/0011-public-demo-sandbox.md) and AGENTS.md rule 36 for
    why this one earns the exception, and invariant 22 below for what makes
