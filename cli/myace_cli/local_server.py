@@ -53,7 +53,12 @@ from typing import Any, Literal
 
 from myace_cli.audit import audit_directory
 from myace_cli.scanner import scan_directory
-from myace_cli.sync import SyncEngine, safe_output_path, write_manifest
+from myace_cli.sync import (
+    MANIFEST_DIR_NAME,
+    SyncEngine,
+    safe_output_path,
+    write_manifest,
+)
 
 COMPANION_HEADER = "x-myace-companion"
 DEFAULT_PORT = 8765
@@ -83,7 +88,6 @@ MACHINE_TARGETS: tuple[str, ...] = tuple(
 )
 
 BACKUP_DIR_NAME = ".myace-backups"
-MANIFEST_DIR_NAME = ".myace"
 PREVIEW_TTL_SECONDS = 300
 MAX_PREVIEWS = 64
 MAX_FILES = 500
