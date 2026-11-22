@@ -245,6 +245,43 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "a regression test with every bug fix."
             ),
         },
+        "git-practices": {
+            "name": "Git Practices",
+            "category": "Process & Methodology",
+            "description": (
+                "For teams that want a clean, reviewable history. Branching and "
+                "commit conventions, a pre-commit gate that catches secrets and "
+                "broken tests, and a repeatable release flow built on the GitHub CLI."
+            ),
+        },
+        "design-and-scaffold": {
+            "name": "Design & Scaffold",
+            "category": "Process & Methodology",
+            "description": (
+                "For starting something new with the right shape. A structured design "
+                "interrogation before code, a day-one repository scaffold, dependency "
+                "due diligence, and durable decision and handoff records."
+            ),
+        },
+        "self-hosted-deploy": {
+            "name": "Self-Hosted Deployment",
+            "category": "Infrastructure",
+            "description": (
+                "For shipping a small app you can actually operate. The "
+                "single-container plus SQLite archetype, with dev/prod compose "
+                "layering, hardening, and health checks that keep it safe."
+            ),
+        },
+        "enterprise-ai-governance": {
+            "name": "Enterprise AI Governance",
+            "category": "Governance & Security",
+            "description": (
+                "For organizations that need AI work to be accountable. Declared "
+                "guardrails for destructive and production actions, sensitivity-based "
+                "model routing with a zero-egress path, and an audit trail that "
+                "separates AI-authored from human-authored changes."
+            ),
+        },
     },
 }
 
