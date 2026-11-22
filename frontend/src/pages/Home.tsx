@@ -88,9 +88,15 @@ export default function Home() {
   const driftRows = syncRows.filter(
     (row) => !row.in_sync || row.locally_modified_files.length > 0,
   );
-  // The banner names one setup, so count only that setup's rows — not drift
-  // reported against a different setup.
+  // If drift is spread across setups, the banner aggregates honestly
+  // ("N files changed across M setups") instead of naming just the first.
+  const driftSetupIds = new Set(driftRows.map((row) => row.profile_id));
+  const driftSpansSetups = driftSetupIds.size > 1;
   const driftSetupRows = driftRows.filter((row) => row.profile_id === driftRows[0]?.profile_id);
+  const driftTotalFiles = driftRows.reduce(
+    (total, row) => total + row.locally_modified_files.length,
+    0,
+  );
   const appVersion: string = import.meta.env.VITE_APP_VERSION ?? 'dev';
   const frameworkCount = adapters?.length ?? 12;
 
@@ -166,17 +172,18 @@ export default function Home() {
               </div>
               <div className="flex-1">
                 <h2 className="font-semibold text-amber-900">
-                  {driftRows[0].profile_name}: {driftCount(driftSetupRows)}{' '}
-                  {driftCount(driftSetupRows) === 1 ? 'change' : 'changes'} since install
+                  {driftSpansSetups
+                    ? `${driftTotalFiles > 0 ? `${driftTotalFiles} ${driftTotalFiles === 1 ? 'file' : 'files'} changed` : `${driftSetupIds.size} setups out of sync`}${driftTotalFiles > 0 ? ` across ${driftSetupIds.size} setups` : ''}`
+                    : `${driftRows[0].profile_name}: ${driftCount(driftSetupRows)} ${driftCount(driftSetupRows) === 1 ? 'change' : 'changes'} since install`}
                 </h2>
                 <p className="mt-1 text-sm text-amber-800">
-                  {driftSetupRows.some((row) => row.locally_modified_files.length > 0)
+                  {driftRows.some((row) => row.locally_modified_files.length > 0)
                     ? 'Files were edited locally. Reinstall to overwrite, or keep your edits and re-verify.'
                     : 'A framework is out of date with the compiled setup. Reinstall when you are ready.'}
                 </p>
               </div>
               <Link
-                to={`/setups/${driftRows[0].profile_id}`}
+                to={driftSpansSetups ? '/machine?tab=sync' : `/setups/${driftRows[0].profile_id}`}
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-300 bg-card px-4 py-2 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-100"
               >
                 Review changes
