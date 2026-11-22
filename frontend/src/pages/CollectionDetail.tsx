@@ -359,7 +359,7 @@ export default function CollectionDetail() {
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-foreground truncate">{collection.name}</h1>
                 <span
-                  className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
+                  className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
                     collection.collection_type === 'base'
                       ? 'bg-blue-50 text-blue-700'
                       : 'bg-purple-50 text-purple-700'
@@ -391,7 +391,7 @@ export default function CollectionDetail() {
         </div>
 
         {/* Header actions */}
-        <div className="flex flex-wrap items-center gap-2 flex-shrink-0 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto">
           {!isEditing && selectedIds.size > 0 && (
             <div className="relative">
               <button
@@ -503,7 +503,7 @@ export default function CollectionDetail() {
 
       {collection.moderation_status === 'denied' && (
         <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-red-800">Submission was not approved</p>
             {collection.moderation_reason && (
@@ -519,7 +519,7 @@ export default function CollectionDetail() {
 
       {collection.moderation_status === 'unpublished' && (
         <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-amber-800">No longer published</p>
             {collection.moderation_reason && (
@@ -754,7 +754,7 @@ export default function CollectionDetail() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm space-y-4">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-destructive/10 rounded-lg flex-shrink-0">
+              <div className="p-2 bg-destructive/10 rounded-lg shrink-0">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
               <div>
@@ -798,7 +798,7 @@ export default function CollectionDetail() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm space-y-4">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-destructive/10 rounded-lg flex-shrink-0">
+              <div className="p-2 bg-destructive/10 rounded-lg shrink-0">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
               <div>
@@ -842,7 +842,7 @@ export default function CollectionDetail() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm space-y-4">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-amber-100 rounded-lg flex-shrink-0">
+              <div className="p-2 bg-amber-100 rounded-lg shrink-0">
                 <AlertTriangle className="h-5 w-5 text-amber-700" />
               </div>
               <div>
@@ -1203,7 +1203,7 @@ function ArtifactRow({
           type="checkbox"
           checked={isSelected}
           onChange={onToggleSelect}
-          className="h-4 w-4 rounded border-input text-brand-600 focus:ring-brand-500 flex-shrink-0"
+          className="h-4 w-4 rounded border-input text-brand-600 focus:ring-brand-500 shrink-0"
         />
 
         {/* Enable/disable toggle */}
@@ -1244,7 +1244,7 @@ function ArtifactRow({
               {artifact.name}
             </span>
             <span
-              className={`px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
+              className={`px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${
                 typeColors[artifact.artifact_type] || 'bg-muted text-muted-foreground'
               }`}
             >
@@ -1254,12 +1254,12 @@ function ArtifactRow({
         </div>
 
         {/* Priority */}
-        <span className="text-xs text-muted-foreground flex-shrink-0">
+        <span className="text-xs text-muted-foreground shrink-0">
           p{artifact.priority}
         </span>
 
         {/* Version */}
-        <span className="text-xs text-muted-foreground flex-shrink-0">
+        <span className="text-xs text-muted-foreground shrink-0">
           v{artifact.version}
         </span>
       </div>

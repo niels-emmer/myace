@@ -230,7 +230,7 @@ export default function OrchestratorBuilder() {
         </p>
         {editRecipe && (
           <p className="text-sm text-brand-700 bg-brand-50 border border-brand-200 rounded-lg px-3 py-2 mt-3 flex items-start gap-2">
-            <Pencil className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <Pencil className="h-4 w-4 shrink-0 mt-0.5" />
             <span>
               Editing <code className="font-mono text-xs">{editRecipe.primary.name}</code> from{' '}
               <span className="font-medium">{editRecipe.collectionName}</span>. Fields are prefilled
@@ -239,7 +239,7 @@ export default function OrchestratorBuilder() {
           </p>
         )}
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3 flex items-start gap-2">
-          <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+          <Info className="h-4 w-4 shrink-0 mt-0.5" />
           <span>
             This wizard only builds a straight-line pipeline. Conditional branching (like the{' '}
             <code className="font-mono text-xs">software-engineer</code> starter pack's optional
@@ -291,7 +291,7 @@ export default function OrchestratorBuilder() {
                     <button
                       onClick={() => addToSequence(agent.name)}
                       disabled={sequence.includes(agent.name)}
-                      className="text-xs font-medium px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-accent-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                      className="text-xs font-medium px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-accent-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                     >
                       {sequence.includes(agent.name) ? 'Added' : 'Add'}
                     </button>
@@ -316,7 +316,7 @@ export default function OrchestratorBuilder() {
                       <span className="text-muted-foreground mr-1.5">{index + 1}.</span>
                       {formatAgentName(name)}
                     </span>
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => moveInSequence(index, -1)}
                         disabled={index === 0}

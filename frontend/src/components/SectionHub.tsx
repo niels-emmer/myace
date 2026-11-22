@@ -20,7 +20,7 @@ export default function SectionHub({ group }: { group: NavGroup }) {
           <Link
             key={child.to}
             to={child.to}
-            className="bg-card rounded-xl border border-border p-6 flex flex-col gap-3 hover:shadow-sm hover:border-input transition-shadow"
+            className="bg-card rounded-xl border border-border p-6 flex flex-col gap-3 hover:shadow-xs hover:border-input transition-shadow"
           >
             <div className="p-3 rounded-lg bg-brand-50 text-brand-700 w-fit">
               <child.icon className="h-6 w-6" />

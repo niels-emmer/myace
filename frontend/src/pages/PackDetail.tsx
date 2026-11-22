@@ -534,7 +534,7 @@ export default function PackDetail() {
                     <button
                       onClick={() => createCommentMutation.mutate(commentDraft.trim())}
                       disabled={!commentDraft.trim() || createCommentMutation.isPending}
-                      className="flex-shrink-0 self-end rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
+                      className="shrink-0 self-end rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
                     >
                       Post
                     </button>
@@ -572,7 +572,7 @@ export default function PackDetail() {
                               onClick={() => deleteCommentMutation.mutate(comment.id)}
                               disabled={deleteCommentMutation.isPending}
                               title="Delete comment"
-                              className="flex-shrink-0 p-1 text-muted-foreground transition-colors hover:text-destructive"
+                              className="shrink-0 p-1 text-muted-foreground transition-colors hover:text-destructive"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -832,7 +832,7 @@ export default function PackDetail() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm space-y-4 rounded-xl border border-border bg-card p-6">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 rounded-lg bg-amber-100 p-2">
+              <div className="shrink-0 rounded-lg bg-amber-100 p-2">
                 <AlertTriangle className="h-5 w-5 text-amber-700" />
               </div>
               <div>
@@ -890,9 +890,9 @@ function ArtifactRow({
         className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/40"
       >
         {isExpanded ? (
-          <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
         ) : (
-          <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-card-foreground">
           {artifact.name}
@@ -904,7 +904,7 @@ function ArtifactRow({
         >
           {artifact.artifact_type}
         </span>
-        <span className="flex-shrink-0 text-xs text-muted-foreground">p{artifact.priority}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">p{artifact.priority}</span>
       </button>
       {isExpanded && (
         <div className="space-y-2 px-4 pb-4 pl-11">

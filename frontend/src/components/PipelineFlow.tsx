@@ -30,7 +30,7 @@ function PipelineNode({ data }: NodeProps) {
   const { label, description, isPrimary, isMissing } = data as PipelineNodeData;
   return (
     <div
-      className={`rounded-lg border px-3 py-2 shadow-sm min-w-[140px] max-w-[200px] ${
+      className={`rounded-lg border px-3 py-2 shadow-xs min-w-[140px] max-w-[200px] ${
         isMissing
           ? 'border-dashed border-destructive/50 bg-destructive/5'
           : isPrimary

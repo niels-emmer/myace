@@ -55,25 +55,25 @@ export function PublishStatusTracker({
 
       {status === 'submitted' && (
         <p className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
-          <Clock className="mt-0.5 h-4 w-4 flex-shrink-0" />
+          <Clock className="mt-0.5 h-4 w-4 shrink-0" />
           A moderator reviews every submission. You will see the decision here.
         </p>
       )}
       {status === 'approved' && (
         <p className="mt-3 flex items-start gap-2 text-sm text-green-700">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
           Approved and visible in the community library.
         </p>
       )}
       {denied && (
         <p className="mt-3 flex items-start gap-2 text-sm text-amber-800">
-          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           Changes requested{reason ? `: ${reason}` : '.'} Edit the pack, then resubmit.
         </p>
       )}
       {status === 'draft' && (
         <p className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
-          <BookOpen className="mt-0.5 h-4 w-4 flex-shrink-0" />
+          <BookOpen className="mt-0.5 h-4 w-4 shrink-0" />
           Not submitted yet. Share this pack with a link from the Share control; publishing
           puts it in the community library.
         </p>

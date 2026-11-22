@@ -116,7 +116,7 @@ export default function ProfileFormFields({
           the user disables artifacts or changes the selection. */}
       {collisions.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-amber-800">
               {collisions.length === 1
@@ -140,7 +140,7 @@ export default function ProfileFormFields({
                     <button
                       type="button"
                       onClick={() => onDisableArtifact(collision.losingArtifactId)}
-                      className="flex-shrink-0 text-xs font-medium text-amber-800 border border-amber-300 rounded px-2 py-1 hover:bg-amber-100 transition-colors"
+                      className="shrink-0 text-xs font-medium text-amber-800 border border-amber-300 rounded px-2 py-1 hover:bg-amber-100 transition-colors"
                     >
                       Disable in this setup
                     </button>

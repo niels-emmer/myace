@@ -219,7 +219,7 @@ export default function AddToSetup({
                   onClick={() => attachTo(profile)}
                   className="flex w-full items-center gap-2 border-b border-border px-3 py-2 text-left text-sm text-foreground transition-colors last:border-b-0 hover:bg-accent disabled:opacity-50"
                 >
-                  <FolderGit2 className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                  <FolderGit2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate">{profile.name}</span>
                   <span className="text-xs text-muted-foreground">
                     {profile.additional_collection_ids.length + 1} packs

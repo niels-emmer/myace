@@ -455,11 +455,11 @@ export default function SystemSettings() {
                     className="flex items-center gap-3 flex-1 min-w-0 text-left"
                   >
                     {isExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                     ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                     )}
-                    <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-card-foreground">{info.name}</p>
                       <p className="text-xs text-muted-foreground">
@@ -469,7 +469,7 @@ export default function SystemSettings() {
                   </button>
                   <button
                     onClick={() => toggleSetting(`${key}_enabled`, enabled ?? true)}
-                    className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
+                    className={`p-1.5 rounded-lg transition-colors shrink-0 ${
                       enabled !== false
                         ? 'text-green-600 hover:bg-green-100'
                         : 'text-muted-foreground hover:bg-accent'
@@ -883,7 +883,7 @@ export default function SystemSettings() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm space-y-4">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-destructive/10 rounded-lg flex-shrink-0">
+              <div className="p-2 bg-destructive/10 rounded-lg shrink-0">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
               <div>
@@ -958,7 +958,7 @@ export default function SystemSettings() {
                     onClick={() =>
                       toggleAdapterMutation.mutate({ name: adapter.name, enabled: !adapter.enabled })
                     }
-                    className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
+                    className={`p-1.5 rounded-lg transition-colors shrink-0 ${
                       adapter.enabled
                         ? 'text-green-600 hover:bg-green-100'
                         : 'text-muted-foreground hover:bg-accent'

@@ -328,7 +328,7 @@ export default function ProfileDetail() {
               <div className="flex items-center gap-3">
                 <h1 className="truncate text-2xl font-bold text-foreground">{profile.name}</h1>
                 <span
-                  className={`flex-shrink-0 rounded px-2 py-0.5 text-xs font-medium ${
+                  className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${
                     profile.is_public
                       ? 'bg-green-50 text-green-700'
                       : 'bg-muted text-muted-foreground'
@@ -336,7 +336,7 @@ export default function ProfileDetail() {
                 >
                   {profile.is_public ? 'Public' : 'Private'}
                 </span>
-                <span className="flex-shrink-0 text-xs text-muted-foreground">
+                <span className="shrink-0 text-xs text-muted-foreground">
                   v{profile.version}
                 </span>
               </div>
@@ -359,7 +359,7 @@ export default function ProfileDetail() {
           )}
         </div>
 
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {isEditing ? (
             <>
               <button
@@ -547,7 +547,7 @@ export default function ProfileDetail() {
                   key={key}
                   className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4"
                 >
-                  <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-amber-900">
                       Pack {label} is no longer available
@@ -586,7 +586,7 @@ export default function ProfileDetail() {
                     type="button"
                     onClick={() => setDismissedWarnings((current) => [...current, key])}
                     aria-label="Dismiss warning"
-                    className="flex-shrink-0 rounded p-1 transition-colors hover:bg-amber-100"
+                    className="shrink-0 rounded p-1 transition-colors hover:bg-amber-100"
                   >
                     <X className="h-4 w-4 text-amber-600" />
                   </button>
@@ -598,13 +598,13 @@ export default function ProfileDetail() {
                 key={key}
                 className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4"
               >
-                <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                 <p className="min-w-0 flex-1 text-sm text-amber-800">{warning.message}</p>
                 <button
                   type="button"
                   onClick={() => setDismissedWarnings((current) => [...current, key])}
                   aria-label="Dismiss warning"
-                  className="flex-shrink-0 rounded p-1 transition-colors hover:bg-amber-100"
+                  className="shrink-0 rounded p-1 transition-colors hover:bg-amber-100"
                 >
                   <X className="h-4 w-4 text-amber-600" />
                 </button>
@@ -803,7 +803,7 @@ export default function ProfileDetail() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm space-y-4 rounded-xl border border-border bg-card p-6">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 rounded-lg bg-destructive/10 p-2">
+              <div className="shrink-0 rounded-lg bg-destructive/10 p-2">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
               <div>

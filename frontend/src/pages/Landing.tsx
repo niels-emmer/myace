@@ -153,7 +153,7 @@ export default function Landing() {
               key={title}
               className="flex items-start gap-3 rounded-xl border border-border bg-card p-4"
             >
-              <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">
                 {index + 1}
               </span>
               <div>
@@ -181,7 +181,7 @@ export default function Landing() {
                 <Link
                   key={pack.id}
                   to={`/packs/${pack.id}`}
-                  className="flex flex-col rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-sm"
+                  className="flex flex-col rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-xs"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">

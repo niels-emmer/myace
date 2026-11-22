@@ -152,7 +152,7 @@ export default function Home() {
         <>
           {setups.length === 0 && (
             <div className="flex flex-col gap-4 rounded-xl border border-brand-200 bg-brand-50 p-6 sm:flex-row sm:items-center">
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div className="flex-1">
@@ -173,7 +173,7 @@ export default function Home() {
 
           {setups.length > 0 && syncRows.length === 0 && !hasAnyClaim && (
             <div className="flex flex-col gap-4 rounded-xl border border-brand-200 bg-brand-50 p-6 sm:flex-row sm:items-center">
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
                 <Download className="h-5 w-5" />
               </div>
               <div className="flex-1">
@@ -194,7 +194,7 @@ export default function Home() {
 
           {setups.length > 0 && syncRows.length === 0 && hasAnyClaim && (
             <div className="flex flex-col gap-4 rounded-xl border border-blue-200 bg-blue-50 p-6 sm:flex-row sm:items-center">
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div className="flex-1">
@@ -215,7 +215,7 @@ export default function Home() {
 
           {setups.length > 0 && syncRows.length > 0 && driftRows.length > 0 && (
             <div className="flex flex-col gap-4 rounded-xl border border-amber-200 bg-amber-50 p-6 sm:flex-row sm:items-center">
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div className="flex-1">
@@ -266,7 +266,7 @@ export default function Home() {
                 <Link
                   key={profile.id}
                   to={`/setups/${profile.id}`}
-                  className="rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-sm"
+                  className="rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-xs"
                 >
                   <h3 className="font-semibold text-card-foreground">{profile.name}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -355,7 +355,7 @@ export default function Home() {
               <Link
                 key={bundle.id}
                 to={packHref(pack, source ?? 'starter')}
-                className="rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-sm"
+                className="rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-xs"
               >
                 {body}
               </Link>
@@ -382,7 +382,7 @@ export default function Home() {
               <Link
                 key={collection.id}
                 to={packHref(collection, 'community')}
-                className="rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-sm"
+                className="rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-xs"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">

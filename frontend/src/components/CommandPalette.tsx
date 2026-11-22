@@ -204,7 +204,7 @@ export default function CommandPalette({ open, onOpen, onClose }: CommandPalette
         className="mx-auto w-full max-w-xl overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
       >
         <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-          <Search className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             ref={inputRef}
             value={query}
@@ -219,9 +219,9 @@ export default function CommandPalette({ open, onOpen, onClose }: CommandPalette
             aria-activedescendant={activeItem ? `command-option-${activeItem.id}` : undefined}
             aria-label="Search commands, packs, and setups"
             placeholder="Search commands, packs, and setups…"
-            className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="w-full bg-transparent text-sm text-foreground outline-hidden placeholder:text-muted-foreground"
           />
-          <kbd className="hidden flex-shrink-0 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline">
+          <kbd className="hidden shrink-0 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline">
             Esc
           </kbd>
         </div>
@@ -252,7 +252,7 @@ export default function CommandPalette({ open, onOpen, onClose }: CommandPalette
                         selected ? 'bg-brand-50 text-brand-700' : 'text-foreground'
                       }`}
                     >
-                      <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <span className="min-w-0 flex-1 truncate">{item.label}</span>
                       {item.hint && <span className="truncate text-xs text-muted-foreground">{item.hint}</span>}
                     </div>
