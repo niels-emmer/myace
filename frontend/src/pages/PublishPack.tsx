@@ -232,7 +232,7 @@ export default function PublishPack() {
                   }`}
                 >
                   <span
-                    className={`mt-1 h-3.5 w-3.5 flex-shrink-0 rounded-full border ${
+                    className={`mt-1 h-3.5 w-3.5 shrink-0 rounded-full border ${
                       candidate.id === id ? 'border-brand-600 bg-brand-600' : 'border-input'
                     }`}
                   />

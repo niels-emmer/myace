@@ -226,7 +226,7 @@ function ProfileCard({ profile }: { profile: Profile }) {
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') navigate(`/setups/${profile.id}`);
       }}
-      className="text-left bg-card rounded-xl border border-border p-5 hover:shadow-sm hover:border-input transition-shadow cursor-pointer"
+      className="text-left bg-card rounded-xl border border-border p-5 hover:shadow-xs hover:border-input transition-shadow cursor-pointer"
     >
       <div className="flex items-start justify-between mb-3">
         <div>

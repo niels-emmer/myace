@@ -284,7 +284,7 @@ export default function InstallMethodPanel({
               type="button"
               onClick={handleCopyCli}
               aria-label="Copy CLI command"
-              className="flex-shrink-0 rounded p-1.5 transition-colors hover:bg-accent"
+              className="shrink-0 rounded p-1.5 transition-colors hover:bg-accent"
             >
               {copied === 'cli' ? (
                 <Check className="h-4 w-4 text-green-600" />
@@ -340,7 +340,7 @@ export default function InstallMethodPanel({
                 {applyPreview.files.map((file) => (
                   <li key={file.relative_path} className="flex items-center gap-2 text-xs">
                     <span
-                      className={`w-16 flex-shrink-0 font-medium ${
+                      className={`w-16 shrink-0 font-medium ${
                         file.action === 'added'
                           ? 'text-green-700'
                           : file.action === 'changed'
@@ -409,7 +409,7 @@ export default function InstallMethodPanel({
 
         {preview && !warningsDismissed && warnings.length > 0 && (
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
             <div className="min-w-0 flex-1">
               <h3 className="text-sm font-semibold text-amber-800">
                 {warnings.length === 1 ? '1 warning' : `${warnings.length} warnings`} — install
@@ -427,7 +427,7 @@ export default function InstallMethodPanel({
               type="button"
               onClick={() => setWarningsDismissed(true)}
               aria-label="Dismiss warnings"
-              className="flex-shrink-0 rounded p-1 transition-colors hover:bg-amber-100"
+              className="shrink-0 rounded p-1 transition-colors hover:bg-amber-100"
             >
               <X className="h-4 w-4 text-amber-600" />
             </button>
@@ -441,9 +441,9 @@ export default function InstallMethodPanel({
               .map((filename) => (
                 <li key={filename} className="flex items-center gap-2 px-3 py-2">
                   {filename.includes('/') ? (
-                    <Folder className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
                   ) : (
-                    <FileIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    <FileIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                   )}
                   <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">
                     {filename}
@@ -452,7 +452,7 @@ export default function InstallMethodPanel({
                     type="button"
                     onClick={() => copyToClipboard(preview.files[filename], filename)}
                     aria-label={`Copy ${filename}`}
-                    className="flex-shrink-0 rounded p-1.5 transition-colors hover:bg-accent"
+                    className="shrink-0 rounded p-1.5 transition-colors hover:bg-accent"
                   >
                     {copied === filename ? (
                       <Check className="h-3.5 w-3.5 text-green-600" />

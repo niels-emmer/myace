@@ -548,7 +548,7 @@ export default function ImportPage() {
                 }`}
                 onClick={() => toggleArtifact(index)}
               >
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   {artifact.selected ? (
                     <CheckSquare className="h-5 w-5 text-brand-600" />
                   ) : (
@@ -572,7 +572,7 @@ export default function ImportPage() {
                     {artifact.description || artifact.file_path}
                   </p>
                 </div>
-                <div className="flex-shrink-0 text-xs text-muted-foreground">
+                <div className="shrink-0 text-xs text-muted-foreground">
                   p{artifact.priority}
                 </div>
               </div>

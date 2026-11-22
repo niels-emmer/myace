@@ -241,7 +241,7 @@ export default function PacksLibrary() {
       {/* Featured "Start here" strip */}
       <div data-testid="start-here" className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-3">
-          <Sparkles className="h-5 w-5 flex-shrink-0 text-brand-600" />
+          <Sparkles className="h-5 w-5 shrink-0 text-brand-600" />
           <div>
             <p className="text-sm font-semibold text-card-foreground">Start here</p>
             <p className="text-sm text-muted-foreground">
@@ -275,7 +275,7 @@ export default function PacksLibrary() {
               <Link
                 key={collection.id}
                 to={packHref(collection, source)}
-                className="flex flex-col rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-sm"
+                className="flex flex-col rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-xs"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">

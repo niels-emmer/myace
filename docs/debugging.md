@@ -365,6 +365,39 @@ again, check whether the failing PR is a major-version bump that should
 never have been grouped in the first place, rather than trying to patch
 around the peer-dependency error directly.
 
+## Tailwind CSS 4 uses a separate PostCSS plugin and renamed several utilities
+
+**Symptom:** after upgrading `tailwindcss` from 3 to 4, `npm run build` (and
+the Docker frontend image, which also runs the build) fails with
+`It looks like you're trying to use 'tailwindcss' directly as a PostCSS
+plugin. The PostCSS plugin has moved to a separate package...`.
+
+**Cause:** Tailwind 4 is CSS-first. The `tailwindcss` package no longer ships a
+PostCSS plugin, the `@tailwind base/components/utilities` directives are gone,
+and several utilities were renamed without aliases.
+
+**Fix (all of these must stay together):**
+
+- `postcss.config.js` lists only `'@tailwindcss/postcss'`. `autoprefixer` is no
+  longer needed (v4 bundles Lightning CSS) and is removed from `devDependencies`.
+- `src/index.css` starts with `@import "tailwindcss";` followed by
+  `@config "../tailwind.config.js";`, which keeps the existing JS theme (the
+  `hsl(var(--…))` palette, the `brand` scale, border radii). v4 auto-detects
+  source files; the JS `content` globs are no longer what selects them, but
+  `index.html` and `src/**` are still scanned.
+- `flex-shrink-0` → `shrink-0` and `shadow-sm` → `shadow-xs`. v4 renamed these
+  scales and does **not** alias the old names. A dropped utility emits no CSS
+  and fails silently — `flex-shrink-0` was used ~74 times and would have
+  disabled every intentionally non-shrinking flex item.
+- No `dark:` *utility variants* are used in this app; dark mode comes from the
+  `.dark` CSS-variable block, so no `@custom-variant dark` is required. If a
+  `dark:` utility is added later, define that variant or it will fall back to
+  `prefers-color-scheme`.
+
+**Verify:** `npm ci && npm run build`, then confirm a renamed selector
+(`.shrink-0`, `.shadow-xs`) is present in `dist/assets/*.css`. A class that is
+used in JSX but missing from the emitted CSS is the silent-failure mode.
+
 ## A Dependabot security alert on a transitive frontend dependency won't clear
 
 **Symptom:** a Dependabot alert on a transitive dependency in
@@ -385,7 +418,10 @@ at `7.1.6`) and `minimatch` (patched at `11.0.1`, advisory
   and `postcss-nested@6` both declare `^6`, so a normal install can never
   reach it. (The maintainer did backport the fix to `6.1.5` for the Tailwind
   3 line, but advisory `GHSA-rj75-hqrm-r3gf` still lists `< 7.1.6` as
-  vulnerable, so Dependabot holds the alert open until `7.x` lands.)
+  vulnerable, so Dependabot holds the alert open until `7.x` lands.) Since the
+  Tailwind 4 upgrade nothing in the tree depends on `postcss-selector-parser`
+  at all, so this particular override is now inert; it is kept because the
+  rule below says not to delete an override.
   `minimatch` is the same shape: `eslint@10`, `@eslint/config-array` and
   `@typescript-eslint/typescript-estree` all declare `^10`, and the fix
   landed only in `11.x`.

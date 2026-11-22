@@ -167,7 +167,7 @@ export default function SetupAudit({ embedded = false }: { embedded?: boolean })
                   : `${detectedTargetNames.length} target${detectedTargetNames.length === 1 ? '' : 's'} detected: ${detectedTargetNames.join(', ')}`}
               </p>
               <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
-                <Info className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                 A rough signal weighted on cross-target coverage parity, duplicate-free naming,
                 and non-empty targets — not a certified audit of every tool's real config
                 format.
@@ -258,7 +258,7 @@ function ScoreRing({ score }: { score: number }) {
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
   return (
-    <svg width="80" height="80" viewBox="0 0 80 80" className="flex-shrink-0">
+    <svg width="80" height="80" viewBox="0 0 80 80" className="shrink-0">
       <circle cx="40" cy="40" r={radius} className="stroke-muted" strokeWidth="8" fill="none" />
       <circle
         cx="40"

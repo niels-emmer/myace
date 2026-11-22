@@ -149,7 +149,7 @@ function CollectionCard({ collection }: { collection: Collection }) {
   return (
     <Link
       to={`/packs/${collection.id}`}
-      className="block bg-card rounded-xl border border-border p-5 hover:shadow-sm transition-shadow group"
+      className="block bg-card rounded-xl border border-border p-5 hover:shadow-xs transition-shadow group"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
@@ -160,7 +160,7 @@ function CollectionCard({ collection }: { collection: Collection }) {
             {collection.description || 'No description'}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+        <div className="flex items-center gap-2 shrink-0 ml-3">
           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
             collection.collection_type === 'base'
               ? 'bg-blue-50 text-blue-700'

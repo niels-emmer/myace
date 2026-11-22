@@ -54,14 +54,14 @@ function NavGroupSection({
           to={group.hubPath ?? '#'}
           className={`flex flex-1 min-w-0 items-center gap-3 px-3 py-2.5 ${headerTextClasses}`}
         >
-          <group.icon className="h-4 w-4 flex-shrink-0" />
+          <group.icon className="h-4 w-4 shrink-0" />
           <span className="truncate">{group.label}</span>
         </Link>
         <button
           onClick={onToggle}
           aria-label={open ? `Collapse ${group.label}` : `Expand ${group.label}`}
           aria-expanded={open}
-          className="p-2.5 pl-1.5 text-muted-foreground hover:text-accent-foreground flex-shrink-0"
+          className="p-2.5 pl-1.5 text-muted-foreground hover:text-accent-foreground shrink-0"
         >
           <ChevronRight className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-90' : ''}`} />
         </button>
@@ -121,7 +121,7 @@ export default function Layout() {
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-background">
       {/* Mobile top bar */}
-      <div className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-card flex-shrink-0">
+      <div className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-card shrink-0">
         <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <img src="/logo.png" alt="MyACE" className="h-7 w-7" />
           <h1 className="text-lg font-bold text-card-foreground">MyACE</h1>
@@ -171,7 +171,7 @@ export default function Layout() {
           <button
             onClick={() => setMobileMenuOpen(false)}
             aria-label="Close menu"
-            className="lg:hidden p-1 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors flex-shrink-0"
+            className="lg:hidden p-1 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors shrink-0"
           >
             <X className="h-5 w-5" />
           </button>
@@ -233,7 +233,7 @@ export default function Layout() {
             <button
               onClick={handleLogout}
               title="Log out"
-              className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors flex-shrink-0"
+              className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors shrink-0"
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -243,11 +243,11 @@ export default function Layout() {
 
       {/* Main content */}
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        <header className="hidden lg:flex h-[52px] flex-shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-6">
+        <header className="hidden lg:flex h-[52px] shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-6">
           <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
             {crumbs.map((crumb, index) => (
               <span key={`${crumb.label}-${index}`} className="flex min-w-0 items-center gap-1.5">
-                {index > 0 && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />}
+                {index > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />}
                 {crumb.to ? (
                   <Link to={crumb.to} className="truncate text-muted-foreground hover:text-foreground transition-colors">
                     {crumb.label}
@@ -264,7 +264,7 @@ export default function Layout() {
             ))}
           </nav>
 
-          <div className="flex flex-shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               onClick={() => setPaletteOpen(true)}
               aria-label="Search (Command K)"
