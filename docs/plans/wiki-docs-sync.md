@@ -37,7 +37,7 @@ contributing to the project, not for the AI-agent rule files.
 | `docs/extending.md` | `Extending-MyACE` | Yes |
 | `docs/debugging.md` | `Debugging` | Yes |
 | `docs/adr/*.md` | `ADR-000N-slug` (one page per ADR) | Yes |
-| `docs/ADAPTERS_RESEARCH.md` | `Adapter-Research` | Yes |
+| `docs/adapters-research.md` | `Adapter-Research` | Yes |
 | `docs/README.md` | becomes the Wiki `Home` page (rewritten) | Yes, transformed |
 | `docs/plans/*.md`, `docs/plan-*.md` | — | No — these are point-in-time design records, not reference docs; keep them repo-only |
 | `AGENTS.md` / `CLAUDE.md` | — | No — agent-facing, not for Wiki visitors |

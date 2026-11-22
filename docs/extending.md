@@ -30,8 +30,8 @@ don't reuse one of the 12 already shipped in
    `copilot-cli`, `cline`, `windsurf`) until it was caught and fixed.
 3. **CLI copy** (optional, currently unused): mirror the same adapter in
    `cli/myace_cli/adapters/zed.py`. This package exists — and is
-   maintained in sync for `claude_code`/`opencode`/`cursor` — for a local
-   -rendering fallback that hasn't been wired up yet: `myace pull`
+   maintained in sync for `claude_code`/`opencode`/`cursor` — for a
+   local-rendering fallback that hasn't been wired up yet: `myace pull`
    (`cli/myace_cli/sync.py`) always calls the backend's `/profiles/compile`
    endpoint directly and has no code path that falls back to
    `myace_cli.adapters` if the server is unreachable. Until that's built,
@@ -46,8 +46,8 @@ don't reuse one of the 12 already shipped in
    etc.) — at minimum, one test per artifact type your adapter handles
    specially.
 5. **Docs**: add the framework to the list in `README.md`, an entry with its
-   confirmed file format to `adapters-research.md`, and the adapter class
-   name to `architecture.md`'s adapter list.
+   confirmed file format to `adapters-research.md`, and the adapter name
+   (e.g. `zed`) to `architecture.md`'s adapter list.
 
 Adapters must stay stateless and pure — see
 [invariants.md #12](invariants.md#canonical-ir). Don't reach into the
