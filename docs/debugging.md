@@ -751,7 +751,8 @@ distinction this bug hid in.
 **Symptom:** on macOS, the first run of a downloaded `myace` binary is
 blocked with "Apple could not verify … is free of malware that may harm your
 Mac" or "… cannot be opened because the developer cannot be verified", or the
-process exits immediately with no output and `echo $?` reports `Killed: 9`.
+process dies immediately while the shell prints `Killed: 9` (exit status
+`137`).
 
 **Cause:** the release binaries are not signed with an Apple Developer
 certificate — neither `.github/workflows/cli-build.yml` nor

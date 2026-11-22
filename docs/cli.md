@@ -47,7 +47,8 @@ somewhere in your `PATH`.
 > # e.g. ./myace-macos-x86_64 or ./myace-macos-arm64):
 > xattr -cr ./myace
 >
-> # Or, if it was already moved into place (sudo if root-owned, as above):
+> # Or, if it was already moved into place (needs sudo because the install
+> # above used sudo):
 > sudo xattr -cr /usr/local/bin/myace
 > ```
 >
@@ -60,10 +61,14 @@ somewhere in your `PATH`.
 > **`Killed: 9` is a different problem.** It means the binary's code signature
 > is missing or invalid (common when a file is transferred or rewritten by a
 > tool that drops it). Clearing extended attributes cannot supply a signature
-> and neither can **Open Anyway** — re-sign the installed binary ad hoc:
+> and neither can **Open Anyway** — re-sign the binary ad hoc:
 >
 > ```bash
+> # On the installed binary:
 > codesign --force --sign - /usr/local/bin/myace
+>
+> # Or on the download, before moving it:
+> codesign --force --sign - ./myace
 > ```
 
 ### Via pip
