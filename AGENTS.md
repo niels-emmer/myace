@@ -327,6 +327,17 @@ Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d
   existing clients don't break; new clients must use the body.
   `/me/mfa/totp/setup` 400s if MFA is already enabled — it must never
   silently replace an active secret.
+- **`mfa_forced` is enforced at login, for password and SSO alike.** With the
+  MFA feature on and System Settings → Force MFA enabled, an account with no
+  enrolled TOTP factor gets **no session** from either `login_with_password()`
+  or `auth_callback()` — only a scoped enrolment challenge, which it must
+  complete via `POST /me/mfa/totp/setup` + `.../verify` before entering the
+  app. `mfa_forced` is deliberately inert while `mfa_enabled` is off:
+  `setup_totp()` refuses to run then, so enforcing it alone would lock every
+  unenrolled account out with no way to comply. Enabling Force MFA is a
+  deliberate operator decision, never a side effect of upgrading. The MFA
+  login token is single-use (`users.mfa_token_used_hash`) and a TOTP code
+  cannot be replayed inside its 30-second step (`users.last_totp_counter`).
 - **`DELETE /doc-cache/{id}` is admin-only** — the cache is one global
   resource shared by every user, not owned by whoever fetched it.
 - **Frontend transitive security pins live in `frontend/package.json`'s
@@ -571,13 +582,50 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 - Security model — preserve all of it if you touch this file: refuses to
   start without existing `myace login` credentials; binds loopback-only;
   CORS reflects exactly the logged-in server's origin (never `*`);
-  `POST /scan` additionally requires a custom `X-MyACE-Companion` header
+  every non-`GET /health` route (`/scan`, `/audit`, `/apply/preview`,
+  `/apply`) additionally requires a custom `X-MyACE-Companion` header
   (forces a real preflight, blocks blind `no-cors` POSTs) and a
   server-side `Origin` check (not just a CORS response header) so a
   non-browser client can't skip the dance. Also implements Chrome's
   Private Network Access preflight (`Access-Control-Allow-Private-Network`)
   since a page on a public origin fetching a loopback address gets an
   extra preflight beyond normal CORS.
+- **Direct install (`/apply/preview`, `/apply`) is opt-in and off by
+  default.** The write routes only exist when `myace serve` was started
+  with `--allow-apply` or `MYACE_COMPANION_ALLOW_APPLY=1`; without it they
+  return 403. `GET /health` advertises `apply.supported`,
+  `apply.targets`, and `apply.machine_targets` so a client can hide the
+  option; leaving both off must remain the default. See
+  [ADR-0016](docs/adr/0016-companion-direct-apply.md).
+- **The write path's safety properties are load-bearing — keep every one
+  of them when editing this file.** `/apply/preview` fetches the compiled
+  profile with the stored CLI credentials (never logging the token) and
+  returns a per-file diff plus a single-use, five-minute, in-memory
+  `preview_id` (no disk persistence of tokens). `/apply` requires
+  `confirm: true` and that token, re-fetches and re-diffs, and returns 409
+  if anything changed since the preview — the diff digest covers both the
+  new content *and* each destination file's pre-existing sha256, so a
+  local edit between preview and apply also invalidates it. Overwritten
+  files are copied to `<root>/.myace-backups/<UTC timestamp>/` **before**
+  any write; writes go through a temp file + `os.replace()`; nothing is
+  ever deleted. Paths must stay inside the resolved install root
+  (`location: "project"` = the confirmed absolute, existing
+  `project_root`, default cwd; `location: "machine"` = the framework's
+  home root): `safe_output_path()` rejects lexical escapes and
+  `resolve(strict=False)` rejects symlink escapes, and `.myace/` /
+  `.myace-backups/` are unwritable targets. A successful apply records
+  `.myace/<target>.manifest.json` via `sync.write_manifest()` so
+  `myace check`/`watch` see it exactly like a `myace pull`. Requests are
+  capped (64 KiB `Content-Length`, 500 files, 5 MiB compiled output).
+  `location: "machine"` returns 400 for targets whose adapter output is
+  project-only (`aider`, `goose`, `cline`, `copilot-cli`) rather than
+  confining writes to the whole home directory.
+- **`MACHINE_SUBDIRS`/`MACHINE_TARGETS` (`local_server.py`) are a
+  hand-maintained mirror of the adapters' conventional per-framework home
+  locations, not an import** — same syncing contract as
+  `ADAPTER_EXPECTED_PATHS` (rule 35). Adding or renaming an adapter means
+  updating this map (and the project-only set) by hand, or `location:
+  "machine"` silently rejects or misplaces that target.
 - **Gotcha — never add `from __future__ import annotations` to this
   file.** Its FastAPI app, route handlers, and Pydantic model are all
   defined *inside* `build_app()` so the base CLI install never needs
@@ -586,8 +634,8 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   *module* globals — which don't include names only bound in
   `build_app()`'s local scope, so `Request`/the request model silently
   fail to resolve and every route 422s as if the parameters don't exist.
-- **Follow-up calls (`/scan`, `/audit`) go to the URL that answered
-  `/health`**, not `COMPANION_URLS[0]`: `useCompanionHealth()`
+- **Follow-up calls (`/scan`, `/audit`, `/apply/*`) go to the URL that
+  answered `/health`**, not `COMPANION_URLS[0]`: `useCompanionHealth()`
   (`LocalCompanionSetup.tsx`) returns `baseUrl` alongside the health body.
   The companion binds `127.0.0.1` only, so on a machine where `localhost`
   resolves to `::1` the first candidate never answers.
@@ -671,6 +719,19 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `TRUSTED_HOSTS` is unset. This is what prevents Host-header injection
   behind a reverse proxy — never relax it to a default-allow in
   production.
+- `DEBUG=true` outside development is a `RuntimeError` at startup. `/docs`
+  and `/redoc` are gated on `APP_ENV`, not `DEBUG`, so this is a
+  shipped-default tripwire rather than the thing that hides the schema —
+  see [debugging.md](docs/debugging.md#backend-refuses-to-start-runtimeerror-debug-is-true-outside-app_envdevelopment).
+- A wildcard `CORS_ORIGINS` (`*`) outside development is also a
+  `RuntimeError` (`validate_cors_origins()`): `CORSMiddleware` runs with
+  `allow_credentials=True`, so a wildcard either breaks every credentialed
+  request or reflects any `Origin` back with credentials attached.
+- `Settings.session_cookie_secure` derives the session cookie's `Secure`
+  flag from `FRONTEND_BASE_URL`'s scheme, never from `DEBUG`. Outside
+  development a non-`https://` `FRONTEND_BASE_URL` logs a startup warning,
+  because the cookie would otherwise be sent over plaintext. Set
+  `FRONTEND_BASE_URL` to the public https origin.
 - `backend/Dockerfile`'s uvicorn `CMD` runs with `--proxy-headers` and
   `--forwarded-allow-ips` set to the **private ranges** (`127.0.0.1,
   10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`), **never `*`**. With `*`,
@@ -699,8 +760,9 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 - **Every one of those checks is gated on `APP_ENV != development`, and
   `.env.example` ships `APP_ENV=development`.** A deployment that
   customises its secret/hosts/CORS but leaves that line alone runs with
-  none of them (no default-secret error, no `TRUSTED_HOSTS` requirement,
-  schema auto-created each boot). `app/main.py`'s lifespan now logs a
+  none of them (no default-secret, `TRUSTED_HOSTS`, `DEBUG` or
+  CORS-wildcard error, no cookie-`Secure` warning, and the schema is
+  auto-created each boot). `app/main.py`'s lifespan now logs a
   warning via `looks_like_real_deployment()` when it sees that combination;
   `docs/deployment.md` lists `APP_ENV=production` as the first `.env` step.
   Don't "fix" this by flipping the default to production — it would break
