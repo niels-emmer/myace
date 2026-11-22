@@ -218,10 +218,12 @@ describe('PacksLibrary', () => {
     );
 
     // The "Start here" bundle strip links to the actual starter pack, not
-    // the generic My packs landing page.
-    const bundleLink = screen
-      .getAllByRole('link', { name: /Software Engineer/ })
-      .find((link) => link.getAttribute('href') === '/packs/starter-pack');
-    expect(bundleLink).toBeDefined();
+    // the generic My packs landing page. Scope to the strip: the grid card
+    // above would otherwise satisfy this assertion even if the strip regressed.
+    const strip = within(screen.getByTestId('start-here'));
+    expect(strip.getByRole('link', { name: /Software Engineer/ })).toHaveAttribute(
+      'href',
+      '/packs/starter-pack',
+    );
   });
 });

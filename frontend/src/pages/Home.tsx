@@ -264,7 +264,7 @@ export default function Home() {
               basePacks.find(
                 (collection) => collection.is_starter_pack && collection.name === bundle.basePackName,
               ) ?? basePacks.find((collection) => collection.name === bundle.basePackName);
-            const source = pack ? packSource(pack) : null;
+            const source = pack ? packSource(pack, user?.id) : null;
             const body = (
               <>
                 <div className="flex items-center justify-between gap-2">
@@ -295,7 +295,7 @@ export default function Home() {
             return pack ? (
               <Link
                 key={bundle.id}
-                to={packHref(pack, packSource(pack, user?.id))}
+                to={packHref(pack, source ?? 'starter')}
                 className="rounded-xl border border-border bg-card p-5 transition-shadow hover:border-input hover:shadow-sm"
               >
                 {body}

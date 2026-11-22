@@ -196,7 +196,7 @@ export default function PacksLibrary() {
       </div>
 
       {/* Featured "Start here" strip */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div data-testid="start-here" className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-3">
           <Sparkles className="h-5 w-5 flex-shrink-0 text-brand-600" />
           <div>
