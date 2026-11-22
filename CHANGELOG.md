@@ -4,7 +4,7 @@ All notable changes to MyACE are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0-pre.1] — 2026-11-22
+## [2.0.0] — 2026-11-22
 
 The onboarding and usage revamp: MyACE now speaks in **packs**, **setups** and
 **installs**, opens with a storefront, and installs one setup into several
@@ -54,7 +54,8 @@ existing deployments keep working through the upgrade.
   My Machine groups are gone; every legacy path redirects.
 - **Landing page is a storefront**, not a members-only pitch: featured packs,
   the four-step story and the framework strip, with the live compile demo
-  kept.
+  kept. Copy states plainly that accounts are free and that browsing needs no
+  account, and the primary calls to action point at the right destinations.
 - **Pack detail is unified** — owned, starter and community packs share one
   page; `/packs/community/:id` redirects to `/packs/:id`.
 - **Frozen compile content is owner-scoped.** A setup owner (or an admin) can
@@ -67,8 +68,7 @@ existing deployments keep working through the upgrade.
   metadata (`importlib.metadata`) instead of the stale hardcoded `0.1.0` —
   the same value recorded as the client version in stored credentials, and
   PyInstaller release binaries now bundle the package metadata so they report
-  it too. The Python package manager canonicalises `2.0.0-pre.1` to
-  `2.0.0rc1`, which is what the CLI prints.
+  it too.
 
 ### Security
 
