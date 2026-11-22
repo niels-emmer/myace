@@ -3,7 +3,7 @@
 collections/base/<slug>/ and collections/additional/<slug>/ hold hand-authored
 example content in the same on-disk shape the scanner already reads (skills/,
 agents/, commands/, AGENTS.md) and reuses its exact per-file parsers — see
-_scan_starter_collection() below for why this doesn't go through
+_scan_seeded_collection() below for why this doesn't go through
 scanner.scan_directory() itself. This module walks those directories and
 turns them into Collection/Artifact rows, owned by a dedicated system
 account, on every backend startup. Most are seeded as starter packs
@@ -265,7 +265,7 @@ COMMUNITY_CONTRIBUTED_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
 }
 
 
-def _scan_starter_collection(collection_dir: Path) -> list[dict]:
+def _scan_seeded_collection(collection_dir: Path) -> list[dict]:
     """Parse one starter-collection directory into canonical artifact dicts.
 
     Mirrors scanner.scan_directory()'s skills/agents/commands/AGENTS.md walk
@@ -401,7 +401,7 @@ async def seed_starter_collections(session: AsyncSession) -> None:
                 if system_user is None:
                     system_user = await get_or_create_system_user(session)
 
-                scanned = _scan_starter_collection(collection_dir)
+                scanned = _scan_seeded_collection(collection_dir)
 
                 collection = Collection(
                     owner_id=system_user.id,

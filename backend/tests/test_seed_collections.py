@@ -1,4 +1,4 @@
-"""Tests for install-time starter-pack seeding (app/services/seed_collections.py)."""
+"""Tests for install-time starter/community pack seeding (app/services/seed_collections.py)."""
 
 from pathlib import Path
 
@@ -28,6 +28,22 @@ EXPECTED_COMMUNITY_COUNT = sum(len(c) for c in COMMUNITY_CONTRIBUTED_COLLECTIONS
 async def _seed_against_repo_collections(db_session: AsyncSession, monkeypatch) -> None:
     monkeypatch.setattr(settings, "collections_root", str(REPO_COLLECTIONS_ROOT))
     await seed_starter_collections(db_session)
+
+
+def test_seed_registries_do_not_overlap() -> None:
+    """A slug listed in both maps would make its classification depend on
+    iteration order; keep the starter and community registries disjoint."""
+    starter_refs = {
+        (collection_type, slug)
+        for collection_type, collections in STARTER_COLLECTIONS.items()
+        for slug in collections
+    }
+    community_refs = {
+        (collection_type, slug)
+        for collection_type, collections in COMMUNITY_CONTRIBUTED_COLLECTIONS.items()
+        for slug in collections
+    }
+    assert starter_refs.isdisjoint(community_refs)
 
 
 async def test_seed_creates_expected_collections(db_session: AsyncSession, monkeypatch) -> None:
@@ -298,7 +314,9 @@ async def test_additional_collections_compile_clean_on_software_engineer(
     # Every seeded collection, starter and community-contributed alike: the
     # community-contributed add-ons still ship the same content and must keep
     # compiling cleanly onto these bases.
-    collections = (await db_session.execute(select(Collection))).scalars().all()
+    collections = (
+        await db_session.execute(select(Collection).where(Collection.git_url.like("seed://%")))
+    ).scalars().all()
     by_name = {c.name: c for c in collections}
 
     base = by_name["Software Engineer"]
@@ -354,7 +372,9 @@ async def test_additional_collections_compile_clean_on_devops_engineer(
     # Every seeded collection, starter and community-contributed alike: the
     # community-contributed add-ons still ship the same content and must keep
     # compiling cleanly onto these bases.
-    collections = (await db_session.execute(select(Collection))).scalars().all()
+    collections = (
+        await db_session.execute(select(Collection).where(Collection.git_url.like("seed://%")))
+    ).scalars().all()
     by_name = {c.name: c for c in collections}
 
     base = by_name["DevOps Engineer"]

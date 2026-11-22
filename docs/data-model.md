@@ -185,9 +185,11 @@ soft-delete flag — deleted collections are never physically removed.
 `artifact_count` is a denormalized cache updated by every route that
 adds/removes artifacts (import, bulk delete, bulk export) — if you add a new
 artifact-mutating route, update it there too or the count will drift.
-`is_starter_pack` marks the collections seeded on every backend startup from
-`collections/base/` and `collections/additional/`, owned by a dedicated
-passwordless system account — see AGENTS.md rule 25.
+`is_starter_pack` distinguishes the two seeded sets owned by a dedicated
+passwordless system account, both seeded from `collections/base/` and
+`collections/additional/` on every backend startup: `True` for the starter
+packs in `STARTER_COLLECTIONS`, `False` for the community-contributed add-ons
+in `COMMUNITY_CONTRIBUTED_COLLECTIONS` — see AGENTS.md rule 25.
 `avg_rating`/`rating_count` are a denormalized cache of
 `collection_ratings`, recomputed transactionally on every rating
 write/delete — see the `collection_ratings` section below.
