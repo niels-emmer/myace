@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { adaptersApi, collectionsApi, profilesApi, syncApi } from '../lib/api';
-import { installsApi, setupProfilesApi } from '../lib/setupApi';
+import { installsApi, profileToCreate, setupProfilesApi } from '../lib/setupApi';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileFormFields from '../components/ProfileForm';
 import { buildFrameworkRows, profileTargets, resolveInstallPath } from '../types/setup';
@@ -161,17 +161,8 @@ export default function ProfileDetail() {
     [profile, syncRows, claims],
   );
 
-  const payloadFor = (patch: Partial<SetupProfileCreate>): SetupProfileCreate => ({
-    name: profile!.name,
-    description: profile!.description,
-    base_collection_id: profile!.base_collection_id,
-    additional_collection_ids: [...profile!.additional_collection_ids],
-    disabled_artifact_ids: [...profile!.disabled_artifact_ids],
-    target_framework: profile!.target_framework,
-    target_frameworks: profileTargets(profile!),
-    is_public: profile!.is_public,
-    ...patch,
-  });
+  const payloadFor = (patch: Partial<SetupProfileCreate>): SetupProfileCreate =>
+    profileToCreate(profile!, patch);
 
   const updateMutation = useMutation({
     mutationFn: (data: SetupProfileCreate) => setupProfilesApi.update(id!, data),

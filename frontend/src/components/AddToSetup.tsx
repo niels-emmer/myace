@@ -19,6 +19,15 @@ import type { CollectionType, Profile } from '../types';
  *
  * Kept as its own component so the pack-detail pages just mount it.
  */
+const PROFILE_NAME_MAX = 255;
+
+/** `Profile.name` is String(255); generated names must never exceed it. */
+function generatedSetupName(packName: string): string {
+  const suffix = ' setup';
+  if (packName.length + suffix.length <= PROFILE_NAME_MAX) return `${packName}${suffix}`;
+  return `${packName.slice(0, PROFILE_NAME_MAX - suffix.length)}${suffix}`;
+}
+
 /** The subset of a pack this flow needs — `Pack` and `Collection` both fit. */
 export interface AddToSetupPack {
   id: string;
@@ -80,7 +89,7 @@ export default function AddToSetup({
     setError(null);
     try {
       const created = await setupProfilesApi.create({
-        name: `${collection.name} setup`,
+        name: generatedSetupName(collection.name),
         description: collection.description,
         base_collection_id: baseId,
         additional_collection_ids: addOnIds,
@@ -99,13 +108,23 @@ export default function AddToSetup({
   const attachTo = async (profile: Profile) => {
     setBusy(true);
     setError(null);
+    // A pack cannot be both the base and an add-on of the same setup.
+    if (!isBase && profile.base_collection_id === collection.id) {
+      setError('This pack is already this setup’s starting point.');
+      setMenuOpen(false);
+      return;
+    }
+    if (!isBase && profile.additional_collection_ids.includes(collection.id)) {
+      // Already attached — nothing to write, and no reason to bump the counter.
+      setMenuOpen(false);
+      finish(profile);
+      return;
+    }
     try {
       const additional = isBase
         ? // A pack becoming the base must not also remain an add-on.
           profile.additional_collection_ids.filter((id) => id !== collection.id)
-        : profile.additional_collection_ids.includes(collection.id)
-          ? profile.additional_collection_ids
-          : [...profile.additional_collection_ids, collection.id];
+        : [...profile.additional_collection_ids, collection.id];
       const updated = await setupProfilesApi.update(
         profile.id,
         profileToCreate(profile, {

@@ -162,6 +162,37 @@ describe('AddToSetup', () => {
     expect(await screen.findByTestId('path')).toHaveTextContent('/setups/setup-1');
   });
 
+  it('caps a generated setup name at the profile column limit', async () => {
+    const longBase = pack({
+      id: 'pack-long',
+      name: 'X'.repeat(300),
+      download_count: 5,
+    });
+    renderFor(longBase);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use this pack' }));
+
+    await waitFor(() => expect(setupProfilesApi.create).toHaveBeenCalled());
+    const payload = vi.mocked(setupProfilesApi.create).mock.calls[0][0];
+    expect(payload.name).toHaveLength(255);
+    expect(payload.name.endsWith(' setup')).toBe(true);
+  });
+
+  it('refuses to add a pack that is already the setup’s base', async () => {
+    vi.mocked(profilesApi.list).mockResolvedValue([
+      { ...setup, base_collection_id: 'pack-qa', additional_collection_ids: [] },
+    ]);
+    renderFor(addOn);
+
+    fireEvent.click(screen.getByRole('button', { name: /Add to a setup/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /My setup/ }));
+
+    expect(
+      await screen.findByText(/already this setup’s starting point/i),
+    ).toBeInTheDocument();
+    expect(setupProfilesApi.update).not.toHaveBeenCalled();
+  });
+
   it('uses a starting-point pack as the base when attaching to an existing setup', async () => {
     renderFor(baseB);
 

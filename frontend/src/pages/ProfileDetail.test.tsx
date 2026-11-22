@@ -27,10 +27,14 @@ vi.mock('../lib/api', () => ({
   syncApi: { getStatus: vi.fn() },
 }));
 
-vi.mock('../lib/setupApi', () => ({
-  installsApi: { list: vi.fn() },
-  setupProfilesApi: { update: vi.fn() },
-}));
+vi.mock('../lib/setupApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/setupApi')>('../lib/setupApi');
+  return {
+    ...actual,
+    installsApi: { list: vi.fn() },
+    setupProfilesApi: { update: vi.fn() },
+  };
+});
 
 const basePack: Collection = {
   id: 'pack-base',
