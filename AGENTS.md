@@ -372,7 +372,7 @@ When two components fetch the same resource with different filters (e.g. an unfi
 
 ### 13. Authentication & Authorization
 
-- **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/mfa` (completes a login the caller already passed the password step of, via a signed 5-minute `mfa_token`), `/auth/logout` (clears the caller's own session; nothing to protect), `/auth/forgot-password` and `/auth/reset-password` (the caller can't be logged in — a signed one-hour reset token is the credential), `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`, and (Phase 4) `POST /demo/compile` — see rule 36 for why that last one is a deliberate, narrowly-scoped exception rather than a precedent for public routes in general. Everything else requires it.
+- **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/mfa` (completes a login the caller already passed the password step of, via a signed 5-minute `mfa_token`), `/auth/logout` (clears the caller's own session; nothing to protect), `/auth/forgot-password` and `/auth/reset-password` (the caller can't be logged in — a signed one-hour reset token is the credential), `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`, `POST /demo/compile` (rule 36), and the five `GET /api/v1/collections/community*` storefront reads (ADR-0014, rule 42) — each a deliberate, narrowly-scoped exception rather than a precedent for public routes in general. Everything else requires it.
 - **Authorization is ownership + visibility, not per-route roles.** Use `authorize_access()` (single resource) and `owner_or_public_clause()` (list endpoints) from `backend/app/core/authz.py` — don't hand-roll owner checks. `authorize_access` 404s (not 403s) on denial, matching the rest of the codebase's convention of not revealing a resource's existence to someone who can't see it. `current_user.is_admin` bypasses both.
 - **`Artifact` has no `owner_id` of its own.** Authorize against its parent `Collection` — load the collection first, call `authorize_access` on that, then proceed.
 - **Bulk/cross-resource operations need a check per resource touched.** `bulk_export_artifacts`'s target collection needs its own write-check independent of the source collection's read-check — don't assume checking one resource covers every resource an endpoint touches.
@@ -444,6 +444,16 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 
 ### 18. Publish Goes Through Moderation, Not a GitHub PR — and Is Unrelated to Starter Packs
 
+- **The publish UI is now the four-step wizard at `/packs/:id/publish`
+  (`frontend/src/pages/PublishPack.tsx`)** — it PATCHes pack metadata
+  (including `license`) and then calls `POST /collections/{id}/publish`,
+  showing the Draft → In review → Approved / Changes requested →
+  Unpublished tracker from `components/PublishStatusTracker.tsx`. The owner's
+  inline edit/bulk tools moved to `/packs/:id/manage` so the unified pack
+  detail (`/packs/:id`) has the same layout for every pack.
+- **Packs have no `tags` column** (tags live on items). The wizard
+  deliberately has no pack-tag field; adding one needs a migration, not a
+  form field.
 - **`POST /{collection_id}/publish` only submits for review — it is not a
   self-serve publish anymore.** It moves `Collection.moderation_status`
   from `draft`/`denied`/`unpublished` to `submitted` (409 otherwise) and never touches
@@ -1366,8 +1376,9 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   (`frontend/src/lib/bundles.ts`), not a table. API routes, SQLModel
   classes, compiler functions, tests, and internal identifiers keep
   `collection`, `profile`, `artifact`, and `compile` — do not rename them
-  for presentation consistency. The public `/welcome` storefront is owned by
-  Phase 5 and is currently exempt.
+  for presentation consistency. The public `/welcome` storefront follows the
+  same vocabulary now that Phase 5 ships it: it says pack/setup/install/item,
+  not collection/profile/artifact.
 - **One mapping table, not a caption on every screen.** This rule and
   `docs/plans/v2.0-onboarding-revamp.md` are the "also known as" reference.
   Advanced editors may mention the internal term, but ordinary flows should
@@ -1375,20 +1386,39 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 - **Canonical routes (v2.0 onboarding revamp):** `/` Home; `/setups`
   setups list; `/setups/:id` setup detail; `/setups/:id/install` install
   panel (reads `:id`, with the legacy `?profile=` query still accepted);
-  `/packs` library; `/packs/mine` owned packs; `/packs/pipelines` and
-  `/packs/pipelines/new`; `/packs/import`; `/packs/community/:id` community
-  pack detail; `/packs/:id` pack detail; `/packs/:id/items/new` add rule;
-  `/machine` (tabs: Overview, Audit, Sync); `/settings*` unchanged.
-  `CollectionsManager.tsx` is My packs, `ProfileComposer.tsx` is Setups,
-  `TargetExporter.tsx` is Install, and `MachinePage.tsx` is the tabbed shell
-  around `SetupAudit` and `SyncDashboard` (both accept an `embedded` prop so
-  their page-level heading is suppressed inside a tab).
+  `/packs` library (public read-only browse for anonymous visitors);
+  `/packs/mine` owned packs; `/packs/pipelines` and `/packs/pipelines/new`;
+  `/packs/import`; `/packs/:id` unified pack detail (owned, starter, and
+  community); `/packs/:id/publish` publish wizard;
+  `/packs/:id/manage` owner editing/management; `/packs/:id/items/new` add
+  rule; `/machine` (tabs: Overview, Audit, Sync); `/settings*` unchanged.
+  `/packs/community/:id` is **no longer canonical** — it redirects to
+  `/packs/:id` (the community detail merged into the unified pack detail).
+  `CollectionsManager.tsx` is My packs, `PackDetail.tsx` is the unified pack
+  detail, `PublishPack.tsx` is the publish wizard, `ProfileComposer.tsx` is
+  Setups, `TargetExporter.tsx` is Install, and `MachinePage.tsx` is the
+  tabbed shell around `SetupAudit` and `SyncDashboard` (both accept an
+  `embedded` prop so their page-level heading is suppressed inside a tab).
 - **`frontend/src/lib/packs.ts` owns source/kind presentation** —
   `packSource()` (Starter / Community / Mine), `packKindLabel()` (Starting
-  point / Add-on), `packHref()` (community detail vs. owned/starter detail),
-  and `formatUses()`. Use these helpers in any new pack surface rather than
-  re-deriving the rules inline. Starter detection is
-  `Collection.is_starter_pack`; ownership is `owner_id === current user`.
+  point / Add-on), `packHref()` (now always the unified `/packs/:id`),
+  `formatUses()`, and `FRAMEWORK_LABELS`/`packFrameworks()`. Use these
+  helpers in any new pack surface rather than re-deriving the rules inline.
+  Starter detection is `Collection.is_starter_pack`; ownership is
+  `owner_id === current user`.
+- **Anonymous pack browsing is a deliberate, narrow auth exception
+  (ADR-0014), not a precedent.** Only the five
+  `GET /api/v1/collections/community*` read routes are public; every other
+  collection route (including `GET /collections/{id}`) still requires auth.
+  The public detail/contents routes return only active + published +
+  approved packs and 404 otherwise. Public reads are rate-limited by the
+  separate `storefront_limiter` (`settings.storefront_rate_limit`). Do not
+  add a write route to that family, and do not reuse the public path for
+  owner/moderator reads — signed-in users keep the authenticated routes.
+- **`download_count` is shown, never ranked.** It is advisory and
+  user-incrementable (invariant 25 / ADR-0015). The storefront/library must
+  not offer "Most used" sorting or a "Top packs" ranking; "used N times" as
+  a soft signal is fine.
 - **Home derives exactly one state banner from setups + sync reports**
   (`GET /profiles` + `GET /sync/status`): no setups → build your first
   setup; setups but no rows → install it; any row with `in_sync === false`

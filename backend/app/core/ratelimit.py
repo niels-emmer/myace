@@ -18,3 +18,9 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 auth_limiter = Limiter(key_func=get_remote_address)
+
+# Public storefront browsing (ADR-0014). A third dedicated instance so tests
+# and operators can tune/disable anonymous community browsing independently
+# of the credential-guessing auth limits and the demo route's own limiter.
+# Same in-memory, per-process caveat as the other two (AGENTS.md rule 36).
+storefront_limiter = Limiter(key_func=get_remote_address)

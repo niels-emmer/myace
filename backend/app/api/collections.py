@@ -7,15 +7,17 @@ import uuid
 from datetime import UTC, date, datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, case, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import SQLModel, select
 
 from app.core.authz import authorize_access, owner_or_public_clause
+from app.core.config import settings
 from app.core.database import get_session
 from app.core.deps import get_current_user, require_moderator_or_admin
+from app.core.ratelimit import storefront_limiter
 from app.models.artifact import (
     Artifact,
     ArtifactCreate,
@@ -148,9 +150,60 @@ async def list_collections(
     return result.scalars().all()
 
 
+class PublicCollectionRead(SQLModel):
+    """Sanitized pack shape for anonymous storefront reads (ADR-0014).
+
+    Deliberately *not* `CollectionRead`: an anonymous visitor must not see
+    the pack's `git_url`/`git_branch` (a private source repo is not public
+    information), `visibility`, moderation workflow fields
+    (`moderation_reason`, `moderated_by`, `moderated_at`, `submitted_at`), or
+    `verified_by`/`last_synced_at`. Only presentation fields plus the
+    approved/published flags the client needs.
+    """
+    id: uuid.UUID
+    owner_id: uuid.UUID
+    name: str
+    description: str | None = None
+    collection_type: str
+    artifact_count: int
+    download_count: int = 0
+    published: bool = False
+    category: str | None = None
+    license: str | None = None
+    is_starter_pack: bool = False
+    avg_rating: float = 0.0
+    rating_count: int = 0
+    moderation_status: Literal["draft", "submitted", "approved", "denied", "unpublished"] = "draft"
+    last_verified_at: date | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+def _public_collection_read(collection: Collection) -> PublicCollectionRead:
+    return PublicCollectionRead(
+        id=collection.id,
+        owner_id=collection.owner_id,
+        name=collection.name,
+        description=collection.description,
+        collection_type=collection.collection_type,
+        artifact_count=collection.artifact_count,
+        download_count=collection.download_count,
+        published=collection.published,
+        category=collection.category,
+        license=collection.license,
+        is_starter_pack=collection.is_starter_pack,
+        avg_rating=collection.avg_rating,
+        rating_count=collection.rating_count,
+        moderation_status=collection.moderation_status,  # type: ignore[arg-type]
+        last_verified_at=collection.last_verified_at,
+        created_at=collection.created_at,
+        updated_at=collection.updated_at,
+    )
+
+
 class CommunityCollectionsResponse(BaseModel):
     """Paginated response for community collections."""
-    items: list[CollectionRead]
+    items: list[PublicCollectionRead]
     total: int
 
 
@@ -181,17 +234,52 @@ def _community_order_by(
     return (Collection.download_count.desc(), Collection.id.asc())  # type: ignore[attr-defined]
 
 
+def _visible_public_collection(collection: Collection) -> bool:
+    """Whether an anonymous visitor may read this pack (ADR-0014).
+
+    `published=True` is only ever set together with `moderation_status=
+    "approved"` today (AGENTS.md rules 18/31), but check both explicitly so a
+    future code path that flips `published` alone cannot leak an unreviewed
+    pack to the public storefront.
+    """
+    return (
+        collection.is_active
+        and collection.published
+        and collection.moderation_status == "approved"
+    )
+
+
+async def _get_public_collection_or_404(
+    session: AsyncSession, collection_id: uuid.UUID
+) -> Collection:
+    """Load a community pack for anonymous reading, 404 otherwise.
+
+    404 (not 403) for a pack that exists but is not public, matching
+    `authorize_access`'s convention of not revealing a resource's existence.
+    """
+    collection = await _get_collection_or_404(session, collection_id)
+    if not _visible_public_collection(collection):
+        raise HTTPException(status_code=404, detail="Collection not found")
+    return collection
+
+
 @router.get("/community", response_model=CommunityCollectionsResponse)
+@storefront_limiter.limit(settings.storefront_rate_limit)
 async def list_community_collections(
+    request: Request,
     collection_type: str | None = Query(None, alias="type"),
     category: str | None = None,
     sort: Literal["rating", "downloads", "alpha"] = "downloads",
     offset: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """List published community collections, with optional filters and pagination.
+    """List published community collections (public storefront read).
+
+    Deliberately carries no `Depends(get_current_user)` — see ADR-0014 and
+    AGENTS.md rule 13's auth-exception list. Only `published`+`approved`
+    rows are returned, and nothing here writes, so no DB-write surface is
+    reachable anonymously. Rate-limited per client IP.
 
     Sortable by rating, downloads (default), or alphabetically (base
     collections before additional, then by name). Supports filtering by
@@ -200,6 +288,9 @@ async def list_community_collections(
     base_query = select(Collection).where(
         Collection.published == True,
         Collection.is_active == True,
+        # Explicit, not just transitively true via `published` (ADR-0014):
+        # an anonymous listing must never expose an unreviewed pack.
+        Collection.moderation_status == "approved",
     )
     if collection_type:
         base_query = base_query.where(Collection.collection_type == collection_type)
@@ -220,34 +311,48 @@ async def list_community_collections(
     result = await session.execute(query)
 
     return CommunityCollectionsResponse(
-        items=list(result.scalars().all()),
+        items=[_public_collection_read(item) for item in result.scalars().all()],
         total=total,
     )
 
 
-@router.get("/community/top", response_model=list[CollectionRead])
+@router.get("/community/top", response_model=list[PublicCollectionRead])
+@storefront_limiter.limit(settings.storefront_rate_limit)
 async def list_top_community_collections(
+    request: Request,
     limit: int = Query(10, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """List the top N most downloaded published community collections."""
+    """List the top N most downloaded published community collections.
+
+    Public read (ADR-0014). Note that `download_count` is advisory and
+    user-incrementable — consumers must not present this as an authoritative
+    ranking (invariant 25 / ADR-0015).
+    """
     query = (
         select(Collection)
-        .where(Collection.published == True, Collection.is_active == True)
+        .where(
+            Collection.published == True,
+            Collection.is_active == True,
+            Collection.moderation_status == "approved",
+        )
         .order_by(Collection.download_count.desc())
         .limit(limit)
     )
     result = await session.execute(query)
-    return result.scalars().all()
+    return [_public_collection_read(item) for item in result.scalars().all()]
 
 
 @router.get("/community/categories", response_model=list[str])
+@storefront_limiter.limit(settings.storefront_rate_limit)
 async def list_community_categories(
-    current_user: User = Depends(get_current_user),
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    """List all distinct categories among published community collections."""
+    """List all distinct categories among published community collections.
+
+    Public read (ADR-0014).
+    """
     # `select(...).distinct()`, not a column-level `distinct(Collection.category)`:
     # the latter is a column-expression-level construct SQLAlchemy warns about
     # outside an aggregate ("unary distinct() should not be used outside of an
@@ -257,12 +362,60 @@ async def list_community_categories(
         .where(
             Collection.published == True,
             Collection.is_active == True,
+            Collection.moderation_status == "approved",
             Collection.category != None,
         )
         .distinct()
     )
     result = await session.execute(query)
     return [row[0] for row in result.all() if row[0]]
+
+
+@router.get("/community/{collection_id}", response_model=PublicCollectionRead)
+@storefront_limiter.limit(settings.storefront_rate_limit)
+async def get_public_community_collection(
+    collection_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    """Read one published community pack without an account (ADR-0014).
+
+    Registered above `/{collection_id}` (which is authenticated) and kept in
+    the same `/community/...` URL family as the listing routes. Only an
+    approved + published + active pack is visible; anything else is a 404 to
+    an anonymous caller.
+    """
+    collection = await _get_public_collection_or_404(session, collection_id)
+    return _public_collection_read(collection)
+
+
+@router.get(
+    "/community/{collection_id}/artifacts",
+    response_model=list[ArtifactRead],
+)
+@storefront_limiter.limit(settings.storefront_rate_limit)
+async def list_public_community_artifacts(
+    collection_id: uuid.UUID,
+    request: Request,
+    type: str | None = Query(None),  # matches the authed artifacts route's param
+    session: AsyncSession = Depends(get_session),
+):
+    """List the enabled items of a published community pack (ADR-0014).
+
+    Public contents are the *shipped* set only: disabled items are excluded,
+    unlike the owner/moderator route which accepts `include_disabled`. Read
+    only — there is no anonymous artifact mutation path.
+    """
+    await _get_public_collection_or_404(session, collection_id)
+    query = select(Artifact).where(
+        Artifact.collection_id == collection_id,
+        Artifact.is_enabled == True,
+        Artifact.deleted_at == None,
+    )
+    if type:
+        query = query.where(Artifact.artifact_type == type)
+    result = await session.execute(query.order_by(Artifact.name.asc()))
+    return [_artifact_to_read(artifact) for artifact in result.scalars().all()]
 
 
 @router.get("/{collection_id}", response_model=CollectionRead)

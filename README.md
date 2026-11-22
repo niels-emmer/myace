@@ -39,14 +39,20 @@ pack, or browse the community library for ready-made content.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/login.png" alt="MyACE login screen" /></td>
-    <td width="50%"><img src="docs/images/dashboard.png" alt="MyACE Home — state banner, setup cards, and recommended packs" /></td>
+    <td width="50%"><img src="docs/images/login.png" alt="Sign in — an account is only needed to build, install, or publish" /></td>
+    <td width="50%"><img src="docs/images/dashboard.png" alt="Home — state banner, setup cards, and recommended packs" /></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/collections.png" alt="MyACE packs library" /></td>
-    <td width="50%"><img src="docs/images/compile.png" alt="MyACE install — a sample setup installed to OpenCode" /></td>
+    <td width="50%"><img src="docs/images/collections.png" alt="Packs library — Starter and Community packs" /></td>
+    <td width="50%"><img src="docs/images/compile.png" alt="Install — a sample setup compiled to OpenCode" /></td>
   </tr>
 </table>
+
+The storefront at `/welcome` and the **Packs** library at `/packs` are
+browsable **without an account** — pack listings, detail pages, contents,
+ratings and comments are public read-only until you choose to rate, build a
+setup, install, or publish. The screenshots above show the signed-in app;
+there is no separate storefront capture yet.
 
 ## How it works
 
@@ -130,13 +136,36 @@ model.
   existing setup's agents and save it as a generated orchestrator agent — no
   hand-written frontmatter required.
 
+### Public storefront & publishing
+
+- **Browse before you sign up** — `/welcome` features proven starter and
+  community packs, and `/packs` is a read-only library for signed-out
+  visitors. The server exposes exactly five anonymous read routes (community
+  list/top/categories, pack detail, pack contents), each approved-only and
+  rate-limited per IP; see
+  [ADR-0014](docs/adr/0014-public-pack-browsing.md). Everything that writes —
+  using, rating, commenting, installing, publishing — still needs an account.
+- **One pack page for every pack** — `/packs/:id` renders owned, starter,
+  and community packs with the same header, actions (**Use this pack**,
+  **Add to a setup**, **Customize a copy**, and owner **Publish**), and
+  Overview / Contents / Ratings & comments tabs. "Use this pack" on an add-on
+  asks which starting point to pair it with; it records a reference use
+  (`POST /collections/{id}/use`) rather than copying the pack.
+- **Publish wizard** — `/packs/:id/publish` walks Select → Describe →
+  Preview → Submit, writes metadata (including the optional SPDX `license`)
+  and submits to the moderation queue. The pack page shows a
+  **Draft → In review → Approved / Changes requested → Unpublished**
+  tracker, with the moderator's reason when changes are requested. Publishing
+  never changes `visibility`; that stays the separate Share control.
+
 ### Community
 
 - **Community packs** — submit your packs for a moderator to review;
   approved submissions become public, browsable, and importable by other
-  users. Rate (1-5 stars) and comment on published packs, sort the community
-  library by rating/downloads/name, and opt into email notifications when
-  your submissions get downloaded or commented on.
+  users. Rate (1-5 stars) and comment on published packs, sort the library
+  by recommended/rating/recent, and opt into email notifications when your
+  submissions get downloaded or commented on. "Used N times" is shown as a
+  soft signal; it is not a ranking (the counter is user-incrementable).
 - **Starter packs out of the box** — every fresh install seeds itself with 4
   starting-point packs (Vibecoder, Software Engineer, Data Scientist, DevOps
   Engineer) and 19 add-ons (Frontend, Backend, Database, QA/Test Engineer,
@@ -296,19 +325,23 @@ companion health check, setup audit, and per-framework sync report. Full command
 │   ├── nginx.conf
 │   ├── package.json
 │   ├── src/
-│   │   ├── components/           # Layout (four-area sidebar, 52px top bar, ⌘K palette), CommandPalette,
-│   │   │                          #   SectionHub, TargetChecklist (adapter-name multi-select), shared UI
+│   │   ├── components/           # Layout (four-area sidebar, 52px top bar, ⌘K palette), PublicLayout
+│   │   │                          #   (anonymous storefront shell), CommandPalette, SectionHub,
+│   │   │                          #   PublishStatusTracker, TargetChecklist, shared UI
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
-│   │   ├── pages/                 # Landing (public /welcome), Login, ResetPassword, Home, PacksLibrary,
-│   │   │                          #   CollectionsManager (My packs), CollectionDetail, NewArtifactRule (add a rule),
-│   │   │                          #   CommunityCollectionDetail, ProfileComposer (Setups), ProfileDetail,
+│   │   ├── pages/                 # Landing (public /welcome storefront), Login, ResetPassword, Home,
+│   │   │                          #   PacksLibrary (public browse for signed-out visitors), PackDetail (unified
+│   │   │                          #   owned/starter/community), PublishPack (four-step wizard), CollectionsManager
+│   │   │                          #   (My packs), CollectionDetail (owner manage at /packs/:id/manage),
+│   │   │                          #   NewArtifactRule (add a rule), ProfileComposer (Setups), ProfileDetail,
 │   │   │                          #   OrchestrationGallery (Pipelines), OrchestratorBuilder, TargetExporter (Install),
 │   │   │                          #   MachinePage (tabbed Overview/Audit/Sync) wrapping SetupAudit and
 │   │   │                          #   SyncDashboard; ImportPage (Packs → Import), SettingsHub, UserSettings (Account),
 │   │   │                          #   ModerationQueue (moderator/admin-gated), SystemSettings (admin-gated)
-│   │   ├── lib/                   # API client, navigation.ts (sidebar + breadcrumbs — AGENTS.md #38),
-│   │   │                          #   bundles.ts (curated starter bundles), packs.ts (pack badges/links)
-│   │   └── types/                 # TypeScript interfaces
+│   │   ├── lib/                   # API client, packApi.ts (anonymous storefront reads + use/metadata),
+│   │   │                          #   navigation.ts (sidebar + breadcrumbs — AGENTS.md #38),
+│   │   │                          #   bundles.ts (curated starter bundles), packs.ts (pack badges/links/frameworks)
+│   │   └── types/                 # TypeScript interfaces (packs.ts holds storefront/publish-only shapes)
 │   └── dist/                     # Production build
 │
 ├── cli/                          # Python Typer CLI

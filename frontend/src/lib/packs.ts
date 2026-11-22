@@ -1,9 +1,15 @@
-import type { Collection } from '../types';
+import type { CollectionType } from '../types';
 
 /** Where a pack comes from, for badges and filtering. */
 export type PackSource = 'starter' | 'community' | 'mine';
 
-export function packSource(collection: Collection, userId?: string): PackSource {
+/** The minimum a pack must expose to be classified. */
+export interface PackSourceInput {
+  is_starter_pack: boolean;
+  owner_id: string;
+}
+
+export function packSource(collection: PackSourceInput, userId?: string): PackSource {
   if (collection.is_starter_pack) return 'starter';
   if (userId && collection.owner_id === userId) return 'mine';
   return 'community';
@@ -15,13 +21,50 @@ export function packSourceLabel(source: PackSource): string {
   return 'Community';
 }
 
-export function packKindLabel(collectionType: Collection['collection_type']): string {
+export function packKindLabel(collectionType: CollectionType): string {
   return collectionType === 'base' ? 'Starting point' : 'Add-on';
 }
 
-/** Starter and own packs open the owner/editor view; community packs open the read-only community view. */
-export function packHref(collection: Collection, source: PackSource): string {
-  return source === 'community' ? `/packs/community/${collection.id}` : `/packs/${collection.id}`;
+/**
+ * Every pack opens the unified `/packs/:id` detail (ADR-0014 / Phase 5).
+ * The old `/packs/community/:id` path is a redirect, not a second surface,
+ * so `source` is retained for call-site compatibility but no longer changes
+ * the destination.
+ */
+export function packHref(collection: { id: string }, _source?: PackSource): string {
+  return `/packs/${collection.id}`;
+}
+
+/** The 12 adapters MyACE compiles to, in the order the storefront lists them. */
+export const FRAMEWORK_LABELS: string[] = [
+  'Claude Code',
+  'Codex CLI',
+  'Cursor',
+  'OpenCode',
+  'Copilot CLI',
+  'Cline',
+  'Windsurf',
+  'Aider',
+  'Continue',
+  'Goose',
+  'Amazon Q',
+  'pi.dev',
+];
+
+/**
+ * "Works with" labels for a pack, derived from its items' descriptive
+ * `target_compatibility`. That field is metadata and does not gate
+ * compilation (AGENTS.md rule 41) — an empty union means no item narrowed
+ * itself, i.e. every framework.
+ */
+export function packFrameworks(
+  artifacts: { target_compatibility: string[] }[],
+): string[] {
+  const found = new Set<string>();
+  for (const artifact of artifacts) {
+    for (const target of artifact.target_compatibility) found.add(target);
+  }
+  return found.size > 0 ? [...found] : FRAMEWORK_LABELS;
 }
 
 export function formatUses(downloadCount: number): string {

@@ -80,6 +80,7 @@ async def test_list_community_collections_with_published(
     coll = await db_session.get(Collection, uuid.UUID(collection_id))
     assert coll is not None
     coll.published = True
+    coll.moderation_status = "approved"
     coll.category = "python"
     await db_session.commit()
 
@@ -104,9 +105,11 @@ async def test_list_community_collections_filters_by_category(
 
     coll1 = await db_session.get(Collection, uuid.UUID(c1))
     coll1.published = True
+    coll1.moderation_status = "approved"
     coll1.category = "python"
     coll2 = await db_session.get(Collection, uuid.UUID(c2))
     coll2.published = True
+    coll2.moderation_status = "approved"
     coll2.category = "iac"
     await db_session.commit()
 
@@ -129,9 +132,11 @@ async def test_list_top_community_collections(
 
     coll1 = await db_session.get(Collection, uuid.UUID(c1))
     coll1.published = True
+    coll1.moderation_status = "approved"
     coll1.download_count = 100
     coll2 = await db_session.get(Collection, uuid.UUID(c2))
     coll2.published = True
+    coll2.moderation_status = "approved"
     coll2.download_count = 10
     await db_session.commit()
 
@@ -154,9 +159,11 @@ async def test_list_community_categories(
 
     coll1 = await db_session.get(Collection, uuid.UUID(c1))
     coll1.published = True
+    coll1.moderation_status = "approved"
     coll1.category = "python"
     coll2 = await db_session.get(Collection, uuid.UUID(c2))
     coll2.published = True
+    coll2.moderation_status = "approved"
     coll2.category = "iac"
     await db_session.commit()
 
@@ -177,6 +184,7 @@ async def test_import_community_collection(
 
     coll = await db_session.get(Collection, uuid.UUID(collection_id))
     coll.published = True
+    coll.moderation_status = "approved"
     coll.visibility = "public"
     await db_session.commit()
 
@@ -311,18 +319,18 @@ async def test_publish_requires_auth(
 
 
 @pytest.mark.asyncio
-async def test_community_endpoints_require_auth(
+async def test_community_reads_are_public_but_mutations_require_auth(
     async_client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    """Community listing endpoints require authentication."""
+    """The storefront reads are anonymous (ADR-0014); importing is not."""
     res = await async_client.get("/api/v1/collections/community")
-    assert res.status_code == 401
+    assert res.status_code == 200
 
     res = await async_client.get("/api/v1/collections/community/top")
-    assert res.status_code == 401
+    assert res.status_code == 200
 
     res = await async_client.get("/api/v1/collections/community/categories")
-    assert res.status_code == 401
+    assert res.status_code == 200
 
     res = await async_client.post(
         "/api/v1/collections/00000000-0000-0000-0000-000000000000/import"
