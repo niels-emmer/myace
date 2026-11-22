@@ -28,8 +28,8 @@ within v1.
 | Path | Availability | What it is |
 |---|---|---|
 | `/openapi.json` | Always | The full OpenAPI spec — source of truth for endpoints and schemas |
-| `/docs` (Swagger UI) | Dev only (`DEBUG=true`) | Interactive API explorer |
-| `/redoc` | Dev only (`DEBUG=true`) | ReDoc rendering |
+| `/docs` (Swagger UI) | Dev only (`APP_ENV=development`) | Interactive API explorer |
+| `/redoc` | Dev only (`APP_ENV=development`) | ReDoc rendering |
 
 ## Authentication
 
