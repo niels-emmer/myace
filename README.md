@@ -27,9 +27,9 @@ lock-in.
 A live instance runs at **[myace.macjuu.com](https://myace.macjuu.com)** —
 sign up and build your first setup in minutes, no setup required.
 
-MyACE ships with **23 starter packs** (4 starting points + 19 add-ons)
-holding **282 items** — 130 rules, 88 skills, 49 agents, 14 workflows,
-and 1 model config — across **8 categories** and **140 tags**, and installs
+MyACE ships with **27 starter packs** (4 starting points + 23 add-ons)
+holding **296 items** — 130 rules, 96 skills, 51 agents, 18 workflows,
+and 1 model config — across **8 categories** and **163 tags**, and installs
 to **12 target frameworks** (Claude Code, OpenCode, Cursor, Codex CLI,
 Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q Developer,
 and pi.dev). You can start from scratch and build your own rules, import
@@ -174,13 +174,14 @@ model.
   soft signal; it is not a ranking (the counter is user-incrementable).
 - **Starter packs out of the box** — every fresh install seeds itself with 4
   starting-point packs (Vibecoder, Software Engineer, Data Scientist, DevOps
-  Engineer) and 19 add-ons (Frontend, Backend, Database, QA/Test Engineer,
+  Engineer) and 23 add-ons (Frontend, Backend, Database, QA/Test Engineer,
   Infrastructure as Code Expert, Azure, AWS, Google Cloud, and Scaleway Cloud
   Architect, Security Auditor, Documentation Editor, Full-Stack Developer,
   DevOps/Platform Engineer, Java/Spring Developer, iOS Developer, Android
   Developer, Spec-Driven Development, AI/LLM Engineering, EU AI Act
-  Compliance), so there's real, opinionated content to build a first setup
-  from on day one. This is a fixed, code-reviewed set maintained in
+  Compliance, Git Practices, Design & Scaffold, Self-Hosted Deployment,
+  Enterprise AI Governance), so there's real, opinionated content to build a
+  first setup from on day one. This is a fixed, code-reviewed set maintained in
   [`collections/`](collections/) — separate from user-published community
   packs, and not affected by them.
 
