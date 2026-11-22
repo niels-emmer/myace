@@ -587,11 +587,20 @@ def serve(
         8765, "--port", "-p",
         help="Local port to listen on (loopback-only)",
     ),
+    allow_apply: bool = typer.Option(
+        False, "--allow-apply",
+        help="Enable the write endpoints (/apply/preview, /apply) so the web UI can "
+             "install compiled files directly. Off by default; also enabled by "
+             "MYACE_COMPANION_ALLOW_APPLY=1.",
+    ),
 ):
     """Run a local companion server so the web UI can scan this machine.
 
     Requires `myace login` first — only the server you're logged into is
     ever allowed to talk to it, and it binds to 127.0.0.1 only.
+
+    Direct installs (writing compiled files to this machine) are opt-in via
+    --allow-apply; without it the server only scans and audits.
     """
     creds = auth_manager.load_credentials()
     if not creds:
@@ -605,10 +614,17 @@ def serve(
         rprint('   Install with: [bold]pip install "myace-cli[serve]"[/bold]')
         raise typer.Exit(1)
 
+    allow_apply = allow_apply or local_server.apply_requested_by_env()
     rprint(f"[green]✓[/green] Starting local companion server on [bold]http://127.0.0.1:{port}[/bold]")
     rprint(f"   Allowed origin: [bold]{creds['server']}[/bold]")
+    if allow_apply:
+        rprint("   Direct install: [bold]enabled[/bold] (preview + confirmed writes)")
+    else:
+        rprint("   Direct install: [dim]disabled[/dim] (pass --allow-apply to enable)")
     rprint("   Open the Import page in your browser to scan this machine. Ctrl+C to stop.\n")
-    local_server.run(allowed_origin=creds["server"], port=port)
+    local_server.run(
+        allowed_origin=creds["server"], port=port, allow_apply=allow_apply
+    )
 
 
 @app.command()

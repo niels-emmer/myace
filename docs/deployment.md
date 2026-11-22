@@ -232,6 +232,25 @@ Also a no-op if SMTP isn't configured/enabled, and safe to add before SMTP
 is set up. Unlike the download-digest script, there's no watermark to
 protect — the script always recomputes today's stale count fresh each run.
 
+## Local companion writes (opt-in)
+
+The companion server (`myace serve`) runs on the *user's* machine, not on the
+deployed stack, so direct installs need no server-side configuration: the
+companion calls the same authenticated `POST /api/v1/profiles/compile`
+endpoint `myace pull` already uses, with the token saved by `myace login`.
+Two deployment-relevant points:
+
+- The write routes stay disabled unless the user starts `myace serve
+  --allow-apply` (or sets `MYACE_COMPANION_ALLOW_APPLY=1`); nothing in the
+  server or reverse-proxy layer can turn them on.
+- The compiled profile is re-fetched at confirm time, so the backend must be
+  reachable from the user's machine when they click install, and the token
+  must be allowed to compile that profile — exactly the same access
+  `myace pull --profile <name>` requires. No new scopes, routes, or
+  server-side state are involved. See
+  [cli.md](cli.md#direct-install-myace-serve---allow-apply) and
+  [ADR-0016](adr/0016-companion-direct-apply.md).
+
 ## Backups
 
 Database backups (retention, restore procedure, offsite copy guidance) are
