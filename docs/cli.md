@@ -37,24 +37,34 @@ somewhere in your `PATH`.
 > **macOS only — the binary is unsigned.** Neither macOS build is signed with
 > an Apple Developer certificate, so the first run can be blocked by
 > Gatekeeper. In case you get **"Apple could not verify … is free of malware
-> that may harm your Mac"**, **"… cannot be opened because the developer
-> cannot be verified"**, or a bare `Killed: 9`, execute the following,
-> pointing it at the file you actually downloaded:
+> that may harm your Mac"** or **"… cannot be opened because the developer
+> cannot be verified"**, clear the download's quarantine flag and run it
+> again:
 >
 > ```bash
-> # Still in the download directory, before moving it:
-> xattr -cr ./myace-macos-x86_64     # or ./myace-macos-arm64
+> # Still in the download directory, before moving it (the curl commands
+> # above save it as ./myace; a browser download keeps the asset name,
+> # e.g. ./myace-macos-x86_64 or ./myace-macos-arm64):
+> xattr -cr ./myace
 >
-> # Or, if it was already moved into place:
-> xattr -cr /usr/local/bin/myace
+> # Or, if it was already moved into place (sudo if root-owned, as above):
+> sudo xattr -cr /usr/local/bin/myace
 > ```
 >
 > `xattr -cr` clears the file's extended attributes (including the
 > `com.apple.quarantine` flag Gatekeeper sets on downloads); `xattr -d
 > com.apple.quarantine <path>` removes just that one flag. If it is still
 > blocked, approve it once in **System Settings → Privacy & Security** →
-> **Allow Anyway** next to the `myace` entry. This does not affect Linux or
-> Windows, where the binary runs without any of this.
+> **Open Anyway** next to the `myace` entry. Linux and Windows are unaffected.
+>
+> **`Killed: 9` is a different problem.** It means the binary's code signature
+> is missing or invalid (common when a file is transferred or rewritten by a
+> tool that drops it). Clearing extended attributes cannot supply a signature
+> and neither can **Open Anyway** — re-sign the installed binary ad hoc:
+>
+> ```bash
+> codesign --force --sign - /usr/local/bin/myace
+> ```
 
 ### Via pip
 
