@@ -9,6 +9,11 @@ from app.models.collection_comment import (
 from app.models.collection_rating import CollectionRating, CollectionRatingRead
 from app.models.doc_cache import DocCacheEntry
 from app.models.profile import Profile, ProfileCompileRequest, ProfileCreate, ProfileRead
+from app.models.profile_install import (
+    ProfileInstall,
+    ProfileInstallCreate,
+    ProfileInstallRead,
+)
 from app.models.sync_status import SyncReportRequest, SyncStatus, SyncStatusRead
 from app.models.system_settings import SystemSettings, SystemSettingsRead, SystemSettingsUpdate
 from app.models.token import ApiToken, ApiTokenCreate, ApiTokenRead
@@ -19,6 +24,7 @@ __all__ = [
     "Collection", "CollectionCreate", "CollectionRead",
     "Artifact", "ArtifactCreate", "ArtifactRead", "CanonicalArtifact",
     "Profile", "ProfileCreate", "ProfileRead", "ProfileCompileRequest",
+    "ProfileInstall", "ProfileInstallCreate", "ProfileInstallRead",
     "SystemSettings", "SystemSettingsRead", "SystemSettingsUpdate",
     "ApiToken", "ApiTokenCreate", "ApiTokenRead",
     "DocCacheEntry",

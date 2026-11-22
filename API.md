@@ -54,10 +54,10 @@ will not see how to authenticate.
 | Prefix | Covers |
 |---|---|
 | `GET /health` | Liveness check |
-| `/api/v1/auth` | Register, login (password + OIDC/GitHub/Google), MFA/TOTP, password reset, API tokens, user management (admin) |
-| `/api/v1/collections` | Collections CRUD, artifacts, scan/import, community listing, publish/unpublish, ratings, comments, GitHub export, freshness verify |
+| `/api/v1/auth` | Register, login (password + OIDC/GitHub/Google), MFA/TOTP, password reset, API tokens, onboarding completion, user management (admin) |
+| `/api/v1/collections` | Collections CRUD, artifacts, scan/import, community listing, publish/unpublish, ratings, comments, GitHub export, freshness verify, use-count (`/use`) |
 | `/api/v1/moderation` | Moderation queue, approve/deny, meta-edit (moderator/admin only) |
-| `/api/v1/profiles` | Profiles CRUD, compile, compile/zip, compile-status |
+| `/api/v1/profiles` | Profiles CRUD, compile, compile/zip, compile-status, install claims (`/installs`) |
 | `/api/v1/adapters` | Adapter registry listing |
 | `/api/v1/admin` | System settings, adapter enable/disable, freshness queue |
 | `/api/v1/doc-cache` | Documentation cache entries |
@@ -123,6 +123,40 @@ curl -X POST http://localhost:8000/api/v1/profiles/compile \
 Valid `target` values (from the spec's `Literal`): `claude-code`,
 `opencode`, `cursor`, `codex-cli`, `copilot-cli`, `cline`, `windsurf`,
 `aider`, `continue`, `goose`, `amazon-q`, `pi-dev`.
+
+### Record an install claim and mark onboarding complete
+
+```bash
+# Install claims are per (user, profile, target, location) and upsert.
+curl -X POST http://localhost:8000/api/v1/profiles/<uuid>/installs \
+  -H "Authorization: Bearer $MYACE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"target": "opencode", "location": "project", "method": "cli"}'
+
+# Onboarding completion is cross-device; the draft stays in localStorage.
+curl -X PATCH http://localhost:8000/api/v1/auth/me/onboarding \
+  -H "Authorization: Bearer $MYACE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"completed": true}'
+```
+
+An install claim is **not** verification — only `myace check --report`
+(`POST /api/v1/sync/report`) records verified state. See
+[docs/adr/0015-pack-reference-freeze.md](docs/adr/0015-pack-reference-freeze.md).
+
+### Record a pack reference ("Use this pack")
+
+```bash
+curl -X POST http://localhost:8000/api/v1/collections/<uuid>/use \
+  -H "Authorization: Bearer $MYACE_TOKEN"
+# {"collection_id": "...", "download_count": 4}
+```
+
+Increments the pack's use count on every call (no per-user dedupe), and
+returns the new count. Only an approved/public or owner-visible collection
+can be used, and an owner cannot inflate their own count (400). The count is
+advisory and tamperable — treat it as a rough popularity signal, not a
+verified metric (see ADR-0015).
 
 ### Public demo compile (no auth, rate-limited)
 

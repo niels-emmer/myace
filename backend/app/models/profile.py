@@ -30,9 +30,26 @@ class Profile(SQLModel, table=True):
         default="[]",
         sa_column=Column("disabled_artifact_ids", Text, default="[]"),
     )
+    # Deprecated: still read/written for old clients. New code should use
+    # `target_frameworks` below. See docs/adr/0015-pack-reference-freeze.md and
+    # docs/data-model.md.
     target_framework: str | None = Field(
         default=None,
         sa_column=Column("target_framework", String(64)),
+    )
+    # JSON-encoded list[str] of adapter names — same manual-JSON-in-Text
+    # convention as `additional_collection_ids` (AGENTS.md rule 11).
+    target_frameworks: str = Field(
+        default="[]",
+        sa_column=Column("target_frameworks", Text, default="[]"),
+    )
+    # JSON-encoded dict: {collection_id: {"artifact_ids": [...],
+    # "hash": "<sha256>", "captured_at": "<iso8601>"}}. Captured only for
+    # referenced collections the profile owner does not own — see
+    # docs/adr/0015-pack-reference-freeze.md.
+    pack_snapshots: str = Field(
+        default="{}",
+        sa_column=Column("pack_snapshots", Text, default="{}"),
     )
     is_public: bool = Field(default=False, sa_column=Column("is_public", Boolean, default=False))
     deleted_at: datetime | None = Field(
@@ -60,6 +77,7 @@ class ProfileCreate(SQLModel):
     additional_collection_ids: list[uuid.UUID] = []
     disabled_artifact_ids: list[uuid.UUID] = []
     target_framework: str | None = None
+    target_frameworks: list[str] = []
     is_public: bool = False
 
 
@@ -73,6 +91,7 @@ class ProfileRead(SQLModel):
     additional_collection_ids: list[uuid.UUID]
     disabled_artifact_ids: list[uuid.UUID]
     target_framework: str | None = None
+    target_frameworks: list[str] = []
     is_public: bool
     version: int
     created_at: datetime

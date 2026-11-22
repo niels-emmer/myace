@@ -917,6 +917,51 @@ async def import_community_collection(
     }
 
 
+@router.post("/{collection_id}/use")
+async def use_collection(
+    collection_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Record that the caller is using this collection as a reference.
+
+    Increments `download_count` (the UI labels it "used N times"), in
+    addition to the existing fork-import increment. This is the *reference*
+    path — adding a pack to a setup — not a copy, so no artifacts are
+    duplicated here.
+
+    Read authorization follows the collection detail route
+    (`_visible_to_moderator`): only an approved, public, or owner-visible
+    collection can be used. An owner is blocked (400) from inflating their
+    own count. See docs/adr/0015-pack-reference-freeze.md.
+    """
+    collection = await _get_collection_or_404(session, collection_id)
+    authorize_access(
+        owner_id=collection.owner_id, current_user=current_user,
+        is_public=_visible_to_moderator(collection, current_user),
+        resource_name="Collection",
+    )
+
+    if collection.owner_id == current_user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot increase your own collection's use count",
+        )
+    if collection.moderation_status != "approved" and collection.visibility != "public":
+        raise HTTPException(
+            status_code=400,
+            detail="Only approved or public collections can be used",
+        )
+
+    collection.download_count = (collection.download_count or 0) + 1
+    await session.commit()
+    await session.refresh(collection)
+    return {
+        "collection_id": str(collection.id),
+        "download_count": collection.download_count,
+    }
+
+
 class ScanRequest(BaseModel):
     """Request to scan a local directory or a Git repository for artifacts."""
     source_type: Literal["local", "git"] = "local"
