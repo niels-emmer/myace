@@ -65,9 +65,10 @@ existing deployments keep working through the upgrade.
   used for ranking or "most used" sorting.
 - **`myace --version` now reports the release version**, derived from package
   metadata (`importlib.metadata`) instead of the stale hardcoded `0.1.0` —
-  the same value recorded as the client version in stored credentials. The
-  Python package manager canonicalises `2.0.0-pre.1` to `2.0.0rc1`, which is
-  what the CLI prints.
+  the same value recorded as the client version in stored credentials, and
+  PyInstaller release binaries now bundle the package metadata so they report
+  it too. The Python package manager canonicalises `2.0.0-pre.1` to
+  `2.0.0rc1`, which is what the CLI prints.
 
 ### Security
 

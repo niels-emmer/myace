@@ -61,6 +61,18 @@ jobs:
             mv dist/myace dist/${{ matrix.asset }}
           fi
 
+      - name: Verify embedded version
+        shell: bash
+        run: |
+          expected=$(python -c "from importlib.metadata import version; print(version('myace-cli'))")
+          actual=$(./dist/${{ matrix.asset }} --version)
+          echo "expected: $expected"
+          echo "actual:   $actual"
+          case "$actual" in
+            *"$expected"*) ;;
+            *) echo "::error::frozen CLI reports '$actual', expected '$expected'"; exit 1 ;;
+          esac
+
       - name: Generate checksum
         shell: bash
         run: |
