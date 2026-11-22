@@ -75,7 +75,7 @@ created token.
 | `myace import --path <dir> --name <name> [--push]` | Scan local config dir and convert to canonical artifacts |
 | `myace check [--target <fw> \| --all] [--json] [--report]` | Check a pulled target for local hand-edits or server-side staleness |
 | `myace watch [--target <fw> \| --all] [--interval <secs>] [--auto-pull] [--report]` | Continuously watch pulled output for drift |
-| `myace serve [--port <port>]` | Run a local companion server so the web UI's Import page can scan this machine (needs `pip install "myace-cli[serve]"`) |
+| `myace serve [--port <port>] [--allow-apply]` | Run a local companion server so the web UI can scan this machine, and with `--allow-apply` install compiled files directly (needs `pip install "myace-cli[serve]"`) |
 
 ## Import command
 
@@ -170,3 +170,62 @@ loopback only and only accepts requests from the exact origin you logged
 into — see [`cli/myace_cli/local_server.py`](../cli/myace_cli/local_server.py)
 and [`AGENTS.md`](../AGENTS.md#24-local-companion-server-myace-serve-security-model)
 for the full security model.
+
+### Direct install (`myace serve --allow-apply`)
+
+Scanning is read-only. To let a web UI install step write a compiled profile
+to this machine, opt in explicitly:
+
+```bash
+myace serve --allow-apply
+# or the equivalent environment variable:
+MYACE_COMPANION_ALLOW_APPLY=1 myace serve
+```
+
+Without the flag (or variable) the companion never exposes a write route.
+This CLI PR ships the companion side only; the browser install step that
+consumes these routes lands separately (and uses `apply.supported` to hide
+the option when it is off):
+
+```json
+{ "status": "ok", "server": "https://your-server", "apply": { "supported": true, "targets": ["aider", "claude-code", "..."], "machine_targets": ["claude-code", "..."] } }
+```
+
+Two routes are added when enabled, both behind the same loopback bind,
+exact-`Origin` check, required `X-MyACE-Companion` header, and Private
+Network Access preflight as `/scan`:
+
+- `POST /apply/preview` — `{profile_id, target, location, project_root?}`.
+  Fetches the compiled profile with your stored `myace login` credentials
+  and returns a per-file diff (`added`/`changed`/`unchanged`, bytes, sha256)
+  plus a short-lived, single-use `preview_id`. It writes nothing.
+- `POST /apply` — the same body plus `preview_id` and `confirm: true`.
+  Re-fetches and re-diffs the profile, refuses (`409`) if anything changed
+  since the preview (including a local edit to a destination file), backs up
+  every file it will overwrite, writes atomically, then records a
+  `.myace/<target>.manifest.json` so `myace check`/`watch` see the install
+  just like a `myace pull`. It never deletes files.
+
+Safety properties worth knowing:
+
+- `location: "project"` confines writes to an absolute, existing
+  `project_root` (default: the companion's working directory).
+  `location: "machine"` confines them to that framework's home root
+  (`~/.claude`, `~/.config/opencode`, `~/.cursor`, …). Targets whose output
+  is project-only (`aider`, `goose`, `cline`, `copilot-cli`) reject
+  `location: "machine"` with `400` rather than confining writes to the
+  whole home directory; `machine_targets` in `/health` lists the ones that
+  support it.
+- Paths are rejected if they would escape the root lexically or through a
+  symlink, and if they target the companion's own `.myace/` or
+  `.myace-backups/` directories. Overwritten files are copied to
+  `<root>/.myace-backups/<UTC timestamp>/` before the write.
+- Preview tokens are held in memory for five minutes and consumed on first
+  use. Request bodies are capped at 64 KiB by `Content-Length` (a chunked
+  request is not counted — the browser install path always sends a length),
+  and compiled profiles at 500 files / 5 MiB.
+- There is no automatic rollback if a write fails partway through, and
+  backup directories are not pruned automatically; the timestamped backup
+  directory is the recovery path and a retention policy is a documented
+  follow-up. See [ADR-0016](adr/0016-companion-direct-apply.md) for the
+  full rationale and known limits.

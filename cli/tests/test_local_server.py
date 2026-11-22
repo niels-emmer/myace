@@ -28,7 +28,12 @@ def skill_dir(tmp_path: Path) -> Path:
 def test_health_reports_allowed_origin(client: TestClient) -> None:
     res = client.get("/health")
     assert res.status_code == 200
-    assert res.json() == {"status": "ok", "server": ALLOWED_ORIGIN}
+    data = res.json()
+    assert data["status"] == "ok"
+    assert data["server"] == ALLOWED_ORIGIN
+    # Capability discovery is additive; old consumers only read status/server.
+    assert data["apply"]["supported"] is False
+    assert "claude-code" in data["apply"]["targets"]
 
 
 def test_health_reflects_cors_header_for_allowed_origin(client: TestClient) -> None:
