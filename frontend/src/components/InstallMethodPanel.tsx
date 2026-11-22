@@ -96,8 +96,8 @@ export default function InstallMethodPanel({
   // fall back to Download rather than rendering an empty panel.
   const activeMethod: MethodTab = method === 'direct' && !directSupported ? 'download' : method;
 
-  const cliCommand = `myace pull --profile ${shellQuote(profileName)} --target ${target}`;
-  const verifyCommand = `myace check --target ${target} --report`;
+  const cliCommand = `myace pull --profile ${shellQuote(profileName)} --target ${shellQuote(target)}`;
+  const verifyCommand = `myace check --target ${shellQuote(target)} --report`;
 
   const claim = async (claimMethod: InstallMethod) => {
     setClaimError(null);

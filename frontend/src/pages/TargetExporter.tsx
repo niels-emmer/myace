@@ -135,7 +135,7 @@ export default function TargetExporter() {
           </div>
         </div>
 
-        {selectedTarget && (
+        {selectedTarget && targets.length > 0 && (
           <InstallMethodPanel
             key={`${selectedTarget}:${location}`}
             profileId={profile.id}

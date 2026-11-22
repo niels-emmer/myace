@@ -186,6 +186,27 @@ describe('ProfileDetail framework matrix', () => {
     );
   });
 
+  it('adds a framework from the advanced section', async () => {
+    vi.mocked(adaptersApi.list).mockResolvedValue([
+      { name: 'claude-code', description: '', targets: [], enabled: true },
+      { name: 'windsurf', description: '', targets: [], enabled: true },
+    ]);
+    renderSetup();
+    await screen.findByText('My software setup');
+
+    fireEvent.click(screen.getByText(/Advanced — item toggles/i));
+    fireEvent.click(screen.getByRole('button', { name: 'windsurf' }));
+
+    await waitFor(() =>
+      expect(setupProfilesApi.update).toHaveBeenCalledWith(
+        'setup-1',
+        expect.objectContaining({
+          target_frameworks: ['claude-code', 'codex-cli', 'opencode', 'cursor', 'windsurf'],
+        }),
+      ),
+    );
+  });
+
   it('renders compile warnings as advisory amber copy', async () => {
     vi.mocked(profilesApi.compile).mockResolvedValue(
       compileResult([

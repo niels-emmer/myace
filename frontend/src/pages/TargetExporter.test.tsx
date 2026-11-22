@@ -160,7 +160,7 @@ describe('TargetExporter install panel', () => {
       }),
     );
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-      "myace pull --profile 'my-defaults' --target claude-code",
+      "myace pull --profile 'my-defaults' --target 'claude-code'",
     );
   });
 

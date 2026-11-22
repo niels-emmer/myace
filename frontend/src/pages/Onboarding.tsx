@@ -414,8 +414,8 @@ export default function Onboarding() {
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              Not sure? Start with any one framework. You can add more later from your setup
-              page.
+              Not sure? Start with any one framework. You can add or remove frameworks
+              later under Advanced on your setup page.
             </p>
           </div>
         )}

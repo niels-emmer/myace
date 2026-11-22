@@ -18,7 +18,7 @@ Vocabulary follows AGENTS.md rule 42: **Pack** (`Collection`), **Setup**
 |---|---|---|
 | `/onboarding` | `pages/Onboarding.tsx` | Five-step wizard |
 | `/packs/import` | `pages/ImportPage.tsx` | Three source cards + existing scan/import flow |
-| `/setups/:id` | `pages/ProfileDetail.tsx` | Packs, warnings, framework matrix, advanced |
+| `/setups/:id` | `pages/ProfileDetail.tsx` | Packs, warnings, framework matrix, framework/item editing in Advanced |
 | `/setups/:id/install` | `pages/TargetExporter.tsx` | Target/location + install methods |
 
 Supporting modules created by this phase, kept out of the Phase 5 hotspots

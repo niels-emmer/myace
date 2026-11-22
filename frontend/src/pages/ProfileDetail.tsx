@@ -259,6 +259,20 @@ export default function ProfileDetail() {
     );
   };
 
+  const toggleFramework = (target: string) => {
+    const next = profileFrameworks.includes(target)
+      ? profileFrameworks.filter((framework) => framework !== target)
+      : [...profileFrameworks, target];
+    // Keep the deprecated single target consistent with the list; otherwise a
+    // removed legacy target would keep reappearing through the fallback.
+    const legacy = next.includes(profile.target_framework ?? '')
+      ? profile.target_framework
+      : (next[0] ?? undefined);
+    updateMutation.mutate(
+      payloadFor({ target_frameworks: next, target_framework: legacy }),
+    );
+  };
+
   const toggleArtifact = (artifactId: string) => {
     const disabled = profile.disabled_artifact_ids.includes(artifactId)
       ? profile.disabled_artifact_ids.filter((aid) => aid !== artifactId)
@@ -285,7 +299,7 @@ export default function ProfileDetail() {
       (collection) => warning.message.includes(collection.name),
     );
     if (known) {
-      unavailableWarningPacks.set(known.id, /frozen copy/i.test(warning.message));
+      unavailableWarningPacks.set(known.id, /using a frozen copy/i.test(warning.message));
     }
   }
 
@@ -535,7 +549,7 @@ export default function ProfileDetail() {
               // frozen copy that the compile did not actually fall back to,
               // and never reveal one to a non-owner.
               const usesFrozenCopy =
-                canSeeFrozen && /frozen copy/i.test(warning.message);
+                canSeeFrozen && /using a frozen copy/i.test(warning.message);
               return (
                 <div
                   key={key}
@@ -731,6 +745,37 @@ export default function ProfileDetail() {
                 )}
               </ul>
             )}
+            <div>
+              <p className="mb-2 text-xs text-muted-foreground">Frameworks in this setup</p>
+              <div className="flex flex-wrap gap-2">
+                {(adapters ?? [])
+                  .filter((adapter) => adapter.enabled)
+                  .map((adapter) => {
+                    const selected = profileFrameworks.includes(adapter.name);
+                    return (
+                      <button
+                        key={adapter.name}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => toggleFramework(adapter.name)}
+                        disabled={updateMutation.isPending}
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+                          selected
+                            ? 'border-brand-500 bg-brand-50 text-brand-700'
+                            : 'border-border text-muted-foreground hover:border-input'
+                        }`}
+                      >
+                        {adapter.name}
+                      </button>
+                    );
+                  })}
+                {(adapters ?? []).filter((adapter) => adapter.enabled).length === 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    No adapters are enabled.
+                  </span>
+                )}
+              </div>
+            </div>
             <div className="flex flex-wrap items-center gap-3">
               <Link
                 to={`/setups/${profile.id}/install`}
