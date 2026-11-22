@@ -63,6 +63,9 @@ existing deployments keep working through the upgrade.
   retraction for third parties.
 - **`download_count` is advisory**, displayed as "used N times" and never
   used for ranking or "most used" sorting.
+- **The CLI derives its version from package metadata** (`importlib.metadata`),
+  instead of the stale hardcoded `0.1.0` — both for the module version and the
+  client version recorded with stored credentials.
 
 ### Security
 
