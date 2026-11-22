@@ -90,9 +90,29 @@ async def test_no_warnings_when_properly_configured(monkeypatch, caplog):
     monkeypatch.setattr("app.main.settings.debug", False)
     monkeypatch.setattr("app.main.settings.admin_bootstrap_enabled", False)
     monkeypatch.setattr("app.main.settings.settings_encryption_key", "a-real-fernet-key")
+    monkeypatch.setattr("app.main.settings.frontend_base_url", "https://myace.example.com")
 
     with caplog.at_level(logging.WARNING, logger="myace"):
         async with lifespan(app):
             pass
 
     assert caplog.records == []
+
+
+@pytest.mark.asyncio
+async def test_warns_when_frontend_base_url_is_not_https_outside_dev(monkeypatch, caplog):
+    """The session cookie's Secure flag comes from FRONTEND_BASE_URL's scheme,
+    not DEBUG (L-14) — so a production deployment still on the shipped
+    http://localhost default would silently drop Secure."""
+    monkeypatch.setattr("app.main.settings.app_env", "production")
+    monkeypatch.setattr("app.main.settings.app_secret_key", "a-real-random-secret")
+    monkeypatch.setattr("app.main.settings.debug", False)
+    monkeypatch.setattr("app.main.settings.admin_bootstrap_enabled", False)
+    monkeypatch.setattr("app.main.settings.settings_encryption_key", "a-real-fernet-key")
+    monkeypatch.setattr("app.main.settings.frontend_base_url", "http://localhost:5173")
+
+    with caplog.at_level(logging.WARNING, logger="myace"):
+        async with lifespan(app):
+            pass
+
+    assert any("FRONTEND_BASE_URL" in r.message for r in caplog.records)

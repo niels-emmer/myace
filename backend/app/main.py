@@ -111,9 +111,16 @@ async def lifespan(app: FastAPI):
         )
     if settings.debug and settings.app_env != "development":
         raise RuntimeError(
-            "DEBUG is true outside app_env=development. This serves /docs and /redoc "
-            "publicly. Set DEBUG=false in .env for any deployment reachable beyond "
-            "localhost."
+            "DEBUG is true outside app_env=development. DEBUG is the shipped development "
+            "default, so leaving it set means .env was copied without review. /docs and "
+            "/redoc are gated on APP_ENV, not DEBUG — this check exists so the default "
+            "cannot silently ship on a real deployment. Set DEBUG=false in .env."
+        )
+    if settings.app_env != "development" and not settings.session_cookie_secure:
+        logger.warning(
+            "FRONTEND_BASE_URL is not an https:// URL, so the session cookie is issued "
+            "without the Secure flag and may be sent over plaintext. Set FRONTEND_BASE_URL "
+            "to your public https origin."
         )
     if settings.admin_bootstrap_enabled and settings.app_env != "development":
         logger.warning(

@@ -667,6 +667,19 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `TRUSTED_HOSTS` is unset. This is what prevents Host-header injection
   behind a reverse proxy — never relax it to a default-allow in
   production.
+- `DEBUG=true` outside development is a `RuntimeError` at startup. `/docs`
+  and `/redoc` are gated on `APP_ENV`, not `DEBUG`, so this is a
+  shipped-default tripwire rather than the thing that hides the schema —
+  see [debugging.md](docs/debugging.md#backend-refuses-to-start-runtimeerror-debug-is-true-outside-app_envdevelopment).
+- A wildcard `CORS_ORIGINS` (`*`) outside development is also a
+  `RuntimeError` (`validate_cors_origins()`): `CORSMiddleware` runs with
+  `allow_credentials=True`, so a wildcard either breaks every credentialed
+  request or reflects any `Origin` back with credentials attached.
+- `Settings.session_cookie_secure` derives the session cookie's `Secure`
+  flag from `FRONTEND_BASE_URL`'s scheme, never from `DEBUG`. Outside
+  development a non-`https://` `FRONTEND_BASE_URL` logs a startup warning,
+  because the cookie would otherwise be sent over plaintext. Set
+  `FRONTEND_BASE_URL` to the public https origin.
 - `backend/Dockerfile`'s uvicorn `CMD` runs with `--proxy-headers` and
   `--forwarded-allow-ips` set to the **private ranges** (`127.0.0.1,
   10.0.0.0/8,172.16.0.0/12,192.168.0.0/16`), **never `*`**. With `*`,
@@ -695,8 +708,9 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 - **Every one of those checks is gated on `APP_ENV != development`, and
   `.env.example` ships `APP_ENV=development`.** A deployment that
   customises its secret/hosts/CORS but leaves that line alone runs with
-  none of them (no default-secret error, no `TRUSTED_HOSTS` requirement,
-  schema auto-created each boot). `app/main.py`'s lifespan now logs a
+  none of them (no default-secret, `TRUSTED_HOSTS`, `DEBUG` or
+  CORS-wildcard error, no cookie-`Secure` warning, and the schema is
+  auto-created each boot). `app/main.py`'s lifespan now logs a
   warning via `looks_like_real_deployment()` when it sees that combination;
   `docs/deployment.md` lists `APP_ENV=production` as the first `.env` step.
   Don't "fix" this by flipping the default to production — it would break
