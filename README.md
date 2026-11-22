@@ -28,8 +28,9 @@ A live instance runs at **[myace.macjuu.com](https://myace.macjuu.com)** —
 sign up and build your first setup in minutes, no setup required.
 
 MyACE ships with **19 starter packs** (4 starting points + 15 add-ons)
-plus **4 community-contributed add-ons**, holding **282 items** — 130 rules, 88 skills, 49 agents, 14 workflows,
-and 1 model config — across **8 categories** and **140 tags**, and installs
+plus **4 community-contributed add-ons**, holding **283 items** — 130 rules,
+89 skills, 49 agents, 14 workflows, and 1 model config — across
+**8 categories** and **143 tags**, and installs
 to **12 target frameworks** (Claude Code, OpenCode, Cursor, Codex CLI,
 Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q Developer,
 and pi.dev). You can start from scratch and build your own rules, import

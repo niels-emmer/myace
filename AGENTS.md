@@ -666,9 +666,9 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   account (`starter-packs@myace.local` — `password_hash` stays `None`, so
   it can never authenticate via `/auth/login`) that exists purely to
   satisfy `Collection.owner_id`'s `NOT NULL` FK. Every seeded collection
-  ships `published=True` + `visibility="public"` + `moderation_status=
-  "approved"`; `is_starter_pack` is `True` for `STARTER_COLLECTIONS` and
-  `False` for `COMMUNITY_CONTRIBUTED_COLLECTIONS`.
+  ships `published=True` + `visibility="public"` +
+  `moderation_status="approved"`; `is_starter_pack` is `True` for
+  `STARTER_COLLECTIONS` and `False` for `COMMUNITY_CONTRIBUTED_COLLECTIONS`.
 - Idempotent by the stable `seed://<collection_type>/<slug>` `git_url`
   lookup — safe to call
   unconditionally on every restart/replica, unlike `init_db()` (dev-only).
