@@ -9,7 +9,7 @@ the agent fetches and uses to install a pack, with no CLI and no account.
 read-only endpoint plus a UI affordance. Nothing about the data model, the
 compiler, or the adapters needs to change. The single genuinely new idea
 needed is a *pack-scoped* compile (today everything compiles through a saved
-setup), and even that is a ~40-line seam in `compiler.py`.
+setup), and even that is a ~40-line seam in `backend/app/services/compiler.py`.
 
 ---
 
@@ -41,8 +41,9 @@ Key files:
 ### The three gaps
 
 1. **No pack-scoped compile.** Every compile path starts from a saved `Profile`
-   row (`profiles.py:276`, `:342`, `sync.py:306`). A pack alone cannot be
-   compiled, so there is nothing to hand an agent for a pack.
+   row (`backend/app/api/profiles.py:276`, `:342`, and
+   `cli/myace_cli/sync.py:306`). A pack alone cannot be compiled, so there is
+   nothing to hand an agent for a pack.
 2. **No anonymous compile.** `/compile`, `/compile/zip` and `myace pull` all
    require `Depends(get_current_user)`. An agent acting for a visitor has no
    cookie and no token.
@@ -63,7 +64,7 @@ Key files:
 | C. Public zip URL | Agent must download + unzip | S | Add as `?format=zip`, not the headline |
 | D. MCP server (`/mcp`, `get_pack` tool) | Best UX *where supported*, zero support elsewhere | L | Phase 3 |
 | E. `curl … \| sh` installer script | Works everywhere; piping the internet into a shell is a bad default | M | Rejected |
-| F. `myace install <url>` CLI subcommand | Clean, reuses `/apply` safety, but needs the CLI installed | M | Phase 2 |
+| F. `myace install <url>` CLI subcommand | Clean, reuses `/apply` safety, but needs the CLI installed | M | Phase 2.5 |
 
 A is the only option that satisfies "whatever platform" with zero client
 install and zero parsing, and it degrades gracefully — a human can read the
@@ -87,9 +88,24 @@ GET /api/v1/collections/community/{collection_id}/install.md?target=<adapter>
   `is_active AND published AND moderation_status == 'approved'`, 404 otherwise.
   **No new data exposure**: every byte this route emits is already available
   anonymously from `/community/{id}/artifacts`.
-- `target` defaults to `claude-code`; unknown or admin-disabled adapters return
-  400 with the same messages `compile_profile()` already raises
-  (`UnknownAdapterError`, `AdapterDisabledError`).
+- **`target` contract — one behaviour, three cases.** The param is declared
+  as plain `str | None = Query(None)`, deliberately **not** `CompileTarget`:
+  that `Literal` (`backend/app/models/profile.py:101`) is a hand-maintained list
+  that drifts from the adapter registry, and a Literal would make an unknown
+  value a 422 that never reaches the handler. Since an unknown target's best
+  answer is the guidance document, not a validation error, the handler must own
+  the decision:
+  1. **omitted** → `200 text/markdown`, a short "which framework?" document that
+     lists every currently registered adapter with its full install URL. This
+     is what makes a bare pasted link useful instead of a 422.
+  2. **known** → the compiled install document.
+  3. **unknown or admin-disabled** → `400`, with the message `get_adapter()` /
+     `compile_profile()` already produce (`UnknownAdapterError`,
+     `AdapterDisabledError`). `UnknownAdapterError` is only reachable because
+     the param is a plain `str` here — do not "tighten" it back to
+     `CompileTarget` without also accepting 422 as the contract.
+  There is no default target and no `pack_install_default_target` setting:
+  guessing a framework writes files into the wrong layout.
 - Media type `text/markdown; charset=utf-8`, plus:
   - `ETag: W/"<compiled_hash>"` and `304` on `If-None-Match`
     (`compute_compiled_hash()` already exists).
@@ -112,6 +128,7 @@ async def _compile_collections(
     collection_ids: list[uuid.UUID],
     disabled_ids: set[uuid.UUID],
     snapshots: dict[str, dict[str, object]],
+    can_use_frozen: bool,          # ADR-0015 gate, resolved by the caller
     profile_id: str,
     profile_name: str,
     target: str,
@@ -120,12 +137,38 @@ async def _compile_collections(
 ) -> ProfileCompileResponse: ...
 ```
 
-`compile_profile()` keeps its signature and becomes a thin wrapper that parses
+`compile_profile()` keeps its signature and becomes a thin wrapper: it parses
 `profile.additional_collection_ids` / `disabled_artifact_ids` /
-`pack_snapshots` and calls the helper. A new `compile_pack(session, collection,
-target)` calls the same helper with `collection_ids=[collection.id]`,
-`disabled_ids=set()`, `snapshots={}`, `include_disabled=False`,
-`requesting_user=None`.
+`pack_snapshots` and computes the frozen gate exactly as it does today —
+`requesting_user is None or requesting_user.id == profile.owner_id or
+requesting_user.is_admin` (`backend/app/services/compiler.py:113-117`) — then
+passes it in. A new `compile_pack(session, collection_ids, target)` calls the
+same helper with `disabled_ids=set()`, `snapshots={}`, `can_use_frozen=False`,
+`include_disabled=False`, `requesting_user=None`.
+
+The `can_use_frozen` parameter is not cosmetic. That branch is the ADR-0015
+gate: it is what stops a third party compiling *someone else's public profile*
+from being served a frozen snapshot of a pack that has since been unpublished.
+The helper has no `Profile.owner_id` to compare against, so the rule must be
+computed by whoever holds the profile — never re-derived inside the helper, and
+never defaulted to `True`. `compile_pack()` passes `False` unconditionally: a
+pack-scoped install has no snapshots to serve anyway, and the safe value costs
+nothing.
+
+Note that `collection_ids` is a **list**, not a single id, so the `?with=`
+composable-pack case (Q2 below) costs no extra signature churn. `compile_pack()`
+still takes the packs in caller order — base first — because name dedup is
+order-sensitive (rule 29).
+
+**Envelope values for a pack compile.** `ProfileCompileResponse` requires
+`profile_id` and `profile_name`. A pack-scoped compile has no setup, so set
+`profile_name` to the pack's name and `profile_id` to the pack's collection id,
+and say exactly that in the route docstring. The alternative — inventing or
+blanking `profile_id` — is worse: the `?format=json` body would then look like a
+setup compile whose id 404s on `/api/v1/profiles/{id}`, which is precisely the
+kind of "works until it doesn't" contract that generated a review round on this
+plan. If a future phase adds a pack-scoped `compile-status`, it keys off the
+collection id in the same way, so the two stay consistent.
 
 Why the refactor rather than a shortcut: the tempting shortcut is to construct
 an unsaved `Profile(...)` and pass it in (`Profile.id` has a
@@ -134,7 +177,7 @@ is `requesting_user is None or _can_read_collection(...)` — `None` is the
 "trusted internal caller" branch, which would silently compile *any* collection
 ID. That is safe only because the route validates visibility first, and it is
 safe by coincidence rather than by construction. The helper keeps the trust
-boundary explicit: `compile_pack()` is only ever called with a collection the
+boundary explicit: `compile_pack()` is only ever called with collections the
 caller already proved public.
 
 Also preserve in the helper: the adapter-disabled choke point (rule 21) and the
@@ -191,20 +234,34 @@ workflow prompts in text form.
 Then an optional trailer:
 
 ```markdown
-## Drift tracking (optional)
+## Drift tracking (optional, local only)
 
-If the user has the myace CLI, write `.myace/<target>.manifest.json` with:
+If the user has the myace CLI, write `.myace/pack-<collection-id>.<target>.manifest.json`
+with the per-file sha256s below, so a later hand-edit is detectable locally:
 
-<<<FILE: .myace/claude-code.manifest.json>>>
+<<<FILE: .myace/pack-<collection-id>.claude-code.manifest.json>>>
 { ... }
 <<<END FILE>>>
 ```
 
-That trailer is a cheap, genuinely useful addition: it is the exact shape
-`sync.write_manifest()` produces and `sync.read_manifest()`/`check_target()`
-read, so an **agent-performed install becomes `myace check`-visible** — the
-only thing that currently distinguishes a "pull" from a hand-copied pack. It
-also carries the per-file sha256s so the agent can verify its own writes.
+**What that trailer does and does not buy — be precise.** `check_target()`
+(`cli/myace_cli/sync.py:157`) reads `profile_id` out of the manifest and then
+calls `GET /api/v1/profiles/{profile_id}/compile-status` (line 171) to decide
+`stale`. A pack-scoped install has no setup id, so:
+
+- the **local** half works: recomputing each file's sha256 against the manifest
+  detects hand-edits with no network call;
+- the **server** half cannot work: there is no `profile_id` to poll, so `check`
+  would report an error and can never say `stale`/`in_sync`.
+
+Therefore v1 must not claim `myace check`-visibility for a pack install. Either
+write the manifest with a `pack_id` field and let `check` treat a manifest with
+no `profile_id` as local-only, or add a pack-scoped
+`GET /api/v1/collections/community/{id}/compile-status?target=…` and extend
+`check_target()` to use it — a Phase 2 item, since it needs a small CLI change
+(`cli/myace_cli/sync.py`) as well as the route. Until then the trailer is a
+self-check convenience for the agent, and the plan's phasing treats the
+manifest as optional and unverified.
 
 `?format=json` returns the raw `ProfileCompileResponse` shape
 (`{files, warnings, compiled_hash, artifact_count}`) for agents that prefer
@@ -252,7 +309,9 @@ It must be explicit or the file layout is unknowable (`.claude/…` vs
 a picker in the UI, and the generated doc always naming the target it was
 built for. If `target` is omitted, do not guess silently — render a short
 "which framework?" document that lists the available adapters and their URLs.
-That keeps a stale link useful rather than wrong.
+That keeps a stale link useful rather than wrong. The normative three-case
+contract (omitted / known / unknown-or-disabled, and why the param is a plain
+`str` rather than `CompileTarget`) is §3.1; everything else defers to it.
 
 **Q2. What about add-on ("additional") packs that assume a base pack?**
 A pack-scoped compile compiles that pack alone, which for an add-on may be an
@@ -305,28 +364,49 @@ The user's instinct is right: `PackDetail.tsx`, in the right-hand aside
   one brand button, then quieter rows — which rule 42's vocabulary work
   established.
 
-Shape:
+Shape (two branches — the page serves owners and anonymous visitors, and the
+stack differs):
 
 ```
-[ Use this pack ]            ← existing, brand
-[ Add to a setup… ]          ← existing
-[ Customize a copy ]         ← existing, muted
-──────────────────────────
- Install with your agent  ▾  ← new, muted, collapsible
-   Target: [ Claude Code ▾ ]
-   [ Copy install prompt ]
-   https://<host>/api/v1/collections/community/<id>/install.md?target=claude-code
+signed-in, owner of a published pack        anonymous
+─────────────────────────────────           ─────────────────────────────
+[ Publish… / Manage items ]                 [ Use this pack ]        (signup)
+[ … owner tools … ]                         [ Sign up to build a set ]
+[ Customize a copy ]  (n/a for owner)       [ Customize a copy ]
+─────────────────────────────────           ─────────────────────────────
+ Install with your agent  ▾                 Install with your agent  ▾
+   Target: [ Claude Code ▾ ]                  Target: [ Claude Code ▾ ]
+   [ Copy install prompt ]                    [ Copy install prompt ]
+   https://<host>/api/v1/collections/…        https://<host>/api/v1/collections/…
 ```
 
 Details:
 
-- Render only when `pack.published && pack.moderation_status === 'approved'`
-  (i.e. exactly when the public route will answer). For an owner's draft, show
-  the row disabled with "available once this pack is published" rather than
-  hiding it — otherwise the owner never discovers it.
-- The target picker reuses `FRAMEWORK_LABELS` from `lib/packs.ts` and the
-  adapter list, and must read `adapter.name`, not `adapter.targets`
-  (rule 23).
+- Gate on `pack.is_active && pack.published && pack.moderation_status ===
+  'approved'` — the same three conditions as `_visible_public_collection()`
+  (rule/ADR-0014), not just the last two, so the row never promises a URL the
+  route will 404. Public reads already exclude inactive packs, so this only
+  matters on the authenticated branch. For an owner's draft, show the row
+  disabled with "available once this pack is published" rather than hiding it —
+  otherwise the owner never discovers it.
+- **The target picker's data source must not be `GET /api/v1/adapters`.** That
+  route is authenticated (`Depends(get_current_user)`,
+  `backend/app/api/adapters.py:28`), and this panel renders on the anonymous
+  `/packs/:id` route (`frontend/src/App.tsx:139-145`, outside `RequireAuth`) —
+  so for the very audience this feature exists for, a live adapter fetch is
+  empty. `FRAMEWORK_LABELS` (`frontend/src/lib/packs.ts:39`) is display labels
+  only, with no exported label→target-id map. Pick one and name it:
+  - **Recommended:** export a small `PACK_TARGETS: { id, label }[]` constant from
+    `lib/packs.ts` next to `FRAMEWORK_LABELS`, and accept that it can drift.
+    The drift is self-healing: an id the server no longer knows gets the
+    "which framework?" document (case 1 above), which lists the *live* adapter
+    set. No new route, no new auth exception.
+  - Alternative: add a public `GET /api/v1/adapters/public` that returns name +
+    label only, and name it as a further ADR-0014 exception. Do this only if
+    adapter-list drift becomes a real problem; it is a second public route for
+    a UI convenience.
+  Either way the rule-23 constraint holds: read `adapter.name` for the target
+  id, never a `supported_targets()` alias.
 - Put the raw URL in a `<code>` block with its own copy button, plus a second
   button that copies the full prompt sentence. Two buttons, not one, because
   the URL is also what people paste into issue trackers and chat.
@@ -356,11 +436,14 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
 
 ### Backend
 
-1. `compiler.py`: extract `_compile_collections()`, keep `compile_profile()` as
+1. `backend/app/services/compiler.py`: extract `_compile_collections()`, keep
+   `compile_profile()` as
    a wrapper, add `compile_pack()`. No behaviour change to existing callers —
    the existing compiler tests are the regression net.
 2. `collections.py`: `GET /community/{collection_id}/install.md`
-   - `target: CompileTarget`, `format: Literal["md","json","zip"] = "md"`,
+   - `target: str | None = Query(None)` — **not** `CompileTarget` (§3.1);
+     omitted → guidance doc, unknown/disabled → 400
+   - `format: Literal["md","json","zip"] = "md"`,
      `with_: list[uuid.UUID] = Query([], alias="with")`
    - `_get_public_collection_or_404()` for the pack and each `with=` pack
    - `@storefront_limiter.limit(settings.storefront_rate_limit)`
@@ -368,8 +451,8 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
      `Content-Disposition` via `slugify()`
    - adapter-disabled / unknown → 400 (reuse the existing exception messages)
    - size guard → 413 with a zip suggestion
-3. `config.py`: `pack_install_max_bytes` (default 2 MiB) and
-   `pack_install_default_target` (default `"claude-code"`).
+3. `config.py`: `pack_install_max_bytes` (default 2 MiB). No default-target
+   setting — an omitted `target` returns the guidance document, never a guess.
 4. Docstring on the route stating the ADR-0014 auth exception it inherits and
    why no counter moves.
 5. No migration, no model change, no adapter change.
@@ -402,8 +485,12 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
 ### Tests (backend)
 
 - Anonymous 200 for an approved public pack; 404 for draft, private, inactive,
-  unpublished.
-- Unknown target → 400; admin-disabled adapter → 400.
+  unpublished — including `with=` ids that are not publicly visible.
+- Omitted `target` → 200 guidance document listing live adapter names and
+  URLs (not a 422); unknown target → 400 with `UnknownAdapterError`'s message;
+  admin-disabled adapter → 400.
+- `target` is a plain `str` param: a `CompileTarget` Literal would make the
+  unknown case an unreachable 422, so assert the 400 explicitly.
 - Payload contains every enabled item's target file and **no** disabled ones.
 - `format=json` matches `ProfileCompileResponse`; `format=zip` opens and
   contains the same filenames.
@@ -414,6 +501,10 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
 - `download_count` unchanged after N calls.
 - Compiler parity: `compile_pack()` on a collection == `compile_profile()` on a
   setup whose only pack is that collection (same files, same hash).
+- **ADR-0015 gate:** `_compile_collections()` with `can_use_frozen=False` never
+  serves a snapshot even when `snapshots` is populated, and `compile_profile()`
+  still denies a third party's frozen snapshot for a public profile — the
+  existing `test_compile_authz.py` cases must pass unchanged.
 
 ---
 
@@ -422,9 +513,9 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
 | Phase | Scope | Effort |
 |---|---|---|
 | 0 | Decide Q1/Q2 and the payload format (this doc) | — |
-| 1 | `compile_pack()` + `install.md` + JSON/zip formats + tests | ~1 day |
-| 1.5 | `AgentInstallPanel` in `PackDetail` + `packApi` helper + tests + docs/ADR | ~0.5 day |
-| 2 | Authenticated `/{collection_id}/install.md`; `Agent` tab in `InstallMethodPanel` | ~0.5 day |
+| 1 | `compile_pack()` + `install.md` (with the omitted/unknown `target` cases) + JSON/zip formats + tests | ~1 day |
+| 1.5 | `AgentInstallPanel` in `PackDetail` + `PACK_TARGETS` + `packApi` helper + tests + docs/ADR | ~0.5 day |
+| 2 | Authenticated `/{collection_id}/install.md`; `Agent` tab in `InstallMethodPanel`; pack-scoped `.../compile-status` + `check_target()` change so an agent-written manifest can report `stale` | ~1 day |
 | 2.5 | `myace install <url>` — fetch the JSON form, reuse `/apply`'s diff+backup+409-on-change machinery so the CLI path and the agent path share one safety story | ~1–2 days |
 | 3 | MCP server exposing `list_packs` / `get_pack` / `install_pack` tools | ~1 week |
 
@@ -457,10 +548,16 @@ work, most of it tests and docs.
    pack edit can lag up to five minutes for an agent that respects caching. Use
    a shorter `max-age` (60s) if that is too blunt; the ETag makes revalidation
    cheap either way.
-6. **No drift tracking unless the agent writes the manifest.** Included as an
-   optional trailer, and honestly optional: an agent that ignores it produces an
-   install the CLI cannot see. Do not claim "verified" anywhere — the existing
+6. **No server-side drift tracking for a pack install.** `myace check` keys
+   off `profile_id` from the manifest, and a pack-scoped install has none — so
+   even with the optional trailer, only the *local* hash comparison works;
+   `stale`/`in_sync` cannot be reported until a pack-scoped compile-status
+   route exists (§3.3, Phase 2). Do not claim "verified" anywhere — the existing
    install-claim vs `SyncStatus` distinction (ADR-0015) still holds.
+7. **The roadmap now advertises an unbuilt feature.** Publishing the plan also
+   publishes the gap on the project's front page. That is deliberate (it is
+   what "on the roadmap" means) but it is a commitment to a shape that may
+   change; if the design shifts materially, the README bullet moves with it.
 
 ---
 
