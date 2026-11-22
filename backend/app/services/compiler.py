@@ -95,12 +95,26 @@ async def compile_profile(
     ordered_collection_ids = _unique_ids([base_id] + additional_ids)
     snapshots = _parse_pack_snapshots(profile)
     collection_map: dict[uuid.UUID, Collection] = {}
+    collection_by_id: dict[uuid.UUID, Collection] = {}
     frozen_snapshots: dict[uuid.UUID, dict[str, object]] = {}
     warnings: list[ValidationIssue] = []
+
+    # Frozen content may only be served to the profile's owner, an admin, or
+    # an internal caller with no identity. A third party compiling a public
+    # profile gets an honest `pack_unavailable` warning and no frozen
+    # artifacts — otherwise unpublishing a pack would turn every public
+    # profile referencing it into a redistribution channel. See ADR-0015.
+    can_use_frozen = (
+        requesting_user is None
+        or requesting_user.id == profile.owner_id
+        or requesting_user.is_admin
+    )
 
     for cid in ordered_collection_ids:
         result = await session.execute(select(Collection).where(Collection.id == cid))
         collection = result.scalar_one_or_none()
+        if collection is not None:
+            collection_by_id[cid] = collection
         is_available = (
             collection is not None
             and collection.is_active
@@ -112,7 +126,7 @@ async def compile_profile(
 
         snapshot = snapshots.get(str(cid))
         label = _label(collection.name if collection is not None else None, cid)
-        if snapshot is not None:
+        if snapshot is not None and can_use_frozen:
             frozen_snapshots[cid] = snapshot
             captured_at = snapshot.get("captured_at") or "an earlier time"
             warnings.append(
@@ -129,8 +143,7 @@ async def compile_profile(
                 ValidationIssue(
                     code="pack_unavailable",
                     message=(
-                        f"Pack {label} is no longer available to you and no "
-                        f"frozen copy exists; it was skipped."
+                        f"Pack {label} is not available to you; it was skipped."
                     ),
                 )
             )
@@ -167,7 +180,7 @@ async def compile_profile(
                 session=session,
                 collection_id=cid,
                 snapshot=frozen_snapshots[cid],
-                collection=collection_map.get(cid),
+                collection=collection_by_id.get(cid),
                 disabled_ids=disabled_ids,
                 register=_register,
             )
@@ -272,27 +285,43 @@ async def compute_compile_status(
 async def capture_pack_snapshots(
     session: AsyncSession,
     collection_ids: list[uuid.UUID],
-    owner_id: uuid.UUID,
+    requesting_user: User,
+    existing_raw: str | None = None,
 ) -> dict[str, dict[str, object]]:
     """Capture a reference snapshot for every referenced collection the
-    owner does *not* own.
+    requesting user does *not* own and can read.
 
-    Only non-owned collections are snapshotted: an owned collection can
-    always be read by its owner, so freezing it would add nothing but a
-    stale second copy. The snapshot records the enabled, live artifact ids
-    at capture time — the same set `compile_profile()` would resolve for a
-    non-owner — plus a deterministic hash and an ISO-8601 timestamp.
+    Only non-owned, currently-readable collections are snapshotted: an owned
+    collection can always be read by its owner, and a collection the caller
+    can no longer read must not be re-read (that would let a profile update
+    pull artifacts the caller lost access to). For a referenced collection
+    that is now unreadable, a previously captured snapshot is **preserved**
+    unchanged rather than dropped or refreshed — this is what keeps a setup
+    editable after its pack goes private (docs/adr/0015-pack-reference-freeze.md).
 
-    See docs/adr/0015-pack-reference-freeze.md.
+    The snapshot records the enabled, live artifact ids at capture time —
+    the same set `compile_profile()` would resolve for a non-owner — plus a
+    deterministic hash and an ISO-8601 timestamp.
     """
+    existing = _parse_snapshot_json(existing_raw)
     snapshots: dict[str, dict[str, object]] = {}
     captured_at = datetime.now(UTC).isoformat()
     for cid in _unique_ids(collection_ids):
         result = await session.execute(select(Collection).where(Collection.id == cid))
         collection = result.scalar_one_or_none()
-        if collection is None or not collection.is_active:
+
+        if (
+            collection is None
+            or not collection.is_active
+            or not _can_read_collection(collection, requesting_user)
+        ):
+            # Never capture from a pack the caller cannot read; keep the
+            # frozen copy captured earlier, if there is one.
+            if str(cid) in existing:
+                snapshots[str(cid)] = existing[str(cid)]
             continue
-        if collection.owner_id == owner_id:
+
+        if collection.owner_id == requesting_user.id:
             continue
 
         art_result = await session.execute(
@@ -362,9 +391,12 @@ def _parse_pack_snapshots(profile: Profile) -> dict[str, dict[str, object]]:
     Stored as JSON text (AGENTS.md rule 11). A corrupt value must never
     break compilation — treat it as "no snapshots" rather than raising.
     """
-    raw = getattr(profile, "pack_snapshots", None) or "{}"
+    return _parse_snapshot_json(getattr(profile, "pack_snapshots", None))
+
+
+def _parse_snapshot_json(raw: str | None) -> dict[str, dict[str, object]]:
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(raw or "{}")
     except (TypeError, ValueError):
         return {}
     if not isinstance(parsed, dict):

@@ -152,9 +152,11 @@ curl -X POST http://localhost:8000/api/v1/collections/<uuid>/use \
 # {"collection_id": "...", "download_count": 4}
 ```
 
-Increments the pack's use count once. Only an approved/public or
-owner-visible collection can be used, and an owner cannot inflate their own
-count (400).
+Increments the pack's use count on every call (no per-user dedupe), and
+returns the new count. Only an approved/public or owner-visible collection
+can be used, and an owner cannot inflate their own count (400). The count is
+advisory and tamperable — treat it as a rough popularity signal, not a
+verified metric (see ADR-0015).
 
 ### Public demo compile (no auth, rate-limited)
 

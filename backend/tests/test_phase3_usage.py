@@ -4,8 +4,10 @@ onboarding completion, and use counts.
 See docs/adr/0015-pack-reference-freeze.md.
 """
 
+import io
 import json
 import uuid
+import zipfile
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -16,6 +18,7 @@ from app.main import app as fastapi_app
 from app.models.artifact import Artifact
 from app.models.collection import Collection
 from app.models.profile import Profile
+from app.models.user import User
 
 PASSWORD = "password123"
 
@@ -251,6 +254,19 @@ async def test_install_claim_bad_target_is_422(async_client: AsyncClient) -> Non
 
 
 @pytest.mark.asyncio
+async def test_install_claim_overlong_method_is_422(async_client: AsyncClient) -> None:
+    await _register(async_client, "install-method@example.com")
+    cid = await _make_collection(async_client)
+    profile = await _make_profile(async_client, cid)
+
+    res = await async_client.post(
+        f"/api/v1/profiles/{profile['id']}/installs",
+        json={"target": "claude-code", "location": "project", "method": "x" * 33},
+    )
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_install_claim_on_unreadable_profile_is_404(
     async_client: AsyncClient,
 ) -> None:
@@ -359,7 +375,166 @@ async def test_no_snapshot_skips_pack_with_warning(
     assert body["artifact_count"] == 0
     warnings = [w for w in body["warnings"] if w["code"] == "pack_unavailable"]
     assert len(warnings) == 1
-    assert "no frozen copy" in warnings[0]["message"]
+    assert "it was skipped" in warnings[0]["message"]
+
+
+@pytest.mark.asyncio
+async def test_update_profile_keeps_frozen_pack_editable(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A referenced pack that goes private must not make the profile
+    un-editable: the update refreshes/keeps the snapshot and still succeeds.
+
+    Regression test for the review finding on PR #198.
+    """
+    async with _new_client() as owner:
+        await _register(owner, "upd-owner@example.com")
+        cid = await _make_collection(owner, "upd-pack", visibility="public")
+        await _add_artifact(db_session, cid, "upd-rule")
+
+        await _register(async_client, "upd-user@example.com")
+        profile = await _make_profile(async_client, cid)
+
+        patch = await owner.patch(
+            f"/api/v1/collections/{cid}", json={"visibility": "private"}
+        )
+        assert patch.status_code == 200
+
+    # Renaming and changing targets while keeping the now-unreadable pack
+    # must return 200, not 404.
+    res = await async_client.put(
+        f"/api/v1/profiles/{profile['id']}",
+        json={
+            "name": "renamed-frozen-profile",
+            "base_collection_id": cid,
+            "target_frameworks": ["opencode"],
+        },
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["name"] == "renamed-frozen-profile"
+    assert res.json()["target_frameworks"] == ["opencode"]
+
+    # The frozen snapshot survived the update and still compiles.
+    compile_res = await async_client.post(
+        "/api/v1/profiles/compile",
+        json={"profile_id": profile["id"], "target": "claude-code"},
+    )
+    assert compile_res.status_code == 200
+    assert compile_res.json()["artifact_count"] == 1
+    assert "upd-rule" in "".join(compile_res.json()["files"].values())
+
+
+@pytest.mark.asyncio
+async def test_update_rejects_newly_added_unreadable_pack(
+    async_client: AsyncClient,
+) -> None:
+    async with _new_client() as other:
+        await _register(other, "upd-new-other@example.com")
+        private_cid = await _make_collection(other, "other-private-pack")
+
+        await _register(async_client, "upd-new-owner@example.com")
+        own_cid = await _make_collection(async_client, "own-pack")
+        profile = await _make_profile(async_client, own_cid)
+
+        # Newly adding a pack the caller cannot read is still a 404.
+        res = await async_client.put(
+            f"/api/v1/profiles/{profile['id']}",
+            json={
+                "name": "p3-profile",
+                "base_collection_id": own_cid,
+                "additional_collection_ids": [private_cid],
+            },
+        )
+        assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_freeze_is_owner_scoped_across_compile_routes(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """The frozen set is served only to the profile owner or an admin.
+
+    A third party compiling the owner's public profile must get
+    `pack_unavailable` and zero frozen artifacts — on `/compile`, the zip
+    route, and `compile-status` (all of which share `compile_profile()`).
+    """
+    async with _new_client() as pack_owner:
+        await _register(pack_owner, "x-pack-owner@example.com")
+        pack_cid = await _make_collection(pack_owner, "x-pack", visibility="public")
+        await _add_artifact(db_session, pack_cid, "frozen-rule")
+
+        # A owns the setup, which references X's pack; the profile is public.
+        await _register(async_client, "a-setup-owner@example.com")
+        profile = await _make_profile(async_client, pack_cid, is_public=True)
+
+        patch = await pack_owner.patch(
+            f"/api/v1/collections/{pack_cid}", json={"visibility": "private"}
+        )
+        assert patch.status_code == 200
+
+    body = {"profile_id": profile["id"], "target": "claude-code"}
+
+    # (1) A (setup owner) still gets the frozen artifact, plus a warning.
+    a_res = await async_client.post("/api/v1/profiles/compile", json=body)
+    assert a_res.status_code == 200
+    a_body = a_res.json()
+    assert a_body["artifact_count"] == 1
+    assert "frozen-rule" in "".join(a_body["files"].values())
+    assert "pack_unavailable" in [w["code"] for w in a_body["warnings"]]
+
+    async with _new_client() as viewer:
+        await _register(viewer, "b-viewer@example.com")
+
+        # (2) B (non-owner) compiling A's public profile gets no frozen set.
+        b_res = await viewer.post("/api/v1/profiles/compile", json=body)
+        assert b_res.status_code == 200
+        b_body = b_res.json()
+        assert b_body["artifact_count"] == 0
+        assert "frozen-rule" not in "".join(b_body["files"].values())
+        assert "pack_unavailable" in [w["code"] for w in b_body["warnings"]]
+
+        # Zip route shares compile_profile(); it must not leak the freeze.
+        b_zip = await viewer.post("/api/v1/profiles/compile/zip", json=body)
+        assert b_zip.status_code == 200
+        with zipfile.ZipFile(io.BytesIO(b_zip.content)) as zf:
+            zipped = "".join(zf.read(name).decode() for name in zf.namelist())
+        assert "frozen-rule" not in zipped
+
+        # compile-status() also funnels through compile_profile(), so the
+        # hash must be viewer-dependent here.
+        a_status = await async_client.get(
+            f"/api/v1/profiles/{profile['id']}/compile-status",
+            params={"target": "claude-code"},
+        )
+        b_status = await viewer.get(
+            f"/api/v1/profiles/{profile['id']}/compile-status",
+            params={"target": "claude-code"},
+        )
+        assert a_status.status_code == b_status.status_code == 200
+        assert a_status.json()["compiled_hash"] != b_status.json()["compiled_hash"]
+
+    # (3) An admin gets the frozen artifact even when the pack is gone. Use a
+    # soft-delete here (not just private visibility) because an admin can
+    # still read a private collection live, which would bypass the snapshot.
+    async with _new_client() as admin_client:
+        admin = await _register(admin_client, "c-admin@example.com")
+        admin_row = await db_session.get(User, uuid.UUID(admin["id"]))
+        assert admin_row is not None
+        admin_row.is_admin = True
+        admin_row.role = "admin"
+        await db_session.commit()
+
+        pack_row = await db_session.get(Collection, uuid.UUID(pack_cid))
+        assert pack_row is not None
+        pack_row.is_active = False
+        await db_session.commit()
+
+        c_res = await admin_client.post("/api/v1/profiles/compile", json=body)
+        assert c_res.status_code == 200
+        c_body = c_res.json()
+        assert c_body["artifact_count"] == 1
+        assert "frozen-rule" in "".join(c_body["files"].values())
+        assert "pack_unavailable" in [w["code"] for w in c_body["warnings"]]
 
 
 # ─── use counts ──────────────────────────────────────────────────────────────

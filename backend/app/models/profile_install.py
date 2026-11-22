@@ -66,7 +66,7 @@ class ProfileInstallCreate(SQLModel):
     """
     target: CompileTarget
     location: InstallLocation
-    method: str = "cli"
+    method: str = Field(default="cli", min_length=1, max_length=32)
 
 
 class ProfileInstallRead(SQLModel):

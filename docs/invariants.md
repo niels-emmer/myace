@@ -210,41 +210,57 @@ names where it's enforced so you can verify it hasn't regressed.
     pack that can't be resolved is never skipped silently.** On profile
     create/update, `capture_pack_snapshots()` records the enabled live
     artifact ids (plus a hash and timestamp) for every referenced collection
-    the requesting user does **not** own — owned collections are never
-    snapshotted. When `compile_profile()` finds a referenced collection
-    missing, inactive, or unreadable, it loads those artifact ids by
-    `(id, collection_id)` with no live collection-read check and emits
-    `ValidationIssue(code="pack_unavailable")`. With no snapshot it skips the
-    collection but still emits `pack_unavailable` — the old silent-skip
-    behaviour is gone. That reload is the one deliberate compile-time
-    authorization bypass; it is scoped to ids the profile owner could read
-    when the snapshot was captured, and it relies on artifacts being
-    soft-deleted at most (invariant 18), never hard-deleted. See
+    the requesting user does **not** own and can still read — owned
+    collections are never snapshotted, and an unreadable one is never
+    re-read (its existing snapshot is preserved). A profile update
+    therefore read-checks only **newly added** collection ids, so a setup
+    whose pack went private stays editable. When `compile_profile()` finds a
+    referenced collection missing, inactive, or unreadable, it loads those
+    artifact ids by `(id, collection_id)` with no live collection-read check
+    **only for an allowed viewer** and emits
+    `ValidationIssue(code="pack_unavailable")`. An allowed viewer is:
+    `requesting_user is None` (internal/test), the profile's owner, or an
+    admin. Every other requester — e.g. user B compiling user A's public
+    profile — gets `pack_unavailable` and the pack is skipped, never served
+    from the frozen set. With no snapshot, the collection is skipped but the
+    warning is still emitted — the old silent-skip behaviour is gone. That
+    reload is the one deliberate compile-time authorization bypass; it is
+    scoped to ids the profile owner could read when the snapshot was
+    captured, and it relies on artifacts being soft-deleted at most
+    (invariant 18), never hard-deleted. See
     [ADR-0015](adr/0015-pack-reference-freeze.md).
 
-25. **Install claims are not verification.** A `ProfileInstall` row records
-    only that a user *said* they installed a profile to a target at a
-    location. The only verified source of "the files match the compiled
-    output" remains `SyncStatus`, fed by `myace check --report`. Like sync
-    status (invariant 21), install claims are self-scoped: `POST`/`GET
-    /profiles/{id}/installs` read and write only the caller's own rows, with
-    no admin bypass. `POST /collections/{id}/use` is likewise a count of
-    *references*, not installs — it increments `download_count` once per
-    call, and an owner is blocked (400) from inflating their own count. See
+25. **Install claims are not verification, and use counts are advisory.**
+    A `ProfileInstall` row records only that a user *said* they installed a
+    profile to a target at a location. The only verified source of "the
+    files match the compiled output" remains `SyncStatus`, fed by `myace
+    check --report`. Like sync status (invariant 21), install claims are
+    self-scoped: `POST`/`GET /profiles/{id}/installs` read and write only the
+    caller's own rows, with no admin bypass. `POST /collections/{id}/use`
+    increments `download_count` on **every** call by a signed-in non-owner
+    and returns the new count; an owner is blocked (400) from inflating
+    their own. There is no per-user dedupe, so any non-owner can inflate
+    another pack's count — `download_count` is tamperable and must be treated
+    as a rough popularity signal, never a verified metric or
+    integrity-sensitive ranking input. See
     [ADR-0015](adr/0015-pack-reference-freeze.md).
 
 ## A gap that's accepted, not fixed
 
-**Profile visibility doesn't cascade to its collections.** A profile marked
-`is_public=True` can reference a collection that's private to its owner (or
-becomes private later). `compile_profile()` does check
-`_can_read_collection()` for the requesting user, but when that check fails
-it falls back to the profile's reference snapshot (invariant 24) — so a
-public profile compiled by someone else still exposes the artifacts the
-profile's owner could see when the snapshot was captured. Concretely: if you
-can see a public profile, you can compile it and see the (otherwise private)
-artifacts it references. This is a deliberate simplification consistent with
-"no granular per-resource sharing" (see
-[ADR-0003](adr/0003-ownership-based-authorization.md)), not an oversight —
-but it's worth knowing before you rely on collection privacy as a hard
-boundary.
+**A public profile reveals which collections it references, but not their
+contents to someone who cannot read them.** `ProfileRead` exposes
+`base_collection_id`/`additional_collection_ids` to anyone who can read the
+profile, so a public profile leaks collection *ids* (not names, artifacts,
+or membership details). Compilation itself is requester-scoped:
+`compile_profile()` only pulls live artifacts from collections the
+requester can read, and serves frozen content only to the profile owner or
+an admin (invariant 24). A public profile therefore cannot be used to
+obtain artifacts from a private collection the viewer cannot read.
+The accepted simplification is that profile visibility still does not
+cascade to collection visibility: you can mark a profile public while
+composing it from private collections, and another viewer sees the profile
+with those packs skipped and a `pack_unavailable` warning rather than the
+profile being rejected. This is consistent with "no granular per-resource
+sharing" (see [ADR-0003](adr/0003-ownership-based-authorization.md)). Don't
+treat collection privacy as the boundary that makes a public profile safe;
+the owner-scoped-compile rule is that boundary.

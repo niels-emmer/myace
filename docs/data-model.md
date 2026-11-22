@@ -293,10 +293,17 @@ target is still chosen per-compile-request; this list is what the UI shows as
 freeze: `{collection_id: {"artifact_ids": [...], "hash": "<sha256>",
 "captured_at": "<iso8601>"}}`. It is captured/refreshed on profile create
 and update **only for referenced collections the requesting user does not
-own** — an owned collection is always readable, so freezing it would add
-nothing. `compile_profile()` falls back to these artifact ids when a
-referenced collection is missing, inactive, or unreadable, and emits a
-`pack_unavailable` validation warning either way (with or without a
+own and can still read** — an owned collection is always readable, so
+freezing it would add nothing. A referenced collection the user can no
+longer read keeps its existing frozen snapshot (it is never re-read), and a
+profile update only read-checks **newly added** collection ids, so a setup
+whose pack went private stays editable.
+`compile_profile()` falls back to these artifact ids when a referenced
+collection is missing, inactive, or unreadable — but only for an allowed
+viewer (`requesting_user is None`, the profile's owner, or an admin). Any
+other requester gets `pack_unavailable` and the pack is skipped, so a public
+profile cannot become a redistribution channel for a pack that was
+unpublished. The warning is emitted either way (with or without a
 snapshot). Artifacts are soft-deleted at most (rule 15), so a frozen id still
 resolves; a later soft-delete of the pack does not remove it from the frozen
 set. This is the one deliberate compile-time authorization bypass, scoped to

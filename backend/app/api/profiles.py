@@ -121,7 +121,7 @@ async def create_profile(
         await _assert_readable_collection(session, cid, current_user)
 
     referenced = [profile_data.base_collection_id, *profile_data.additional_collection_ids]
-    snapshots = await capture_pack_snapshots(session, referenced, current_user.id)
+    snapshots = await capture_pack_snapshots(session, referenced, current_user)
 
     db_profile = Profile(
         owner_id=current_user.id,
@@ -394,12 +394,29 @@ async def update_profile(
         write=True, resource_name="Profile",
     )
 
-    await _assert_readable_collection(session, profile_data.base_collection_id, current_user)
-    for cid in profile_data.additional_collection_ids:
-        await _assert_readable_collection(session, cid, current_user)
+    # Only newly added collections need a fresh read check. A collection the
+    # profile already references may have gone private or been soft-deleted
+    # since; it must stay editable (rename, target change, item toggles)
+    # because compile serves it from `pack_snapshots`. Re-validating every id
+    # would force the user to remove the pack — and discard its snapshot — to
+    # do anything else. See docs/adr/0015-pack-reference-freeze.md.
+    previously_referenced = {profile.base_collection_id}
+    previously_referenced.update(
+        uuid.UUID(cid) for cid in json.loads(profile.additional_collection_ids)
+    )
 
     referenced = [profile_data.base_collection_id, *profile_data.additional_collection_ids]
-    snapshots = await capture_pack_snapshots(session, referenced, current_user.id)
+    for cid in referenced:
+        if cid in previously_referenced:
+            continue
+        await _assert_readable_collection(session, cid, current_user)
+
+    # Refresh snapshots for still-readable non-owned packs; preserve the
+    # existing frozen copy for any already-referenced pack that is no longer
+    # readable.
+    snapshots = await capture_pack_snapshots(
+        session, referenced, current_user, existing_raw=profile.pack_snapshots
+    )
 
     profile.name = profile_data.name
     profile.description = profile_data.description
