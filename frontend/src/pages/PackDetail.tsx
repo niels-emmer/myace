@@ -24,6 +24,7 @@ import {
 import { collectionsApi, commentsApi, moderationApi, profilesApi, ratingsApi } from '../lib/api';
 import { packApi } from '../lib/packApi';
 import { FreshnessBadge } from '../components/FreshnessBadge';
+import AddToSetup from '../components/AddToSetup';
 import { PublishStatusTracker } from '../components/PublishStatusTracker';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -696,12 +697,7 @@ export default function PackDetail() {
                   )}
                   Use this pack
                 </button>
-                <Link
-                  to="/setups"
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                >
-                  View my setups
-                </Link>
+                {pack && <AddToSetup collection={pack} showUse={false} />}
                 <button
                   onClick={() => copyMutation.mutate()}
                   disabled={copyMutation.isPending}

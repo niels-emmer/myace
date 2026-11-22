@@ -20,8 +20,9 @@ vi.mock('../lib/api', () => ({
     importCommunity: vi.fn(),
     unpublish: vi.fn(),
     verify: vi.fn(),
+    list: vi.fn(),
   },
-  profilesApi: { create: vi.fn() },
+  profilesApi: { create: vi.fn(), list: vi.fn() },
   ratingsApi: { get: vi.fn(), rate: vi.fn(), remove: vi.fn() },
   commentsApi: { list: vi.fn(), create: vi.fn(), remove: vi.fn() },
   moderationApi: { updateMeta: vi.fn() },
@@ -108,6 +109,8 @@ function renderDetail() {
 
 describe('PackDetail', () => {
   beforeEach(() => {
+    vi.mocked(collectionsApi.list).mockResolvedValue([]);
+    vi.mocked(profilesApi.list).mockResolvedValue([]);
     vi.clearAllMocks();
     vi.mocked(packApi.listCommunity).mockResolvedValue({ items: [], total: 0 });
     vi.mocked(ratingsApi.get).mockResolvedValue({ avg_rating: 4.9, rating_count: 4, my_rating: null });

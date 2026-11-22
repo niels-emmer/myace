@@ -283,8 +283,9 @@ myace check --target claude-code
 ```
 
 In the web UI the same install lives under **Setups → Install**
-(`/setups/:id/install`): pick a setup and a framework, then copy the files or
-download a zip. To turn existing rules into a pack, use
+(`/setups/:id/install`): the setup is route-bound, so pick a framework and
+location, then copy the files or download a zip. To turn existing rules into
+a pack, use
 **Packs → Import** (`/packs/import`) against `~/.claude`,
 `~/.config/opencode`, or a GitHub repo. **My machine** (`/machine`) holds the
 companion health check, setup audit, and per-framework sync report. Full command reference:

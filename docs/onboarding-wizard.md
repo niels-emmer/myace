@@ -91,9 +91,10 @@ advisory counter and is called best-effort alongside the real change:
 | **Use this pack** | Creates a setup with this pack as its base | Asks which starting point to pair with (most-used preselected), then creates a setup with both |
 | **Add to a setup…** | Replaces that setup's base (and drops the pack from its add-ons) | Appends the pack to that setup's add-ons |
 
-Both paths navigate to the affected setup. The component is mounted by the
-pack-detail page; Phase 5 owns that page's markup, so the mount is applied
-after its branch lands.
+Both paths navigate to the affected setup. The unified pack detail
+(`/packs/:id`) mounts the menu with `showUse={false}` because it keeps its own
+"Use this pack" create path; both paths persist the reference, never just the
+advisory counter.
 
 ## Add-on pairing
 
@@ -171,26 +172,17 @@ freeze fallback is scoped to the setup owner (and admins):
 - Install claims are per user; another user's claims are never shown, even to
   admins.
 
-## Integration follow-ups (owned by the integration pass)
+## Phase 5 integration
 
-This Phase 2 task deliberately does not edit `AGENTS.md`, the root `README.md`,
-`CHANGELOG.md`, or `docs/plans/v2.0-onboarding-revamp.md` — Phase 5 runs from
-the same base and the integration pass owns those files. Apply these when the
-branches are consolidated (they are the only outstanding review threads):
+Phase 5 (#201) landed first and became the only prior writer to the shared
+files, so this branch then updated, on top of it:
 
-0. **Mount `AddToSetup` on the pack-detail pages** once Phase 5's branch lands
-   (one import + one component per detail page); the component and its tests
-   already exist in Phase 2.
-1. **`AGENTS.md` rule 42** — add `/onboarding` to the canonical-route list; note
-   that `/setups/:id/install` no longer accepts a legacy `?profile=` (only
-   `LegacyCompileRedirect` maps it); and record Home's second state banner,
-   sourced from `GET /profiles/{id}/installs` in addition to
-   `GET /profiles` + `GET /sync/status`.
-2. **`README.md` usage paragraph** — the install page is bound to
-   `/setups/:id`; it no longer has a setup picker.
-3. **`docs/plans/v2.0-onboarding-revamp.md`** — move the status line from
-   "Phase 1 implemented" to Phase 2 implemented (frontend only), pointing at
-   this file.
+- `AGENTS.md` rule 42 — `/onboarding` in the route list, the install route is
+  route-bound (legacy `?profile=` is only mapped by `LegacyCompileRedirect`),
+  Home's claims-driven banner, and AddToSetup's `PUT /profiles/{id}` attach.
+- `README.md` — the install page is route-bound rather than a setup picker.
+- `docs/plans/v2.0-onboarding-revamp.md` — phases 1–5 implemented.
+- `frontend/src/pages/PackDetail.tsx` — mounts `AddToSetup` (menu only).
 
 ## Tests
 

@@ -6,7 +6,7 @@ import { collectionsApi, profilesApi } from '../lib/api';
 import { packUsageApi, profileToCreate, setupProfilesApi } from '../lib/setupApi';
 import { useAuth } from '../contexts/AuthContext';
 import { packKindLabel } from '../lib/packs';
-import type { Collection, Profile } from '../types';
+import type { CollectionType, Profile } from '../types';
 
 /**
  * "Use this pack" / "Add to a setup" for a pack detail page.
@@ -19,11 +19,21 @@ import type { Collection, Profile } from '../types';
  *
  * Kept as its own component so the pack-detail pages just mount it.
  */
+/** The subset of a pack this flow needs — `Pack` and `Collection` both fit. */
+export interface AddToSetupPack {
+  id: string;
+  name: string;
+  description?: string;
+  collection_type: CollectionType;
+  artifact_count: number;
+  download_count: number;
+}
+
 export default function AddToSetup({
   collection,
   showUse = true,
 }: {
-  collection: Collection;
+  collection: AddToSetupPack;
   /** PackDetail often keeps its own "Use this pack" flow; then mount the menu only. */
   showUse?: boolean;
 }) {
