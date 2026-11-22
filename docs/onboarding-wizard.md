@@ -152,6 +152,24 @@ freeze fallback is scoped to the setup owner (and admins):
 - Install claims are per user; another user's claims are never shown, even to
   admins.
 
+## Integration follow-ups (owned by the integration pass)
+
+This Phase 2 task deliberately does not edit `AGENTS.md`, the root `README.md`,
+`CHANGELOG.md`, or `docs/plans/v2.0-onboarding-revamp.md` — Phase 5 runs from
+the same base and the integration pass owns those files. Apply these when the
+branches are consolidated (they are the only outstanding review threads):
+
+1. **`AGENTS.md` rule 42** — add `/onboarding` to the canonical-route list; note
+   that `/setups/:id/install` no longer accepts a legacy `?profile=` (only
+   `LegacyCompileRedirect` maps it); and record Home's second state banner,
+   sourced from `GET /profiles/{id}/installs` in addition to
+   `GET /profiles` + `GET /sync/status`.
+2. **`README.md` usage paragraph** — the install page is bound to
+   `/setups/:id`; it no longer has a setup picker.
+3. **`docs/plans/v2.0-onboarding-revamp.md`** — move the status line from
+   "Phase 1 implemented" to Phase 2 implemented (frontend only), pointing at
+   this file.
+
 ## Tests
 
 - `pages/Onboarding.test.tsx` — step transitions, back, skip completion, query
