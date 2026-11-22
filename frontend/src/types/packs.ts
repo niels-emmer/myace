@@ -54,12 +54,6 @@ export interface PackMetadataUpdate {
   license?: string | null;
 }
 
-/** Result of `POST /collections/{id}/use` (the reference-count increment). */
-export interface UsePackResult {
-  collection_id: string;
-  download_count: number;
-}
-
 export type PackTab = 'overview' | 'contents' | 'ratings';
 
 /**

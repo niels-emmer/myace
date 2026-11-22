@@ -88,9 +88,5 @@ existing deployments keep working through the upgrade.
 
 ### Known issues
 
-- `AddToSetup` infers a pack's frameworks from `target_compatibility` without
-  filtering to currently enabled adapters. A pack that declares an
-  admin-disabled adapter can add that target to a new setup, and compiling it
-  then fails with `AdapterDisabledError`. Fix: intersect with `GET /adapters`.
-- `packApi.usePack` is no longer called by the UI (the use counter is posted
-  alongside attach) but is still exported.
+None specific to this release. Starter-pack *content* edits still do not
+reach an already-seeded deployment without a reseed (AGENTS.md rule 25).
