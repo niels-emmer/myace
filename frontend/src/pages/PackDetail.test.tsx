@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PackDetail from './PackDetail';
-import { collectionsApi, commentsApi, profilesApi, ratingsApi } from '../lib/api';
+import { adaptersApi, collectionsApi, commentsApi, profilesApi, ratingsApi } from '../lib/api';
 import { packApi } from '../lib/packApi';
 import { packUsageApi, setupProfilesApi } from '../lib/setupApi';
 import type { Collection } from '../types';
@@ -15,6 +15,7 @@ vi.mock('../contexts/AuthContext', () => ({
 }));
 
 vi.mock('../lib/api', () => ({
+  adaptersApi: { list: vi.fn() },
   collectionsApi: {
     get: vi.fn(),
     getArtifacts: vi.fn(),
@@ -122,6 +123,10 @@ describe('PackDetail', () => {
     vi.clearAllMocks();
     vi.mocked(collectionsApi.list).mockResolvedValue([]);
     vi.mocked(profilesApi.list).mockResolvedValue([]);
+    vi.mocked(adaptersApi.list).mockResolvedValue([
+      { name: 'claude-code', description: '', targets: [], enabled: true },
+      { name: 'opencode', description: '', targets: [], enabled: true },
+    ]);
     vi.mocked(setupProfilesApi.create).mockResolvedValue({
       ...basePack,
       id: 'setup-new',
@@ -244,7 +249,9 @@ describe('PackDetail', () => {
     renderDetail();
     await screen.findByRole('heading', { name: 'Software Engineer' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use this pack' }));
+    const useButton = screen.getByRole('button', { name: 'Use this pack' });
+    await waitFor(() => expect(useButton).toBeEnabled());
+    fireEvent.click(useButton);
 
     await waitFor(() =>
       expect(setupProfilesApi.create).toHaveBeenCalledWith(

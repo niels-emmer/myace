@@ -622,6 +622,7 @@ export default function PackDetail() {
                 {pack && (
                   <AddToSetup
                     collection={pack}
+                    frameworksReady={!loadingArtifacts}
                     frameworks={[
                       ...new Set(
                         (artifacts ?? []).flatMap((artifact) => artifact.target_compatibility),

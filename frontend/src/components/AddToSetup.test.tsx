@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import AddToSetup from './AddToSetup';
-import { collectionsApi, profilesApi } from '../lib/api';
+import { adaptersApi, collectionsApi, profilesApi } from '../lib/api';
 import { packUsageApi, setupProfilesApi } from '../lib/setupApi';
 import type { Collection, Profile } from '../types';
 
@@ -12,6 +12,7 @@ vi.mock('../contexts/AuthContext', () => ({
 }));
 
 vi.mock('../lib/api', () => ({
+  adaptersApi: { list: vi.fn() },
   collectionsApi: { list: vi.fn() },
   profilesApi: { list: vi.fn() },
 }));
@@ -104,6 +105,10 @@ describe('AddToSetup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(collectionsApi.list).mockResolvedValue([baseA, baseB, addOn]);
+    vi.mocked(adaptersApi.list).mockResolvedValue([
+      { name: 'claude-code', description: '', targets: [], enabled: true },
+      { name: 'opencode', description: '', targets: [], enabled: true },
+    ]);
     vi.mocked(profilesApi.list).mockResolvedValue([setup]);
     vi.mocked(setupProfilesApi.create).mockResolvedValue(created);
     vi.mocked(setupProfilesApi.update).mockResolvedValue(setup);
@@ -135,7 +140,9 @@ describe('AddToSetup', () => {
   it('creates a setup directly from a starting-point pack', async () => {
     renderFor(baseA);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use this pack' }));
+    const useButton = screen.getByRole('button', { name: 'Use this pack' });
+    await waitFor(() => expect(useButton).toBeEnabled());
+    fireEvent.click(useButton);
 
     await waitFor(() =>
       expect(setupProfilesApi.create).toHaveBeenCalledWith(
@@ -168,7 +175,9 @@ describe('AddToSetup', () => {
   it('forwards frameworks the pack declares into the new setup', async () => {
     renderFor(baseA, ['claude-code', 'opencode']);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use this pack' }));
+    const useButton = screen.getByRole('button', { name: 'Use this pack' });
+    await waitFor(() => expect(useButton).toBeEnabled());
+    fireEvent.click(useButton);
 
     await waitFor(() =>
       expect(setupProfilesApi.create).toHaveBeenCalledWith(
@@ -187,7 +196,9 @@ describe('AddToSetup', () => {
     });
     renderFor(longBase);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use this pack' }));
+    const useButton = screen.getByRole('button', { name: 'Use this pack' });
+    await waitFor(() => expect(useButton).toBeEnabled());
+    fireEvent.click(useButton);
 
     await waitFor(() => expect(setupProfilesApi.create).toHaveBeenCalled());
     const payload = vi.mocked(setupProfilesApi.create).mock.calls[0][0];

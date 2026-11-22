@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, FolderGit2, Loader2, Plus } from 'lucide-react';
-import { collectionsApi, profilesApi } from '../lib/api';
+import { adaptersApi, collectionsApi, profilesApi } from '../lib/api';
 import { packUsageApi, profileToCreate, setupProfilesApi } from '../lib/setupApi';
 import { useAuth } from '../contexts/AuthContext';
 import { packKindLabel } from '../lib/packs';
@@ -42,12 +42,15 @@ export default function AddToSetup({
   collection,
   showUse = true,
   frameworks = [],
+  frameworksReady = true,
 }: {
   collection: AddToSetupPack;
   /** Callers that supply their own "Use this pack" flow mount the menu only. */
   showUse?: boolean;
   /** Adapter names the pack declares (artifact target_compatibility); filtered server-side. */
   frameworks?: string[];
+  /** False until the caller's artifact query resolves, so Use cannot race it. */
+  frameworksReady?: boolean;
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -69,9 +72,20 @@ export default function AddToSetup({
     queryKey: ['collections'],
     queryFn: () => collectionsApi.list(),
   });
+  const { data: adapters } = useQuery({
+    queryKey: ['adapters'],
+    queryFn: () => adaptersApi.list(),
+  });
 
   const ownSetups = (profiles ?? []).filter((profile) => profile.owner_id === user?.id);
   const basePacks = (collections ?? []).filter((pack) => pack.collection_type === 'base');
+  // Only adapters that are actually enabled may enter a new setup; a pack can
+  // declare a target whose adapter an admin has since disabled.
+  const enabledFrameworks = new Set(
+    (adapters ?? []).filter((adapter) => adapter.enabled).map((adapter) => adapter.name),
+  );
+  const inferredFrameworks = frameworks.filter((name) => enabledFrameworks.has(name));
+  const frameworksSettled = Boolean(adapters) && frameworksReady;
   const mostUsedBase = [...basePacks].sort(
     (a, b) => (b.download_count ?? 0) - (a.download_count ?? 0),
   )[0];
@@ -97,10 +111,10 @@ export default function AddToSetup({
         base_collection_id: baseId,
         additional_collection_ids: addOnIds,
         disabled_artifact_ids: [],
-        // Prefer whatever the pack declares; if it declares nothing the user
-        // lands on the setup page, where Advanced adds frameworks — never on
-        // an install screen with nothing to install.
-        target_frameworks: frameworks,
+        // Prefer whatever the pack declares (enabled adapters only); if it
+        // declares nothing the user lands on the setup page, where Advanced
+        // adds frameworks — never on an install screen with nothing to install.
+        target_frameworks: inferredFrameworks,
       });
       recordUse();
       finish(created);
@@ -172,7 +186,7 @@ export default function AddToSetup({
         <button
           type="button"
           onClick={startUse}
-          disabled={busy || (!isBase && basePacks.length === 0)}
+          disabled={busy || !frameworksSettled || (!isBase && basePacks.length === 0)}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
@@ -244,7 +258,7 @@ export default function AddToSetup({
           <div className="flex gap-2">
             <button
               type="button"
-              disabled={!selectedBaseId || busy}
+              disabled={!selectedBaseId || busy || !frameworksSettled}
               onClick={() => void createSetup(selectedBaseId, [collection.id])}
               className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
             >
