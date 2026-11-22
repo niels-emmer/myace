@@ -205,6 +205,38 @@ describe('PackDetail', () => {
     expect(screen.queryByRole('link', { name: 'Use this pack' })).not.toBeInTheDocument();
   });
 
+  it('creates a setup directly when a starting-point pack is used', async () => {
+    mockUser = { id: 'user-2', role: 'user' };
+    const starterPack = {
+      ...basePack,
+      id: 'pack-1',
+      name: 'Software Engineer',
+      collection_type: 'base',
+      owner_id: 'starter',
+      is_starter_pack: true,
+    };
+    vi.mocked(collectionsApi.get).mockResolvedValue(starterPack as never);
+    vi.mocked(collectionsApi.getArtifacts).mockResolvedValue(artifacts);
+    vi.mocked(packApi.usePack).mockResolvedValue({
+      collection_id: 'pack-1',
+      download_count: 121,
+    });
+    vi.mocked(profilesApi.create).mockResolvedValue({ id: 'setup-2' } as never);
+
+    renderDetail();
+    await screen.findByRole('heading', { name: 'Software Engineer' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use this pack' }));
+
+    await waitFor(() => expect(packApi.usePack).toHaveBeenCalledWith('pack-1'));
+    expect(profilesApi.create).toHaveBeenCalledWith({
+      name: 'Software Engineer',
+      description: starterPack.description,
+      base_collection_id: 'pack-1',
+      additional_collection_ids: [],
+    });
+  });
+
   it('asks an add-on which starting point to pair with and records the use', async () => {
     mockUser = { id: 'user-2', role: 'user' };
     vi.mocked(collectionsApi.get).mockResolvedValue(basePack as never);

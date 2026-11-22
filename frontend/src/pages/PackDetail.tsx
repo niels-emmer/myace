@@ -182,9 +182,13 @@ export default function PackDetail() {
       const additionalIds = isAddon ? [pack!.id] : [];
       await packApi.usePack(pack!.id);
       return profilesApi.create({
-        name: isAddon
-          ? `${selectedBaseName ?? 'New setup'} + ${pack!.name}`
-          : pack!.name,
+        // `Profile.name` is String(255); two user-controlled pack names can
+        // exceed that on Postgres, so cap the generated name.
+        name: (
+          isAddon
+            ? `${selectedBaseName ?? 'New setup'} + ${pack!.name}`
+            : pack!.name
+        ).slice(0, 255),
         description: isAddon
           ? `Adds the ${pack!.name} pack to ${selectedBaseName ?? 'a starting point'}.`
           : pack!.description ?? undefined,
@@ -696,7 +700,7 @@ export default function PackDetail() {
                   to="/setups"
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
                 >
-                  Add to a setup…
+                  View my setups
                 </Link>
                 <button
                   onClick={() => copyMutation.mutate()}
