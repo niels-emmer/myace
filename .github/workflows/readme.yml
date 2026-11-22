@@ -10,6 +10,10 @@ on:
   push:
   pull_request:
 
+# Least privilege: this workflow only checks out the repo and runs a local script.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
