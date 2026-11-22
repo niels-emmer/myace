@@ -34,12 +34,42 @@ sudo mv ./myace /usr/local/bin/
 [releases page](https://github.com/niels-emmer/myace/releases) and place it
 somewhere in your `PATH`.
 
-> **Note for macOS users:** The binary is not signed with an Apple Developer
-> certificate. The first time you run it, Gatekeeper may block it. To
-> bypass: open **System Settings → Privacy & Security**, scroll to the
-> security section, and click **Allow Anyway** next to the `myace` entry.
-> Or remove the quarantine attribute manually:
-> `xattr -d com.apple.quarantine /usr/local/bin/myace`.
+> **macOS only — the binary is unsigned.** Neither macOS build is signed with
+> an Apple Developer certificate, so the first run can be blocked by
+> Gatekeeper. In case you get **"Apple could not verify … is free of malware
+> that may harm your Mac"** or **"… cannot be opened because the developer
+> cannot be verified"**, clear the download's quarantine flag and run it
+> again:
+>
+> ```bash
+> # Still in the download directory, before moving it (the curl commands
+> # above save it as ./myace; a browser download keeps the asset name,
+> # e.g. ./myace-macos-x86_64 or ./myace-macos-arm64):
+> xattr -cr ./myace
+>
+> # Or, if it was already moved into place (needs sudo because the install
+> # above used sudo):
+> sudo xattr -cr /usr/local/bin/myace
+> ```
+>
+> `xattr -cr` clears the file's extended attributes (including the
+> `com.apple.quarantine` flag Gatekeeper sets on downloads); `xattr -d
+> com.apple.quarantine <path>` removes just that one flag. If it is still
+> blocked, approve it once in **System Settings → Privacy & Security** →
+> **Open Anyway** next to the `myace` entry. Linux and Windows are unaffected.
+>
+> **`Killed: 9` is a different problem.** It means the binary's code signature
+> is missing or invalid (common when a file is transferred or rewritten by a
+> tool that drops it). Clearing extended attributes cannot supply a signature
+> and neither can **Open Anyway** — re-sign the binary ad hoc:
+>
+> ```bash
+> # On the installed binary:
+> codesign --force --sign - /usr/local/bin/myace
+>
+> # Or on the download, before moving it:
+> codesign --force --sign - ./myace
+> ```
 
 ### Via pip
 

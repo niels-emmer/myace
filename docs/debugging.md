@@ -745,3 +745,28 @@ no `response_model`, so an unfiltered return would have leaked
 the regression coverage — it asserts on the `POST /auth/login` response
 body directly, not a follow-up `/auth/me` call, since that's exactly the
 distinction this bug hid in.
+
+## The macOS `myace` binary is blocked by Gatekeeper (or exits with `Killed: 9`)
+
+**Symptom:** on macOS, the first run of a downloaded `myace` binary is
+blocked with "Apple could not verify … is free of malware that may harm your
+Mac" or "… cannot be opened because the developer cannot be verified", or the
+process dies immediately while the shell prints `Killed: 9` (exit status
+`137`).
+
+**Cause:** the release binaries are not signed with an Apple Developer
+certificate — neither `.github/workflows/cli-build.yml` nor
+`release-cli.yml` has a signing or notarization step. A browser download
+carries `com.apple.quarantine`, which Gatekeeper enforces. `Killed: 9` is
+the *other* signature problem: the ad-hoc linker signature PyInstaller
+usually leaves on the binary was lost (a transfer or rewrite tool dropped
+it), and the kernel SIGKILLs an unsigned/invalidly-signed arm64 binary. The
+two symptoms have different fixes; `xattr` cannot supply a missing
+signature.
+
+**Fix:** for the Gatekeeper dialog, clear quarantine on the binary —
+`xattr -cr ./myace` before moving it (or the asset filename for a browser
+download), `sudo xattr -cr /usr/local/bin/myace` after installing, or
+System Settings → Privacy & Security → **Open Anyway**. For `Killed: 9`,
+re-sign it ad hoc: `codesign --force --sign - /usr/local/bin/myace`. See
+[cli.md](cli.md#quick-install-binary-no-python-required).
