@@ -107,11 +107,9 @@ describe('Landing page', () => {
       'href',
       '/packs',
     );
-    // Until Phase 2 ships its `/onboarding` route, the secondary CTA points
-    // at the public browse view (no dead destination on this branch).
-    expect(screen.getByRole('link', { name: 'Browse starter packs' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Create a free account' })).toHaveAttribute(
       'href',
-      '/packs',
+      '/login?mode=register',
     );
   });
 
