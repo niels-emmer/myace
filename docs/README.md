@@ -58,6 +58,10 @@ depth, it links here.
   now: [`plans/v2.0-onboarding-revamp.md`](plans/v2.0-onboarding-revamp.md)
   (pack/setup/install vocabulary, navigation, Home, packs library, ⌘K, and
   how the work was versioned and shipped as 2.0.0).
+  [`plans/agent-install-url.md`](plans/agent-install-url.md) is a scoped but
+  **unbuilt** design: a public URL an agent can fetch to install a pack,
+  including the payload format and why it is not possible with today's
+  setup-scoped, authenticated compile routes.
 
 ## Keeping this up to date
 
