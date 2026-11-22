@@ -15,7 +15,7 @@ Components:
 
 For backend, also run linting and type-checking:
 - `cd backend && ruff check .`
-- `cd backend && mypy app`
+- `cd backend && mypy app` (advisory: CI runs this with `|| true`, so it never fails the build — see AGENTS.md rule 1)
 
 For frontend, also run linting:
 - `cd frontend && npm run lint`

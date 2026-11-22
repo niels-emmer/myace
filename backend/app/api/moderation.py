@@ -9,10 +9,11 @@ machine (see app.models.collection) must prevent. Owners never self-approve.
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -86,14 +87,20 @@ async def _notify_owner(
         logger.exception("Failed to send moderation-decision email to a collection owner.")
 
 
-def _queue_order_by(sort: Literal["rating", "downloads", "alpha", "submitted_at"]):
+def _queue_order_by(
+    sort: Literal["rating", "downloads", "alpha", "submitted_at"]
+) -> tuple[ColumnElement[Any], ...]:
+    # Same SQLModel/mypy stub gap rule 37 documents for a `date` column: mypy
+    # resolves these columns to plain Python scalars (float/int/str/datetime),
+    # so `.desc()`/`.asc()` needs a scoped ignore even though they are real
+    # SQLAlchemy column expressions at runtime.
     if sort == "rating":
-        return (Collection.avg_rating.desc(),)
+        return (Collection.avg_rating.desc(),)  # type: ignore[attr-defined]
     if sort == "downloads":
-        return (Collection.download_count.desc(),)
+        return (Collection.download_count.desc(),)  # type: ignore[attr-defined]
     if sort == "alpha":
-        return (Collection.name.asc(),)
-    return (Collection.submitted_at.asc(),)
+        return (Collection.name.asc(),)  # type: ignore[attr-defined]
+    return (Collection.submitted_at.asc(),)  # type: ignore[union-attr]
 
 
 @router.get("/queue", response_model=list[ModerationQueueItem])

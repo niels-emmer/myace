@@ -1,5 +1,6 @@
-"""Auth hardening: SSO email linking, registration gate, rate limits, MFA body
-params, TOTP re-setup, and admin-only doc-cache deletion."""
+"""Auth hardening: SSO email linking, registration gate, duplicate-email
+registration, rate limits, MFA body params, TOTP re-setup, and admin-only
+doc-cache deletion."""
 
 from datetime import UTC, datetime, timedelta
 
@@ -251,3 +252,48 @@ async def test_doc_cache_delete_is_admin_only(
         "/api/v1/auth/login", json={"email": "boss@example.com", "password": "password123"}
     )
     assert (await async_client.delete(f"/api/v1/doc-cache/{entry.id}")).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_duplicate_email_registration_does_not_enumerate_or_authenticate(
+    async_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Registering an already-taken email must return the same 201 shape with a
+    fake user, establish no session, and leave the real account untouched.
+
+    The fake `UserRead` used to carry an `updated_at=` kwarg that `UserRead`
+    does not declare. SQLModel silently ignores unknown fields, so this was
+    dead code rather than a runtime failure — but it *was* a genuine `call-arg`
+    type error, which mypy reported and CI discarded (`mypy app || true`), and
+    which nothing else covered. This pins the observable enumeration-prevention
+    contract so it can't regress unnoticed.
+    """
+    from app.core.security import verify_password
+
+    real = await _add_user(db_session, "taken@example.com")  # password "password123"
+
+    async_client.cookies.clear()
+    resp = await async_client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "taken@example.com",
+            "password": "attackerpass1",
+            "display_name": "Impostor",
+        },
+    )
+
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["email"] == "taken@example.com"
+    assert body["id"] != str(real.id), "the real user's id leaked to the caller"
+    assert body["is_admin"] is False
+    assert body["display_name"] == ""
+
+    # No session may be established for the caller...
+    assert "myace_session" not in async_client.cookies
+
+    # ...and the real account must be completely untouched.
+    await db_session.refresh(real)
+    assert real.password_hash is not None
+    assert verify_password("password123", real.password_hash)
+    assert not verify_password("attackerpass1", real.password_hash)

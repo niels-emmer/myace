@@ -179,6 +179,12 @@ def check_target(
         error = f"Server returned {e.response.status_code}"
     except (httpx.ConnectError, httpx.TimeoutException) as e:
         error = f"Could not reach server: {e}"
+    except (httpx.HTTPError, ValueError) as e:
+        # Anything else the transport or the JSON decode can raise
+        # (RemoteProtocolError, a non-JSON 200 body, ...) must surface as a
+        # per-target error string — not an unhandled traceback that aborts the
+        # whole `check` run before any other target is reported.
+        error = f"Unexpected response from server: {e}"
 
     in_sync = not locally_modified and stale is False and error is None
 
@@ -252,7 +258,11 @@ def report_sync_status(
             response = client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             return True
-    except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError):
+    except (httpx.HTTPError, ValueError):
+        # httpx.HTTPError covers ConnectError/TimeoutException/HTTPStatusError
+        # and the protocol errors; ValueError covers a non-JSON response body.
+        # Never raise: a failed report must not fail the check/watch command
+        # that triggered it.
         return False
 
 

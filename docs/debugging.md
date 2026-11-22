@@ -352,6 +352,85 @@ again, check whether the failing PR is a major-version bump that should
 never have been grouped in the first place, rather than trying to patch
 around the peer-dependency error directly.
 
+## A Dependabot security alert on a transitive frontend dependency won't clear
+
+**Symptom:** a Dependabot alert on a transitive dependency in
+`frontend/package-lock.json` stays open after `npm update`, or re-opens on
+the next scan, even though a patched version of that package exists. Three
+live examples are pinned in `frontend/package.json`'s `overrides`:
+`brace-expansion` (patched at `5.0.12`), `postcss-selector-parser` (patched
+at `7.1.6`) and `minimatch` (patched at `11.0.1`, advisory
+`GHSA-g3hv-75wg-m249` / CVE-2026-118764).
+
+**Cause — this comes in two shapes:**
+
+- The patched version is *inside* the parent's semver range, but a stale
+  lockfile still pins an older one. `minimatch` allows `brace-expansion
+  ^5.0.8`, so `5.0.12` already satisfies it — nothing forces a refresh.
+- The patched version is a **major bump outside** the parent's range. The
+  only patched `postcss-selector-parser` is `7.1.6+`, but `tailwindcss@3.4`
+  and `postcss-nested@6` both declare `^6`, so a normal install can never
+  reach it. (The maintainer did backport the fix to `6.1.5` for the Tailwind
+  3 line, but advisory `GHSA-rj75-hqrm-r3gf` still lists `< 7.1.6` as
+  vulnerable, so Dependabot holds the alert open until `7.x` lands.)
+  `minimatch` is the same shape: `eslint@10`, `@eslint/config-array` and
+  `@typescript-eslint/typescript-estree` all declare `^10`, and the fix
+  landed only in `11.x`.
+
+**Fix:** pin the patched version with an `overrides` block in
+`frontend/package.json`. This is the one dependency change CI cannot verify
+for you — there is no `npm audit` gate — so prove it locally:
+
+1. `npm install` to regenerate `package-lock.json`, keeping the diff to the
+   affected packages only.
+2. For a CSS-affecting pin (`postcss-selector-parser`): `npm ci &&
+   npm run build`, then diff the emitted CSS against the previous build. For
+   a Tailwind-3-compatible `7.x` override the production CSS is
+   byte-identical — that diff *is* the evidence the forced major is safe.
+   For a JS-only pin, check the forced major's changelog against how the
+   parents actually call it — `minimatch@11` removed `makeRe()` and
+   `.regexp`, but ESLint's chain only uses `new Minimatch(...).match()` and
+   `minimatch()`, both retained. Pinning it cleared ten advisories at once,
+   because the whole eslint/typescript-eslint chain hung off the vulnerable
+   `minimatch`.
+3. `npm run lint` and `npx vitest run`. Lint is real evidence here, not a
+   formality: it globs every source file, so an ignore-pattern regression
+   from the forced major shows up as `dist/` being linted instead of skipped.
+
+Do not delete the `overrides` block as cruft: removing it re-resolves the
+parent's `^6`/`^10` range and re-opens the alert it was added to close.
+
+## A Dependabot PR bumps the backend image's Python ahead of what CI tests
+
+**Symptom:** a `chore(docker): bump python from X-slim to Y-slim in /backend`
+PR changes only `backend/Dockerfile`, CI is green, and it looks free to
+merge — but the image it builds now runs an interpreter the test suite has
+never run on.
+
+**Cause:** that `FROM` line is the production runtime. Dependabot edits the
+tag and nothing else, so unless a CI job's `python-version` moves with it,
+the only thing verified is that the image *builds*, not that the app works
+on it. The comment above the line in `backend/Dockerfile` spells out the
+lockstep requirement; see
+[`AGENTS.md` rule 9](../AGENTS.md#9-compose-file-strategy).
+
+**Fix:** move `.github/workflows/ci.yml`'s `Backend (pytest, ruff, Python
+<version>)` job to the new version **in the same PR** (leave the required
+`Backend (pytest, ruff)` job on the `requires-python` floor), and run the
+suite on the new interpreter before merging. The exact image works for that:
+
+```bash
+docker run --rm -v "$PWD:/repo" -w /repo/backend python:3.15-slim \
+  sh -c "apt-get update -qq && apt-get install -y -qq git && \
+         pip install -e '.[dev]' && pytest"
+```
+
+Mount the whole repo, not just `backend/`: `tests/test_seed_collections.py`
+scans `collections/` from the repo root, and a `backend/`-only mount makes
+those tests fail with `assert 0 == 23` — an artifact of the mount, not a
+Python incompatibility. Rather than merging an untested bump, revert the
+`FROM` line and leave the image where CI can vouch for it.
+
 ## `TypeError: can't compare offset-naive and offset-aware datetimes` comparing an expiry field
 
 **Symptom:** comparing a stored `datetime` column (e.g. `expires_at`,

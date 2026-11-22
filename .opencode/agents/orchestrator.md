@@ -72,7 +72,7 @@ At session start:
 
 1. **Classify** — Determine the data sensitivity level (PUBLIC / INTERNAL / CONFIDENTIAL / REGULATED). This dictates which models and tools are permitted.
 2. **Detect domain** — Identify which MyACE component the task touches:
-   - **Backend** (`backend/`) — Python/FastAPI/SQLModel. Run `pytest` from `backend/`, lint with `ruff check .`, type-check with `mypy app`.
+   - **Backend** (`backend/`) — Python/FastAPI/SQLModel. Run `pytest` from `backend/`, lint with `ruff check .`, type-check with `mypy app` (advisory — CI runs it with `|| true`, so it reports but never fails the build; see AGENTS.md rule 1).
    - **Frontend** (`frontend/`) — TypeScript/React/Vite. Run `npm run test` from `frontend/`, lint with `npm run lint`.
    - **CLI** (`cli/`) — Python/Typer. Run `pytest` from `cli/`.
    - **Docker** — Three compose files: `docker-compose.yml` (base), `docker-compose.dev.yml` (dev overrides), `docker-compose.prod.yml` (VPS).

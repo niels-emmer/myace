@@ -281,7 +281,7 @@ hardening a fresh fork, and configuring SSO/SMTP are all covered in
 ├── cli/                          # Python Typer CLI
 │   ├── pyproject.toml
 │   └── myace_cli/
-│       ├── main.py               # Entrypoint (9 commands: login, logout, status, pull, check, watch, serve, list, import)
+│       ├── main.py               # Entrypoint (9 commands: login, logout, status, pull, check, watch, serve, list-profiles, import)
 │       ├── auth.py               # Credential storage
 │       ├── sync.py               # Profile fetch + write
 │       ├── scanner.py            # Local directory scanner
