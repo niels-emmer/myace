@@ -87,4 +87,4 @@ jobs:
             cli/dist/${{ matrix.asset }}.sha256
           fail_on_unmatched_files: false
           generate_release_notes: false
-          prerelease: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
