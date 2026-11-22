@@ -222,12 +222,13 @@ names where it's enforced so you can verify it hasn't regressed.
     `requesting_user is None` (internal/test), the profile's owner, or an
     admin. Every other requester — e.g. user B compiling user A's public
     profile — gets `pack_unavailable` and the pack is skipped, never served
-    from the frozen set. With no snapshot, the collection is skipped but the
-    warning is still emitted — the old silent-skip behaviour is gone. That
-    reload is the one deliberate compile-time authorization bypass; it is
-    scoped to ids the profile owner could read when the snapshot was
-    captured, and it relies on artifacts being soft-deleted at most
-    (invariant 18), never hard-deleted. See
+    from the frozen set. When the requester cannot read a pack, the warning
+    shows only an id prefix, never the pack's display name. With no
+    snapshot, the collection is skipped but the warning is still emitted —
+    the old silent-skip behaviour is gone. That reload is the one deliberate
+    compile-time authorization bypass; it is scoped to ids the profile owner
+    could read when the snapshot was captured, and it relies on artifacts
+    being soft-deleted at most (invariant 18), never hard-deleted. See
     [ADR-0015](adr/0015-pack-reference-freeze.md).
 
 25. **Install claims are not verification, and use counts are advisory.**

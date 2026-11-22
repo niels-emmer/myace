@@ -104,7 +104,9 @@ kept safe by four constraints:
    compilation is already the norm (a public profile never exposes its
    owner's private collections — see rule 13 and the accepted-gap note in
    `docs/invariants.md`), so this is consistent rather than a new
-   inconsistency.
+   inconsistency. When the requester cannot read a pack, its
+   `pack_unavailable` warning shows only an id prefix, never the pack's
+   display name.
 
 Artifacts are soft-deleted at most (AGENTS.md rule 15), never hard-deleted,
 so a frozen id keeps resolving after the pack is gone. A later soft-delete

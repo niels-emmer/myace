@@ -515,8 +515,10 @@ predicate is only ever true for `moderation_status = "approved"` rows) and
 accepts `sort=rating|downloads|alpha` (default `downloads`).
 `GET /moderation/queue` (moderator/admin only) lists `submitted` rows,
 oldest-first by default, accepting the same three `sort` values as an
-override. `download_count` tracks how many times the collection has been
-imported; `category` is a free-text browse string.
+override. `download_count` is the "used N times" counter — incremented by
+community import (a fork) and by `POST /collections/{id}/use` (a reference,
+once per call, with no per-user dedupe — see invariant 25); it is advisory,
+not a verified metric. `category` is a free-text browse string.
 
 Denying (`POST /moderation/{id}/deny`, body `{reason}`) sets
 `moderation_status = "denied"` and `moderation_reason`, leaves

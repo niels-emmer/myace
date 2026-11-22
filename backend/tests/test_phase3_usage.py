@@ -493,12 +493,19 @@ async def test_freeze_is_owner_scoped_across_compile_routes(
         assert "frozen-rule" not in "".join(b_body["files"].values())
         assert "pack_unavailable" in [w["code"] for w in b_body["warnings"]]
 
+        # The warning must not reveal the private pack's display name — only
+        # its id. (The pack name is "x-pack"; the id prefix must still appear.)
+        b_messages = " ".join(w["message"] for w in b_body["warnings"])
+        assert "x-pack" not in b_messages
+        assert pack_cid[:8] in b_messages
+
         # Zip route shares compile_profile(); it must not leak the freeze.
         b_zip = await viewer.post("/api/v1/profiles/compile/zip", json=body)
         assert b_zip.status_code == 200
         with zipfile.ZipFile(io.BytesIO(b_zip.content)) as zf:
             zipped = "".join(zf.read(name).decode() for name in zf.namelist())
         assert "frozen-rule" not in zipped
+        assert "x-pack" not in zipped
 
         # compile-status() also funnels through compile_profile(), so the
         # hash must be viewer-dependent here.

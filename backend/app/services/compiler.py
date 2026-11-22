@@ -125,7 +125,15 @@ async def compile_profile(
             continue
 
         snapshot = snapshots.get(str(cid))
-        label = _label(collection.name if collection is not None else None, cid)
+        # Only reveal the display name to a requester who may read the pack;
+        # a third party compiling a public profile must learn at most the id.
+        visible_name = (
+            collection.name
+            if collection is not None
+            and (requesting_user is None or _can_read_collection(collection, requesting_user))
+            else None
+        )
+        label = _label(visible_name, cid)
         if snapshot is not None and can_use_frozen:
             frozen_snapshots[cid] = snapshot
             captured_at = snapshot.get("captured_at") or "an earlier time"
@@ -382,7 +390,11 @@ def _collection_label(artifact: CanonicalArtifact) -> str:
 
 def _label(name: str | None, collection_id: uuid.UUID | None) -> str:
     short_id = str(collection_id)[:8] if collection_id else "?"
-    return f"'{name or 'unknown'}' ({short_id})"
+    if name is None:
+        # Never leak a name the requester isn't allowed to see — the id is
+        # enough to disambiguate.
+        return f"'{short_id}'"
+    return f"'{name}' ({short_id})"
 
 
 def _parse_pack_snapshots(profile: Profile) -> dict[str, dict[str, object]]:
