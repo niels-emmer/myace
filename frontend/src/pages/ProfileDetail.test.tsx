@@ -1,10 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ProfileDetail from './ProfileDetail';
 import { adaptersApi, collectionsApi, profilesApi, syncApi } from '../lib/api';
-import { installsApi } from '../lib/setupApi';
+import { installsApi, setupProfilesApi } from '../lib/setupApi';
 import type { Collection, CompileResult, Profile, SyncStatus } from '../types';
 
 vi.mock('react-router-dom', async () => {
@@ -133,6 +133,7 @@ describe('ProfileDetail framework matrix', () => {
     vi.mocked(adaptersApi.list).mockResolvedValue([]);
     vi.mocked(syncApi.getStatus).mockResolvedValue([]);
     vi.mocked(installsApi.list).mockResolvedValue([]);
+    vi.mocked(setupProfilesApi.update).mockResolvedValue(profile);
   });
 
   it('applies verified > drift > installed-not-verified > not-installed precedence', async () => {
@@ -160,6 +161,29 @@ describe('ProfileDetail framework matrix', () => {
     expect(screen.getByText('Not installed')).toBeInTheDocument();
     // Location comes from the install claim, not invented for sync-only rows.
     expect(screen.getByText('~/.config/opencode')).toBeInTheDocument();
+  });
+
+  it('persists a preferred target without dropping the other frameworks', async () => {
+    vi.mocked(adaptersApi.list).mockResolvedValue([
+      { name: 'opencode', description: 'OpenCode', targets: ['opencode'], enabled: true },
+    ]);
+    renderSetup();
+    await screen.findByText('My software setup');
+
+    fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
+    const selects = screen.getAllByRole('combobox');
+    fireEvent.change(selects[selects.length - 1], { target: { value: 'opencode' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+
+    await waitFor(() =>
+      expect(setupProfilesApi.update).toHaveBeenCalledWith(
+        'setup-1',
+        expect.objectContaining({
+          target_framework: 'opencode',
+          target_frameworks: ['claude-code', 'codex-cli', 'opencode', 'cursor'],
+        }),
+      ),
+    );
   });
 
   it('renders compile warnings as advisory amber copy', async () => {
