@@ -1425,14 +1425,14 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 - **"Use this pack" creates a setup that references the pack; "Add to a
   setup" attaches it to an existing one.** `components/AddToSetup.tsx` (mounted
   by `PackDetail.tsx`) calls `POST /profiles` (or `PUT /profiles/{id}`) to
-  persist the reference and the advisory `POST /collections/{id}/use` counter
-  alongside it, with the pack as `base_collection_id` —
+  persist the reference, with the pack as `base_collection_id` —
   or, for an add-on, after asking which starting point to pair with, with that
   base and the add-on in `additional_collection_ids`; Phase 3's snapshot
-  capture does the rest. "Add to a setup" appends the pack (or replaces the
-  base) through `PUT /profiles/{id}`, so that choice is persisted too. The
-  counter alone is never treated as an attach. Don't add a picker whose
-  choice isn't persisted.
+  capture does the rest. The advisory `POST /collections/{id}/use` counter is
+  recorded only after the setup write succeeds. "Add to a setup" appends the
+  pack (or replaces the base) through `PUT /profiles/{id}`, so that choice is
+  persisted too. The counter alone is never treated as an attach. Don't add a
+  picker whose choice isn't persisted.
 - **Home derives its state banner from setups + sync reports + install
   claims** (`GET /profiles` + `GET /sync/status`, plus a per-setup
   `GET /profiles/{id}/installs`): no setups → build your first setup;
