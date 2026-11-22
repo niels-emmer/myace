@@ -194,6 +194,14 @@ names where it's enforced so you can verify it hasn't regressed.
     which asserts zero `Collection`/`Artifact` rows exist after a compile
     call. See [ADR-0011](adr/0011-public-demo-sandbox.md).
 
+23. **`mfa_forced` gates login, not just UI copy.** When the MFA feature is
+    on and `mfa_forced` is set, an account with no enrolled TOTP factor gets
+    no session by either password login (`login_with_password()`) or SSO
+    (`auth_callback()`) — only a scoped enrolment challenge it must complete
+    before entering the app. Enforced in `backend/app/api/auth.py`. The MFA
+    login token is single-use, and a TOTP code cannot be replayed inside its
+    30-second step.
+
 ## A gap that's accepted, not fixed
 
 **Profile visibility doesn't cascade to its collections.** A profile marked
