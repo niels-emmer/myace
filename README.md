@@ -27,10 +27,10 @@ lock-in.
 A live instance runs at **[myace.macjuu.com](https://myace.macjuu.com)** —
 sign up and build your first setup in minutes, no setup required.
 
-MyACE ships with **19 starter packs** (4 starting points + 15 add-ons)
-plus **4 community-contributed add-ons**, holding **283 items** — 130 rules,
-89 skills, 49 agents, 14 workflows, and 1 model config — across
-**8 categories** and **143 tags**, and installs
+MyACE ships with **23 starter packs** (4 starting points + 19 add-ons)
+plus **4 community-contributed add-ons**, holding **311 items** — 144 rules,
+97 skills, 51 agents, 18 workflows, and 1 model config — across
+**8 categories** and **166 tags**, and installs
 to **12 target frameworks** (Claude Code, OpenCode, Cursor, Codex CLI,
 Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q Developer,
 and pi.dev). You can start from scratch and build your own rules, import
@@ -175,15 +175,16 @@ model.
   soft signal; it is not a ranking (the counter is user-incrementable).
 - **Packs out of the box** — every fresh install seeds itself with 4
   starting-point packs (Vibecoder, Software Engineer, Data Scientist, DevOps
-  Engineer) and 15 add-ons (Frontend, Backend, Database, QA/Test Engineer,
+  Engineer) and 19 add-ons (Frontend, Backend, Database, QA/Test Engineer,
   Infrastructure as Code Expert, Azure, AWS, Google Cloud, Security Auditor,
   Documentation Editor, Full-Stack Developer, DevOps/Platform Engineer,
-  Java/Spring Developer, Spec-Driven Development, AI/LLM Engineering), so
-  there's real, opinionated content to build a first setup from on day one.
-  Four highly-specialized add-ons (Scaleway Cloud Architect, iOS Developer,
-  Android Developer, EU AI Act Compliance) ship as community-contributed
-  packs instead of starters, so the community shelf also starts with real
-  content. The whole set is fixed and code-reviewed in
+  Java/Spring Developer, Spec-Driven Development, AI/LLM Engineering, Git
+  Practices, Design & Scaffold, Self-Hosted Deployment, Enterprise AI
+  Governance), so there's real, opinionated content to build a first setup
+  from on day one. Four highly-specialized add-ons (Scaleway Cloud Architect,
+  iOS Developer, Android Developer, EU AI Act Compliance) ship as
+  community-contributed packs instead of starters, so the community shelf
+  also starts with real content. The whole set is fixed and code-reviewed in
   [`collections/`](collections/) — separate from user-published community
   packs, and not affected by them.
 

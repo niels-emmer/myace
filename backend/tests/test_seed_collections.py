@@ -351,6 +351,120 @@ async def test_additional_collections_compile_clean_on_software_engineer(
         assert body["artifact_count"] > 0, f"{name} compiled to zero artifacts"
 
 
+NEW_ADDON_PACKS: dict[str, set[str]] = {
+    "Git Practices": {
+        "Git Workflow Discipline",
+        "github",
+        "precommit",
+        "release",
+        "Never Commit Secrets",
+        "Commit One Concern At A Time",
+        "Protect Shared Branches",
+        "Green Before Merge",
+    },
+    "Design & Scaffold": {
+        "Design Grilling",
+        "New App Scaffold",
+        "scout",
+        "decision-log",
+        "handoff",
+        "Decide Before Building",
+        "Scaffold Complete On Day One",
+        "Verify Dependency Provenance",
+    },
+    "Self-Hosted Deployment": {
+        "Self-Hosted App",
+        "Docker Patterns",
+        "One Container, One Database By Default",
+        "Back Up Before You Change State",
+        "Health Checks Gate Every Deploy",
+    },
+    "Enterprise AI Governance": {
+        "Agent Guardrails",
+        "Model Routing Policy",
+        "Audit Trail and Attribution",
+        "Classify Before You Send",
+        "Confirm Before Production Or Publication",
+        "Keep A Zero-Egress Path",
+        "Attribute AI-Authored Changes",
+    },
+}
+
+
+async def test_new_addon_packs_seed_their_artifacts(
+    db_session: AsyncSession, monkeypatch
+) -> None:
+    """The four newer add-on packs seed with exactly the expected artifact names.
+
+    Guards the public starter-pack contract from rule 42's vocabulary pass and
+    rule 29's naming discipline: a renamed skill or moved file would change the
+    compiled artifact set silently, so pin the names here.
+    """
+    await _seed_against_repo_collections(db_session, monkeypatch)
+
+    collections = (
+        await db_session.execute(
+            select(Collection).where(Collection.is_starter_pack.is_(True))
+        )
+    ).scalars().all()
+    by_name = {c.name: c for c in collections}
+
+    for pack_name, expected_names in NEW_ADDON_PACKS.items():
+        assert pack_name in by_name, f"Missing new add-on pack: {pack_name}"
+        collection = by_name[pack_name]
+        assert collection.collection_type == "additional"
+
+        artifacts = (
+            await db_session.execute(
+                select(Artifact).where(Artifact.collection_id == collection.id)
+            )
+        ).scalars().all()
+        assert {a.name for a in artifacts} == expected_names
+        assert collection.artifact_count == len(expected_names)
+
+
+async def test_new_addons_compile_clean_together_on_software_engineer(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch
+) -> None:
+    """Software Engineer + all four new add-ons in one profile must compile with
+    zero `name_collision` and zero `dangling_handoff` warnings.
+
+    This is the exact composition the add-ons are designed to layer onto, and
+    the check that rule 29 name uniqueness across collections actually holds —
+    a collision shows up only when the whole set is resolved together.
+    """
+    await _seed_against_repo_collections(db_session, monkeypatch)
+    await _register(async_client)
+
+    collections = (
+        await db_session.execute(
+            select(Collection).where(Collection.is_starter_pack.is_(True))
+        )
+    ).scalars().all()
+    by_name = {c.name: c for c in collections}
+    base = by_name["Software Engineer"]
+    addon_ids = [str(by_name[name].id) for name in NEW_ADDON_PACKS]
+
+    profile_id = await _create_profile(
+        async_client,
+        "se-all-new-addons",
+        str(base.id),
+        additional_collection_ids=addon_ids,
+    )
+
+    res = await async_client.post(
+        "/api/v1/profiles/compile",
+        json={"profile_id": profile_id, "target": "claude-code"},
+    )
+    assert res.status_code == 200, f"Combined profile failed to compile: {res.text}"
+    body = res.json()
+
+    codes = [w["code"] for w in body["warnings"]]
+    assert "dangling_handoff" not in codes, body["warnings"]
+    assert "name_collision" not in codes, body["warnings"]
+    assert body["artifact_count"] > 0
+
+
 async def test_additional_collections_compile_clean_on_devops_engineer(
     async_client: AsyncClient, db_session: AsyncSession, monkeypatch
 ) -> None:
