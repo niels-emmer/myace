@@ -1419,14 +1419,13 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   user-incrementable (invariant 25 / ADR-0015). The storefront/library must
   not offer "Most used" sorting or a "Top packs" ranking; "used N times" as
   a soft signal is fine.
-- **"Use this pack" means "create a setup that references it", not "fork a
-  copy".** `PackDetail.tsx` first calls `POST /collections/{id}/use` (the
-  counter) and then `POST /profiles` with the pack as `base_collection_id`
-  (or, for an add-on, the chosen starting point as the base and the add-on
-  in `additional_collection_ids`) — Phase 3's snapshot capture does the rest.
-  The old copy that implied an existing setup was mutated was wrong; there
-  is still no "append a pack to an existing setup" endpoint. Don't add a
-  picker whose choice isn't persisted.
+- **"Use this pack" records a reference use only.** `PackDetail.tsx` calls
+  `POST /collections/{id}/use` (the counter) and nothing else: it does not
+  create or mutate a setup, and it must not claim that a starting-point
+  pairing was saved. Attaching a pack to a setup — including pairing an
+  add-on with a base — is the setup lifecycle (Phase 2 scope). The
+  "Add to a setup…" link carries `?pack=<id>` for that flow to consume.
+  Don't add a picker whose choice isn't persisted.
 - **Home derives exactly one state banner from setups + sync reports**
   (`GET /profiles` + `GET /sync/status`): no setups → build your first
   setup; setups but no rows → install it; any row with `in_sync === false`
