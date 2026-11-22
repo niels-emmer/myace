@@ -76,7 +76,7 @@ still emits `pack_unavailable`. Nothing is silent anymore.
 
 Loading frozen artifacts **does not** re-check collection read access — that
 is the point, and it is the one deliberate compile-time auth bypass. It is
-kept safe by four constraints:
+kept safe by five constraints:
 
 1. **The client never supplies the snapshot.** `ProfileCreate` has no
    `pack_snapshots` field; the value is written only server-side during
