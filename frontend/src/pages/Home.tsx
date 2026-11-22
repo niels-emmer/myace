@@ -14,7 +14,7 @@ import { adaptersApi, collectionsApi, profilesApi, syncApi } from '../lib/api';
 import { installsApi } from '../lib/setupApi';
 import { useAuth } from '../contexts/AuthContext';
 import { BUNDLES } from '../lib/bundles';
-import { formatUses, packHref, packSource, packSourceLabel } from '../lib/packs';
+import { formatUses, frameworkLabel, packHref, packSource, packSourceLabel } from '../lib/packs';
 import type { Profile, SyncStatus } from '../types';
 
 type InstallState =
@@ -289,7 +289,7 @@ export default function Home() {
                           key={target}
                           className={`rounded-full border px-2.5 py-1 text-xs font-medium ${INSTALL_STATE_CLASSES[state]}`}
                         >
-                          {target} — {INSTALL_STATE_LABELS[state]}
+                          {frameworkLabel(target)} — {INSTALL_STATE_LABELS[state]}
                         </span>
                       );
                     })}

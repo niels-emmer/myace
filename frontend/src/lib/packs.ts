@@ -77,6 +77,10 @@ const FRAMEWORK_LABEL_BY_TARGET: Record<string, string> = {
   pi: 'pi.dev',
 };
 
+export function frameworkLabel(target: string): string {
+  return FRAMEWORK_LABEL_BY_TARGET[target] ?? target;
+}
+
 /**
  * "Works with" labels for a pack, derived from its items' descriptive
  * `target_compatibility`. That field is metadata and does not gate

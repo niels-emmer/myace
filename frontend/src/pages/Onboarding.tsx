@@ -22,7 +22,7 @@ import {
   setupProfilesApi,
 } from '../lib/setupApi';
 import { BUNDLES } from '../lib/bundles';
-import { packKindLabel } from '../lib/packs';
+import { frameworkLabel, packKindLabel } from '../lib/packs';
 import { useAuth } from '../contexts/AuthContext';
 import { resolveInstallPath, supportsMachineInstall } from '../types/setup';
 import type {
@@ -398,7 +398,7 @@ export default function Onboarding() {
                   >
                     <span className="flex items-center gap-2 text-sm font-medium">
                       {selected && <Check className="h-4 w-4" />}
-                      {name}
+                      {frameworkLabel(name)}
                     </span>
                     <span className="block text-xs text-muted-foreground">
                       {resolveInstallPath(name, 'machine')}

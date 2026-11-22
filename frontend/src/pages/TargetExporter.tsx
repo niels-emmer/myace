@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Download } from 'lucide-react';
 import { profilesApi } from '../lib/api';
 import { installsApi } from '../lib/setupApi';
+import { frameworkLabel } from '../lib/packs';
 import { profileTargets, resolveInstallPath, supportsMachineInstall } from '../types/setup';
 import type { InstallLocation } from '../types/setup';
 import InstallMethodPanel from '../components/InstallMethodPanel';
@@ -88,7 +89,7 @@ export default function TargetExporter() {
               {targets.length === 0 && <option value="">No frameworks configured</option>}
               {targets.map((target) => (
                 <option key={target} value={target}>
-                  {target} — {resolveInstallPath(target, 'machine')}
+                  {frameworkLabel(target)} — {resolveInstallPath(target, 'machine')}
                 </option>
               ))}
             </select>

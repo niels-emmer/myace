@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Laptop, RefreshCw, ShieldCheck } from 'lucide-react';
 import { LocalCompanionSetup, useCompanionHealth } from '../components/LocalCompanionSetup';
+import { frameworkLabel } from '../lib/packs';
 import SetupAudit from './SetupAudit';
 import SyncDashboard from './SyncDashboard';
 
@@ -181,7 +182,7 @@ export default function MachinePage() {
                 <tbody>
                   {detectedTargets.map(([name, target]) => (
                     <tr key={name} className="border-b border-border/50 last:border-0">
-                      <td className="px-5 py-3 font-medium text-card-foreground">{name}</td>
+                      <td className="px-5 py-3 font-medium text-card-foreground">{frameworkLabel(name)}</td>
                       <td className="px-5 py-3 text-muted-foreground">{target.artifact_count}</td>
                       <td className="px-5 py-3">
                         <span className="rounded border border-green-200 bg-green-50 px-2 py-0.5 text-xs text-green-700">

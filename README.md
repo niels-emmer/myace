@@ -39,20 +39,24 @@ pack, or browse the community library for ready-made content.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/login.png" alt="Sign in — an account is only needed to build, install, or publish" /></td>
-    <td width="50%"><img src="docs/images/dashboard.png" alt="Home — state banner, setup cards, and recommended packs" /></td>
+    <td width="50%"><img src="docs/images/storefront.png" alt="Anonymous storefront — featured packs, the four-step story and supported frameworks" /></td>
+    <td width="50%"><img src="docs/images/onboarding.png" alt="First-run wizard — choose the frameworks you use" /></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/collections.png" alt="Packs library — Starter and Community packs" /></td>
-    <td width="50%"><img src="docs/images/compile.png" alt="Install — a sample setup compiled to OpenCode" /></td>
+    <td width="50%"><img src="docs/images/dashboard.png" alt="Home — state banner, setup cards with per-framework status, and recommended packs" /></td>
+    <td width="50%"><img src="docs/images/collections.png" alt="Packs library — starting points and add-ons from Starter and Community" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/setup.png" alt="Setup — packs, framework matrix, and per-framework install actions" /></td>
+    <td width="50%"><img src="docs/images/compile.png" alt="Install — a setup compiled to Claude Code, with the exact file list" /></td>
   </tr>
 </table>
 
 The storefront at `/welcome` and the **Packs** library at `/packs` are
 browsable **without an account** — pack listings, detail pages, contents,
 and each pack's aggregate rating are public read-only. Writing (rating,
-commenting, using, installing, publishing) needs an account. The screenshots
-above show the signed-in app; there is no separate storefront capture yet.
+commenting, using, installing, publishing) needs an account. The first
+screenshot above is the anonymous storefront; the rest show the signed-in app.
 
 ## How it works
 
