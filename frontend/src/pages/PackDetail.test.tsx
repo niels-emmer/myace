@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PackDetail from './PackDetail';
-import { collectionsApi, commentsApi, profilesApi, ratingsApi } from '../lib/api';
+import { collectionsApi, commentsApi, ratingsApi } from '../lib/api';
 import { packApi } from '../lib/packApi';
 import type { Collection } from '../types';
 
@@ -21,7 +21,6 @@ vi.mock('../lib/api', () => ({
     unpublish: vi.fn(),
     verify: vi.fn(),
   },
-  profilesApi: { create: vi.fn() },
   ratingsApi: { get: vi.fn(), rate: vi.fn(), remove: vi.fn() },
   commentsApi: { list: vi.fn(), create: vi.fn(), remove: vi.fn() },
   moderationApi: { updateMeta: vi.fn() },
@@ -177,6 +176,10 @@ describe('PackDetail', () => {
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Leave a comment...')).toBeInTheDocument();
     expect(ratingsApi.get).toHaveBeenCalledWith('pack-1');
+    expect(screen.getByRole('link', { name: 'Add to a setup…' })).toHaveAttribute(
+      'href',
+      '/setups?pack=pack-1',
+    );
   });
 
   it('shows owner publish and manage actions plus the status tracker', async () => {
@@ -205,7 +208,7 @@ describe('PackDetail', () => {
     expect(screen.queryByRole('link', { name: 'Use this pack' })).not.toBeInTheDocument();
   });
 
-  it('creates a setup directly when a starting-point pack is used', async () => {
+  it('records a use for a starting point and points at Setups for the install', async () => {
     mockUser = { id: 'user-2', role: 'user' };
     const starterPack = {
       ...basePack,
@@ -221,7 +224,6 @@ describe('PackDetail', () => {
       collection_id: 'pack-1',
       download_count: 121,
     });
-    vi.mocked(profilesApi.create).mockResolvedValue({ id: 'setup-2' } as never);
 
     renderDetail();
     await screen.findByRole('heading', { name: 'Software Engineer' });
@@ -229,62 +231,33 @@ describe('PackDetail', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Use this pack' }));
 
     await waitFor(() => expect(packApi.usePack).toHaveBeenCalledWith('pack-1'));
-    expect(profilesApi.create).toHaveBeenCalledWith({
-      name: 'Software Engineer',
-      description: starterPack.description,
-      base_collection_id: 'pack-1',
-      additional_collection_ids: [],
-    });
+    expect(
+      await screen.findByText(/Recorded a use\. To install it, build a setup from/i),
+    ).toBeInTheDocument();
   });
 
-  it('asks an add-on which starting point to pair with and records the use', async () => {
+  it('records an add-on use without pretending the pairing is saved', async () => {
     mockUser = { id: 'user-2', role: 'user' };
     vi.mocked(collectionsApi.get).mockResolvedValue(basePack as never);
     vi.mocked(collectionsApi.getArtifacts).mockResolvedValue(artifacts);
-    vi.mocked(packApi.listCommunity).mockResolvedValue({
-      items: [
-        {
-          ...basePack,
-          id: 'base-1',
-          name: 'Software Engineer',
-          collection_type: 'base',
-          is_starter_pack: true,
-          owner_id: 'starter',
-        },
-      ],
-      total: 1,
-    });
     vi.mocked(packApi.usePack).mockResolvedValue({
       collection_id: 'pack-1',
       download_count: 411,
     });
-    vi.mocked(profilesApi.create).mockResolvedValue({
-      id: 'setup-1',
-      name: 'Software Engineer + Security & Compliance',
-    } as never);
 
     renderDetail();
     await screen.findByRole('heading', { name: 'Security & Compliance' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use this pack' }));
-    expect(
-      await screen.findByRole('heading', { name: /Pair this add-on with a starting point/i }),
-    ).toBeInTheDocument();
-    await screen.findByRole('option', { name: 'Software Engineer' });
-
-    const confirm = screen.getByRole('button', {
-      name: 'Create setup with this add-on',
-    });
-    await waitFor(() => expect(confirm).toBeEnabled());
-    fireEvent.click(confirm);
+    fireEvent.click(screen.getByRole('button', { name: 'Use this add-on' }));
     await waitFor(() => expect(packApi.usePack).toHaveBeenCalledWith('pack-1'));
-    // The chosen starting point is persisted as the new setup's base, and
-    // the add-on as its additional pack — the pairing is not discarded.
-    expect(profilesApi.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        base_collection_id: 'base-1',
-        additional_collection_ids: ['pack-1'],
-      }),
-    );
+
+    // No picker, no pairing claim: the confirmation says what actually
+    // happened and where the real combine flow lives.
+    expect(
+      await screen.findByText(
+        /Recorded a use of this add-on\. To combine it with a starting point, add both to a setup from/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/paired with/i)).not.toBeInTheDocument();
   });
 });
