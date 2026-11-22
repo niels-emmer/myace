@@ -266,15 +266,35 @@ REGISTER_BODY = {
 
 @pytest.mark.asyncio
 async def test_register_response_does_not_leak_account_existence(
-    async_client: AsyncClient,
+    async_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     """The duplicate-email response must be indistinguishable from a real
     registration: echoing `display_name` (rather than hardcoding "") is what
     stops the body being an account-existence oracle."""
     created = await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
     assert created.status_code == 201
+    real_id = created.json()["id"]
 
+    real = (
+        await db_session.execute(select(User).where(User.email == REGISTER_BODY["email"]))
+    ).scalar_one()
+    original_hash = real.password_hash
+    original_name = real.display_name
+
+    # Drop the session cookie the successful registration established, or a
+    # duplicate path that *did* authenticate would still look correct.
+    async_client.cookies.clear()
     duplicate = await async_client.post("/api/v1/auth/register", json=REGISTER_BODY)
+
+    # The duplicate path must not establish a session...
+    assert "myace_session" not in async_client.cookies
+    # ...must leave the real account untouched...
+    await db_session.refresh(real)
+    assert real.password_hash == original_hash
+    assert real.display_name == original_name
+    # ...and must not hand the caller a row that aliases it.
+    assert duplicate.json()["id"] != real_id
+
     fresh = await async_client.post(
         "/api/v1/auth/register", json={**REGISTER_BODY, "email": "other@example.com"}
     )
@@ -420,6 +440,30 @@ async def test_admin_emails_does_not_promote_other_users(
     assert resp.status_code == 200
     assert resp.json()["is_admin"] is False
     assert resp.json()["role"] == "user"
+
+
+@pytest.mark.asyncio
+async def test_admin_emails_promotes_an_existing_sso_user_on_callback(
+    async_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """L-4 must cover SSO too: an OIDC-only account has no password hash, so
+    the password login path can never promote it."""
+    monkeypatch.setattr(settings, "admin_emails", "sso-admin@example.com")
+    user = await _add_user(db_session, "sso-admin@example.com")
+    user.password_hash = None
+    db_session.add(user)
+    await db_session.commit()
+
+    status = await _sso_login(
+        async_client,
+        monkeypatch,
+        {"sub": "sso-sub", "email": "sso-admin@example.com", "email_verified": True},
+    )
+    assert status == 302
+
+    await db_session.refresh(user)
+    assert user.is_admin is True
+    assert user.role == "admin"
 
 
 # ─── L-5: unknown provider on the callback must be a 400, not a 500 ─

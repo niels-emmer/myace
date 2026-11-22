@@ -856,6 +856,12 @@ async def auth_callback(
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
 
+    # ADMIN_EMAILS must apply here too (L-4): an OIDC-only account has
+    # `password_hash is None`, so the password login path can never promote it.
+    # Same ordering as `login_with_password` — after identity is verified,
+    # before the second-factor gate.
+    await _promote_if_admin_email(session, user)
+
     # Same `mfa_forced` gate as password login. A user who already has MFA
     # enabled is *not* challenged here: the SSO flow has no second-factor step
     # (a pre-existing gap, out of scope for this change) — but they must at
@@ -982,13 +988,19 @@ def _totp_counter(secret: str, code: str) -> int | None:
     Mirrors pyotp's default `valid_window=0` (only the current step counts)
     while also reporting *which* step matched, so the caller can record it and
     reject a replay of the same code.
+
+    One clock read: `at()` and `timecode()` must agree on the step, or a code
+    verified just before a rollover is recorded as the *next* step and the
+    user's valid code for that interval is then rejected as a replay.
     """
     import pyotp
+    from pyotp.utils import strings_equal
 
+    now = datetime.now(UTC)
     totp = pyotp.TOTP(secret)
-    if not totp.verify(code):
+    if not strings_equal(str(code), str(totp.at(now))):
         return None
-    return int(totp.timecode(datetime.now(UTC)))
+    return int(totp.timecode(now))
 
 
 @router.post("/me/mfa/totp/setup")
