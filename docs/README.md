@@ -51,6 +51,10 @@ depth, it links here.
   MyACE ships, its confirmed file format and doc citation, plus a Future
   Plans section for unbuilt candidates (Zed AI, CodeGPT) and known gaps in
   shipped adapters, open to contribution.
+- **[plans/](plans/)** — design records for multi-phase work. Most relevant
+  now: [`plans/v2.0-onboarding-revamp.md`](plans/v2.0-onboarding-revamp.md)
+  (pack/setup/install vocabulary, navigation, Home, packs library, ⌘K, and
+  the v2.0 pre-release versioning decision).
 
 ## Keeping this up to date
 

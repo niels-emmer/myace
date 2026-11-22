@@ -132,7 +132,7 @@ describe('OrchestratorBuilder', () => {
   it('lists available agents once a profile is selected, and adds them to the sequence', async () => {
     renderPage();
 
-    fireEvent.change(await screen.findByDisplayValue('Select a profile...'), {
+    fireEvent.change(await screen.findByDisplayValue(/Select a setup/), {
       target: { value: 'profile-1' },
     });
 
@@ -154,12 +154,12 @@ describe('OrchestratorBuilder', () => {
 
     renderPage();
 
-    fireEvent.change(await screen.findByDisplayValue('Select a profile...'), {
+    fireEvent.change(await screen.findByDisplayValue(/Select a setup/), {
       target: { value: 'profile-1' },
     });
     fireEvent.click((await screen.findAllByText('Add'))[0]);
 
-    fireEvent.change(await screen.findByDisplayValue('Select one of your collections...'), {
+    fireEvent.change(await screen.findByDisplayValue(/Select one of your packs/), {
       target: { value: 'own-collection-1' },
     });
 
@@ -177,7 +177,7 @@ describe('OrchestratorBuilder', () => {
       );
     });
 
-    expect(await screen.findByRole('link', { name: /orchestration gallery/i })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Pipelines$/i })).toBeInTheDocument();
   });
 
   it('prefills fields from an edit-recipe passed via router state', async () => {
@@ -217,7 +217,7 @@ describe('OrchestratorBuilder', () => {
   it('blocks saving when the new agent name collides with a sequence member', async () => {
     renderPage();
 
-    fireEvent.change(await screen.findByDisplayValue('Select a profile...'), {
+    fireEvent.change(await screen.findByDisplayValue(/Select a setup/), {
       target: { value: 'profile-1' },
     });
     // Wait for the agents list to render before clicking "Add" — the list

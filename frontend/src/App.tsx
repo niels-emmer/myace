@@ -5,34 +5,30 @@ import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
-import Dashboard from './pages/Dashboard';
-import CollectionsHub from './pages/CollectionsHub';
+import Home from './pages/Home';
+import PacksLibrary from './pages/PacksLibrary';
 import CollectionsManager from './pages/CollectionsManager';
 import CollectionDetail from './pages/CollectionDetail';
 import NewArtifactRule from './pages/NewArtifactRule';
-import CommunityCollections from './pages/CommunityCollections';
 import CommunityCollectionDetail from './pages/CommunityCollectionDetail';
-import BuildHub from './pages/BuildHub';
 import ProfileComposer from './pages/ProfileComposer';
 import ProfileDetail from './pages/ProfileDetail';
 import TargetExporter from './pages/TargetExporter';
 import OrchestrationGallery from './pages/OrchestrationGallery';
 import OrchestratorBuilder from './pages/OrchestratorBuilder';
-import MachineHub from './pages/MachineHub';
+import MachinePage from './pages/MachinePage';
 import ImportPage from './pages/ImportPage';
-import SetupAudit from './pages/SetupAudit';
-import SyncDashboard from './pages/SyncDashboard';
 import SettingsHub from './pages/SettingsHub';
 import UserSettings from './pages/UserSettings';
 import SystemSettings from './pages/SystemSettings';
 import ModerationQueue from './pages/ModerationQueue';
 
-// Legacy top-level path -> new grouped path. `Navigate`'s `to` can't itself
-// contain a route param placeholder, so the :id param is read here and
-// interpolated before redirecting.
-function ProfileDetailRedirect() {
-  const { id } = useParams();
-  return <Navigate to={`/build/profiles/${id}`} replace />;
+// Legacy param-bearing paths. `Navigate`'s `to` can't contain a route param
+// placeholder, so the :id is read here and interpolated before redirecting
+// (AGENTS.md rule 38).
+function ParamRedirect({ to }: { to: (id: string) => string }) {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={id ? to(id) : '/'} replace />;
 }
 
 function RequireAuth() {
@@ -105,37 +101,55 @@ export default function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<Home />} />
 
-          <Route path="/collections" element={<CollectionsHub />} />
-          <Route path="/collections/mine" element={<CollectionsManager />} />
-          <Route path="/collections/community" element={<CommunityCollections />} />
-          <Route path="/collections/community/:id" element={<CommunityCollectionDetail />} />
-          <Route path="/collections/:id" element={<CollectionDetail />} />
-          <Route path="/collections/:id/artifacts/new" element={<NewArtifactRule />} />
+          <Route path="/setups" element={<ProfileComposer />} />
+          <Route path="/setups/:id" element={<ProfileDetail />} />
+          <Route path="/setups/:id/install" element={<TargetExporter />} />
 
-          <Route path="/build" element={<BuildHub />} />
-          <Route path="/build/profiles" element={<ProfileComposer />} />
-          <Route path="/build/profiles/:id" element={<ProfileDetail />} />
-          <Route path="/build/orchestration" element={<OrchestrationGallery />} />
-          <Route path="/build/orchestration/build" element={<OrchestratorBuilder />} />
-          <Route path="/build/compile" element={<TargetExporter />} />
+          <Route path="/packs" element={<PacksLibrary />} />
+          <Route path="/packs/mine" element={<CollectionsManager />} />
+          <Route path="/packs/pipelines" element={<OrchestrationGallery />} />
+          <Route path="/packs/pipelines/new" element={<OrchestratorBuilder />} />
+          <Route path="/packs/import" element={<ImportPage />} />
+          <Route path="/packs/community/:id" element={<CommunityCollectionDetail />} />
+          <Route path="/packs/:id/items/new" element={<NewArtifactRule />} />
+          <Route path="/packs/:id" element={<CollectionDetail />} />
 
-          <Route path="/machine" element={<MachineHub />} />
-          <Route path="/machine/import" element={<ImportPage />} />
-          <Route path="/machine/audit" element={<SetupAudit />} />
-          <Route path="/machine/sync" element={<SyncDashboard />} />
+          <Route path="/machine" element={<MachinePage />} />
 
-          {/* Legacy top-level paths, kept as redirects for old bookmarks/links */}
-          <Route path="/profiles" element={<Navigate to="/build/profiles" replace />} />
-          <Route path="/profiles/:id" element={<ProfileDetailRedirect />} />
-          <Route path="/orchestration" element={<Navigate to="/build/orchestration" replace />} />
-          <Route path="/orchestration/build" element={<Navigate to="/build/orchestration/build" replace />} />
-          <Route path="/compile" element={<Navigate to="/build/compile" replace />} />
-          <Route path="/export" element={<Navigate to="/build/compile" replace />} />
-          <Route path="/import" element={<Navigate to="/machine/import" replace />} />
-          <Route path="/setup-audit" element={<Navigate to="/machine/audit" replace />} />
-          <Route path="/sync" element={<Navigate to="/machine/sync" replace />} />
+          {/* Legacy paths, kept as redirects for old bookmarks/links */}
+          <Route path="/collections" element={<Navigate to="/packs" replace />} />
+          <Route path="/collections/community" element={<Navigate to="/packs" replace />} />
+          <Route
+            path="/collections/community/:id"
+            element={<ParamRedirect to={(id) => `/packs/community/${id}`} />}
+          />
+          <Route path="/collections/mine" element={<Navigate to="/packs/mine" replace />} />
+          <Route
+            path="/collections/:id/artifacts/new"
+            element={<ParamRedirect to={(id) => `/packs/${id}/items/new`} />}
+          />
+          <Route path="/collections/:id" element={<ParamRedirect to={(id) => `/packs/${id}`} />} />
+
+          <Route path="/build" element={<Navigate to="/setups" replace />} />
+          <Route path="/build/profiles" element={<Navigate to="/setups" replace />} />
+          <Route path="/build/profiles/:id" element={<ParamRedirect to={(id) => `/setups/${id}`} />} />
+          <Route path="/build/compile" element={<Navigate to="/setups" replace />} />
+          <Route path="/build/orchestration" element={<Navigate to="/packs/pipelines" replace />} />
+          <Route path="/build/orchestration/build" element={<Navigate to="/packs/pipelines/new" replace />} />
+
+          <Route path="/profiles" element={<Navigate to="/setups" replace />} />
+          <Route path="/profiles/:id" element={<ParamRedirect to={(id) => `/setups/${id}`} />} />
+          <Route path="/compile" element={<Navigate to="/setups" replace />} />
+          <Route path="/export" element={<Navigate to="/setups" replace />} />
+          <Route path="/orchestration" element={<Navigate to="/packs/pipelines" replace />} />
+          <Route path="/orchestration/build" element={<Navigate to="/packs/pipelines/new" replace />} />
+          <Route path="/import" element={<Navigate to="/packs/import" replace />} />
+          <Route path="/setup-audit" element={<Navigate to="/machine?tab=audit" replace />} />
+          <Route path="/sync" element={<Navigate to="/machine?tab=sync" replace />} />
+          <Route path="/machine/audit" element={<Navigate to="/machine?tab=audit" replace />} />
+          <Route path="/machine/sync" element={<Navigate to="/machine?tab=sync" replace />} />
           <Route path="/moderation" element={<Navigate to="/settings/moderation" replace />} />
           <Route path="/admin/system" element={<Navigate to="/settings/system" replace />} />
 

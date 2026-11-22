@@ -716,15 +716,15 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 ### 28. Frontend Structure Gotchas
 
 - **`CollectionDetail.tsx` no longer has an "Export to GitHub" button.** It
-  was removed — publishing a collection now goes exclusively through
+  was removed — publishing a pack now goes exclusively through
   "Publish to Community" (rule 18). The backing
   `POST /collections/{id}/export/github` endpoint and
   `backend/app/services/github_export.py` (rules 8, 10) are untouched and
   still reachable by direct API use; nothing in the frontend surfaces them
   anymore. Don't reintroduce the button — if GitHub export needs a UI again,
-  get explicit product direction first. `TargetExporter.tsx` (`/build/compile`)
-  remains a separate, unrelated concept: it compiles a **Profile** into a
-  target framework's files (copy-paste, zip download, or CLI pull).
+  get explicit product direction first. `TargetExporter.tsx`
+  (`/setups/:id/install`) remains a separate, unrelated concept: it installs
+  a **setup** into a target framework's files (copy-paste, zip download, or CLI pull).
 - `ImportPage.tsx`'s Local Machine / GitHub Repository source toggle
   shares one scan → select → import flow, but Local Machine scans hit the
   `myace serve` companion server (rule 24), not the backend.
@@ -970,8 +970,8 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   artifact.py`) is this route's request body and deliberately has no
   `collection_id` field — the path parameter is the single source of
   truth, not a client-supplied body field (same reasoning as rule 13).
-- **The Orchestration Gallery (`/build/orchestration`) and pipeline wizard
-  (`/build/orchestration/build`, `frontend/src/pages/OrchestratorBuilder.tsx`)
+- **Pipelines (`/packs/pipelines`) and the pipeline wizard
+  (`/packs/pipelines/new`, `frontend/src/pages/OrchestratorBuilder.tsx`)
   derive everything client-side from artifacts the API already
   exposes — no dedicated backend endpoint for either beyond the create
   route above.** A "recipe" is any agent with a `mode:primary` tag
@@ -1106,25 +1106,20 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 
 ### 38. Frontend Navigation Is Grouped by Task, With `lib/navigation.ts` as the Single Source of Truth
 
-- **The sidebar (`frontend/src/components/Layout.tsx`) is grouped into
-  task-based, collapsible sections, not a flat link list.** Groups:
-  Dashboard (single link, not collapsible), **Collections** (My
-  Collections, Community), **Build** (Profiles, Orchestration, Compile &
-  Export), **My Machine** (Import, Setup Audit, Sync), and **Settings**
-  (Account, Moderation†, System†). This exists because the flat 9-item
-  list stopped mapping to how people actually think about the app as
-  functionality grew (see `docs/plans/` for the platform-enhancements
-  history) — grouping by task keeps the nav legible for a first-time
-  visitor without hiding anything from a power user.
-- **Every group has a "hub" page** — `CollectionsHub.tsx`/`BuildHub.tsx`/
-  `MachineHub.tsx`/`SettingsHub.tsx`, all thin wrappers around the shared
-  `SectionHub.tsx` component — reachable at `/collections`, `/build`,
-  `/machine`, `/settings`. Clicking a group's *label* in the sidebar goes
-  to its hub (a card grid explaining what each child page is for);
-  clicking a *child* link goes straight to that page. `SettingsHub.tsx` is
-  the one hub page that isn't a static import — it calls `useAuth()` and
-  passes the live `user` into `getSettingsGroup(user)` itself, since its
-  card set is role-gated the same way its sidebar children are.
+- **The sidebar (`frontend/src/components/Layout.tsx`) is now four
+  task-based areas, not a flat link list.** **Home** (`/`) and **Setups**
+  (`/setups`) are single links; **Packs** (Browse packs `/packs`, My packs
+  `/packs/mine`, Pipelines `/packs/pipelines`) and **Settings** (Account,
+  Moderation†, System†) are collapsible groups. **My machine** (`/machine`)
+  is a secondary link in the sidebar footer, deliberately *not* a fifth
+  group. The desktop top bar is a slim 52px header inside the main column:
+  breadcrumb left and the ⌘K search button (plus theme toggle) right.
+- **The Packs group's hub is the library itself, not a `SectionHub` page.**
+  `/packs` renders `PacksLibrary.tsx`; the group's "Browse packs" child
+  links there with `end` so it isn't highlighted on `/packs/mine`. Only
+  `SettingsHub.tsx` remains a `SectionHub` wrapper, and it still calls
+  `useAuth()` and passes the live `user` into `getSettingsGroup(user)` so
+  its role-gated cards match its sidebar children.
 - **Each group is collapsed by default and expands on click, chevron
   rotated to indicate state.** `Layout.tsx`'s `NavGroupSection` renders
   the group label as a `Link` to its hub and a *separate* chevron button
@@ -1136,53 +1131,37 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   highlighted item) and every other group stays collapsed; a manual click
   overrides that default for that group until clicked again. Expanded
   children render in an indented, left-bordered block
-  (`ml-[1.15rem] pl-3 border-l border-border`) below the header — that's
-  the "slightly indented" sub-menu look; don't restyle children to look
-  like top-level items.
+  (`ml-[1.15rem] pl-3 border-l border-border`) below the header.
 - **`frontend/src/lib/navigation.ts` is the single source of truth for
-  group/child labels, icons, descriptions, and paths** — both
-  `Layout.tsx`'s sidebar and the four hub pages import the same
-  `collectionsGroup`/`buildGroup`/`machineGroup` constants (and
-  `getSettingsGroup(user)` for the role-gated one), so the sidebar and its
-  hub card never drift out of sync the way the CLI/backend scanner pair
-  (rule 8) or `ADAPTER_EXPECTED_PATHS` (rule 35) require manual syncing.
-  Add a new page to an existing group by adding one entry to that group's
-  `children` array in `navigation.ts` — don't hand-edit `Layout.tsx` or a
-  hub page directly.
+  group/child labels, icons, descriptions, paths, and breadcrumb rules** —
+  `Layout.tsx` and `SettingsHub.tsx` import `packsGroup`,
+  `getSettingsGroup(user)`, `homeNav`, `setupsNav`, and `machineNav` from
+  it. Add a new page to a group by adding one entry to that group's
+  `children` array; don't hand-edit `Layout.tsx`. `getBreadcrumb(pathname)`
+  in the same file drives the top-bar trail for every route.
 - **The Settings group's naming is deliberate: the *group* is "Settings",
   the *child* pointing at the personal-account page (`UserSettings.tsx`,
-  API tokens/CLI setup/profile) is "Account".** Calling both of them
-  "Settings" (the original shape) was confusing once Moderation and System
-  joined the same group as siblings — "Settings" now means "this whole
-  area," "Account" means "your own settings specifically." Don't rename
-  the child back to "Settings" even though its component file is still
-  called `UserSettings.tsx`.
-- **Every page that moved under a group prefix keeps its old top-level
-  path alive as a redirect** in `App.tsx` (`/profiles` → `/build/profiles`,
-  `/orchestration` → `/build/orchestration`, `/orchestration/build` →
-  `/build/orchestration/build`, `/compile` and `/export` → `/build/compile`,
-  `/import` → `/machine/import`, `/setup-audit` → `/machine/audit`,
-  `/sync` → `/machine/sync`, `/moderation` → `/settings/moderation`,
-  `/admin/system` → `/settings/system`) — same pattern as the pre-existing
-  `/export` → `/compile` redirect. `/profiles/:id` needs its own tiny
-  `ProfileDetailRedirect` wrapper component (reads `useParams().id` and
-  builds the target path) since `<Navigate to="...">` can't itself contain
-  a route param placeholder — copy that pattern for any future param-bearing
-  redirect. **`/collections` and `/settings` are the two exceptions**:
-  `/collections` used to be My Collections directly and `/settings` used
-  to be the account page directly, but both are now intentionally
-  repurposed as their group's hub landing page (My Collections moved to
-  `/collections/mine`, the account page moved to `/settings/account`)
-  rather than redirected — that's a deliberate behavior change, not an
-  oversight. `RequireModerator`/`RequireAdmin` still gate the real
-  `/settings/moderation`/`/settings/system` routes exactly as they gated
-  the old `/moderation`/`/admin/system` ones; the legacy paths are plain,
-  ungated `Navigate` redirects, not role-gated (they do still sit behind
-  `RequireAuth`, but the destination's own gate is what enforces the role).
+  API tokens/CLI setup/profile) is "Account".** "Settings" means "this whole
+  area," "Account" means "your own settings specifically." Don't rename the
+  child back to "Settings" even though its component file is still called
+  `UserSettings.tsx`.
+- **Every pre-revamp path stays alive as a redirect** in `App.tsx`
+  (`/collections*` → `/packs*`, `/build*`, `/profiles*`, `/compile`,
+  `/export` → `/setups*`, orchestration paths → `/packs/pipelines*`,
+  `/import` → `/packs/import`, `/setup-audit` → `/machine?tab=audit`,
+  `/sync` → `/machine?tab=sync`, legacy `/moderation` and `/admin/system` →
+  their `/settings/*` routes). Param-bearing redirects go through the tiny
+  generic `ParamRedirect` component, since `<Navigate to="...">` can't
+  contain a route param placeholder — reuse it for any future
+  param-preserving redirect rather than writing another one-off wrapper.
+  `App.routes.test.tsx` walks the whole legacy map, so a renamed canonical
+  route will fail the suite until its redirects are updated. Canonical
+  routes are listed in rule 42.
 - If you add a new top-level page, decide up front whether it belongs
-  inside an existing group (add it to that group's `children` in
-  `navigation.ts`) or genuinely needs a new group — don't add a new flat,
-  ungrouped sidebar item.
+  inside Setups, inside an existing Packs/Settings group, or genuinely
+  needs a new area — don't add a new flat, ungrouped sidebar item. New
+  user-facing copy must follow rule 42's vocabulary (Pack/Setup/Install/
+  Item), even though internals keep Collection/Profile/Artifact.
 
 ### 39. `POST /auth/login` Must Return the Real User, Not a Hand-Built `UserRead`
 
@@ -1298,7 +1277,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   to add here, just don't add a `useAuth()`/`owner_id` check that the rest
   of this page doesn't have either.
 - **"Add rule" (`frontend/src/pages/NewArtifactRule.tsx`,
-  `/collections/{id}/artifacts/new`) only creates `artifact_type: "rule"`**
+  `/packs/{id}/items/new`) only creates `artifact_type: "rule"`**
   — matching the button's literal label lets the form skip both a type
   picker and a `file_path` field. `file_path` is hardcoded to `"AGENTS.md"`,
   matching the convention every scanner-parsed rule already uses
@@ -1314,3 +1293,54 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   currently holds; invalidating that query on create (same as every other
   artifact-mutating action on this page) is sufficient for the new rule to
   appear in the right sorted position once the page navigates back.
+
+### 42. User-Facing Vocabulary Is Pack / Setup / Install / Item — Internals Stay Collection / Profile / Artifact
+
+- **Presentation vocabulary is fixed; API/model names are not.** In every
+  heading, button, empty state, dialog, nav label, and user-facing doc:
+  **Pack** = `Collection`, **Setup** = `Profile`, **Install** = compile +
+  pull/apply, **Item** = `Artifact`, **Pipeline** = the orchestration
+  gallery / `handoff_to` graph. "Bundle" is a curated frontend constant
+  (`frontend/src/lib/bundles.ts`), not a table. API routes, SQLModel
+  classes, compiler functions, tests, and internal identifiers keep
+  `collection`, `profile`, `artifact`, and `compile` — do not rename them
+  for presentation consistency. The public `/welcome` storefront is owned by
+  Phase 5 and is currently exempt.
+- **One mapping table, not a caption on every screen.** This rule and
+  `docs/plans/v2.0-onboarding-revamp.md` are the "also known as" reference.
+  Advanced editors may mention the internal term, but ordinary flows should
+  read as Pack/Setup/Install/Item only.
+- **Canonical routes (v2.0 onboarding revamp):** `/` Home; `/setups`
+  setups list; `/setups/:id` setup detail; `/setups/:id/install` install
+  panel (reads `:id`, with the legacy `?profile=` query still accepted);
+  `/packs` library; `/packs/mine` owned packs; `/packs/pipelines` and
+  `/packs/pipelines/new`; `/packs/import`; `/packs/community/:id` community
+  pack detail; `/packs/:id` pack detail; `/packs/:id/items/new` add rule;
+  `/machine` (tabs: Overview, Audit, Sync); `/settings*` unchanged.
+  `CollectionsManager.tsx` is My packs, `ProfileComposer.tsx` is Setups,
+  `TargetExporter.tsx` is Install, and `MachinePage.tsx` is the tabbed shell
+  around `SetupAudit` and `SyncDashboard` (both accept an `embedded` prop so
+  their page-level heading is suppressed inside a tab).
+- **`frontend/src/lib/packs.ts` owns source/kind presentation** —
+  `packSource()` (Starter / Community / Mine), `packKindLabel()` (Starting
+  point / Add-on), `packHref()` (community detail vs. owned/starter detail),
+  and `formatUses()`. Use these helpers in any new pack surface rather than
+  re-deriving the rules inline. Starter detection is
+  `Collection.is_starter_pack`; ownership is `owner_id === current user`.
+- **Home derives exactly one state banner from setups + sync reports**
+  (`GET /profiles` + `GET /sync/status`): no setups → build your first
+  setup; setups but no rows → install it; any row with `in_sync === false`
+  or non-empty `locally_modified_files` → amber drift banner; otherwise a
+  quiet healthy line. Per-framework chips use the matching
+  `(profile_id, target)` row: no row = not installed, local edits =
+  changed, `in_sync === false` = not verified, clean = verified. Keep the
+  single footer line — no object-count cards.
+- **`Profile.target_frameworks` is read optionally.** The frontend type has
+  `target_frameworks?: string[]` ahead of the backend Phase 3 column; every
+  surface must fall back to `target_framework` when it is absent, so a
+  deployment running the old API keeps working.
+- **The command palette (`components/CommandPalette.tsx`) is the ⌘K /
+  Ctrl-K surface bound to the `CommandPalette` component rendered once by
+  `Layout.tsx`.** It reuses the existing `['collections']` and `['profiles']`
+  query keys (rule 12) and adds no backend endpoint; keep new palette
+  entries in the Actions/Pages constants rather than fetching anything new.

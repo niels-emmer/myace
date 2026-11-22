@@ -1,9 +1,27 @@
 import { useState } from 'react';
 import { Link, Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, LogOut, Menu, X, ChevronRight } from 'lucide-react';
+import {
+  ChevronRight,
+  LogOut,
+  Menu,
+  Moon,
+  Search,
+  Sun,
+  X,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { collectionsGroup, buildGroup, machineGroup, getSettingsGroup, type NavGroup } from '../lib/navigation';
+import { useTheme } from '../contexts/ThemeContext';
+import {
+  getBreadcrumb,
+  getSettingsGroup,
+  homeNav,
+  machineNav,
+  packsGroup,
+  setupsNav,
+  type NavGroup,
+} from '../lib/navigation';
 import GithubIcon from './GithubIcon';
+import CommandPalette from './CommandPalette';
 
 const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -51,7 +69,7 @@ function NavGroupSection({
       {open && (
         <div className="mt-1 ml-[1.15rem] pl-3 border-l border-border space-y-1">
           {group.children.map((child) => (
-            <NavLink key={child.to} to={child.to} className={navLinkClasses}>
+            <NavLink key={child.to} to={child.to} end={child.end} className={navLinkClasses}>
               <child.icon className="h-4 w-4" />
               {child.label}
             </NavLink>
@@ -64,9 +82,11 @@ function NavGroupSection({
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const { resolvedTheme, setTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(location.pathname);
   const [openOverrides, setOpenOverrides] = useState<Record<string, boolean>>({});
 
@@ -85,7 +105,8 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const groups = [collectionsGroup, buildGroup, machineGroup, getSettingsGroup(user)];
+  const groups = [packsGroup, getSettingsGroup(user)];
+  const crumbs = getBreadcrumb(location.pathname);
 
   // Collapsed by default; a group auto-expands once its hub or one of its
   // pages is the active route, so navigating straight to a sub-page never
@@ -105,13 +126,22 @@ export default function Layout() {
           <img src="/logo.png" alt="MyACE" className="h-7 w-7" />
           <h1 className="text-lg font-bold text-card-foreground">MyACE</h1>
         </Link>
-        <button
-          onClick={() => setMobileMenuOpen(true)}
-          aria-label="Open menu"
-          className="p-2 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors"
-        >
-          <Menu className="h-6 w-6" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPaletteOpen(true)}
+            aria-label="Search (Command K)"
+            className="p-2 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors"
+          >
+            <Search className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open menu"
+            className="p-2 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+        </div>
       </div>
 
       {/* Backdrop */}
@@ -148,9 +178,13 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <NavLink to="/" end className={navLinkClasses}>
-            <LayoutDashboard className="h-4 w-4" />
-            Dashboard
+          <NavLink to={homeNav.to} end className={navLinkClasses}>
+            <homeNav.icon className="h-4 w-4" />
+            {homeNav.label}
+          </NavLink>
+          <NavLink to={setupsNav.to} className={navLinkClasses}>
+            <setupsNav.icon className="h-4 w-4" />
+            {setupsNav.label}
           </NavLink>
 
           {groups.map((group) => (
@@ -165,6 +199,19 @@ export default function Layout() {
         </nav>
 
         <div className="p-4 border-t border-border space-y-1">
+          <NavLink
+            to={machineNav.to}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                isActive
+                  ? 'text-brand-700 bg-brand-50 font-medium'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              }`
+            }
+          >
+            <machineNav.icon className="h-4 w-4" />
+            {machineNav.label}
+          </NavLink>
           <a
             href="https://github.com/niels-emmer/myace"
             target="_blank"
@@ -195,11 +242,60 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 min-w-0 overflow-auto">
-        <div className="p-4 sm:p-6 lg:p-8">
-          <Outlet />
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <header className="hidden lg:flex h-[52px] flex-shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-6">
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
+            {crumbs.map((crumb, index) => (
+              <span key={`${crumb.label}-${index}`} className="flex min-w-0 items-center gap-1.5">
+                {index > 0 && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />}
+                {crumb.to ? (
+                  <Link to={crumb.to} className="truncate text-muted-foreground hover:text-foreground transition-colors">
+                    {crumb.label}
+                  </Link>
+                ) : (
+                  <span
+                    aria-current={index === crumbs.length - 1 ? 'page' : undefined}
+                    className="truncate font-medium text-foreground"
+                  >
+                    {crumb.label}
+                  </span>
+                )}
+              </span>
+            ))}
+          </nav>
+
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <button
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Search (Command K)"
+              className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              <Search className="h-4 w-4" />
+              <span>Search</span>
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px]">⌘K</kbd>
+            </button>
+            <button
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+              aria-label={resolvedTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              {resolvedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-auto">
+          <div className="p-4 sm:p-6 lg:p-8">
+            <Outlet />
+          </div>
         </div>
       </main>
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpen={() => setPaletteOpen(true)}
+        onClose={() => setPaletteOpen(false)}
+      />
     </div>
   );
 }

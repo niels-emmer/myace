@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { authApi } from './lib/api';
 import type { User } from './types';
 
@@ -11,31 +12,63 @@ vi.mock('./lib/api', () => ({
   authApi: { me: vi.fn() },
 }));
 
-// Stub the leaf pages that legacy redirects land on, so this test only
-// exercises App.tsx's route table (which path redirects where), not each
-// page's own data fetching.
-vi.mock('./pages/ProfileComposer', () => ({ default: () => <div>profiles-page</div> }));
+// Stub every leaf page so this file only exercises App.tsx's route table
+// (which path lands where), not each page's own data fetching.
+vi.mock('./pages/Home', () => ({ default: () => <div>home-page</div> }));
+vi.mock('./pages/ProfileComposer', () => ({ default: () => <div>setups-page</div> }));
 vi.mock('./pages/ProfileDetail', async () => {
   const { useParams } = await import('react-router-dom');
-  function ProfileDetailStub() {
+  function SetupDetailStub() {
     const { id } = useParams();
-    return <div>profile-detail-page:{id}</div>;
+    return <div>setup-detail:{id}</div>;
   }
-  return { default: ProfileDetailStub };
+  return { default: SetupDetailStub };
 });
-vi.mock('./pages/OrchestrationGallery', () => ({ default: () => <div>orchestration-page</div> }));
-vi.mock('./pages/OrchestratorBuilder', () => ({ default: () => <div>orchestration-build-page</div> }));
-vi.mock('./pages/TargetExporter', () => ({ default: () => <div>compile-page</div> }));
+vi.mock('./pages/TargetExporter', () => ({ default: () => <div>install-page</div> }));
+vi.mock('./pages/PacksLibrary', () => ({ default: () => <div>packs-page</div> }));
+vi.mock('./pages/CollectionsManager', () => ({ default: () => <div>my-packs-page</div> }));
+vi.mock('./pages/OrchestrationGallery', () => ({ default: () => <div>pipelines-page</div> }));
+vi.mock('./pages/OrchestratorBuilder', () => ({ default: () => <div>pipeline-new-page</div> }));
 vi.mock('./pages/ImportPage', () => ({ default: () => <div>import-page</div> }));
-vi.mock('./pages/SetupAudit', () => ({ default: () => <div>setup-audit-page</div> }));
-vi.mock('./pages/SyncDashboard', () => ({ default: () => <div>sync-page</div> }));
+vi.mock('./pages/CommunityCollectionDetail', async () => {
+  const { useParams } = await import('react-router-dom');
+  function CommunityDetailStub() {
+    const { id } = useParams();
+    return <div>community-detail:{id}</div>;
+  }
+  return { default: CommunityDetailStub };
+});
+vi.mock('./pages/CollectionDetail', async () => {
+  const { useParams } = await import('react-router-dom');
+  function PackDetailStub() {
+    const { id } = useParams();
+    return <div>pack-detail:{id}</div>;
+  }
+  return { default: PackDetailStub };
+});
+vi.mock('./pages/NewArtifactRule', async () => {
+  const { useParams } = await import('react-router-dom');
+  function NewItemStub() {
+    const { id } = useParams();
+    return <div>new-item:{id}</div>;
+  }
+  return { default: NewItemStub };
+});
+vi.mock('./pages/MachinePage', async () => {
+  const { useSearchParams } = await import('react-router-dom');
+  function MachineStub() {
+    const [params] = useSearchParams();
+    return <div>machine-page:{params.get('tab') ?? 'overview'}</div>;
+  }
+  return { default: MachineStub };
+});
+vi.mock('./pages/SettingsHub', () => ({ default: () => <div>settings-page</div> }));
+vi.mock('./pages/UserSettings', () => ({ default: () => <div>account-page</div> }));
 vi.mock('./pages/ModerationQueue', () => ({ default: () => <div>moderation-page</div> }));
 vi.mock('./pages/SystemSettings', () => ({ default: () => <div>system-page</div> }));
 
-// Admin so the /moderation and /admin/system redirect cases (both
-// role-gated at their destination) actually reach their target instead of
-// bouncing to "/" — role gating itself is covered separately, this file is
-// only about the route table.
+// Admin so the moderation/system redirect cases reach their destination
+// instead of bouncing to "/" — role gating is covered separately.
 const mockUser: User = {
   id: 'user-1',
   email: 'user@test.com',
@@ -49,40 +82,84 @@ const mockUser: User = {
 function renderAt(path: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[path]}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </MemoryRouter>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[path]}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 
-describe('legacy top-level route redirects', () => {
+describe('canonical routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (authApi.me as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
   });
 
   it.each([
-    ['/profiles', 'profiles-page'],
-    ['/orchestration', 'orchestration-page'],
-    ['/orchestration/build', 'orchestration-build-page'],
-    ['/compile', 'compile-page'],
-    ['/export', 'compile-page'],
-    ['/import', 'import-page'],
-    ['/setup-audit', 'setup-audit-page'],
-    ['/sync', 'sync-page'],
-    ['/moderation', 'moderation-page'],
-    ['/admin/system', 'system-page'],
-  ])('redirects %s to the grouped route', async (path, expectedText) => {
+    ['/', 'home-page'],
+    ['/setups', 'setups-page'],
+    ['/setups/abc', 'setup-detail:abc'],
+    ['/setups/abc/install', 'install-page'],
+    ['/packs', 'packs-page'],
+    ['/packs/mine', 'my-packs-page'],
+    ['/packs/pipelines', 'pipelines-page'],
+    ['/packs/pipelines/new', 'pipeline-new-page'],
+    ['/packs/import', 'import-page'],
+    ['/packs/community/abc', 'community-detail:abc'],
+    ['/packs/abc', 'pack-detail:abc'],
+    ['/packs/abc/items/new', 'new-item:abc'],
+    ['/machine', 'machine-page:overview'],
+    ['/machine?tab=audit', 'machine-page:audit'],
+    ['/machine?tab=sync', 'machine-page:sync'],
+    ['/settings', 'settings-page'],
+    ['/settings/account', 'account-page'],
+    ['/settings/moderation', 'moderation-page'],
+    ['/settings/system', 'system-page'],
+  ])('%s renders its page', async (path, expectedText) => {
     renderAt(path);
     expect(await screen.findByText(expectedText)).toBeInTheDocument();
   });
+});
 
-  it('redirects /profiles/:id to /build/profiles/:id, preserving the id param', async () => {
-    renderAt('/profiles/abc-123');
-    expect(await screen.findByText('profile-detail-page:abc-123')).toBeInTheDocument();
+describe('legacy route redirects', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (authApi.me as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
+  });
+
+  it.each([
+    ['/collections', 'packs-page'],
+    ['/collections/community', 'packs-page'],
+    ['/collections/community/abc', 'community-detail:abc'],
+    ['/collections/mine', 'my-packs-page'],
+    ['/collections/abc', 'pack-detail:abc'],
+    ['/collections/abc/artifacts/new', 'new-item:abc'],
+    ['/build', 'setups-page'],
+    ['/build/profiles', 'setups-page'],
+    ['/build/profiles/abc', 'setup-detail:abc'],
+    ['/build/compile', 'setups-page'],
+    ['/build/orchestration', 'pipelines-page'],
+    ['/build/orchestration/build', 'pipeline-new-page'],
+    ['/profiles', 'setups-page'],
+    ['/profiles/abc', 'setup-detail:abc'],
+    ['/compile', 'setups-page'],
+    ['/export', 'setups-page'],
+    ['/orchestration', 'pipelines-page'],
+    ['/orchestration/build', 'pipeline-new-page'],
+    ['/import', 'import-page'],
+    ['/setup-audit', 'machine-page:audit'],
+    ['/sync', 'machine-page:sync'],
+    ['/machine/audit', 'machine-page:audit'],
+    ['/machine/sync', 'machine-page:sync'],
+    ['/moderation', 'moderation-page'],
+    ['/admin/system', 'system-page'],
+  ])('%s redirects to its canonical page', async (path, expectedText) => {
+    renderAt(path);
+    expect(await screen.findByText(expectedText)).toBeInTheDocument();
   });
 });

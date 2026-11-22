@@ -44,7 +44,7 @@ export default function ProfileFormFields({
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">Profile Name</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Setup name</label>
           <input
             type="text"
             value={value.name}
@@ -67,7 +67,7 @@ export default function ProfileFormFields({
 
       {/* Base Collection Selection */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">Base Collection</label>
+        <label className="block text-sm font-medium text-foreground mb-2">Starting-point pack</label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {baseCollections.map((col) => (
             <button
@@ -81,7 +81,7 @@ export default function ProfileFormFields({
               }`}
             >
               <div className="font-medium">{col.name}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{col.artifact_count} artifacts</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{col.artifact_count} items</div>
             </button>
           ))}
         </div>
@@ -89,7 +89,7 @@ export default function ProfileFormFields({
 
       {/* Additional Collections */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2">Additional Collections</label>
+        <label className="block text-sm font-medium text-foreground mb-2">Add-on packs</label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {additionalCollections.map((col) => (
             <button
@@ -103,7 +103,7 @@ export default function ProfileFormFields({
               }`}
             >
               <div className="font-medium">{col.name}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{col.artifact_count} artifacts</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{col.artifact_count} items</div>
             </button>
           ))}
         </div>
@@ -111,7 +111,7 @@ export default function ProfileFormFields({
 
       {/* Pre-compile name-collision preview — mirrors the compile-time
           name_collision warning (AGENTS.md rule 29/32) so the user can act
-          before saving, instead of discovering it on /build/compile. Advisory
+          before saving, instead of discovering it on /setups/:id/install. Advisory
           amber, matching TargetExporter.tsx's warning panel; updates live as
           the user disables artifacts or changes the selection. */}
       {collisions.length > 0 && (
@@ -120,12 +120,12 @@ export default function ProfileFormFields({
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-amber-800">
               {collisions.length === 1
-                ? '1 name collision across these collections'
-                : `${collisions.length} name collisions across these collections`}
+                ? '1 name collision across these packs'
+                : `${collisions.length} name collisions across these packs`}
             </h3>
             <p className="text-xs text-amber-700 mt-1">
-              When compiled, later collections override earlier ones by artifact name. Disable the
-              losing artifact to keep the winning one.
+              When installed, later packs override earlier ones by item name. Disable the
+              losing item to keep the winning one.
             </p>
             <ul className="mt-2 space-y-2">
               {collisions.map((collision) => (
@@ -142,7 +142,7 @@ export default function ProfileFormFields({
                       onClick={() => onDisableArtifact(collision.losingArtifactId)}
                       className="flex-shrink-0 text-xs font-medium text-amber-800 border border-amber-300 rounded px-2 py-1 hover:bg-amber-100 transition-colors"
                     >
-                      Disable in this profile
+                      Disable in this setup
                     </button>
                   )}
                 </li>

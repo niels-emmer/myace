@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import GithubIcon from '../components/GithubIcon';
 import { collectionsApi } from '../lib/api';
+import { packKindLabel } from '../lib/packs';
 import { useAuth } from '../contexts/AuthContext';
 import type { Collection } from '../types';
 
@@ -29,14 +30,14 @@ export default function CollectionsManager() {
   const createMutation = useMutation({
     mutationFn: () =>
       collectionsApi.create({
-        name: 'Untitled collection',
+        name: 'Untitled pack',
         description: '',
         collection_type: 'base',
         git_url: 'manual://untitled',
       }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ['collections'] });
-      navigate(`/collections/${created.id}`);
+      navigate(`/packs/${created.id}`);
     },
   });
 
@@ -44,38 +45,37 @@ export default function CollectionsManager() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">My Collections</h1>
+        <h1 className="text-2xl font-bold text-foreground">My packs</h1>
         <p className="text-muted-foreground mt-1">
-          Collections are groups of artifacts (rules, skills, agents, workflows) serving a
-          role or specific function in agentic coding. They can be imported from{' '}
-          <Link to="/machine/import?source=git" className="text-brand-600 hover:underline font-medium">
+          A pack is a bundle of items — rules, skills, agents, and workflows — around a role or
+          capability. Bring one in from{' '}
+          <Link to="/packs/import?source=git" className="text-brand-600 hover:underline font-medium">
             any GitHub repository
           </Link>
           , from{' '}
-          <Link to="/machine/import?source=local" className="text-brand-600 hover:underline font-medium">
+          <Link to="/packs/import?source=local" className="text-brand-600 hover:underline font-medium">
             your local machine
           </Link>
-          , or imported from the{' '}
-          <Link to="/collections/community" className="text-brand-600 hover:underline font-medium">
-            Community Collections
+          , or from the{' '}
+          <Link to="/packs" className="text-brand-600 hover:underline font-medium">
+            community library
           </Link>
           .
         </p>
         <p className="text-muted-foreground mt-2">
-          Base collections select your coding profile, additional collections add specific
-          roles and skills. Combine them into a Profile for your project, and compile them to
-          any framework.
+          Starting-point packs give you a complete baseline; add-on packs layer a specialty on top.
+          Compose them into a setup, then install it into any framework you use.
         </p>
       </div>
 
-      {/* My Collections */}
+      {/* My packs */}
       <div>
         <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
           <FolderGit2 className="h-5 w-5 text-muted-foreground" />
-          My Collections
+          My packs
         </h2>
         {isLoading ? (
-          <div className="text-center py-12 text-muted-foreground">Loading collections...</div>
+          <div className="text-center py-12 text-muted-foreground">Loading packs…</div>
         ) : collections && collections.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {collections.map((collection) => (
@@ -86,58 +86,58 @@ export default function CollectionsManager() {
           <div className="text-center py-12 bg-card rounded-xl border border-border">
             <FolderGit2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground mb-4">
-              You don't have any collections yet. Get started by importing one:
+              You don&rsquo;t have any packs yet. Get started by importing one:
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
-                to="/machine/import?source=local"
+                to="/packs/import?source=local"
                 className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
               >
                 <HardDrive className="h-4 w-4" />
                 Import from local machine
               </Link>
               <Link
-                to="/machine/import?source=git"
+                to="/packs/import?source=git"
                 className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
               >
                 <GithubIcon className="h-4 w-4" />
                 Import from a GitHub repo
               </Link>
               <Link
-                to="/collections/community"
+                to="/packs"
                 className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
               >
                 <BookOpen className="h-4 w-4" />
-                Browse community collections
+                Browse community packs
               </Link>
             </div>
           </div>
         )}
 
-        {/* Add a collection */}
+        {/* Add a pack */}
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium text-foreground">Add a collection:</span>
+          <span className="text-sm font-medium text-foreground">Add a pack:</span>
           <button
             onClick={() => createMutation.mutate()}
             disabled={createMutation.isPending}
             className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors text-sm font-medium"
           >
             <Plus className="h-4 w-4" />
-            {createMutation.isPending ? 'Creating...' : 'New'}
+            {createMutation.isPending ? 'Creating…' : 'New pack'}
           </button>
           <Link
-            to="/machine/import?source=git"
+            to="/packs/import?source=git"
             className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
           >
             <GithubIcon className="h-4 w-4" />
             From GitHub
           </Link>
           <Link
-            to="/collections/community"
+            to="/packs"
             className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:border-brand-600 hover:text-brand-600 transition-colors text-sm font-medium"
           >
             <BookOpen className="h-4 w-4" />
-            From the Community Collections
+            From the community
           </Link>
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function CollectionsManager() {
 function CollectionCard({ collection }: { collection: Collection }) {
   return (
     <Link
-      to={`/collections/${collection.id}`}
+      to={`/packs/${collection.id}`}
       className="block bg-card rounded-xl border border-border p-5 hover:shadow-sm transition-shadow group"
     >
       <div className="flex items-start justify-between mb-3">
@@ -166,7 +166,7 @@ function CollectionCard({ collection }: { collection: Collection }) {
               ? 'bg-blue-50 text-blue-700'
               : 'bg-purple-50 text-purple-700'
           }`}>
-            {collection.collection_type}
+            {packKindLabel(collection.collection_type)}
           </span>
           <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-brand-600 transition-colors" />
         </div>
@@ -184,7 +184,7 @@ function CollectionCard({ collection }: { collection: Collection }) {
           )}
           {collection.visibility}
         </span>
-        <span>{collection.artifact_count} artifacts</span>
+        <span>{collection.artifact_count} items</span>
         {collection.published && (
           <span className="flex items-center gap-1 text-green-600">
             <BookOpen className="h-3 w-3" />

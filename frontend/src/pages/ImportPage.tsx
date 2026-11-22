@@ -196,9 +196,9 @@ export default function ImportPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Import</h1>
+        <h1 className="text-2xl font-bold text-foreground">Import packs</h1>
         <p className="text-muted-foreground mt-1">
-          Scan a GitHub repository or your local machine, pick which items to bring in, then import them as a MyACE collection.
+          Scan a GitHub repository or your local machine, pick which items to bring in, then import them as a pack you own.
         </p>
       </div>
 
@@ -233,10 +233,10 @@ export default function ImportPage() {
       {/* Configuration Form */}
       <div className="bg-card rounded-xl border border-border p-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Collection Name */}
+          {/* Pack name */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
-              Collection Name
+              Pack name
             </label>
             <input
               type="text"
@@ -482,7 +482,7 @@ export default function ImportPage() {
       {scanned && artifacts.length === 0 && (
         <div className="bg-card rounded-xl border border-border p-12 text-center">
           <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground">No artifacts found at the specified source.</p>
+          <p className="text-muted-foreground">No items found at the specified source.</p>
           <p className="text-xs text-muted-foreground/60 mt-1">
             Make sure it contains skills/, agents/, commands/, or AGENTS.md
           </p>
@@ -533,7 +533,7 @@ export default function ImportPage() {
                 </div>
               ) : (
                 <p className="text-xs text-background/70">
-                  Head to Collections to view and manage the imported artifacts. (Git imports
+                  Head to Packs to view and manage the imported items. (Git imports
                   aren't yet supported by the CLI.)
                 </p>
               )}

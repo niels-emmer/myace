@@ -288,7 +288,7 @@ export default function UserSettings() {
                 Daily download digest
               </span>
               <span className="block text-xs text-muted-foreground">
-                Get a daily email summarizing new downloads on your published collections.
+                Get a daily email summarizing new downloads on your published packs.
               </span>
             </span>
           </label>
@@ -303,7 +303,7 @@ export default function UserSettings() {
             <span>
               <span className="block text-sm font-medium text-foreground">New comments</span>
               <span className="block text-xs text-muted-foreground">
-                Get an email as soon as someone comments on your published collections.
+                Get an email as soon as someone comments on your published packs.
               </span>
             </span>
           </label>
@@ -617,7 +617,7 @@ export default function UserSettings() {
         ) : (
           <div className="space-y-3 p-4 bg-destructive/5 rounded-lg border border-destructive/20">
             <p className="text-sm font-medium text-destructive">
-              Are you absolutely sure? This will delete all your collections, profiles, and tokens.
+              Are you absolutely sure? This will delete all your packs, setups, and tokens.
             </p>
             <p className="text-xs text-muted-foreground">
               Type <span className="font-mono font-bold text-foreground">DELETE</span> to confirm.

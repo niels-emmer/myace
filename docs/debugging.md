@@ -54,10 +54,10 @@ shows the correct data.
 filters* but the *same* React Query key. Whichever query resolves first
 caches under that key; the other component reads the stale/mismatched cache
 until its own query resolves and overwrites it — which can lose the race
-during fast client-side navigation. This happened with `Dashboard.tsx`
-fetching `collections?visibility=public` under the bare key `['collections']`
-while `CollectionsManager.tsx` fetched the unfiltered list under the same
-key.
+during fast client-side navigation. This happened with the old Dashboard
+(now `Home.tsx`) fetching `collections?visibility=public` under the bare key
+`['collections']` while `CollectionsManager.tsx` fetched the unfiltered list
+under the same key.
 
 **Fix:** fold every filter into the query key —
 `['collections', { visibility: 'public' }]` vs. `['collections']` are
@@ -634,7 +634,7 @@ why the shipped starter packs use `security-compliance-auditor` /
 **Symptom:** the compile response's `warnings` field carries a
 `dangling_handoff` `ValidationIssue`, e.g. `"Agent 'orchestrator'
 declares handoff_to 'reviewr', which is not present in the compiled
-artifact set."` — or, in the Orchestration Gallery
+artifact set."` — or, in Pipelines
 (`frontend/src/pages/OrchestrationGallery.tsx`), a node in the flow
 diagram renders dashed/red with a "not found" badge instead of the
 agent's normal card.
@@ -670,12 +670,12 @@ succeeds and produces every other file; only the file(s) whose
 `handoff_to` prose depends on the missing agent are affected in
 practice (nothing prevents the compiled output from shipping, since
 `handoff_to` isn't consumed by any adapter's `translate()` today — it's
-metadata for the Orchestration Gallery/wizard, not the compiled file
+metadata for the Pipelines gallery/wizard, not the compiled file
 content itself).
 
-## The Compile Profile zip download doesn't match the on-screen preview
+## The Install zip download doesn't match the on-screen preview
 
-**Symptom:** `/build/compile` (TargetExporter.tsx) shows a compiled profile with
+**Symptom:** `/setups/:id/install` (TargetExporter.tsx) shows a compiled setup with
 several files — e.g. `CLAUDE.md`, `.claude/agents/*.md`,
 `.claude/skills/*/SKILL.md` — but clicking "Download as .zip" produces an
 archive containing a single, often much larger, file (commonly `AGENTS.md`

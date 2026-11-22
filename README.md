@@ -25,30 +25,36 @@ model configs, managed as portable LLM tooling rather than per-framework
 lock-in.
 
 A live instance runs at **[myace.macjuu.com](https://myace.macjuu.com)** —
-sign up and start building a profile in minutes, no setup required.
+sign up and build your first setup in minutes, no setup required.
 
-MyACE ships with **23 starter collections** (4 base + 19 specializations)
-holding **282 artifacts** — 130 rules, 88 skills, 49 agents, 14 workflows,
-and 1 model config — across **8 categories** and **140 tags**, and compiles
+MyACE ships with **23 starter packs** (4 starting points + 19 add-ons)
+holding **282 items** — 130 rules, 88 skills, 49 agents, 14 workflows,
+and 1 model config — across **8 categories** and **140 tags**, and installs
 to **12 target frameworks** (Claude Code, OpenCode, Cursor, Codex CLI,
 Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q Developer,
 and pi.dev). You can start from scratch and build your own rules, import
 governance from any
 GitHub repo (or a local config directory) and turn it into a portable
-collection, or browse the community store for ready-made content.
+pack, or browse the community library for ready-made content.
 
 <table>
   <tr>
     <td width="50%"><img src="docs/images/login.png" alt="MyACE login screen" /></td>
-    <td width="50%"><img src="docs/images/dashboard.png" alt="MyACE dashboard" /></td>
+    <td width="50%"><img src="docs/images/dashboard.png" alt="MyACE Home — state banner, setup cards, and recommended packs" /></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/collections.png" alt="MyACE collections" /></td>
-    <td width="50%"><img src="docs/images/compile.png" alt="MyACE compile — a sample profile compiled to OpenCode" /></td>
+    <td width="50%"><img src="docs/images/collections.png" alt="MyACE packs library" /></td>
+    <td width="50%"><img src="docs/images/compile.png" alt="MyACE install — a sample setup installed to OpenCode" /></td>
   </tr>
 </table>
 
 ## How it works
+
+The app tells one story, everywhere: **browse packs → build a setup → install
+to your frameworks → (optionally) publish**. A **pack** is a bundle of rules,
+skills, agents, and workflows; a **setup** is your named recipe combining
+packs; **installing** writes that setup into each framework's own layout; an
+**item** is one rule, skill, agent, workflow, or model config.
 
 If you've built up a set of coding conventions, review rubrics, or agent
 personas you like, you've probably hit this: every framework wants them in
@@ -94,55 +100,54 @@ model.
 
 ## Features
 
-### Compose & compile
+### Packs, setups & installs
 
-- **Compile to any supported framework** — one click (or `myace pull`) turns
-  a profile into the exact files 12 frameworks expect: Claude Code, OpenCode,
+- **Install to any supported framework** — one click (or `myace pull`) turns
+  a setup into the exact files 12 frameworks expect: Claude Code, OpenCode,
   Cursor, Codex CLI, Copilot CLI, Cline, Windsurf, Aider, Continue, Goose,
   Amazon Q Developer, and pi.dev. See
   [docs/adapters-research.md](docs/adapters-research.md) for each adapter's
   exact output format.
 - **Import from anywhere** — scan a local config directory (`~/.claude`,
   `~/.config/opencode`, `~/.cursor`) or a GitHub repo, pick exactly which
-  rules/skills/agents to bring in, and they become a portable **Collection**.
-- **Compose, don't copy** — a **Profile** combines a base collection with
-  additional ones, layered by priority, with individual items toggled on or
-  off — a named recipe you compile per target, not a duplicated file tree.
-- **Edit artifacts in place** — expand a rule, skill, agent, workflow, or
-  model config on a collection's detail page and click its priority,
-  version, target frameworks, or body to edit it directly, validated and
-  auto-saved on blur. A right-aligned "Add rule" button adds a new rule
-  without leaving the collection.
+  rules/skills/agents to bring in, and they become a portable **pack**.
+- **Compose, don't copy** — a **setup** combines a starting-point pack with
+  add-ons, layered by priority, with individual items toggled on or off — a
+  named recipe you install per framework, not a duplicated file tree.
+- **Edit items in place** — expand a rule, skill, agent, workflow, or
+  model config on a pack's detail page and click its priority, version,
+  target frameworks, or body to edit it directly, validated and auto-saved
+  on blur. A right-aligned "Add rule" button adds a new rule without leaving
+  the pack.
 
 ### Orchestrate
 
-- **Orchestration Gallery & pipeline wizard** — agents can declare a
-  `handoff_to` list describing which other agents they route work to; the
-  Orchestration Gallery (`/build/orchestration`) turns that into a browsable
-  set of multi-agent pipeline "recipes" with a flow diagram, and "Compose
-  your pipeline" (`/build/orchestration/build`) lets you assemble a new
-  linear pipeline from an existing profile's agents and save it as a
-  generated orchestrator agent — no hand-written frontmatter required.
+- **Pipelines & pipeline wizard** — agents can declare a `handoff_to` list
+  describing which other agents they route work to; **Packs → Pipelines**
+  (`/packs/pipelines`) turns that into a browsable set of multi-agent
+  "recipes" with a flow diagram, and "Compose your pipeline"
+  (`/packs/pipelines/new`) lets you assemble a new linear pipeline from an
+  existing setup's agents and save it as a generated orchestrator agent — no
+  hand-written frontmatter required.
 
 ### Community
 
-- **Community collections** — submit your collections for a moderator to
-  review; approved submissions become public, browsable, and importable by
-  other users. Rate (1-5 stars) and comment on published collections, sort
-  the community listing by rating/downloads/name, and opt into email
-  notifications when your submissions get downloaded or commented on.
+- **Community packs** — submit your packs for a moderator to review;
+  approved submissions become public, browsable, and importable by other
+  users. Rate (1-5 stars) and comment on published packs, sort the community
+  library by rating/downloads/name, and opt into email notifications when
+  your submissions get downloaded or commented on.
 - **Starter packs out of the box** — every fresh install seeds itself with 4
-  base collections (Vibecoder, Software Engineer, Data Scientist, DevOps
-  Engineer) and 19
-  specializations (Frontend, Backend, Database, QA/Test Engineer,
+  starting-point packs (Vibecoder, Software Engineer, Data Scientist, DevOps
+  Engineer) and 19 add-ons (Frontend, Backend, Database, QA/Test Engineer,
   Infrastructure as Code Expert, Azure, AWS, Google Cloud, and Scaleway Cloud
   Architect, Security Auditor, Documentation Editor, Full-Stack Developer,
   DevOps/Platform Engineer, Java/Spring Developer, iOS Developer, Android
   Developer, Spec-Driven Development, AI/LLM Engineering, EU AI Act
-  Compliance), so there's real, opinionated content to build a first profile
+  Compliance), so there's real, opinionated content to build a first setup
   from on day one. This is a fixed, code-reviewed set maintained in
   [`collections/`](collections/) — separate from user-published community
-  collections, and not affected by them.
+  packs, and not affected by them.
 
 ### CLI & automation
 
@@ -150,9 +155,9 @@ model.
   it, put it in a dotfiles repo, run it on a fresh machine. See
   [docs/cli.md](docs/cli.md) for the full command reference.
 - **Sync & drift detection** — `myace pull` writes a local manifest so
-  `myace check`/`myace watch` can tell you whether a pulled-down profile has
+  `myace check`/`myace watch` can tell you whether a pulled-down setup has
   been hand-edited locally or gone stale against the server, with an opt-in
-  `--report` to a personal Sync Dashboard in the web UI. A distributable
+  `--report` to a personal sync report (`/machine?tab=sync`). A distributable
   [CI Action](docs/ci-drift-check.md) lets any repo that vendors compiled
   output fail its build on drift.
 
@@ -160,7 +165,7 @@ model.
 
 - **Real multi-user auth** — email+password (with email-based password
   reset) or OIDC/GitHub/Google SSO, optional TOTP two-factor authentication,
-  private-by-default collections and profiles with an explicit
+  private-by-default packs and setups with an explicit
   public/private flag, and user/moderator/admin roles for oversight. Not a
   toy single-user hack. See
   [docs/invariants.md#authorization](docs/invariants.md#authorization) for
@@ -237,7 +242,7 @@ hardening a fresh fork, and configuring SSO/SMTP are all covered in
 The shortest path to the main workflows:
 
 ```bash
-# Pull a compiled profile into the local layout of the framework you use
+# Pull a setup into the local layout of the framework you use (the CLI flag stays --profile)
 myace pull --profile "Software Engineer" --target claude-code
 
 # See what would be written before committing to it
@@ -247,11 +252,12 @@ myace pull --profile "Software Engineer" --target cursor --dry-run
 myace check --target claude-code
 ```
 
-In the web UI the same compile lives under **Build → Compile & Export**
-(`/build/compile`): pick a profile and a target, then copy the files or
-download a zip. To turn existing rules into a collection, use
-**My Machine → Import** (`/machine/import`) against `~/.claude`,
-`~/.config/opencode`, or a GitHub repo. Full command reference:
+In the web UI the same install lives under **Setups → Install**
+(`/setups/:id/install`): pick a setup and a framework, then copy the files or
+download a zip. To turn existing rules into a pack, use
+**Packs → Import** (`/packs/import`) against `~/.claude`,
+`~/.config/opencode`, or a GitHub repo. **My machine** (`/machine`) holds the
+companion health check, setup audit, and per-framework sync report. Full command reference:
 [docs/cli.md](docs/cli.md).
 
 ## Project Structure
@@ -290,18 +296,18 @@ download a zip. To turn existing rules into a collection, use
 │   ├── nginx.conf
 │   ├── package.json
 │   ├── src/
-│   │   ├── components/           # Layout (responsive, collapsible grouped sidebar/drawer), SectionHub,
-│   │   │                          #   TargetChecklist (adapter-name multi-select), shared UI
+│   │   ├── components/           # Layout (four-area sidebar, 52px top bar, ⌘K palette), CommandPalette,
+│   │   │                          #   SectionHub, TargetChecklist (adapter-name multi-select), shared UI
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
-│   │   ├── pages/                 # Landing (public /welcome), Login, ResetPassword, Dashboard,
-│   │   │                          #   CollectionsHub, CollectionsManager (My Collections), CollectionDetail,
-│   │   │                          #   NewArtifactRule (add a rule), CommunityCollections, CommunityCollectionDetail,
-│   │   │                          #   BuildHub, ProfileComposer,
-│   │   │                          #   ProfileDetail, OrchestrationGallery, OrchestratorBuilder, TargetExporter
-│   │   │                          #   (Compile & Export), MachineHub, ImportPage, SetupAudit, SyncDashboard,
-│   │   │                          #   SettingsHub, UserSettings (Account), ModerationQueue (moderator/admin-gated),
-│   │   │                          #   SystemSettings (admin-gated)
-│   │   ├── lib/                   # API client, navigation.ts (sidebar/hub group config — see AGENTS.md #38)
+│   │   ├── pages/                 # Landing (public /welcome), Login, ResetPassword, Home, PacksLibrary,
+│   │   │                          #   CollectionsManager (My packs), CollectionDetail, NewArtifactRule (add a rule),
+│   │   │                          #   CommunityCollectionDetail, ProfileComposer (Setups), ProfileDetail,
+│   │   │                          #   OrchestrationGallery (Pipelines), OrchestratorBuilder, TargetExporter (Install),
+│   │   │                          #   MachinePage (tabbed Overview/Audit/Sync) wrapping ImportPage, SetupAudit,
+│   │   │                          #   SyncDashboard, SettingsHub, UserSettings (Account),
+│   │   │                          #   ModerationQueue (moderator/admin-gated), SystemSettings (admin-gated)
+│   │   ├── lib/                   # API client, navigation.ts (sidebar + breadcrumbs — AGENTS.md #38),
+│   │   │                          #   bundles.ts (curated starter bundles), packs.ts (pack badges/links)
 │   │   └── types/                 # TypeScript interfaces
 │   └── dist/                     # Production build
 │

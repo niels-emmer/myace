@@ -24,6 +24,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
+import { packKindLabel } from '../lib/packs';
 import TargetChecklist from '../components/TargetChecklist';
 import { validatePriority, validateVersion } from '../lib/artifactValidation';
 import type { Artifact, ArtifactType, ArtifactUpdate, CollectionType, Visibility } from '../types';
@@ -203,7 +204,7 @@ export default function CollectionDetail() {
     mutationFn: () => collectionsApi.delete(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collections'] });
-      navigate('/collections');
+      navigate('/packs');
     },
   });
 
@@ -229,13 +230,13 @@ export default function CollectionDetail() {
 
   if (loadingCollection) {
     return (
-      <div className="text-center py-12 text-muted-foreground">Loading collection...</div>
+      <div className="text-center py-12 text-muted-foreground">Loading pack…</div>
     );
   }
 
   if (!collection) {
     return (
-      <div className="text-center py-12 text-muted-foreground">Collection not found.</div>
+      <div className="text-center py-12 text-muted-foreground">Pack not found.</div>
     );
   }
 
@@ -311,9 +312,9 @@ export default function CollectionDetail() {
       {/* Header */}
       <div className="flex flex-wrap items-start gap-4">
         <button
-          onClick={() => navigate('/collections')}
+          onClick={() => navigate('/packs')}
           className="p-2 -ml-2 text-muted-foreground hover:text-accent-foreground hover:bg-accent rounded-lg transition-colors"
-          title="Back to collections"
+          title="Back to packs"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -348,8 +349,8 @@ export default function CollectionDetail() {
                   }
                   className={inputClass}
                 >
-                  <option value="base">Base Collection</option>
-                  <option value="additional">Additional Collection</option>
+                  <option value="base">Starting point</option>
+                  <option value="additional">Add-on</option>
                 </select>
               </div>
             </div>
@@ -364,7 +365,7 @@ export default function CollectionDetail() {
                       : 'bg-purple-50 text-purple-700'
                   }`}
                 >
-                  {collection.collection_type}
+                  {packKindLabel(collection.collection_type)}
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
@@ -380,7 +381,7 @@ export default function CollectionDetail() {
                   )}
                   {collection.visibility}
                 </span>
-                <span>{collection.artifact_count} artifacts</span>
+                <span>{collection.artifact_count} items</span>
               </div>
               <p className="text-muted-foreground mt-1">
                 {collection.description || 'No description'}
@@ -409,7 +410,7 @@ export default function CollectionDetail() {
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors text-left"
                     >
                       <FolderOutput className="h-4 w-4" />
-                      Export to collection...
+                      Copy items to pack…
                     </button>
                     <button
                       onClick={openDeleteConfirm}
@@ -454,7 +455,7 @@ export default function CollectionDetail() {
               {collection.moderation_status === 'approved' ? (
                 <button
                   onClick={openUnpublishModal}
-                  title="Take this collection back out of the community store"
+                  title="Take this pack back out of the community library"
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
                 >
                   <BookOpen className="h-3.5 w-3.5" />
@@ -509,7 +510,7 @@ export default function CollectionDetail() {
               <p className="text-sm text-red-700 mt-1">{collection.moderation_reason}</p>
             )}
             <p className="text-sm text-red-700 mt-1">
-              Edit the collection, then use &ldquo;Resubmit for review&rdquo; above to send it
+              Edit the pack, then use &ldquo;Resubmit for review&rdquo; above to send it
               back to the moderation queue.
             </p>
           </div>
@@ -525,7 +526,7 @@ export default function CollectionDetail() {
               <p className="text-sm text-amber-700 mt-1">{collection.moderation_reason}</p>
             )}
             <p className="text-sm text-amber-700 mt-1">
-              This collection was taken out of the community store and is private again.
+              This pack was taken out of the community library and is private again.
               Use &ldquo;Resubmit for review&rdquo; above to send it back to the moderation queue.
             </p>
           </div>
@@ -592,7 +593,7 @@ export default function CollectionDetail() {
 
       {/* Artifact List */}
       {loadingArtifacts ? (
-        <div className="text-center py-12 text-muted-foreground">Loading artifacts...</div>
+        <div className="text-center py-12 text-muted-foreground">Loading items…</div>
       ) : visibleArtifacts.length > 0 ? (
         <div className="bg-card rounded-xl border border-border divide-y divide-border">
           {visibleArtifacts.map((artifact) => (
@@ -623,15 +624,15 @@ export default function CollectionDetail() {
           <FolderGit2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-muted-foreground">
             {typeFilter === 'all'
-              ? 'This collection has no artifacts.'
-              : `No ${typeFilter} artifacts in this collection.`}
+              ? 'This pack has no items.'
+              : `No ${typeFilter} items in this pack.`}
           </p>
         </div>
       )}
 
       <div className="flex justify-end">
         <button
-          onClick={() => navigate(`/collections/${id}/artifacts/new`)}
+          onClick={() => navigate(`/packs/${id}/items/new`)}
           className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors text-sm font-medium"
         >
           <Plus className="h-4 w-4" />
@@ -644,7 +645,7 @@ export default function CollectionDetail() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
             <h2 className="text-lg font-semibold text-card-foreground">
-              Export {selectedIds.size} item{selectedIds.size === 1 ? '' : 's'}
+              Copy {selectedIds.size} item{selectedIds.size === 1 ? '' : 's'}
             </h2>
 
             <div className="flex gap-2">
@@ -656,7 +657,7 @@ export default function CollectionDetail() {
                     : 'border-border text-muted-foreground hover:border-input'
                 }`}
               >
-                Existing collection
+                Existing pack
               </button>
               <button
                 onClick={() => setExportMode('new')}
@@ -666,19 +667,19 @@ export default function CollectionDetail() {
                     : 'border-border text-muted-foreground hover:border-input'
                 }`}
               >
-                New collection
+                New pack
               </button>
             </div>
 
             {exportMode === 'existing' ? (
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Target collection</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Target pack</label>
                 <select
                   value={exportTargetId}
                   onChange={(e) => setExportTargetId(e.target.value)}
                   className={inputClass}
                 >
-                  <option value="">Select a collection...</option>
+                  <option value="">Select a pack…</option>
                   {(allCollections ?? [])
                     .filter((c) => c.id !== id)
                     .map((c) => (
@@ -716,8 +717,8 @@ export default function CollectionDetail() {
                     onChange={(e) => setNewCollType(e.target.value as CollectionType)}
                     className={inputClass}
                   >
-                    <option value="base">Base Collection</option>
-                    <option value="additional">Additional Collection</option>
+                    <option value="base">Starting point</option>
+                    <option value="additional">Add-on</option>
                   </select>
                 </div>
               </div>
@@ -741,7 +742,7 @@ export default function CollectionDetail() {
                 disabled={!canConfirmExport || bulkExportMutation.isPending}
                 className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
               >
-                {bulkExportMutation.isPending ? 'Exporting...' : 'Export'}
+                {bulkExportMutation.isPending ? 'Copying…' : 'Copy'}
               </button>
             </div>
           </div>
@@ -761,8 +762,8 @@ export default function CollectionDetail() {
                   Delete {selectedIds.size} item{selectedIds.size === 1 ? '' : 's'}?
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  This action cannot be undone. The selected artifacts will be permanently
-                  removed from this collection.
+                  This action cannot be undone. The selected items will be permanently
+                  removed from this pack.
                 </p>
               </div>
             </div>
@@ -805,7 +806,7 @@ export default function CollectionDetail() {
                   Delete &ldquo;{collection.name}&rdquo;?
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  This will permanently disable this collection and hide it from
+                  This will permanently disable this pack and hide it from
                   all views. This action cannot be undone.
                 </p>
               </div>
@@ -849,7 +850,7 @@ export default function CollectionDetail() {
                   Unpublish &ldquo;{collection.name}&rdquo;?
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  This removes it from the community store and makes it private again. You can
+                  This removes it from the community library and makes it private again. You can
                   resubmit it for review later.
                 </p>
               </div>
@@ -889,8 +890,8 @@ export default function CollectionDetail() {
               Submit to Community
             </h2>
             <p className="text-sm text-muted-foreground -mt-2">
-              This submits the collection to the moderation queue for review. It only
-              becomes public in Community Collections once a moderator approves it.
+              This submits the pack to the moderation queue for review. It only
+              becomes public in the community library once a moderator approves it.
             </p>
 
             {publishMutation.isSuccess ? (
@@ -948,7 +949,7 @@ export default function CollectionDetail() {
                     />
                   ) : (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Helps users find your collection by category.
+                      Helps users find your pack by category.
                     </p>
                   )}
                 </div>
@@ -973,7 +974,7 @@ export default function CollectionDetail() {
                     onChange={(e) => setPublishDescription(e.target.value)}
                     rows={3}
                     className={inputClass}
-                    placeholder="What does this collection provide?"
+                    placeholder="What does this pack provide?"
                   />
                 </div>
                 {publishMutation.isError && (
@@ -1009,11 +1010,11 @@ export default function CollectionDetail() {
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm space-y-4">
             <h2 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
               <Share2 className="h-5 w-5" />
-              Share Collection
+              Share pack
             </h2>
             <p className="text-sm text-muted-foreground -mt-2">
-              Control who can see this collection. Public collections are
-              visible to all users; private collections are only visible to you.
+              Control who can see this pack. Public packs are visible to all users;
+              private packs are only visible to you.
             </p>
 
             <div className="flex gap-2">

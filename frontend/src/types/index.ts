@@ -40,6 +40,7 @@ export interface Collection {
   download_count: number;
   published: boolean;
   category?: string;
+  is_starter_pack?: boolean;
   avg_rating: number;
   rating_count: number;
   moderation_status: ModerationStatus;
@@ -137,6 +138,9 @@ export interface Profile {
   additional_collection_ids: string[];
   disabled_artifact_ids: string[];
   target_framework?: string;
+  /** Additive multi-framework field (backend phase 3). Absent today — the UI
+   *  falls back to `target_framework` until the API returns it. */
+  target_frameworks?: string[];
   is_public: boolean;
   version: number;
   created_at: string;
