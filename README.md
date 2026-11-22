@@ -395,8 +395,9 @@ their own fork:
 ### Testing
 
 Run the suites with `pytest` in `backend/` and `cli/`, and `npm run test` in
-`frontend/`. Exact setup, plus the `ruff`, `mypy`, `tsc`, and `eslint`
-commands, is in
+`frontend/`; `npm run dev`, `npm run build`, `npm run lint`, and
+`npm run preview` are the other frontend tasks. Exact setup, plus the `ruff`,
+`mypy`, `tsc`, and `eslint` commands, is in
 [`CONTRIBUTING.md#running-checks-locally`](CONTRIBUTING.md#running-checks-locally);
 CI runs all of them on every PR.
 

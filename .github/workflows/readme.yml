@@ -1,7 +1,8 @@
 name: README
 
 # Structural floor for README.md: required sections, no placeholder text,
-# relative links/images resolve, and package.json scripts are mentioned.
+# relative links/images resolve, and package.json scripts are mentioned as
+# `npm run <name>`.
 # It cannot catch a wrong port or a stale screenshot — that needs a human
 # running Quick Start. See scripts/check-readme.sh.
 

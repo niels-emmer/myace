@@ -5,7 +5,8 @@
 #
 # Checks what a machine can check: the file exists, the required sections are
 # present, no placeholder text survives, every relative link/image resolves, and
-# every package.json script is mentioned. It cannot see a wrong port, a stale
+# every package.json script is mentioned as `npm run <name>`. It cannot see a
+# wrong port, a stale
 # screenshot, or a command that no longer runs — run Quick Start for that.
 #
 # Exit 0 = pass (warnings allowed), 1 = errors found.
@@ -62,22 +63,36 @@ if [ -n "$links" ]; then
 fi
 
 # --- package.json scripts ----------------------------------------------------
-if [ -f "$root/package.json" ] && command -v python3 >/dev/null 2>&1; then
-  scripts=$(python3 - "$root/package.json" <<'PY' 2>/dev/null || true
-import json, sys
-try:
-    data = json.load(open(sys.argv[1]))
-except Exception:
-    sys.exit(0)
-for name in (data.get("scripts") or {}):
-    print(name)
+# Discover package.json files at the root and one level down (e.g.
+# frontend/package.json), skipping installed dependencies. A script counts as
+# mentioned only as `npm run <name>` — a bare substring match would let `dev`
+# be satisfied by "development" and `lint` by "eslint".
+if command -v python3 >/dev/null 2>&1; then
+  missing=$(python3 - "$root" "$readme" <<'PY' 2>/dev/null || true
+import json, pathlib, re, sys
+
+root = pathlib.Path(sys.argv[1])
+readme = pathlib.Path(sys.argv[2]).read_text(encoding="utf-8")
+
+packages = sorted(root.glob("package.json")) + sorted(root.glob("*/package.json"))
+for pkg in packages:
+    if "node_modules" in pkg.parts:
+        continue
+    try:
+        data = json.loads(pkg.read_text(encoding="utf-8"))
+    except Exception:
+        continue
+    rel = pkg.relative_to(root)
+    for name in (data.get("scripts") or {}):
+        pattern = re.compile(r"npm run " + re.escape(name) + r"(?![A-Za-z0-9_:-])")
+        if not pattern.search(readme):
+            print(f"{rel} -> npm run {name}")
 PY
 )
-  if [ -n "$scripts" ]; then
-    while IFS= read -r name; do
-      [ -z "$name" ] && continue
-      grep -qF -- "$name" "$readme" || warn "package.json script not mentioned in README: $name"
-    done <<< "$scripts"
+  if [ -n "$missing" ]; then
+    while IFS= read -r item; do
+      warn "package.json script not mentioned in README: $item"
+    done <<< "$missing"
   fi
 fi
 
