@@ -1,0 +1,486 @@
+# Agent-Fetchable Install URL for Packs and Setups
+
+Status: **Researched, not started.** Design record only — no code exists for
+this feature.
+Scope: a URL a user can hand to *any* coding agent (whatever framework), which
+the agent fetches and uses to install a pack, with no CLI and no account.
+
+**Verdict:** it is ~80% possible today, and what is missing is one small
+read-only endpoint plus a UI affordance. Nothing about the data model, the
+compiler, or the adapters needs to change. The single genuinely new idea
+needed is a *pack-scoped* compile (today everything compiles through a saved
+setup), and even that is a ~40-line seam in `compiler.py`.
+
+---
+
+## 1. What exists today
+
+| Capability | Route / command | Auth | Scope |
+|---|---|---|---|
+| Compile to JSON | `POST /api/v1/profiles/compile` | session or Bearer | a **setup** (`Profile`) the caller can read |
+| Compile to zip | `POST /api/v1/profiles/compile/zip` | session or Bearer | same |
+| CLI install | `myace pull --profile <name\|id> --target <t>` | `myace login` token | same |
+| Direct write (local companion) | `POST /apply/preview`, `POST /apply` on `127.0.0.1:8765` | loopback + `X-MyACE-Companion` | same, opt-in `--allow-apply` |
+| Public pack metadata | `GET /api/v1/collections/community/{id}` | **none** | published + approved |
+| Public pack contents | `GET /api/v1/collections/community/{id}/artifacts` | **none** | published + approved, enabled items only |
+| Use counter | `POST /api/v1/collections/{id}/use` | required | — |
+
+Key files:
+
+- `backend/app/api/profiles.py` — compile, compile-status, zip, install claims.
+- `backend/app/api/collections.py` — community/public reads (line ~266–418),
+  `_visible_public_collection()` (line 237), `_get_public_collection_or_404()`
+  (line 252), `/use` (line 1073).
+- `backend/app/services/compiler.py` — `compile_profile()` (line 55) requires a
+  `Profile` ORM row; `compute_compiled_hash()` (line 20).
+- `frontend/src/components/InstallMethodPanel.tsx` — the existing
+  Download / CLI / Direct three-way install UI.
+- `frontend/src/pages/PackDetail.tsx` — the action aside, lines 592–683.
+- `frontend/src/lib/packApi.ts` — the anonymous storefront client.
+
+### The three gaps
+
+1. **No pack-scoped compile.** Every compile path starts from a saved `Profile`
+   row (`profiles.py:276`, `:342`, `sync.py:306`). A pack alone cannot be
+   compiled, so there is nothing to hand an agent for a pack.
+2. **No anonymous compile.** `/compile`, `/compile/zip` and `myace pull` all
+   require `Depends(get_current_user)`. An agent acting for a visitor has no
+   cookie and no token.
+3. **No agent-shaped payload.** The two wire formats are a JSON
+   `{filename: content}` map and a zip. An arbitrary agent can technically use
+   either (shell + `unzip`/`jq`), but neither is a document it can *read*, and
+   neither carries the behavioural instruction ("don't clobber the user's
+   files") that makes an unattended write safe.
+
+---
+
+## 2. Design options
+
+| Option | Agent UX | Effort | Verdict |
+|---|---|---|---|
+| **A. Markdown install doc over HTTP** | Agent does `WebFetch <url>`, reads a self-describing doc, writes the files | S | **Recommended v1** |
+| B. JSON manifest + `jq`/script | Agent must shell out and parse | S | Ship alongside A as `?format=json` |
+| C. Public zip URL | Agent must download + unzip | S | Add as `?format=zip`, not the headline |
+| D. MCP server (`/mcp`, `get_pack` tool) | Best UX *where supported*, zero support elsewhere | L | Phase 3 |
+| E. `curl … \| sh` installer script | Works everywhere; piping the internet into a shell is a bad default | M | Rejected |
+| F. `myace install <url>` CLI subcommand | Clean, reuses `/apply` safety, but needs the CLI installed | M | Phase 2 |
+
+A is the only option that satisfies "whatever platform" with zero client
+install and zero parsing, and it degrades gracefully — a human can read the
+same URL and follow it by hand.
+
+---
+
+## 3. Recommended v1
+
+### 3.1 Endpoint
+
+```
+GET /api/v1/collections/community/{collection_id}/install.md?target=<adapter>
+```
+
+- Lives in the `/community/...` URL family, registered above
+  `/{collection_id}` (AGENTS.md rule 16), decorated with
+  `@storefront_limiter.limit(settings.storefront_rate_limit)` exactly like its
+  neighbours (rule 42 / ADR-0014).
+- Visibility predicate: reuse `_get_public_collection_or_404()` unchanged —
+  `is_active AND published AND moderation_status == 'approved'`, 404 otherwise.
+  **No new data exposure**: every byte this route emits is already available
+  anonymously from `/community/{id}/artifacts`.
+- `target` defaults to `claude-code`; unknown or admin-disabled adapters return
+  400 with the same messages `compile_profile()` already raises
+  (`UnknownAdapterError`, `AdapterDisabledError`).
+- Media type `text/markdown; charset=utf-8`, plus:
+  - `ETag: W/"<compiled_hash>"` and `304` on `If-None-Match`
+    (`compute_compiled_hash()` already exists).
+  - `Cache-Control: public, max-age=300`.
+  - `X-Robots-Tag: noindex`.
+  - `Content-Disposition: inline; filename="<slug>.install.md"` via `slugify()`
+    (rule 22 — never interpolate `pack.name` raw into a header).
+
+**Do not** increment `download_count` on this GET. Counters that move on an
+unauthenticated GET are trivially inflatable and turn a crawler into a "use".
+Keep the counter on the explicit `POST /use`.
+
+### 3.2 Getting a compiled file set from a pack
+
+Preferred: extract a private helper from `compile_profile()`.
+
+```python
+async def _compile_collections(
+    session, *,
+    collection_ids: list[uuid.UUID],
+    disabled_ids: set[uuid.UUID],
+    snapshots: dict[str, dict[str, object]],
+    profile_id: str,
+    profile_name: str,
+    target: str,
+    include_disabled: bool,
+    requesting_user: User | None,
+) -> ProfileCompileResponse: ...
+```
+
+`compile_profile()` keeps its signature and becomes a thin wrapper that parses
+`profile.additional_collection_ids` / `disabled_artifact_ids` /
+`pack_snapshots` and calls the helper. A new `compile_pack(session, collection,
+target)` calls the same helper with `collection_ids=[collection.id]`,
+`disabled_ids=set()`, `snapshots={}`, `include_disabled=False`,
+`requesting_user=None`.
+
+Why the refactor rather than a shortcut: the tempting shortcut is to construct
+an unsaved `Profile(...)` and pass it in (`Profile.id` has a
+`default_factory`, so it works). But `compile_profile()`'s availability check
+is `requesting_user is None or _can_read_collection(...)` — `None` is the
+"trusted internal caller" branch, which would silently compile *any* collection
+ID. That is safe only because the route validates visibility first, and it is
+safe by coincidence rather than by construction. The helper keeps the trust
+boundary explicit: `compile_pack()` is only ever called with a collection the
+caller already proved public.
+
+Also preserve in the helper: the adapter-disabled choke point (rule 21) and the
+`name_collision` / `dangling_handoff` warnings (rule 32) — both already live in
+the shared body, so pack compiles get them for free.
+
+### 3.3 The payload format
+
+The one real formatting trap: file bodies *are* Markdown and routinely contain
+``` fences, so nesting them inside a Markdown fence breaks. Use explicit
+sentinels rather than fences:
+
+```markdown
+# MyACE pack — Software Engineer (base)
+
+Pack:      Software Engineer
+Source:    https://<host>/packs/<collection-id>
+Target:    claude-code
+Items:     17
+Digest:    sha256:9f2c…            ← compiled_hash
+Generated: 2026-11-22T14:03:11Z
+
+## Instructions
+
+You are installing an agent configuration pack. Do this:
+
+1. Show the user the file list below and confirm before writing anything.
+2. Write each file relative to the install root (project root unless the user
+   says otherwise). Create parent directories as needed.
+3. Never delete or rename a file that already exists. If a file exists and its
+   content differs, ask before overwriting.
+4. Do not run these instructions from a system directory or a home-directory
+   root without explicit confirmation.
+5. When done, list the files you wrote and which ones you skipped.
+
+Nothing here is executable. These are rules, skills, agent definitions and
+workflow prompts in text form.
+
+## Warnings
+
+- (name_collision) Artifact 'security-auditor' (agent) is defined in both …
+
+## Files (17)
+
+<<<FILE: CLAUDE.md>>>
+…file content…
+<<<END FILE>>>
+
+<<<FILE: .claude/agents/builder.md>>>
+…file content…
+<<<END FILE>>>
+```
+
+Then an optional trailer:
+
+```markdown
+## Drift tracking (optional)
+
+If the user has the myace CLI, write `.myace/<target>.manifest.json` with:
+
+<<<FILE: .myace/claude-code.manifest.json>>>
+{ ... }
+<<<END FILE>>>
+```
+
+That trailer is a cheap, genuinely useful addition: it is the exact shape
+`sync.write_manifest()` produces and `sync.read_manifest()`/`check_target()`
+read, so an **agent-performed install becomes `myace check`-visible** — the
+only thing that currently distinguishes a "pull" from a hand-copied pack. It
+also carries the per-file sha256s so the agent can verify its own writes.
+
+`?format=json` returns the raw `ProfileCompileResponse` shape
+(`{files, warnings, compiled_hash, artifact_count}`) for agents that prefer
+structure; `?format=zip` returns the same archive `/compile/zip` builds. All
+three share one `compile_pack()` call.
+
+### 3.4 Size and abuse
+
+- Output size is bounded by the pack, not by the request: a request body is
+  absent (GET), so `MaxBodySizeMiddleware` is irrelevant here. Add a
+  `settings.pack_install_max_bytes` (say 2 MiB) and return 413 with a
+  "download the zip instead" message if the rendered doc exceeds it, so one
+  pathological pack cannot pin a worker per request.
+- Enable gzip at the nginx `/api/` location (or `GZipMiddleware` scoped to
+  this route). These documents are highly compressible Markdown; without it a
+  17-item pack is several hundred KB per fetch, at 120 requests/minute/IP.
+- Rate limiting is per-process in-memory (rule 36's documented caveat) — fine
+  as an abuse deterrent, not as a hard quota.
+
+### 3.5 Private and draft packs
+
+An agent has no cookie, so `GET /community/...` is the only URL that works
+unattended. That means:
+
+- **v1 scope: published + approved packs only.** The UI must not offer the URL
+  for a draft or private pack.
+- **Phase 1.5 (optional, cheap):** an authenticated twin,
+  `GET /api/v1/collections/{collection_id}/install.md?target=…`, behind
+  `Depends(get_current_user)` with `authorize_access(is_public=…)`. Then
+  `curl -H "Authorization: Bearer $MYACE_API_TOKEN" <url>` works for the
+  user's own packs, from any agent that can run a shell with an env var.
+  No signed-URL/token-in-query-string machinery, which would put credentials
+  into access logs, proxy logs and browser history.
+- **Do not** design a "public link for my private pack" minted-token URL yet.
+  It is a new credential type with its own revocation, expiry, and logging
+  story — a separate ADR, and not needed for the use case described.
+
+---
+
+## 4. Open design questions
+
+**Q1. Which target does the URL use?**
+It must be explicit or the file layout is unknowable (`.claude/…` vs
+`.cursor/rules/…` vs `AGENTS.md`). Recommendation: `?target=` on the URL, with
+a picker in the UI, and the generated doc always naming the target it was
+built for. If `target` is omitted, do not guess silently — render a short
+"which framework?" document that lists the available adapters and their URLs.
+That keeps a stale link useful rather than wrong.
+
+**Q2. What about add-on ("additional") packs that assume a base pack?**
+A pack-scoped compile compiles that pack alone, which for an add-on may be an
+incomplete story. Recommendation: (a) the doc states the pack kind
+(`base` / `add-on`) and, for an add-on, names the packs it is usually paired
+with; (b) accept a repeatable `?with=<collection-id>` that adds more packs to
+the compile (all still validated as publicly visible), so
+`?with=<base-id>` produces the real composed set. Cheap: the helper already
+takes a list.
+
+**Q3. Pack URL or setup URL?**
+Both, and they are different products:
+
+- **Pack URL** — public, shareable, zero-account. "Here is a pack, install it."
+  This is what the user asked for and what works unauthenticated.
+- **Setup URL** — exact. It carries the user's own choices (which packs, which
+  items disabled) and matches what the web UI's install panel installs. Needs
+  auth (Phase 1.5) or a Bearer token.
+
+Recommendation: ship the pack URL first (it is the public, viral one), then add
+the setup variant inside `InstallMethodPanel` as a fourth method tab.
+
+**Q4. What should the user actually paste into their agent?**
+Not a bare URL — a sentence. The copy action should put this on the clipboard:
+
+> Fetch this and install the pack it describes, following its instructions.
+> Ask me before overwriting any existing file: <url>
+
+That single line is the whole feature from the user's point of view, and it is
+why the payload must be self-describing rather than a tarball.
+
+---
+
+## 5. Where to surface it in the UI
+
+### 5.1 Pack detail — yes, in the action aside
+
+The user's instinct is right: `PackDetail.tsx`, in the right-hand aside
+(lines 592–683), below `Use this pack` / `Add to a setup…` /
+`Customize a copy`, as a **fourth, visually secondary** affordance. Reasons:
+
+- It is the only page where a pack is the subject, it already renders for
+  anonymous visitors, and it already has the copy-to-clipboard idiom in the
+  codebase (`InstallMethodPanel.tsx:118`, `ProfileDetail.tsx:277`).
+- It must be *below* the primary actions and styled like `Customize a copy`
+  (borderless, muted), because it is a power path: most people will still use
+  "Use this pack". Labelling it as a peer of the brand-coloured button would
+  make a niche action look like the recommended one.
+- The Secondary/tertiary placement also keeps the aside's visual rhythm —
+  one brand button, then quieter rows — which rule 42's vocabulary work
+  established.
+
+Shape:
+
+```
+[ Use this pack ]            ← existing, brand
+[ Add to a setup… ]          ← existing
+[ Customize a copy ]         ← existing, muted
+──────────────────────────
+ Install with your agent  ▾  ← new, muted, collapsible
+   Target: [ Claude Code ▾ ]
+   [ Copy install prompt ]
+   https://<host>/api/v1/collections/community/<id>/install.md?target=claude-code
+```
+
+Details:
+
+- Render only when `pack.published && pack.moderation_status === 'approved'`
+  (i.e. exactly when the public route will answer). For an owner's draft, show
+  the row disabled with "available once this pack is published" rather than
+  hiding it — otherwise the owner never discovers it.
+- The target picker reuses `FRAMEWORK_LABELS` from `lib/packs.ts` and the
+  adapter list, and must read `adapter.name`, not `adapter.targets`
+  (rule 23).
+- Put the raw URL in a `<code>` block with its own copy button, plus a second
+  button that copies the full prompt sentence. Two buttons, not one, because
+  the URL is also what people paste into issue trackers and chat.
+- The whole block collapses by default. This is a disclosure, not a headline.
+
+### 5.2 Setup detail — the authenticated twin
+
+In `InstallMethodPanel.tsx`, add a fourth tab next to Download / CLI / Direct:
+`Agent`. It shows the same two copy actions but with the setup's own target
+and (Phase 1.5) a `curl -H "Authorization: Bearer $MYACE_API_TOKEN" …` line.
+Follow the existing rule from that file's docstring — a method that cannot work
+is *absent*, not a disabled tease (the `direct` tab already does this).
+
+### 5.3 Not recommended
+
+- Do not put the URL in the global ⌘K palette or the sidebar.
+- Do not add a new page/route for it in v1. If a pretty shareable URL is
+  wanted (`https://<host>/i/<id>.md`), do it later as a one-line nginx
+  `location /i/` proxy — no React route, no SPA change, and the `.md`
+  extension keeps "give this to an agent" self-evident.
+- Do not surface it on the library cards — one action per card, and it is
+  navigational.
+
+---
+
+## 6. Implementation checklist
+
+### Backend
+
+1. `compiler.py`: extract `_compile_collections()`, keep `compile_profile()` as
+   a wrapper, add `compile_pack()`. No behaviour change to existing callers —
+   the existing compiler tests are the regression net.
+2. `collections.py`: `GET /community/{collection_id}/install.md`
+   - `target: CompileTarget`, `format: Literal["md","json","zip"] = "md"`,
+     `with_: list[uuid.UUID] = Query([], alias="with")`
+   - `_get_public_collection_or_404()` for the pack and each `with=` pack
+   - `@storefront_limiter.limit(settings.storefront_rate_limit)`
+   - ETag from `compiled_hash`, `Cache-Control`, `X-Robots-Tag`,
+     `Content-Disposition` via `slugify()`
+   - adapter-disabled / unknown → 400 (reuse the existing exception messages)
+   - size guard → 413 with a zip suggestion
+3. `config.py`: `pack_install_max_bytes` (default 2 MiB) and
+   `pack_install_default_target` (default `"claude-code"`).
+4. Docstring on the route stating the ADR-0014 auth exception it inherits and
+   why no counter moves.
+5. No migration, no model change, no adapter change.
+
+### Frontend
+
+1. `lib/packApi.ts`: `installUrl(collectionId, target)` helper — single place
+   that builds the URL from `window.location.origin`, so tests and the
+   component agree.
+2. New `components/AgentInstallPanel.tsx` (collapsible; target picker; URL
+   `<code>`; two copy buttons). Used by `PackDetail.tsx`; later reused with an
+   `authenticated` prop in `InstallMethodPanel.tsx`.
+3. `PackDetail.tsx`: mount it below `Customize a copy` in the aside, gated on
+   published + approved; disabled-with-reason for the owner's draft.
+4. Tests: renders only for approved packs; target picker builds the right URL;
+   copy writes the expected string (the codebase already asserts
+   `navigator.clipboard.writeText` — `TargetExporter.test.tsx:162`).
+
+### Docs
+
+- `README.md` route table: the new public route.
+- `AGENTS.md` rule 42 (canonical routes/vocabulary) and rule 13's auth-exception
+  list: add the route, name it "agent install URL".
+- New ADR `docs/adr/0017-agent-fetchable-install-documents.md`: why a document
+  instead of a tarball or an installer script, why public read only, why no
+  counting, and why the payload is sentinel-delimited.
+- `docs/debugging.md`: the nested-code-fence trap and the "URL 404s because the
+  pack is not approved" case (the most likely support question).
+
+### Tests (backend)
+
+- Anonymous 200 for an approved public pack; 404 for draft, private, inactive,
+  unpublished.
+- Unknown target → 400; admin-disabled adapter → 400.
+- Payload contains every enabled item's target file and **no** disabled ones.
+- `format=json` matches `ProfileCompileResponse`; `format=zip` opens and
+  contains the same filenames.
+- `with=<base>` composes two packs and emits `name_collision` warnings when
+  they collide.
+- ETag/304 round trip.
+- Size guard 413.
+- `download_count` unchanged after N calls.
+- Compiler parity: `compile_pack()` on a collection == `compile_profile()` on a
+  setup whose only pack is that collection (same files, same hash).
+
+---
+
+## 7. Phasing and rough effort
+
+| Phase | Scope | Effort |
+|---|---|---|
+| 0 | Decide Q1/Q2 and the payload format (this doc) | — |
+| 1 | `compile_pack()` + `install.md` + JSON/zip formats + tests | ~1 day |
+| 1.5 | `AgentInstallPanel` in `PackDetail` + `packApi` helper + tests + docs/ADR | ~0.5 day |
+| 2 | Authenticated `/{collection_id}/install.md`; `Agent` tab in `InstallMethodPanel` | ~0.5 day |
+| 2.5 | `myace install <url>` — fetch the JSON form, reuse `/apply`'s diff+backup+409-on-change machinery so the CLI path and the agent path share one safety story | ~1–2 days |
+| 3 | MCP server exposing `list_packs` / `get_pack` / `install_pack` tools | ~1 week |
+
+Total for a shippable v1 (phase 1 + 1.5): about a day and a half of careful
+work, most of it tests and docs.
+
+---
+
+## 8. Risks and honest caveats
+
+1. **Write safety is advisory, not enforced.** The endpoint hands an agent
+   files and asks it to confirm before overwriting. Nothing can enforce that —
+   the same is already true of every "install this config" document on the
+   internet. Mitigations: the instructions lead with the confirm step, the doc
+   lists files before content, and the payload never contains a shell command.
+   This is a real, permanent limitation, not something a later phase fixes.
+2. **Prompt-injection surface in the *other* direction.** Pack bodies are
+   user-authored text that an agent will read as instructions. That is exactly
+   what a rules/skills pack *is*, and it is already true of `myace pull` writing
+   `AGENTS.md`. Worth one sentence in the install doc ("these files become
+   instructions your agent will follow") so the human is not surprised.
+3. **Target ≠ the agent's platform.** A user may paste a `claude-code` URL into
+   a Cursor agent. The doc names its target explicitly so a mismatch is at
+   least visible; whether to add a "wrong target?" hint is a UI decision, not a
+   correctness one.
+4. **Public-only means drafts have no URL.** Correct and intentional, but it
+   will be the first piece of feedback ("why can't I share my draft"). Answer:
+   publish it, or use the CLI/Bearer path.
+5. **Cache invalidation.** `max-age=300` plus a `compiled_hash` ETag means a
+   pack edit can lag up to five minutes for an agent that respects caching. Use
+   a shorter `max-age` (60s) if that is too blunt; the ETag makes revalidation
+   cheap either way.
+6. **No drift tracking unless the agent writes the manifest.** Included as an
+   optional trailer, and honestly optional: an agent that ignores it produces an
+   install the CLI cannot see. Do not claim "verified" anywhere — the existing
+   install-claim vs `SyncStatus` distinction (ADR-0015) still holds.
+
+---
+
+## 9. Direct answers to the three questions
+
+**Is it possible with the current backend?** Not as a URL. Every compile path
+is setup-scoped and authenticated, and the only unauthenticated pack reads
+return metadata plus raw items, not a compiled file set. The pieces are all
+present — `compile_profile()`, the adapters, `compute_compiled_hash()`, the
+public-visibility predicate, and the storefront rate limiter — so this is
+assembly, not invention.
+
+**What needs building?** One service seam (`compile_pack()` over a shared
+`_compile_collections()`), one public GET route in the `/community/...` family
+returning a sentinel-delimited Markdown document (plus `json`/`zip` variants),
+a small frontend panel with a target picker and two copy buttons, and the
+matching tests/ADR. No migration, no model change, no adapter change.
+
+**Where in the UI?** Confirmed: the pack detail aside, below `Use this pack` /
+`Add to a setup…` / `Customize a copy`, styled as a muted secondary disclosure
+with the URL collapsed by default — visible only when the pack is published and
+approved. The same component then reappears on the setup install panel as an
+`Agent` tab for the authenticated, exact-setup variant.

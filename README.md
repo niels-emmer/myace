@@ -401,6 +401,14 @@ existing pipeline are known to be incomplete:
   client-side in `cli/myace_cli/adapters/`, but `myace pull` doesn't call
   into them yet, so it always needs a reachable server today. See
   [docs/architecture.md#adapters](docs/architecture.md#adapters).
+- **No install URL an agent can fetch** — today a pack or setup reaches a
+  machine only as a `.zip` download or via `myace pull`, both of which need a
+  browser session or CLI login. A public, agent-readable URL (for example
+  `GET /collections/community/{id}/install.md?target=…`) would let someone
+  paste one link into any coding agent and have it install the pack. This has
+  been researched and scoped but not built; the design, payload format, and
+  the three gaps blocking it are written up in
+  [docs/plans/agent-install-url.md](docs/plans/agent-install-url.md).
 
 If you use a framework not listed above, or want to pick up an open item,
 see [Contributing](#contributing-and-forking) below — an issue or PR is
