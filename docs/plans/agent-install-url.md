@@ -88,22 +88,27 @@ GET /api/v1/collections/community/{collection_id}/install.md?target=<adapter>
   `is_active AND published AND moderation_status == 'approved'`, 404 otherwise.
   **No new data exposure**: every byte this route emits is already available
   anonymously from `/community/{id}/artifacts`.
-- **`target` contract — one behaviour, three cases.** The param is declared
+- **`target` contract — two HTTP outcomes, four cases.** The param is declared
   as plain `str | None = Query(None)`, deliberately **not** `CompileTarget`:
   that `Literal` (`backend/app/models/profile.py:101`) is a hand-maintained list
-  that drifts from the adapter registry, and a Literal would make an unknown
-  value a 422 that never reaches the handler. Since an unknown target's best
-  answer is the guidance document, not a validation error, the handler must own
+  that drifts from the adapter registry, and a Literal would make an unrecognised
+  value a 422 that never reaches the handler. Since an unrecognised target's
+  best answer is the guidance document, not a validation error, the handler owns
   the decision:
-  1. **omitted** → `200 text/markdown`, a short "which framework?" document that
-     lists every currently registered adapter with its full install URL. This
-     is what makes a bare pasted link useful instead of a 422.
+  1. **omitted** → `200 text/markdown`: a short "which framework?" document
+     listing every registered adapter with its full install URL. This is what
+     makes a bare pasted link useful instead of a 422.
   2. **known** → the compiled install document.
-  3. **unknown or admin-disabled** → `400`, with the message `get_adapter()` /
-     `compile_profile()` already produce (`UnknownAdapterError`,
-     `AdapterDisabledError`). `UnknownAdapterError` is only reachable because
-     the param is a plain `str` here — do not "tighten" it back to
-     `CompileTarget` without also accepting 422 as the contract.
+  3. **unrecognised** → also `200 text/markdown`, the same guidance document,
+     with one extra line naming the requested value as unknown. Returning 200
+     here is deliberate: the caller is an agent holding a link it did not build,
+     and a browsable list of valid targets is more useful than an error it can
+     only retry blindly. It is also what makes a stale `PACK_TARGETS` entry in
+     the UI self-heal (§5.1) rather than dead-end in a 400.
+  4. **registered but admin-disabled** → `400` with `AdapterDisabledError`'s
+     message. This one *is* an error: the adapter exists and an administrator
+     turned it off, so the actionable answer is the message, not a list.
+
   There is no default target and no `pack_install_default_target` setting:
   guessing a framework writes files into the wrong layout.
 - Media type `text/markdown; charset=utf-8`, plus:
@@ -161,14 +166,25 @@ still takes the packs in caller order — base first — because name dedup is
 order-sensitive (rule 29).
 
 **Envelope values for a pack compile.** `ProfileCompileResponse` requires
-`profile_id` and `profile_name`. A pack-scoped compile has no setup, so set
-`profile_name` to the pack's name and `profile_id` to the pack's collection id,
-and say exactly that in the route docstring. The alternative — inventing or
-blanking `profile_id` — is worse: the `?format=json` body would then look like a
-setup compile whose id 404s on `/api/v1/profiles/{id}`, which is precisely the
-kind of "works until it doesn't" contract that generated a review round on this
-plan. If a future phase adds a pack-scoped `compile-status`, it keys off the
-collection id in the same way, so the two stay consistent.
+`profile_id` and `profile_name`. A pack-scoped compile has no setup, and the
+honest answer is to stop pretending the envelope describes one:
+
+- `profile_name` → the pack's name.
+- `profile_id` → the pack's collection id, because the field is required and
+  the alternative (blank or random) is strictly worse: a random id is
+  indistinguishable from a real one.
+- `?format=json` adds a discriminator at the top level — `{"subject": "pack",
+  "pack_id": <collection id>, …the compile fields…}` — and the route docstring
+  says `profile_id` carries a *pack* id here.
+
+The discriminator is the load-bearing part. Filling `profile_id` with the
+collection id is not by itself safe: a consumer that assumes setup semantics
+would call `GET /api/v1/profiles/{profile_id}` and get a 404, exactly as it
+would with a blank value. Only the explicit `subject` field lets a client know
+which id space it is holding. A future pack-scoped `compile-status` therefore
+takes the collection id in its **path**
+(`/collections/community/{id}/compile-status`), not in a `profile_id`
+parameter, so the two endpoints agree about what the id is.
 
 Why the refactor rather than a shortcut: the tempting shortcut is to construct
 an unsaved `Profile(...)` and pass it in (`Profile.id` has a
@@ -254,14 +270,29 @@ calls `GET /api/v1/profiles/{profile_id}/compile-status` (line 171) to decide
 - the **server** half cannot work: there is no `profile_id` to poll, so `check`
   would report an error and can never say `stale`/`in_sync`.
 
-Therefore v1 must not claim `myace check`-visibility for a pack install. Either
-write the manifest with a `pack_id` field and let `check` treat a manifest with
-no `profile_id` as local-only, or add a pack-scoped
-`GET /api/v1/collections/community/{id}/compile-status?target=…` and extend
-`check_target()` to use it — a Phase 2 item, since it needs a small CLI change
-(`cli/myace_cli/sync.py`) as well as the route. Until then the trailer is a
-self-check convenience for the agent, and the plan's phasing treats the
-manifest as optional and unverified.
+Therefore v1 must not claim `myace check`-visibility for a pack install. Two
+concrete consequences:
+
+- The trailer's filename is `.myace/pack-<collection-id>.<target>.manifest.json`,
+  which `find_manifests()` discovers (`*.manifest.json`) but
+  `check --target <target>` does **not**: that path is built by
+  `manifest_file_path()`, which looks for exactly `.myace/<target>.manifest.json`
+  (`cli/myace_cli/sync.py`). The local-drift half therefore only works via
+  `myace check --all`. Say that in the trailer, or name the file
+  `.myace/<target>.manifest.json` and accept that it collides with a setup pull
+  for the same target in the same directory.
+- `--report` will not create a bogus verification row in the meantime:
+  `_report_results()` (`cli/myace_cli/main.py:362`) skips any result with no
+  `profile_id`, so an agent-written pack manifest stays off the sync dashboard
+  by construction.
+
+Either write the manifest with a `pack_id` field and let `check` treat a manifest
+with no `profile_id` as local-only, or add a pack-scoped
+`GET /api/v1/collections/community/{id}/compile-status?target=…` (collection id
+in the path — §3.2) and extend `check_target()` to use it. That second option is
+a Phase 2 item, since it needs a small CLI change (`cli/myace_cli/sync.py`) as
+well as the route. Until then the trailer is a self-check convenience for the
+agent, and the plan's phasing treats the manifest as optional and unverified.
 
 `?format=json` returns the raw `ProfileCompileResponse` shape
 (`{files, warnings, compiled_hash, artifact_count}`) for agents that prefer
@@ -309,9 +340,10 @@ It must be explicit or the file layout is unknowable (`.claude/…` vs
 a picker in the UI, and the generated doc always naming the target it was
 built for. If `target` is omitted, do not guess silently — render a short
 "which framework?" document that lists the available adapters and their URLs.
-That keeps a stale link useful rather than wrong. The normative three-case
-contract (omitted / known / unknown-or-disabled, and why the param is a plain
-`str` rather than `CompileTarget`) is §3.1; everything else defers to it.
+That keeps a stale link useful rather than wrong. The normative four-case
+contract (omitted / known / unrecognised / registered-but-disabled, and why the
+param is a plain `str` rather than `CompileTarget`) is §3.1; everything else
+defers to it.
 
 **Q2. What about add-on ("additional") packs that assume a base pack?**
 A pack-scoped compile compiles that pack alone, which for an add-on may be an
@@ -371,7 +403,7 @@ stack differs):
 signed-in, owner of a published pack        anonymous
 ─────────────────────────────────           ─────────────────────────────
 [ Publish… / Manage items ]                 [ Use this pack ]        (signup)
-[ … owner tools … ]                         [ Sign up to build a set ]
+[ … owner tools … ]                         [ Sign up to build a setup ]
 [ Customize a copy ]  (n/a for owner)       [ Customize a copy ]
 ─────────────────────────────────           ─────────────────────────────
  Install with your agent  ▾                 Install with your agent  ▾
@@ -382,13 +414,18 @@ signed-in, owner of a published pack        anonymous
 
 Details:
 
-- Gate on `pack.is_active && pack.published && pack.moderation_status ===
-  'approved'` — the same three conditions as `_visible_public_collection()`
-  (rule/ADR-0014), not just the last two, so the row never promises a URL the
-  route will 404. Public reads already exclude inactive packs, so this only
-  matters on the authenticated branch. For an owner's draft, show the row
-  disabled with "available once this pack is published" rather than hiding it —
-  otherwise the owner never discovers it.
+- Gate on `published && moderation_status === 'approved' && pack.is_active !==
+  false` — the same conditions as `_visible_public_collection()` (ADR-0014),
+  written so it works on **both** payload shapes. This matters: the frontend's
+  `Pack` interface (`frontend/src/types/packs.ts:21`) has no `is_active` field,
+  and `PublicCollectionRead` omits it entirely, so a plain
+  `pack.is_active && …` is `undefined && …` on the anonymous payload — which
+  would hide the panel from exactly the audience it exists for, and is a type
+  error besides. Add `is_active?: boolean` to `Pack` and use the `!== false`
+  form: inactive packs are already excluded server-side on the public route, so
+  `undefined` legitimately means "not reported, therefore fine."
+  For an owner's draft, show the row disabled with "available once this pack is
+  published" rather than hiding it — otherwise the owner never discovers it.
 - **The target picker's data source must not be `GET /api/v1/adapters`.** That
   route is authenticated (`Depends(get_current_user)`,
   `backend/app/api/adapters.py:28`), and this panel renders on the anonymous
@@ -399,7 +436,7 @@ Details:
   - **Recommended:** export a small `PACK_TARGETS: { id, label }[]` constant from
     `lib/packs.ts` next to `FRAMEWORK_LABELS`, and accept that it can drift.
     The drift is self-healing: an id the server no longer knows gets the
-    "which framework?" document (case 1 above), which lists the *live* adapter
+    "which framework?" document (§3.1 case 3), which lists the *live* adapter
     set. No new route, no new auth exception.
   - Alternative: add a public `GET /api/v1/adapters/public` that returns name +
     label only, and name it as a further ADR-0014 exception. Do this only if
@@ -442,14 +479,15 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
    the existing compiler tests are the regression net.
 2. `collections.py`: `GET /community/{collection_id}/install.md`
    - `target: str | None = Query(None)` — **not** `CompileTarget` (§3.1);
-     omitted → guidance doc, unknown/disabled → 400
+     omitted → guidance doc; unrecognised → guidance doc; disabled → 400
    - `format: Literal["md","json","zip"] = "md"`,
      `with_: list[uuid.UUID] = Query([], alias="with")`
    - `_get_public_collection_or_404()` for the pack and each `with=` pack
    - `@storefront_limiter.limit(settings.storefront_rate_limit)`
    - ETag from `compiled_hash`, `Cache-Control`, `X-Robots-Tag`,
      `Content-Disposition` via `slugify()`
-   - adapter-disabled / unknown → 400 (reuse the existing exception messages)
+   - omitted / unrecognised `target` → 200 guidance document;
+     registered-but-disabled → 400 (reuse `AdapterDisabledError`'s message)
    - size guard → 413 with a zip suggestion
 3. `config.py`: `pack_install_max_bytes` (default 2 MiB). No default-target
    setting — an omitted `target` returns the guidance document, never a guess.
@@ -487,10 +525,12 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
 - Anonymous 200 for an approved public pack; 404 for draft, private, inactive,
   unpublished — including `with=` ids that are not publicly visible.
 - Omitted `target` → 200 guidance document listing live adapter names and
-  URLs (not a 422); unknown target → 400 with `UnknownAdapterError`'s message;
-  admin-disabled adapter → 400.
+  URLs (not a 422); an unrecognised `target` → the same guidance document with
+  an "unknown target" line, **not** a 400; a registered-but-admin-disabled
+  adapter → 400 with `AdapterDisabledError`'s message.
 - `target` is a plain `str` param: a `CompileTarget` Literal would make the
-  unknown case an unreachable 422, so assert the 400 explicitly.
+  unrecognised case an unreachable 422, so assert the 200-guidance behaviour
+  explicitly.
 - Payload contains every enabled item's target file and **no** disabled ones.
 - `format=json` matches `ProfileCompileResponse`; `format=zip` opens and
   contains the same filenames.
