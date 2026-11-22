@@ -65,10 +65,13 @@ async def compile_profile(
     1. Resolve base collection + additional collections. A collection that
        is missing, inactive (soft-deleted), or — when `requesting_user` is
        given — unreadable by the caller is resolved through
-       `Profile.pack_snapshots` when a snapshot exists, and a
-       `pack_unavailable` warning is emitted either way (see
-       docs/adr/0015-pack-reference-freeze.md). With no snapshot it is
-       skipped, as before, but no longer silently.
+       `Profile.pack_snapshots` **only for an allowed viewer**: an internal
+       caller (`requesting_user is None`), the profile's owner, or an
+       admin. Any other requester skips it and gets a `pack_unavailable`
+       warning. That warning is emitted whether or not a snapshot is used;
+       with no snapshot, or for a disallowed viewer, the collection is
+       skipped, as before, but no longer silently. See
+       docs/adr/0015-pack-reference-freeze.md.
     2. Collect all live (not soft-deleted) artifacts, respecting disabled
        list; `include_disabled` only takes effect for collections the
        requester owns (or any, for an admin)
@@ -91,7 +94,10 @@ async def compile_profile(
 
     # Fetch all referenced collections. A collection that is missing,
     # inactive, or unreadable by the requester is resolved through the
-    # profile's reference snapshot when one exists (docs/adr/0015).
+    # profile's reference snapshot when one exists AND the requester is an
+    # allowed viewer (internal caller, profile owner, or admin); every other
+    # requester skips it with a `pack_unavailable` warning. See
+    # docs/adr/0015-pack-reference-freeze.md.
     ordered_collection_ids = _unique_ids([base_id] + additional_ids)
     snapshots = _parse_pack_snapshots(profile)
     collection_map: dict[uuid.UUID, Collection] = {}
