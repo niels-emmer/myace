@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   BookOpen,
-  Check,
   ChevronDown,
   ChevronRight,
   Copy,
@@ -22,7 +21,7 @@ import {
   Trash2,
   Wrench,
 } from 'lucide-react';
-import { collectionsApi, commentsApi, moderationApi, ratingsApi } from '../lib/api';
+import { collectionsApi, commentsApi, moderationApi, profilesApi, ratingsApi } from '../lib/api';
 import { packApi } from '../lib/packApi';
 import { FreshnessBadge } from '../components/FreshnessBadge';
 import { PublishStatusTracker } from '../components/PublishStatusTracker';
@@ -173,14 +172,33 @@ export default function PackDetail() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pack-comments', id] }),
   });
 
+  // "Use this pack" records the reference use AND creates the setup that
+  // holds the reference (POST /profiles persists base + add-ons and captures
+  // the Phase 3 pack snapshots). For an add-on, the chosen starting point is
+  // the new setup's base — so the pairing is actually saved, not just shown.
   const useMutationResult = useMutation({
-    mutationFn: () => packApi.usePack(id!),
-    onSuccess: (result) => {
+    mutationFn: async () => {
+      const baseId = isAddon ? selectedBaseId : pack!.id;
+      const additionalIds = isAddon ? [pack!.id] : [];
+      await packApi.usePack(pack!.id);
+      return profilesApi.create({
+        name: isAddon
+          ? `${selectedBaseName ?? 'New setup'} + ${pack!.name}`
+          : pack!.name,
+        description: isAddon
+          ? `Adds the ${pack!.name} pack to ${selectedBaseName ?? 'a starting point'}.`
+          : pack!.description ?? undefined,
+        base_collection_id: baseId,
+        additional_collection_ids: additionalIds,
+      });
+    },
+    onSuccess: (profile) => {
       setPickerOpen(false);
-      queryClient.setQueryData(['use-result', id], result);
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
       queryClient.invalidateQueries({ queryKey: ['public-pack', id] });
       queryClient.invalidateQueries({ queryKey: ['collection', id] });
       queryClient.invalidateQueries({ queryKey: ['community-collections'] });
+      navigate(`/setups/${profile.id}`);
     },
   });
 
@@ -280,8 +298,7 @@ export default function PackDetail() {
   const kind = packKindLabel(pack.collection_type);
   const isAddon = pack.collection_type === 'additional';
   const frameworks = packFrameworks(artifacts ?? []);
-  const useResult = useMutationResult.data;
-  const useCount = useResult?.download_count ?? pack.download_count;
+  const useCount = pack.download_count;
   const signupHref = '/login?mode=register';
 
   const beginUse = () => {
@@ -724,22 +741,7 @@ export default function PackDetail() {
               </>
             )}
 
-            {useResult && (
-              <p className="text-xs text-green-700">
-                <span className="flex items-center gap-1.5">
-                  <Check className="h-3.5 w-3.5" />
-                  Recorded a use
-                  {isAddon && selectedBaseName ? ` (paired with ${selectedBaseName})` : ''}.
-                </span>
-                <span className="mt-1 block">
-                  Build the setup that installs it in{' '}
-                  <Link to="/setups" className="font-medium underline">
-                    Setups
-                  </Link>
-                  .
-                </span>
-              </p>
-            )}
+
             {copyMutation.isError && (
               <p className="text-xs text-destructive">
                 {(copyMutation.error as Error).message}
@@ -831,8 +833,8 @@ export default function PackDetail() {
               Pair this add-on with a starting point
             </h2>
             <p className="text-sm text-muted-foreground">
-              Add-ons layer onto a starting point. This records a use and notes the starting
-              point you pick; build the setup itself in Setups.
+              Add-ons layer onto a starting point. Pick the one this new setup begins from —
+              you can change its frameworks and install it next.
             </p>
             <select
               value={selectedBaseId}
@@ -864,7 +866,7 @@ export default function PackDetail() {
                 disabled={!selectedBaseId || useMutationResult.isPending}
                 className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
               >
-                {useMutationResult.isPending ? 'Adding…' : 'Use this add-on'}
+                {useMutationResult.isPending ? 'Creating setup…' : 'Create setup with this add-on'}
               </button>
             </div>
           </div>

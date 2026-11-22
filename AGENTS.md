@@ -1419,6 +1419,14 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   user-incrementable (invariant 25 / ADR-0015). The storefront/library must
   not offer "Most used" sorting or a "Top packs" ranking; "used N times" as
   a soft signal is fine.
+- **"Use this pack" means "create a setup that references it", not "fork a
+  copy".** `PackDetail.tsx` first calls `POST /collections/{id}/use` (the
+  counter) and then `POST /profiles` with the pack as `base_collection_id`
+  (or, for an add-on, the chosen starting point as the base and the add-on
+  in `additional_collection_ids`) — Phase 3's snapshot capture does the rest.
+  The old copy that implied an existing setup was mutated was wrong; there
+  is still no "append a pack to an existing setup" endpoint. Don't add a
+  picker whose choice isn't persisted.
 - **Home derives exactly one state banner from setups + sync reports**
   (`GET /profiles` + `GET /sync/status`): no setups → build your first
   setup; setups but no rows → install it; any row with `in_sync === false`

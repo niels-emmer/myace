@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PackDetail from './PackDetail';
-import { collectionsApi, commentsApi, ratingsApi } from '../lib/api';
+import { collectionsApi, commentsApi, profilesApi, ratingsApi } from '../lib/api';
 import { packApi } from '../lib/packApi';
 import type { Collection } from '../types';
 
@@ -21,6 +21,7 @@ vi.mock('../lib/api', () => ({
     unpublish: vi.fn(),
     verify: vi.fn(),
   },
+  profilesApi: { create: vi.fn() },
   ratingsApi: { get: vi.fn(), rate: vi.fn(), remove: vi.fn() },
   commentsApi: { list: vi.fn(), create: vi.fn(), remove: vi.fn() },
   moderationApi: { updateMeta: vi.fn() },
@@ -225,6 +226,10 @@ describe('PackDetail', () => {
       collection_id: 'pack-1',
       download_count: 411,
     });
+    vi.mocked(profilesApi.create).mockResolvedValue({
+      id: 'setup-1',
+      name: 'Software Engineer + Security & Compliance',
+    } as never);
 
     renderDetail();
     await screen.findByRole('heading', { name: 'Security & Compliance' });
@@ -235,10 +240,19 @@ describe('PackDetail', () => {
     ).toBeInTheDocument();
     await screen.findByRole('option', { name: 'Software Engineer' });
 
-    const confirm = screen.getByRole('button', { name: 'Use this add-on' });
+    const confirm = screen.getByRole('button', {
+      name: 'Create setup with this add-on',
+    });
     await waitFor(() => expect(confirm).toBeEnabled());
     fireEvent.click(confirm);
     await waitFor(() => expect(packApi.usePack).toHaveBeenCalledWith('pack-1'));
-    expect(await screen.findByText(/paired with Software Engineer/)).toBeInTheDocument();
+    // The chosen starting point is persisted as the new setup's base, and
+    // the add-on as its additional pack — the pairing is not discarded.
+    expect(profilesApi.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        base_collection_id: 'base-1',
+        additional_collection_ids: ['pack-1'],
+      }),
+    );
   });
 });

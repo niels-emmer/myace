@@ -148,9 +148,10 @@ model.
 - **One pack page for every pack** — `/packs/:id` renders owned, starter,
   and community packs with the same header, actions (**Use this pack**,
   **Add to a setup**, **Customize a copy**, and owner **Publish**), and
-  Overview / Contents / Ratings & comments tabs. "Use this pack" on an add-on
-  asks which starting point to pair it with; it records a reference use
-  (`POST /collections/{id}/use`) rather than copying the pack.
+  Overview / Contents / Ratings & comments tabs. "Use this pack" records a
+  reference use (`POST /collections/{id}/use`) and creates a setup that
+  references the pack — it never copies it. On an add-on it first asks which
+  starting point to pair with; that choice becomes the new setup's base.
 - **Publish wizard** — `/packs/:id/publish` walks Select → Describe →
   Preview → Submit, writes metadata (including the optional SPDX `license`)
   and submits to the moderation queue. The pack page shows a
