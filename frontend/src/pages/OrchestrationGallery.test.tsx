@@ -52,6 +52,7 @@ const collection: Collection = {
   artifact_count: 2,
   download_count: 0,
   published: true,
+  is_starter_pack: false,
   avg_rating: 0,
   rating_count: 0,
   moderation_status: 'approved',
@@ -127,7 +128,7 @@ describe('OrchestrationGallery', () => {
 
     // The diagram view renders one node per agent reached via handoff_to,
     // including the back-edge from verifier to builder.
-    expect(await screen.findByText('Back to gallery')).toBeInTheDocument();
+    expect(await screen.findByText('Back to pipelines')).toBeInTheDocument();
     expect(screen.getAllByText('Builder').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Verifier').length).toBeGreaterThan(0);
   });
@@ -149,11 +150,11 @@ describe('OrchestrationGallery', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <MemoryRouter initialEntries={['/build/orchestration']}>
+          <MemoryRouter initialEntries={['/packs/pipelines']}>
             <Routes>
-              <Route path="/build/orchestration" element={<OrchestrationGallery />} />
+              <Route path="/packs/pipelines" element={<OrchestrationGallery />} />
               <Route
-                path="/build/orchestration/build"
+                path="/packs/pipelines/new"
                 element={
                   <div>
                     builder-page

@@ -118,11 +118,11 @@ describe('CollectionDetail — action buttons', () => {
         screen.getByText(/Delete.*Test Collection.*\?/)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/permanently disable this collection/)
+        screen.getByText(/permanently disable this pack/)
       ).toBeInTheDocument();
     });
 
-    it('calls delete API and navigates to /collections on confirm', async () => {
+    it('calls delete API and navigates to /packs on confirm', async () => {
       (collectionsApi.delete as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
       renderCollectionDetail();
 
@@ -138,7 +138,7 @@ describe('CollectionDetail — action buttons', () => {
         expect(collectionsApi.delete).toHaveBeenCalledWith('test-collection-id');
       });
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/collections');
+        expect(mockNavigate).toHaveBeenCalledWith('/packs');
       });
     });
 
@@ -187,7 +187,7 @@ describe('CollectionDetail — action buttons', () => {
       const shareBtn = await screen.findByRole('button', { name: /Share/i });
       fireEvent.click(shareBtn);
 
-      expect(screen.getByText('Share Collection')).toBeInTheDocument();
+      expect(screen.getByText('Share pack')).toBeInTheDocument();
       expect(screen.getByText('Private')).toBeInTheDocument();
       expect(screen.getByText('Public')).toBeInTheDocument();
     });
@@ -247,7 +247,7 @@ describe('CollectionDetail — action buttons', () => {
       const cancelBtn = screen.getAllByText('Cancel')[0];
       fireEvent.click(cancelBtn);
 
-      expect(screen.queryByText('Share Collection')).not.toBeInTheDocument();
+      expect(screen.queryByText('Share pack')).not.toBeInTheDocument();
     });
   });
 
@@ -333,7 +333,7 @@ describe('CollectionDetail — action buttons', () => {
       renderCollectionDetail();
       const addButton = await screen.findByRole('button', { name: /Add rule/i });
       fireEvent.click(addButton);
-      expect(mockNavigate).toHaveBeenCalledWith('/collections/test-collection-id/artifacts/new');
+      expect(mockNavigate).toHaveBeenCalledWith('/packs/test-collection-id/items/new');
     });
   });
 

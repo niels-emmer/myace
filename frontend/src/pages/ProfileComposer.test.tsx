@@ -24,6 +24,7 @@ const baseCollection: Collection = {
   artifact_count: 1,
   download_count: 0,
   published: false,
+  is_starter_pack: false,
   avg_rating: 0,
   rating_count: 0,
   moderation_status: 'draft',
@@ -81,7 +82,7 @@ function renderWithQueryClient() {
 }
 
 async function openForm() {
-  fireEvent.click(await screen.findByRole('button', { name: /Add profile/i }));
+  fireEvent.click(await screen.findByRole('button', { name: /Add setup/i }));
 }
 
 describe('ProfileComposer pre-compile collision preview', () => {
@@ -107,7 +108,7 @@ describe('ProfileComposer pre-compile collision preview', () => {
     // Select the additional collection.
     fireEvent.click(screen.getByRole('button', { name: /My Community Pack/i }));
 
-    expect(await screen.findByText(/1 name collision across these collections/i)).toBeInTheDocument();
+    expect(await screen.findByText(/1 name collision across these packs/i)).toBeInTheDocument();
     // The collision message names both collections and the winner.
     expect(screen.getByText(/is defined in both Software Engineer and My Community Pack/)).toBeInTheDocument();
     expect(screen.getByText(/My Community Pack wins/)).toBeInTheDocument();
@@ -126,13 +127,13 @@ describe('ProfileComposer pre-compile collision preview', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Software Engineer/i }));
     fireEvent.click(screen.getByRole('button', { name: /My Community Pack/i }));
 
-    expect(await screen.findByText(/1 name collision across these collections/i)).toBeInTheDocument();
+    expect(await screen.findByText(/1 name collision across these packs/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Disable in this profile/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Disable in this setup/i }));
 
     // The collision disappears immediately.
     await waitFor(() =>
-      expect(screen.queryByText(/1 name collision across these collections/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/1 name collision across these packs/i)).not.toBeInTheDocument()
     );
 
     // Fill the required Profile Name so the form can submit (jsdom enforces
@@ -141,7 +142,7 @@ describe('ProfileComposer pre-compile collision preview', () => {
     fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: 'My Profile' } });
 
     // Saving the profile sends the losing artifact id in disabled_artifact_ids.
-    fireEvent.click(screen.getByRole('button', { name: /Save Profile/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Save setup/i }));
     await waitFor(() => expect(profilesApi.create).toHaveBeenCalled());
     expect(profilesApi.create).toHaveBeenCalledWith(
       expect.objectContaining({ disabled_artifact_ids: ['art-base-builder'] })

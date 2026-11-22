@@ -214,18 +214,18 @@ export default function OrchestratorBuilder() {
   return (
     <div className="space-y-6">
       <Link
-        to="/build/orchestration"
+        to="/packs/pipelines"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-accent-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Back to gallery
+        <ArrowLeft className="h-4 w-4" /> Back to pipelines
       </Link>
 
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Wrench className="h-6 w-6 text-muted-foreground" /> Compose Your Pipeline
+          <Wrench className="h-6 w-6 text-muted-foreground" /> Compose your pipeline
         </h1>
         <p className="text-muted-foreground mt-1">
-          Pick a profile, choose a linear sequence of its agents, and generate a new orchestrator
+          Pick a setup, choose a linear sequence of its agents, and generate a new orchestrator
           agent that routes work through them in order.
         </p>
         {editRecipe && (
@@ -242,7 +242,7 @@ export default function OrchestratorBuilder() {
           <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
           <span>
             This wizard only builds a straight-line pipeline. Conditional branching (like the{' '}
-            <code className="font-mono text-xs">software-engineer</code> collection's optional
+            <code className="font-mono text-xs">software-engineer</code> starter pack's optional
             security-auditor stage) isn't supported here — edit the generated agent's{' '}
             <code className="font-mono text-xs">handoff_to</code> by hand for that.
           </span>
@@ -250,7 +250,7 @@ export default function OrchestratorBuilder() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-foreground mb-1">Profile</label>
+        <label className="block text-sm font-medium text-foreground mb-1">Setup</label>
         <select
           value={effectiveProfileId}
           onChange={(e) => {
@@ -259,7 +259,7 @@ export default function OrchestratorBuilder() {
           }}
           className="w-full sm:w-96 px-3 py-2 border border-border rounded-lg bg-card text-card-foreground text-sm"
         >
-          <option value="">Select a profile...</option>
+          <option value="">Select a setup…</option>
           {(profiles ?? []).map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -275,7 +275,7 @@ export default function OrchestratorBuilder() {
             {agentsLoading ? (
               <p className="text-sm text-muted-foreground">Loading agents...</p>
             ) : availableAgents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">This profile has no agent artifacts.</p>
+              <p className="text-sm text-muted-foreground">This setup has no agent items.</p>
             ) : (
               <ul className="space-y-2">
                 {availableAgents.map((agent) => (
@@ -380,14 +380,14 @@ export default function OrchestratorBuilder() {
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">
-                Save into collection
+                Save into pack
               </label>
               <select
                 value={effectiveTargetCollectionId}
                 onChange={(e) => setTargetCollectionId(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
               >
-                <option value="">Select one of your collections...</option>
+                <option value="">Select one of your packs…</option>
                 {(ownedCollections ?? []).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -412,8 +412,8 @@ export default function OrchestratorBuilder() {
           {savedArtifactName && !createMutation.isPending && (
             <p className="text-sm text-green-700">
               Saved <code className="font-mono">{savedArtifactName}</code>. View it in the{' '}
-              <Link to="/build/orchestration" className="underline">
-                Orchestration Gallery
+              <Link to="/packs/pipelines" className="underline">
+                Pipelines
               </Link>
               .
             </p>

@@ -87,7 +87,7 @@ async function selectProfile() {
   fireEvent.change(profileSelect, { target: { value: 'profile-1' } });
   await waitFor(() => expect(profileSelect).toHaveValue('profile-1'));
 
-  const compileButton = screen.getByRole('button', { name: /Compile/i });
+  const compileButton = screen.getByRole('button', { name: /^Install$/ });
   await waitFor(() => expect(compileButton).toBeEnabled());
   fireEvent.click(compileButton);
   await waitFor(() => expect(profilesApi.compile).toHaveBeenCalled());
@@ -146,7 +146,7 @@ describe('TargetExporter zip download', () => {
     renderWithQueryClient();
     await selectProfile();
 
-    await screen.findByText(/Output — 1 artifacts/i);
+    await screen.findByText(/Output — 1 items/i);
     expect(screen.queryByText(/warning/i)).not.toBeInTheDocument();
   });
 
@@ -209,14 +209,14 @@ describe('TargetExporter compile warnings panel', () => {
     renderWithQueryClient();
     await selectProfile();
 
-    expect(await screen.findByText(/1 warning from compilation/i)).toBeInTheDocument();
+    expect(await screen.findByText(/1 warning from install/i)).toBeInTheDocument();
     expect(screen.getByText(/base-collection/)).toBeInTheDocument();
     expect(screen.getByText(/additional-collection/)).toBeInTheDocument();
 
     const dismissButton = screen.getByRole('button', { name: /Dismiss warnings/i });
     fireEvent.click(dismissButton);
 
-    expect(screen.queryByText(/1 warning from compilation/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/1 warning from install/i)).not.toBeInTheDocument();
     // Dismissing the panel must not remove the compiled output itself.
     expect(screen.getByText('AGENTS.md')).toBeInTheDocument();
   });
@@ -228,11 +228,11 @@ describe('TargetExporter compile warnings panel', () => {
     await selectProfile();
 
     fireEvent.click(await screen.findByRole('button', { name: /Dismiss warnings/i }));
-    expect(screen.queryByText(/1 warning from compilation/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/1 warning from install/i)).not.toBeInTheDocument();
 
     // Recompile (same button, now labeled "Compile" again since loading reset).
-    fireEvent.click(screen.getByRole('button', { name: /Compile/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Install$/ }));
 
-    expect(await screen.findByText(/1 warning from compilation/i)).toBeInTheDocument();
+    expect(await screen.findByText(/1 warning from install/i)).toBeInTheDocument();
   });
 });

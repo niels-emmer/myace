@@ -112,7 +112,7 @@ describe('NewArtifactRule', () => {
     });
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/collections/test-collection-id');
+      expect(mockNavigate).toHaveBeenCalledWith('/packs/test-collection-id');
     });
   });
 
@@ -186,6 +186,6 @@ describe('NewArtifactRule', () => {
   it('has a Cancel link back to the collection detail page', async () => {
     renderPage();
     const cancelLink = await screen.findByRole('link', { name: /Cancel/i });
-    expect(cancelLink).toHaveAttribute('href', '/collections/test-collection-id');
+    expect(cancelLink).toHaveAttribute('href', '/packs/test-collection-id');
   });
 });
