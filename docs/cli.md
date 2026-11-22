@@ -34,12 +34,27 @@ sudo mv ./myace /usr/local/bin/
 [releases page](https://github.com/niels-emmer/myace/releases) and place it
 somewhere in your `PATH`.
 
-> **Note for macOS users:** The binary is not signed with an Apple Developer
-> certificate. The first time you run it, Gatekeeper may block it. To
-> bypass: open **System Settings → Privacy & Security**, scroll to the
-> security section, and click **Allow Anyway** next to the `myace` entry.
-> Or remove the quarantine attribute manually:
-> `xattr -d com.apple.quarantine /usr/local/bin/myace`.
+> **macOS only — the binary is unsigned.** Neither macOS build is signed with
+> an Apple Developer certificate, so the first run can be blocked by
+> Gatekeeper. In case you get **"Apple could not verify … is free of malware
+> that may harm your Mac"**, **"… cannot be opened because the developer
+> cannot be verified"**, or a bare `Killed: 9`, execute the following,
+> pointing it at the file you actually downloaded:
+>
+> ```bash
+> # Still in the download directory, before moving it:
+> xattr -cr ./myace-macos-x86_64     # or ./myace-macos-arm64
+>
+> # Or, if it was already moved into place:
+> xattr -cr /usr/local/bin/myace
+> ```
+>
+> `xattr -cr` clears the file's extended attributes (including the
+> `com.apple.quarantine` flag Gatekeeper sets on downloads); `xattr -d
+> com.apple.quarantine <path>` removes just that one flag. If it is still
+> blocked, approve it once in **System Settings → Privacy & Security** →
+> **Allow Anyway** next to the `myace` entry. This does not affect Linux or
+> Windows, where the binary runs without any of this.
 
 ### Via pip
 
