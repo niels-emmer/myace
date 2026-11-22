@@ -53,7 +53,7 @@ from typing import Any, Literal
 
 from myace_cli.audit import audit_directory
 from myace_cli.scanner import scan_directory
-from myace_cli.sync import SyncEngine, safe_output_path
+from myace_cli.sync import SyncEngine, safe_output_path, write_manifest
 
 COMPANION_HEADER = "x-myace-companion"
 DEFAULT_PORT = 8765
@@ -78,8 +78,12 @@ MACHINE_SUBDIRS: dict[str, tuple[str, ...]] = {
     "pi-dev": (".pi",),
 }
 APPLY_TARGETS: tuple[str, ...] = tuple(sorted(MACHINE_SUBDIRS))
+MACHINE_TARGETS: tuple[str, ...] = tuple(
+    target for target in APPLY_TARGETS if MACHINE_SUBDIRS[target]
+)
 
 BACKUP_DIR_NAME = ".myace-backups"
+MANIFEST_DIR_NAME = ".myace"
 PREVIEW_TTL_SECONDS = 300
 MAX_PREVIEWS = 64
 MAX_FILES = 500
@@ -99,8 +103,20 @@ def _home() -> Path:
 
 
 def _machine_root(target: str) -> Path:
-    """The framework's conventional per-user config directory."""
-    return _home().joinpath(*MACHINE_SUBDIRS[target])
+    """The framework's conventional per-user config directory.
+
+    Raises `ValueError` for targets whose adapter output is project-only and
+    has no correct global location — confining a machine install to the
+    whole home directory would let a compiled response write `.ssh/...` or
+    `.zshrc`, so those targets must use `location: "project"`.
+    """
+    subdirs = MACHINE_SUBDIRS[target]
+    if not subdirs:
+        raise ValueError(
+            f"{target!r} has no machine-level install root; "
+            "use location='project' for this target"
+        )
+    return _home().joinpath(*subdirs)
 
 
 def resolve_install_root(
@@ -160,9 +176,9 @@ def _dest_for(root_real: Path, relative_path: str) -> Path:
     refuses anything it cannot prove stays inside the previewed root.
     """
     first = relative_path.split("/", 1)[0]
-    if first == BACKUP_DIR_NAME:
+    if first in (BACKUP_DIR_NAME, MANIFEST_DIR_NAME):
         raise UnsafeInstallPathError(
-            f"{relative_path!r} targets the companion backup directory"
+            f"{relative_path!r} targets the companion's own metadata directory"
         )
 
     dest = safe_output_path(root_real, relative_path)
@@ -584,6 +600,7 @@ def build_app(
             "apply": {
                 "supported": allow_apply,
                 "targets": list(APPLY_TARGETS),
+                "machine_targets": list(MACHINE_TARGETS),
             },
         }
 
@@ -733,6 +750,31 @@ def build_app(
         except UnsafeInstallPathError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+        # Record a sync manifest so `myace check`/`watch` can see files
+        # installed here, exactly as `myace pull` does (AGENTS.md rule 33).
+        manifest_path: str | None = None
+        compiled_hash = document.get("compiled_hash")
+        if isinstance(compiled_hash, str) and compiled_hash:
+            manifest_files = {
+                entry["relative_path"]: contents[entry["relative_path"]]
+                for entry in entries
+            }
+            try:
+                written_manifest = await asyncio.to_thread(
+                    write_manifest,
+                    root,
+                    profile_id=body.profile_id,
+                    profile_name=document.get("profile_name", ""),
+                    target=body.target,
+                    compiled_hash=compiled_hash,
+                    files=manifest_files,
+                )
+                manifest_path = str(written_manifest)
+            except OSError:
+                # Files are already written; a manifest failure must not turn
+                # a successful install into an error response.
+                manifest_path = None
+
         return JSONResponse(
             {
                 "profile_id": body.profile_id,
@@ -740,6 +782,7 @@ def build_app(
                 "target": body.target,
                 "location": body.location,
                 "root": str(root),
+                "manifest": manifest_path,
                 **result,
             }
         )

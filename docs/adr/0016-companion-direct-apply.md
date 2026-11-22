@@ -2,6 +2,13 @@
 
 **Status:** Proposed
 
+> Status note: this branch ships the companion half of the phase. The ADR
+> stays `Proposed` until the browser install step that consumes these routes
+> lands and is reviewed; the `docs/adr/README.md` index row and the flip to
+> `Accepted` are owned by that integration PR. Numbering skips 0014/0015
+> deliberately — those are reserved by the in-flight phase 3 backend branch
+> (`docs/adr/0015-pack-reference-freeze.md`).
+
 ## Context
 
 Until now an install ended one of two ways: the web UI produced a zip the
@@ -44,12 +51,22 @@ header requirement, and Private Network Access preflight.
 `location: "project"` confines writes to a confirmed absolute project root
 (default: the companion's cwd). `location: "machine"` confines writes to
 the target framework's conventional home root (e.g. `~/.claude`,
-`~/.config/opencode`). Every path is checked lexically
+`~/.config/opencode`). Targets whose adapter output is project-only and has
+no correct global location (`aider`, `goose`, `cline`, `copilot-cli`) reject
+`location: "machine"` with `400` instead of confining the write boundary to
+the whole home directory; `/health` lists the machine-capable ones under
+`apply.machine_targets`. Every path is checked lexically
 (`safe_output_path`) **and** through `resolve(strict=False)`, so symlinks
 that point outside the resolved root are refused rather than written
 through. Request bodies are capped at 64 KiB, compiled profiles at 500
 files / 5 MiB, and preview tokens live in an in-memory registry with a
 5-minute TTL and single use — nothing is persisted to disk.
+
+After a successful write the companion records a
+`.myace/<target>.manifest.json` in the same root, using the same
+`write_manifest()` primitive as `myace pull`, so `myace check`/`watch` can
+see an install performed through the browser instead of treating it as
+unknown state.
 
 ## Alternatives considered
 
@@ -85,6 +102,13 @@ Harder / given up:
   I/O failure midway through the write phase can leave a partially applied
   set. The timestamped backup directory is the documented recovery path;
   this is a deliberate simplicity trade-off, not an unnoticed gap.
+- **Backups accumulate.** Nothing prunes `<root>/.myace-backups/`; repeated
+  installs grow it without bound. A retention policy is a documented
+  follow-up, deliberately not invented here.
+- **The 64 KiB request cap reads `Content-Length`**, so a chunked request
+  is not counted. The browser install path always sends a length and the
+  threat model is a same-browser malicious page, not a co-resident process;
+  the cap is a guardrail, not a hard transport limit.
 - **Symlinked framework directories are refused**, even though `myace pull`
   allows them (it checks paths lexically only). Apply writes on the user's
   behalf and must be able to prove containment, so a `~/.claude` or

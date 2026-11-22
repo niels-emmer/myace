@@ -173,8 +173,8 @@ for the full security model.
 
 ### Direct install (`myace serve --allow-apply`)
 
-Scanning is read-only. To let the web UI's install step write a compiled
-profile to this machine, opt in explicitly:
+Scanning is read-only. To let a web UI install step write a compiled profile
+to this machine, opt in explicitly:
 
 ```bash
 myace serve --allow-apply
@@ -182,12 +182,13 @@ myace serve --allow-apply
 MYACE_COMPANION_ALLOW_APPLY=1 myace serve
 ```
 
-Without the flag (or variable) the companion never exposes a write route,
-and `GET /health` reports `apply.supported: false` so the UI hides the
-option:
+Without the flag (or variable) the companion never exposes a write route.
+This CLI PR ships the companion side only; the browser install step that
+consumes these routes lands separately (and uses `apply.supported` to hide
+the option when it is off):
 
 ```json
-{ "status": "ok", "server": "https://your-server", "apply": { "supported": true, "targets": ["aider", "claude-code", "..."] } }
+{ "status": "ok", "server": "https://your-server", "apply": { "supported": true, "targets": ["aider", "claude-code", "..."], "machine_targets": ["claude-code", "..."] } }
 ```
 
 Two routes are added when enabled, both behind the same loopback bind,
@@ -200,22 +201,31 @@ Network Access preflight as `/scan`:
   plus a short-lived, single-use `preview_id`. It writes nothing.
 - `POST /apply` — the same body plus `preview_id` and `confirm: true`.
   Re-fetches and re-diffs the profile, refuses (`409`) if anything changed
-  since the preview, backs up every file it will overwrite, then writes
-  atomically. It never deletes files.
+  since the preview (including a local edit to a destination file), backs up
+  every file it will overwrite, writes atomically, then records a
+  `.myace/<target>.manifest.json` so `myace check`/`watch` see the install
+  just like a `myace pull`. It never deletes files.
 
 Safety properties worth knowing:
 
 - `location: "project"` confines writes to an absolute, existing
   `project_root` (default: the companion's working directory).
   `location: "machine"` confines them to that framework's home root
-  (`~/.claude`, `~/.config/opencode`, `~/.cursor`, …).
+  (`~/.claude`, `~/.config/opencode`, `~/.cursor`, …). Targets whose output
+  is project-only (`aider`, `goose`, `cline`, `copilot-cli`) reject
+  `location: "machine"` with `400` rather than confining writes to the
+  whole home directory; `machine_targets` in `/health` lists the ones that
+  support it.
 - Paths are rejected if they would escape the root lexically or through a
-  symlink. Overwritten files are copied to
+  symlink, and if they target the companion's own `.myace/` or
+  `.myace-backups/` directories. Overwritten files are copied to
   `<root>/.myace-backups/<UTC timestamp>/` before the write.
 - Preview tokens are held in memory for five minutes and consumed on first
-  use. Request bodies are capped at 64 KiB and compiled profiles at 500
-  files / 5 MiB.
-- There is no automatic rollback if a write fails partway through; the
-  backup directory is the recovery path. See
-  [ADR-0016](adr/0016-companion-direct-apply.md) for the full rationale and
-  known limits.
+  use. Request bodies are capped at 64 KiB by `Content-Length` (a chunked
+  request is not counted — the browser install path always sends a length),
+  and compiled profiles at 500 files / 5 MiB.
+- There is no automatic rollback if a write fails partway through, and
+  backup directories are not pruned automatically; the timestamped backup
+  directory is the recovery path and a retention policy is a documented
+  follow-up. See [ADR-0016](adr/0016-companion-direct-apply.md) for the
+  full rationale and known limits.

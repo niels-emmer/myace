@@ -4,10 +4,13 @@ Every test uses `tmp_path` and a fake compiled-profile fetcher — nothing
 reaches the network and nothing is written outside the temporary root.
 """
 
+import hashlib
+import json
 import re
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -17,6 +20,10 @@ from myace_cli.local_server import build_app
 ALLOWED_ORIGIN = "https://myace.example.com"
 HEADERS = {"Origin": ALLOWED_ORIGIN, "X-MyACE-Companion": "1"}
 PROFILE_ID = "00000000-0000-0000-0000-000000000001"
+
+
+def files_hash(content: str) -> str:
+    return hashlib.sha256(content.encode()).hexdigest()
 
 
 class FakeFetcher:
@@ -48,7 +55,7 @@ class FakeFetcher:
         }
 
 
-def make_client(fetcher: FakeFetcher, *, allow_apply: bool = True) -> TestClient:
+def make_client(fetcher: Any, *, allow_apply: bool = True) -> TestClient:
     return TestClient(
         build_app(
             ALLOWED_ORIGIN,
@@ -115,6 +122,9 @@ def test_health_reports_apply_enabled(tmp_path: Path) -> None:
     assert data["apply"]["supported"] is True
     assert "opencode" in data["apply"]["targets"]
     assert "claude-code" in data["apply"]["targets"]
+    # Flat targets are project-only, not machine-installable.
+    assert "claude-code" in data["apply"]["machine_targets"]
+    assert "aider" not in data["apply"]["machine_targets"]
 
 
 # ── Preview diff ──────────────────────────────────────────────────────────
@@ -288,6 +298,25 @@ def test_apply_never_deletes_unrelated_files(tmp_path: Path) -> None:
     assert (root / "keep.txt").read_text() == "keep\n"
 
 
+def test_apply_writes_sync_manifest(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    client = make_client(FakeFetcher({"CLAUDE.md": "new\n"}))
+    preview = post_preview(client, preview_body(root)).json()
+    res = post_apply(client, apply_body(preview, project_root=root))
+    assert res.status_code == 200, res.text
+
+    manifest_file = root / ".myace" / "claude-code.manifest.json"
+    assert res.json()["manifest"] == str(manifest_file)
+    assert manifest_file.exists()
+
+    manifest = json.loads(manifest_file.read_text())
+    assert manifest["profile_id"] == PROFILE_ID
+    assert manifest["target"] == "claude-code"
+    assert manifest["compiled_hash"] == "deadbeef"
+    assert manifest["files"]["CLAUDE.md"] == files_hash("new\n")
+
+
 def test_apply_leaves_no_temporary_files(tmp_path: Path) -> None:
     root = tmp_path / "project"
     root.mkdir()
@@ -389,6 +418,14 @@ def test_preview_rejects_backup_directory_target(tmp_path: Path) -> None:
     assert res.status_code == 400
 
 
+def test_preview_rejects_manifest_directory_target(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    client = make_client(FakeFetcher({".myace/evil.txt": "x\n"}))
+    res = post_preview(client, preview_body(root))
+    assert res.status_code == 400
+
+
 def test_preview_rejects_colliding_machine_paths(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -463,8 +500,21 @@ def test_machine_location_rebases_onto_home_root(
     assert (tmp_path / "home" / ".claude" / "CLAUDE.md").read_text() == "instructions\n"
 
 
-# ── Opt-in / security gate ────────────────────────────────────────────────
+@pytest.mark.parametrize("target", ["aider", "goose", "cline", "copilot-cli"])
+def test_machine_location_rejected_for_project_only_targets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str
+) -> None:
+    monkeypatch.setattr(local_server, "_home", lambda: tmp_path / "home")
+    client = make_client(FakeFetcher({"AGENTS.md": "x\n"}))
+    res = post_preview(
+        client, preview_body(None, target=target, location="machine")
+    )
+    assert res.status_code == 400
+    assert "machine-level install root" in res.json()["detail"]
+    assert not (tmp_path / "home").exists()
 
+
+# ── Opt-in / security gate ────────────────────────────────────────────────
 
 def test_apply_endpoints_are_disabled_by_default(tmp_path: Path) -> None:
     root = tmp_path / "project"
@@ -552,4 +602,44 @@ def test_project_root_defaults_to_cwd(
     res = post_preview(client, body)
     assert res.status_code == 200, res.text
     assert res.json()["root"] == str(project.resolve())
+
+
+# ── Upstream fetch error mapping ──────────────────────────────────────────
+
+
+def status_error(status: int) -> httpx.HTTPStatusError:
+    request = httpx.Request("POST", "https://srv.example/api/v1/profiles/compile")
+    response = httpx.Response(status, request=request)
+    return httpx.HTTPStatusError(f"status {status}", request=request, response=response)
+
+
+def raising_fetcher(error: Exception) -> Any:
+    def fetch(credentials: dict[str, str], profile_id: str, target: str) -> dict:
+        raise error
+
+    return fetch
+
+
+@pytest.mark.parametrize(
+    ("upstream_status", "expected"),
+    [(404, 404), (401, 502), (403, 502), (500, 502)],
+)
+def test_fetch_http_status_errors_are_mapped(
+    tmp_path: Path, upstream_status: int, expected: int
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    client = make_client(raising_fetcher(status_error(upstream_status)))
+    res = post_preview(client, preview_body(root))
+    assert res.status_code == expected
+
+
+def test_fetch_connect_error_maps_to_502(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    request = httpx.Request("POST", "https://srv.example/api/v1/profiles/compile")
+    client = make_client(raising_fetcher(httpx.ConnectError("refused", request=request)))
+    res = post_preview(client, preview_body(root))
+    assert res.status_code == 502
+    assert "Could not reach" in res.json()["detail"]
 
