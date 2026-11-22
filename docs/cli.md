@@ -75,7 +75,7 @@ created token.
 | `myace import --path <dir> --name <name> [--push]` | Scan local config dir and convert to canonical artifacts |
 | `myace check [--target <fw> \| --all] [--json] [--report]` | Check a pulled target for local hand-edits or server-side staleness |
 | `myace watch [--target <fw> \| --all] [--interval <secs>] [--auto-pull] [--report]` | Continuously watch pulled output for drift |
-| `myace serve [--port <port>]` | Run a local companion server so the web UI's Import page can scan this machine (needs `pip install "myace-cli[serve]"`) |
+| `myace serve [--port <port>] [--allow-apply]` | Run a local companion server so the web UI can scan this machine, and with `--allow-apply` install compiled files directly (needs `pip install "myace-cli[serve]"`) |
 
 ## Import command
 
@@ -170,3 +170,52 @@ loopback only and only accepts requests from the exact origin you logged
 into — see [`cli/myace_cli/local_server.py`](../cli/myace_cli/local_server.py)
 and [`AGENTS.md`](../AGENTS.md#24-local-companion-server-myace-serve-security-model)
 for the full security model.
+
+### Direct install (`myace serve --allow-apply`)
+
+Scanning is read-only. To let the web UI's install step write a compiled
+profile to this machine, opt in explicitly:
+
+```bash
+myace serve --allow-apply
+# or the equivalent environment variable:
+MYACE_COMPANION_ALLOW_APPLY=1 myace serve
+```
+
+Without the flag (or variable) the companion never exposes a write route,
+and `GET /health` reports `apply.supported: false` so the UI hides the
+option:
+
+```json
+{ "status": "ok", "server": "https://your-server", "apply": { "supported": true, "targets": ["aider", "claude-code", "..."] } }
+```
+
+Two routes are added when enabled, both behind the same loopback bind,
+exact-`Origin` check, required `X-MyACE-Companion` header, and Private
+Network Access preflight as `/scan`:
+
+- `POST /apply/preview` — `{profile_id, target, location, project_root?}`.
+  Fetches the compiled profile with your stored `myace login` credentials
+  and returns a per-file diff (`added`/`changed`/`unchanged`, bytes, sha256)
+  plus a short-lived, single-use `preview_id`. It writes nothing.
+- `POST /apply` — the same body plus `preview_id` and `confirm: true`.
+  Re-fetches and re-diffs the profile, refuses (`409`) if anything changed
+  since the preview, backs up every file it will overwrite, then writes
+  atomically. It never deletes files.
+
+Safety properties worth knowing:
+
+- `location: "project"` confines writes to an absolute, existing
+  `project_root` (default: the companion's working directory).
+  `location: "machine"` confines them to that framework's home root
+  (`~/.claude`, `~/.config/opencode`, `~/.cursor`, …).
+- Paths are rejected if they would escape the root lexically or through a
+  symlink. Overwritten files are copied to
+  `<root>/.myace-backups/<UTC timestamp>/` before the write.
+- Preview tokens are held in memory for five minutes and consumed on first
+  use. Request bodies are capped at 64 KiB and compiled profiles at 500
+  files / 5 MiB.
+- There is no automatic rollback if a write fails partway through; the
+  backup directory is the recovery path. See
+  [ADR-0016](adr/0016-companion-direct-apply.md) for the full rationale and
+  known limits.
