@@ -57,7 +57,7 @@ runtime dependency:
    initializes the wiki repo on first push).
 2. Copy the included files per the scope table above into the wiki clone,
    renaming to Wiki page-name conventions (spaces/slashes → `-`).
-3. Rewrite relative links (`[invariants](invariants.md)` →
+3. Rewrite relative links (`[invariants](../invariants.md)` →
    `[invariants](Invariants)`) and image paths so they resolve inside the
    Wiki's flat namespace.
 4. Generate `_Sidebar.md` (nav: Home, Architecture, Data Model, Invariants,

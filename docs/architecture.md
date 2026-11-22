@@ -85,7 +85,7 @@ schema.
 
 Think packages vs. a lockfile: collections are where the building blocks
 live; a profile is a specific, named recipe assembled from them, compiled
-for one target framework at a time.
+per target framework (a setup may list several).
 
 ## Compilation pipeline
 
@@ -154,12 +154,14 @@ Every API route requires an authenticated user, except a short, explicit
 public list: `/health`, the auth entry points (`/auth/register`,
 `/auth/login`, `/auth/login/mfa`, `/auth/logout`, `/auth/forgot-password`,
 `/auth/reset-password`, `/auth/login/{provider}`,
-`/auth/callback/{provider}`, `/auth/providers`), and — new in Phase 4 —
-`POST /demo/compile`, the
+`/auth/callback/{provider}`, `/auth/providers`), `POST /demo/compile` — the
 stateless public demo endpoint behind the `/welcome` landing page (see
 [ADR-0011](adr/0011-public-demo-sandbox.md) and AGENTS.md rule 36 for why
-this one earns the exception). Everything else goes through one of two
-mechanisms feeding one dependency:
+this one earns the exception) — and the five anonymous storefront reads
+under `/collections/community*` (see
+[ADR-0014](adr/0014-public-pack-browsing.md) and AGENTS.md rules 13/42:
+approved-only, sanitized, read-only, and rate-limited). Everything else goes
+through one of two mechanisms feeding one dependency:
 
 - **Session cookie** — set after `/auth/login` (email+password) or an
   OIDC/GitHub/Google callback. This is what the web UI uses.

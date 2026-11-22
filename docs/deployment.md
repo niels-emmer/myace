@@ -28,11 +28,10 @@ After forking, before exposing it beyond localhost:
      **refuses to start** in production if you leave the default — it's a
      `RuntimeError`, not a warning). Generate with `openssl rand -hex 32`.
    - Set `DEBUG=false`. The app **refuses to start** with `DEBUG=true`
-     outside development — that combination served `/docs`/`/redoc`
-     publicly and dropped the `Secure` flag from the session cookie. Set
-     `FRONTEND_BASE_URL` to your public `https://` origin as well: the
-     session cookie's `Secure` flag follows its scheme, so an `https://`
-     value is what keeps the cookie off plaintext HTTP.
+     outside development. `/docs` and `/redoc` are gated on `APP_ENV`, not
+     `DEBUG`. Set `FRONTEND_BASE_URL` to your public `https://` origin as
+     well: the session cookie's `Secure` flag follows its scheme, so an
+     `https://` value is what keeps the cookie off plaintext HTTP.
    - Change `POSTGRES_PASSWORD` from the shipped default.
    - Register your own account, then set `ADMIN_BOOTSTRAP_ENABLED=false` and
      restart — otherwise the *next* person to register on a public
@@ -193,7 +192,7 @@ not inherit one — and raise nginx's `client_max_body_size` to match.
 
 ## Download-digest cron job
 
-Owners who opt into "notify me on downloads" (per-profile preference, see
+Owners who opt into "notify me on downloads" (a per-account preference, see
 [README.md](../README.md)) get a daily digest email, not a per-download
 email. There is no in-process scheduler in this backend, so the digest is
 a standalone script — `backend/app/scripts/send_download_digests.py` —

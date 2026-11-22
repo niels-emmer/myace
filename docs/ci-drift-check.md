@@ -63,10 +63,9 @@ jobs:
           working-directory: .claude   # wherever `myace pull` wrote files
 ```
 
-Pin `@main` to a tagged release (e.g. `@v1.6.0`) once MyACE starts cutting
-release tags for this action, the same way you'd pin any third-party
-Action — `@main` tracks whatever's newest, which is convenient while
-adopting this but not what you want long-term for a CI gate.
+Pin `@main` to a released tag (e.g. `@v2.0.0`), the same way you'd pin any
+third-party Action — `@main` tracks whatever's newest, which is convenient
+while adopting this but not what you want long-term for a CI gate.
 
 ## Inputs
 

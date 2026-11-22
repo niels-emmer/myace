@@ -1,13 +1,9 @@
 # ADR-0016: Companion direct apply — preview-then-confirm local writes
 
-**Status:** Proposed
+**Status:** Accepted
 
-> Status note: this branch ships the companion half of the phase. The ADR
-> stays `Proposed` until the browser install step that consumes these routes
-> lands and is reviewed; the `docs/adr/README.md` index row and the flip to
-> `Accepted` are owned by that integration PR. Numbering skips 0014/0015
-> deliberately — those are reserved by the in-flight phase 3 backend branch
-> (`docs/adr/0015-pack-reference-freeze.md`).
+> Follow-up note: the integration PR (#204) shipped the browser install step
+> that consumes these routes, so the decision is fully implemented.
 
 ## Context
 
