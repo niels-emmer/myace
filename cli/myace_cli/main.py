@@ -14,6 +14,7 @@ from rich.markup import escape as rich_escape
 from rich.panel import Panel
 from rich.table import Table
 
+from myace_cli import __version__
 from myace_cli.auth import AuthManager
 from myace_cli.scanner import export_to_collection, scan_directory
 from myace_cli.sync import (
@@ -38,8 +39,23 @@ auth_manager = AuthManager()
 sync_engine = SyncEngine()
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"myace {__version__}")
+        raise typer.Exit()
+
+
 @app.callback()
-def callback():
+def callback(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        "-V",
+        is_eager=True,
+        callback=_version_callback,
+        help="Show the MyACE CLI version and exit.",
+    ),
+):
     """MyACE CLI — Sync agentic coding profiles to your local machine."""
 
 

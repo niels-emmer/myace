@@ -199,7 +199,7 @@ describe('ProfileDetail framework matrix', () => {
     await screen.findByText('My software setup');
 
     fireEvent.click(screen.getByText(/Advanced — item toggles/i));
-    fireEvent.click(screen.getByRole('button', { name: 'windsurf' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Windsurf' }));
 
     await waitFor(() =>
       expect(setupProfilesApi.update).toHaveBeenCalledWith(

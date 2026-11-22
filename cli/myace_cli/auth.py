@@ -7,6 +7,8 @@ from urllib.parse import urlparse
 
 import httpx
 
+from myace_cli import __version__
+
 
 class AuthManager:
     """Manages CLI credentials stored in ~/.myace/credentials.json."""
@@ -25,7 +27,7 @@ class AuthManager:
             {
                 "server": server.rstrip("/"),
                 "token": token,
-                "version": "0.1.0",
+                "version": __version__,
             },
             indent=2,
         )

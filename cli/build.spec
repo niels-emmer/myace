@@ -17,11 +17,13 @@ block_cipher = None
 # The spec file is executed from the cli/ directory (where the spec lives).
 SPEC_DIR = "."
 
-# ── Collect metadata for Rich and Typer ──────────────────────────
-# These packages need their metadata bundled so features like
-# Rich's markup and Typer's help text work correctly.
+# ── Collect metadata ─────────────────────────────────────────────
+# Rich/Typer need their metadata for markup and help text. The CLI's own
+# distribution metadata must also be bundled: `myace --version` and the
+# credentials payload read it via importlib.metadata, which cannot see
+# dist-info that PyInstaller did not collect.
 datas = []
-for pkg in ("rich", "typer", "click"):
+for pkg in ("rich", "typer", "click", "myace-cli"):
     try:
         datas += hooks.copy_metadata(pkg)
     except Exception:

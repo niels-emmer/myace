@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { adaptersApi, collectionsApi, profilesApi, syncApi } from '../lib/api';
 import { installsApi, profileToCreate, setupProfilesApi } from '../lib/setupApi';
+import { frameworkLabel } from '../lib/packs';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileFormFields from '../components/ProfileForm';
 import { buildFrameworkRows, profileTargets, resolveInstallPath } from '../types/setup';
@@ -642,7 +643,7 @@ export default function ProfileDetail() {
                 <tbody>
                   {frameworkRows.map((row) => (
                     <tr key={row.target} className="border-b border-border last:border-b-0">
-                      <td className="px-5 py-3 font-medium text-foreground">{row.target}</td>
+                      <td className="px-5 py-3 font-medium text-foreground">{frameworkLabel(row.target)}</td>
                       <td className="px-5 py-3">
                         <span
                           className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${STATE_CLASSES[row.state]}`}
@@ -761,7 +762,7 @@ export default function ProfileDetail() {
                             : 'border-border text-muted-foreground hover:border-input'
                         }`}
                       >
-                        {adapter.name}
+                        {frameworkLabel(adapter.name)}
                       </button>
                     );
                   })}

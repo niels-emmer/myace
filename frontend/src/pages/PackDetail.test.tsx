@@ -44,7 +44,6 @@ vi.mock('../lib/packApi', () => ({
     getPublicPack: vi.fn(),
     getPublicArtifacts: vi.fn(),
     listCommunity: vi.fn(),
-    usePack: vi.fn(),
   },
 }));
 

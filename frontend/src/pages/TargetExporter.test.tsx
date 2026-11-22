@@ -101,7 +101,7 @@ describe('TargetExporter install panel', () => {
     renderInstall();
     await waitForProfile();
 
-    expect(screen.getByRole('option', { name: /claude-code/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Claude Code/ })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: /cursor/ })).not.toBeInTheDocument();
     // Machine is the default when the framework supports it.
     expect(screen.getByText('~/.claude')).toBeInTheDocument();

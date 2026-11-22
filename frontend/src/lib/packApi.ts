@@ -3,7 +3,7 @@
  *
  * Kept separate from `lib/api.ts` (owned by another phase) so the anonymous
  * surface is explicit: every `get*` here hits a route that works without a
- * session (ADR-0014), and `usePack` is the one authenticated call.
+ * session (ADR-0014); the write helpers require one.
  */
 
 import type { Artifact } from '../types';
@@ -11,7 +11,6 @@ import type {
   CommunityCollectionsResponse,
   Pack,
   PackMetadataUpdate,
-  UsePackResult,
 } from '../types/packs';
 
 const API_BASE = '/api/v1';
@@ -69,13 +68,6 @@ export const packApi = {
   /** Anonymous: the enabled contents of a published pack. */
   getPublicArtifacts: (id: string) =>
     request<Artifact[]>(`/collections/community/${id}/artifacts`),
-
-  /**
-   * Authenticated: record a reference use of a pack ("used N times").
-   * Reference semantics — this never copies the pack (ADR-0015).
-   */
-  usePack: (id: string) =>
-    request<UsePackResult>(`/collections/${id}/use`, { method: 'POST' }),
 
   /**
    * Authenticated: write pack metadata before submitting for review. Kept

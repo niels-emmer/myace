@@ -136,7 +136,7 @@ const continueButton = () => screen.getByRole('button', { name: /Continue|Finish
 
 async function selectFrameworkAndPack() {
   await screen.findByRole('heading', { name: 'What do you use?' });
-  fireEvent.click(await screen.findByRole('button', { name: /claude-code/ }));
+  fireEvent.click(await screen.findByRole('button', { name: /Claude Code/ }));
   fireEvent.click(continueButton());
   await screen.findByRole('heading', { name: 'What should your agent know?' });
   fireEvent.click(await screen.findByRole('button', { name: /^Software Engineer/ }));
@@ -220,7 +220,7 @@ describe('Onboarding wizard', () => {
   it('goes back to the previous step', async () => {
     renderWizard();
     await screen.findByRole('heading', { name: 'What do you use?' });
-    fireEvent.click(await screen.findByRole('button', { name: /claude-code/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Claude Code/ }));
     fireEvent.click(continueButton());
     await screen.findByRole('heading', { name: 'What should your agent know?' });
 
@@ -273,7 +273,7 @@ describe('Onboarding wizard', () => {
   it('asks which starting point to pair an add-on with, preselecting the most-used base', async () => {
     renderWizard();
     await screen.findByRole('heading', { name: 'What do you use?' });
-    fireEvent.click(await screen.findByRole('button', { name: /claude-code/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Claude Code/ }));
     fireEvent.click(continueButton());
     await screen.findByRole('heading', { name: 'What should your agent know?' });
 

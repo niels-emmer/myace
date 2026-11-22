@@ -146,8 +146,8 @@ describe('Home', () => {
 
     expect(await screen.findByText('My software setup')).toBeInTheDocument();
     expect(screen.getByText('Software Engineer · QA / Test Engineer')).toBeInTheDocument();
-    expect(screen.getByText('claude-code — verified')).toBeInTheDocument();
-    expect(screen.getByText('opencode — not verified')).toBeInTheDocument();
+    expect(screen.getByText('Claude Code — verified')).toBeInTheDocument();
+    expect(screen.getByText('OpenCode — not verified')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /New setup/i })).toHaveAttribute(
       'href',
       '/onboarding',
@@ -168,7 +168,7 @@ describe('Home', () => {
       'href',
       '/setups/setup-1',
     );
-    expect(screen.getByText('claude-code — changed')).toBeInTheDocument();
+    expect(screen.getByText('Claude Code — changed')).toBeInTheDocument();
   });
 
   it('aggregates drift honestly when rows span multiple setups', async () => {
@@ -266,8 +266,8 @@ describe('Home', () => {
 
     expect(await screen.findByText('Installed, not verified yet')).toBeInTheDocument();
     expect(screen.queryByText('Your setup is ready — install it')).not.toBeInTheDocument();
-    expect(screen.getByText('claude-code — installed, not verified')).toBeInTheDocument();
-    expect(screen.getByText('opencode — not installed')).toBeInTheDocument();
+    expect(screen.getByText('Claude Code — installed, not verified')).toBeInTheDocument();
+    expect(screen.getByText('OpenCode — not installed')).toBeInTheDocument();
   });
 
   it('keeps the single footer line with no object-count cards', async () => {
