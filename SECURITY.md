@@ -15,9 +15,9 @@ produced from `main` on every push and is the most current CLI binary.
 Instead, use one of:
 
 1. **GitHub Private Vulnerability Reporting** (preferred): open the
-   [Security tab](../../security/advisories/new) on this repository and
-   submit a private advisory. This notifies the maintainer directly without
-   disclosing details publicly.
+   [private security advisory form](https://github.com/niels-emmer/myace/security/advisories/new)
+   for this repository and submit a private advisory. This notifies the
+   maintainer directly without disclosing details publicly.
 2. Contact [@niels-emmer](https://github.com/niels-emmer) directly via the
    contact details on their GitHub profile.
 
@@ -54,11 +54,15 @@ Out of scope:
 
 ## Security Model (summary)
 
-MyACE has real authentication and authorization — every API route requires
-an authenticated user (session cookie or Bearer API token), and access to
-collections/profiles/artifacts is scoped by ownership plus an explicit
-public/private flag, with an admin role that bypasses ownership for
-oversight. See [`docs/invariants.md`](docs/invariants.md) for the exact
+MyACE has real authentication and authorization — every API route that
+touches user data requires an authenticated user (session cookie or Bearer
+API token). The deliberate exceptions are the auth entry points,
+`GET /health`, the stateless public demo compile endpoint, and the five
+read-only community pack routes behind the storefront (approved-only,
+sanitized, and rate-limited). Access to collections/profiles/artifacts is
+scoped by ownership plus an explicit public/private flag, with an admin role
+that bypasses ownership for oversight. See
+[`docs/invariants.md`](docs/invariants.md) for the exact
 rules the code is expected to enforce, and
 [`docs/architecture.md#authentication--authorization`](docs/architecture.md)
 for how it's implemented.

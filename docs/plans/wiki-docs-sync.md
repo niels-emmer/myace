@@ -37,7 +37,7 @@ contributing to the project, not for the AI-agent rule files.
 | `docs/extending.md` | `Extending-MyACE` | Yes |
 | `docs/debugging.md` | `Debugging` | Yes |
 | `docs/adr/*.md` | `ADR-000N-slug` (one page per ADR) | Yes |
-| `docs/ADAPTERS_RESEARCH.md` | `Adapter-Research` | Yes |
+| `docs/adapters-research.md` | `Adapter-Research` | Yes |
 | `docs/README.md` | becomes the Wiki `Home` page (rewritten) | Yes, transformed |
 | `docs/plans/*.md`, `docs/plan-*.md` | — | No — these are point-in-time design records, not reference docs; keep them repo-only |
 | `AGENTS.md` / `CLAUDE.md` | — | No — agent-facing, not for Wiki visitors |
@@ -57,7 +57,7 @@ runtime dependency:
    initializes the wiki repo on first push).
 2. Copy the included files per the scope table above into the wiki clone,
    renaming to Wiki page-name conventions (spaces/slashes → `-`).
-3. Rewrite relative links (`[invariants](invariants.md)` →
+3. Rewrite relative links (`[invariants](../invariants.md)` →
    `[invariants](Invariants)`) and image paths so they resolve inside the
    Wiki's flat namespace.
 4. Generate `_Sidebar.md` (nav: Home, Architecture, Data Model, Invariants,

@@ -130,9 +130,10 @@ names where it's enforced so you can verify it hasn't regressed.
 
 ## Data integrity
 
-15. **All primary keys are UUIDs**, never auto-increment integers — across
-    every table, no exceptions. This is a hard rule, not a default; don't
-    add a table that deviates from it.
+15. **All resource primary keys are UUIDs**, never auto-increment integers.
+    The singleton `system_settings` row (fixed `id=1`) is the only
+    exception. This is a hard rule, not a default; don't add a table that
+    deviates from it.
 
 16. **Every schema change ships an Alembic migration with a working
     `downgrade()`.** Never edit a migration that's already been committed —

@@ -6,17 +6,17 @@ Task-oriented guides for common changes. Each one assumes you've read
 
 ## Adding a target adapter
 
-To support a new framework (say, "pi.dev" — see
+To support a new framework (say, Zed AI — see
 [adapters-research.md](adapters-research.md) for other unbuilt candidates;
-don't reuse one of the 11 already shipped in
+don't reuse one of the 12 already shipped in
 `backend/app/adapters/__init__.py`):
 
-1. **Backend**: create `backend/app/adapters/pi_dev.py` implementing
+1. **Backend**: create `backend/app/adapters/zed.py` implementing
    `BaseAdapter` (see `backend/app/adapters/base.py` for the interface):
    ```python
-   class PiDevAdapter(BaseAdapter):
-       def adapter_name(self) -> str: return "pi-dev"
-       def supported_targets(self) -> list[str]: return ["pi-dev"]
+   class ZedAdapter(BaseAdapter):
+       def adapter_name(self) -> str: return "zed"
+       def supported_targets(self) -> list[str]: return ["zed"]
        def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
            ...  # canonical artifacts in, {filename: content} out
    ```
@@ -29,27 +29,28 @@ don't reuse one of the 11 already shipped in
    `get_adapter()` — this exact bug shipped for four adapters (`codex-cli`,
    `copilot-cli`, `cline`, `windsurf`) until it was caught and fixed.
 3. **CLI copy** (optional, currently unused): mirror the same adapter in
-   `cli/myace_cli/adapters/pi_dev.py`. This package exists — and is
-   maintained in sync for `claude_code`/`opencode`/`cursor` — for a local
-   -rendering fallback that hasn't been wired up yet: `myace pull`
+   `cli/myace_cli/adapters/zed.py`. This package exists — and is
+   maintained in sync for `claude_code`/`opencode`/`cursor` — for a
+   local-rendering fallback that hasn't been wired up yet: `myace pull`
    (`cli/myace_cli/sync.py`) always calls the backend's `/profiles/compile`
    endpoint directly and has no code path that falls back to
    `myace_cli.adapters` if the server is unreachable. Until that's built,
-   adding a CLI copy for a new adapter is optional — the other eight
+   adding a CLI copy for a new adapter is optional — the other nine
    backend adapters (everything except `claude_code`/`opencode`/`cursor`)
    don't have one, and nothing currently regresses because of that. If you
    do add one, keep it in sync with its backend counterpart by hand —
    there's no automated check for this today.
-4. **Test**: add a `TestPiDevAdapter` class to
+4. **Test**: add a `TestZedAdapter` class to
    `backend/tests/test_adapters.py` following the existing pattern (see
    `TestClaudeCodeAdapter`, `TestCodexCliAdapter`, `TestWindsurfAdapter`,
    etc.) — at minimum, one test per artifact type your adapter handles
    specially.
-5. **Docs**: add a row to the target adapters table in `README.md`, and to
-   the adapter list in `architecture.md` and `CLAUDE.md`.
+5. **Docs**: add the framework to the list in `README.md`, an entry with its
+   confirmed file format to `adapters-research.md`, and the adapter name
+   (e.g. `zed`) to `architecture.md`'s adapter list.
 
 Adapters must stay stateless and pure — see
-[invariants.md #9](invariants.md#canonical-ir). Don't reach into the
+[invariants.md #12](invariants.md#canonical-ir). Don't reach into the
 database or filesystem from inside `translate()`.
 
 ## Adding a new artifact type
@@ -67,7 +68,7 @@ sixth means touching all of:
    directory scan? Update both (see the scanner-duality rule in
    `AGENTS.md`).
 4. `backend/app/services/github_export.py`'s `artifacts_to_files()` — the
-   inverse of step 3. Keep it symmetric (invariant #10).
+   inverse of step 3. Keep it symmetric (invariant #13).
 5. `frontend/src/types/index.ts`'s `ArtifactType` union, and anywhere the
    frontend special-cases type (e.g. `CollectionDetail.tsx`'s
    `ARTIFACT_TYPES` filter list and `typeColors` map).
@@ -184,8 +185,10 @@ open a PR.
 
 ## Working on the frontend
 
-- New pages go in `frontend/src/pages/`, added to both the route list in
-  `App.tsx` and the sidebar in `Layout.tsx` if they need direct navigation.
+- New pages go in `frontend/src/pages/`, added to the route list in
+  `App.tsx` and — if they need direct navigation — to the matching group in
+  `lib/navigation.ts` (Layout renders from it; see AGENTS.md rule 38).
+  Command-palette entries live in `CommandPalette.tsx`'s constants.
 - New API calls go in `frontend/src/lib/api.ts`, typed against
   `frontend/src/types/index.ts` — never call `fetch()` directly outside this
   file (see the credentials gotcha in

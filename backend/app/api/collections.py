@@ -863,8 +863,8 @@ async def publish_collection(
     This no longer publishes immediately — it moves the collection into the
     `submitted` moderation queue for a moderator/admin to approve or deny
     (see app.api.moderation). Only `published`/`visibility` flip is the
-    approve action; this endpoint never touches them. Allowed from `draft`
-    or `denied` only (409 otherwise — already submitted/approved).
+    approve action; this endpoint never touches them. Allowed from `draft`,
+    `denied`, or `unpublished` (409 otherwise — already submitted/approved).
     """
     collection = await _get_collection_or_404(session, collection_id)
     authorize_access(
