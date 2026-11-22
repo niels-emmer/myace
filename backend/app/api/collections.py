@@ -273,7 +273,7 @@ async def list_community_collections(
     offset: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
-):
+) -> CommunityCollectionsResponse:
     """List published community collections (public storefront read).
 
     Deliberately carries no `Depends(get_current_user)` — see ADR-0014 and
@@ -322,7 +322,7 @@ async def list_top_community_collections(
     request: Request,
     limit: int = Query(10, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
-):
+) -> list[PublicCollectionRead]:
     """List the top N most downloaded published community collections.
 
     Public read (ADR-0014). Note that `download_count` is advisory and
@@ -348,7 +348,7 @@ async def list_top_community_collections(
 async def list_community_categories(
     request: Request,
     session: AsyncSession = Depends(get_session),
-):
+) -> list[str]:
     """List all distinct categories among published community collections.
 
     Public read (ADR-0014).
@@ -377,7 +377,7 @@ async def get_public_community_collection(
     collection_id: uuid.UUID,
     request: Request,
     session: AsyncSession = Depends(get_session),
-):
+) -> PublicCollectionRead:
     """Read one published community pack without an account (ADR-0014).
 
     Registered above `/{collection_id}` (which is authenticated) and kept in
@@ -399,7 +399,7 @@ async def list_public_community_artifacts(
     request: Request,
     type: str | None = Query(None),  # matches the authed artifacts route's param
     session: AsyncSession = Depends(get_session),
-):
+) -> list[ArtifactRead]:
     """List the enabled items of a published community pack (ADR-0014).
 
     Public contents are the *shipped* set only: disabled items are excluded,

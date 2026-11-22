@@ -59,12 +59,15 @@ function sortPacks(packs: Pack[], sort: Sort): Pack[] {
 }
 
 function emptyMessage(facet: Facet, anonymous: boolean): string {
-  if (anonymous) return 'No community packs match these filters yet.';
   if (facet === 'mine') return 'You do not have any packs yet.';
-  if (facet === 'community') return 'No community packs match these filters.';
+  if (facet === 'community') {
+    return anonymous
+      ? 'No community packs match these filters yet.'
+      : 'No community packs match these filters.';
+  }
   if (facet === 'base') return 'No starting-point packs match these filters.';
   if (facet === 'additional') return 'No add-ons match these filters.';
-  return 'No packs match these filters.';
+  return anonymous ? 'No packs match these filters yet.' : 'No packs match these filters.';
 }
 
 export default function PacksLibrary() {
