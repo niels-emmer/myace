@@ -64,7 +64,8 @@ Dev stack: frontend on `:80`, backend on `:8000` directly, home dir mounted at `
 - **`mypy --strict` is advisory, not a gate.** CI runs `mypy app || true`
   (`.github/workflows/ci.yml`), so a type error reports but never fails the
   build — treat the rules above as review standards, not something the build
-  enforces. Measured at the time of writing: **131 errors across 18 files**.
+  enforces. Measured at the time of writing (mypy 2.4.1): **117 errors across
+  18 files**.
   The large majority are SQLAlchemy/SQLModel stub artifacts, not real defects:
   `type-arg` on bare `dict`, `attr-defined`/`union-attr` on column expressions
   mypy resolves as plain Python scalars (e.g. `Collection.avg_rating.desc()`
@@ -159,10 +160,13 @@ body: str (markdown)
 
 - Branch from `main`: `feat/description`, `fix/description`, `chore/description`.
 - Commits follow conventional commits: `feat:`, `fix:`, `chore:`, `docs:`.
-- PRs require at least one review before merging to `main`.
-- **`main` is protected** — CI must pass, at least one approving review is
-  required, and stale reviews are dismissed on new pushes. Never push
-  directly to `main`; always work from a feature/fix/chore branch.
+- PRs merge on green CI. There is currently **no required approving review**
+  — branch protection sets `required_approving_review_count: 0` because the
+  project has a single maintainer (see `CONTRIBUTING.md`). If that changes,
+  enable a required review and update this rule with it.
+- **`main` is protected** — the four required status checks must pass, stale
+  reviews are dismissed on new pushes, and force-pushes are blocked. Never
+  push directly to `main`; always work from a feature/fix/chore branch.
 
 ### 8. Scanner Module (CLI + Backend)
 

@@ -27,7 +27,8 @@ MyACE uses ADRs to capture non-obvious, expensive-to-reverse decisions. See `doc
 
 **Format:**
 1. Copy `docs/adr/template.md`
-2. Number sequentially (next is `0006`)
+2. Number sequentially (`0001`, `0002`, …; next is the next unused number —
+   currently `0014`)
 3. Keep it short — one screen
 4. Never renumber or delete a past ADR
 5. If superseded, mark old status as `Superseded by ADR-00XX`

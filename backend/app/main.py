@@ -2,6 +2,8 @@
 
 import logging
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,6 +32,7 @@ from app.api.demo import limiter as demo_limiter
 from app.core.body_limit import MaxBodySizeMiddleware
 from app.core.config import settings
 from app.core.database import get_session_factory, init_db
+from app.core.ratelimit import auth_limiter
 from app.services.seed_collections import seed_starter_collections
 
 logger = logging.getLogger("myace")
@@ -137,9 +140,22 @@ async def lifespan(app: FastAPI):
     yield
 
 
+def _app_version() -> str:
+    """Version reported in `/openapi.json`.
+
+    Read from installed package metadata so it tracks `pyproject.toml` instead
+    of drifting from it. Falls back to a placeholder when running from a source
+    tree that was never installed (e.g. a bare `PYTHONPATH=.` run).
+    """
+    try:
+        return package_version("myace-backend")
+    except PackageNotFoundError:
+        return "0.0.0+unknown"
+
+
 app = FastAPI(
     title=settings.app_name,
-    version="0.1.0",
+    version=_app_version(),
     lifespan=lifespan,
     # Gated on app_env, not `debug` (L-14): the interactive docs expose the
     # full API schema, so they belong to local development only. `debug`
@@ -149,10 +165,11 @@ app = FastAPI(
     redoc_url="/redoc" if settings.app_env == "development" else None,
 )
 
-# Rate limiter state + exception handler for app.api.demo's @limiter.limit(...)
-# decorator — this is app-wide *plumbing* slowapi requires to raise 429s at
-# all, not app-wide rate limiting. No route other than POST /demo/compile
-# carries the decorator, so no other route is actually rate-limited by this.
+# Rate limiter state + exception handler for slowapi's @limiter.limit(...)
+# decorators — this is app-wide *plumbing* required to raise 429s at all, not
+# app-wide rate limiting. Only POST /demo/compile uses this instance; the
+# credential-guessing auth routes use their own `auth_limiter`
+# (app/core/ratelimit.py).
 app.state.limiter = demo_limiter
 
 
@@ -181,7 +198,19 @@ def _handle_rate_limit_exceeded(request: Request, exc: Exception) -> Response:
     # `(Response, ...) -> Response` — annotate the result explicitly
     # rather than letting `Any` silently propagate as this function's
     # declared `Response` return.
-    injected: Response = request.app.state.limiter._inject_headers(
+    # The limiter that *counted* this request must inject the headers: each
+    # Limiter owns its own storage, so the demo limiter would report its empty
+    # bucket for an auth 429. The two instances are disjoint by route — auth
+    # routes live under /api/v1/auth/ — so the path picks the right one.
+    #
+    # Note `_inject_headers` is a no-op while `headers_enabled` is False (the
+    # default): slowapi calls it with the handler's return value, and these
+    # handlers return plain dicts/`UserRead` models rather than a `Response`,
+    # which that helper rejects. Selecting the right limiter here keeps the
+    # call correct if headers are ever enabled on handlers that return a
+    # `Response`.
+    limiter = auth_limiter if request.url.path.startswith("/api/v1/auth/") else demo_limiter
+    injected: Response = limiter._inject_headers(
         response, request.state.view_rate_limit
     )
     return injected
