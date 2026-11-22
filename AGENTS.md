@@ -1422,16 +1422,16 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   user-incrementable (invariant 25 / ADR-0015). The storefront/library must
   not offer "Most used" sorting or a "Top packs" ranking; "used N times" as
   a soft signal is fine.
-- **"Use this pack" means "create a setup that references it", not "fork a
-  copy".** `PackDetail.tsx` first calls `POST /collections/{id}/use` (the
-  counter) and then `POST /profiles` with the pack as `base_collection_id`
-  (or, for an add-on, the chosen starting point as the base and the add-on
-  in `additional_collection_ids`) — Phase 3's snapshot capture does the rest.
-  There is no dedicated "append" endpoint, but `components/AddToSetup.tsx`
-  updates an existing setup through `PUT /profiles/{id}` with the pack in
-  `additional_collection_ids` (or as its `base_collection_id`), so an
-  "Add to a setup" choice is persisted. Don't add a picker whose choice
-  isn't persisted.
+- **"Use this pack" creates a setup that references the pack; "Add to a
+  setup" attaches it to an existing one.** `components/AddToSetup.tsx` (mounted
+  by `PackDetail.tsx`) first calls `POST /collections/{id}/use` (the advisory
+  counter) and then `POST /profiles` with the pack as `base_collection_id` —
+  or, for an add-on, after asking which starting point to pair with, with that
+  base and the add-on in `additional_collection_ids`; Phase 3's snapshot
+  capture does the rest. "Add to a setup" appends the pack (or replaces the
+  base) through `PUT /profiles/{id}`, so that choice is persisted too. The
+  counter alone is never treated as an attach. Don't add a picker whose
+  choice isn't persisted.
 - **Home derives its state banner from setups + sync reports + install
   claims** (`GET /profiles` + `GET /sync/status`, plus a per-setup
   `GET /profiles/{id}/installs`): no setups → build your first setup;

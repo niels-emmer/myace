@@ -92,9 +92,10 @@ advisory counter and is called best-effort alongside the real change:
 | **Add to a setup…** | Replaces that setup's base (and drops the pack from its add-ons) | Appends the pack to that setup's add-ons |
 
 Both paths navigate to the affected setup. The unified pack detail
-(`/packs/:id`) mounts the menu with `showUse={false}` because it keeps its own
-"Use this pack" create path; both paths persist the reference, never just the
-advisory counter.
+(`/packs/:id`) mounts the whole component, so "Use this pack" creates a setup
+(and pairs an add-on with a base first) while "Add to a setup" attaches to an
+existing one. Both paths persist the reference, never just the advisory
+counter.
 
 ## Add-on pairing
 

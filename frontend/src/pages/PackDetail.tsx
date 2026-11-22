@@ -15,13 +15,12 @@ import {
   Loader2,
   MessageSquare,
   Pencil,
-  Plus,
   ShieldCheck,
   Star,
   Trash2,
   Wrench,
 } from 'lucide-react';
-import { collectionsApi, commentsApi, moderationApi, profilesApi, ratingsApi } from '../lib/api';
+import { collectionsApi, commentsApi, moderationApi, ratingsApi } from '../lib/api';
 import { packApi } from '../lib/packApi';
 import { FreshnessBadge } from '../components/FreshnessBadge';
 import AddToSetup from '../components/AddToSetup';
@@ -93,8 +92,6 @@ export default function PackDetail() {
   const [typeFilter, setTypeFilter] = useState<ArtifactType | 'all'>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState('');
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickedBaseId, setPickedBaseId] = useState('');
   const [confirmUnpublish, setConfirmUnpublish] = useState(false);
   const [metaEditOpen, setMetaEditOpen] = useState(false);
   const [metaDraft, setMetaDraft] = useState({ name: '', description: '', category: '' });
@@ -132,14 +129,6 @@ export default function PackDetail() {
     enabled: !!id && loggedIn && ratedPack,
   });
 
-  // Starting points for an add-on's "Use this pack" pairing. Public listing,
-  // so it works for every signed-in user without a second auth path.
-  const { data: basePacks } = useQuery({
-    queryKey: ['community-collections', { type: 'base', sort: 'alpha', limit: 100 }],
-    queryFn: () => packApi.listCommunity({ type: 'base', sort: 'alpha', limit: 100 }),
-    enabled: pickerOpen,
-  });
-
   const rateMutation = useMutation({
     mutationFn: (stars: number) => ratingsApi.rate(id!, stars),
     onSuccess: (data) => {
@@ -171,40 +160,6 @@ export default function PackDetail() {
   const deleteCommentMutation = useMutation({
     mutationFn: (commentId: string) => commentsApi.remove(id!, commentId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pack-comments', id] }),
-  });
-
-  // "Use this pack" records the reference use AND creates the setup that
-  // holds the reference (POST /profiles persists base + add-ons and captures
-  // the Phase 3 pack snapshots). For an add-on, the chosen starting point is
-  // the new setup's base — so the pairing is actually saved, not just shown.
-  const useMutationResult = useMutation({
-    mutationFn: async () => {
-      const baseId = isAddon ? selectedBaseId : pack!.id;
-      const additionalIds = isAddon ? [pack!.id] : [];
-      await packApi.usePack(pack!.id);
-      return profilesApi.create({
-        // `Profile.name` is String(255); two user-controlled pack names can
-        // exceed that on Postgres, so cap the generated name.
-        name: (
-          isAddon
-            ? `${selectedBaseName ?? 'New setup'} + ${pack!.name}`
-            : pack!.name
-        ).slice(0, 255),
-        description: isAddon
-          ? `Adds the ${pack!.name} pack to ${selectedBaseName ?? 'a starting point'}.`
-          : pack!.description ?? undefined,
-        base_collection_id: baseId,
-        additional_collection_ids: additionalIds,
-      });
-    },
-    onSuccess: (profile) => {
-      setPickerOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['profiles'] });
-      queryClient.invalidateQueries({ queryKey: ['public-pack', id] });
-      queryClient.invalidateQueries({ queryKey: ['collection', id] });
-      queryClient.invalidateQueries({ queryKey: ['community-collections'] });
-      navigate(`/setups/${profile.id}`);
-    },
   });
 
   const copyMutation = useMutation({
@@ -253,18 +208,6 @@ export default function PackDetail() {
     },
   });
 
-  // Preselect a sensible starting point once the public base list arrives,
-  // without an effect: the pick and the fallback are derived during render.
-  // Never ranked by download_count (advisory only, invariant 25).
-  const preferredBaseId =
-    (basePacks?.items ?? []).find((base) => base.is_starter_pack)?.id ??
-    basePacks?.items?.[0]?.id ??
-    '';
-  const selectedBaseId = pickedBaseId || preferredBaseId;
-  const selectedBaseName = (basePacks?.items ?? []).find(
-    (base) => base.id === selectedBaseId,
-  )?.name;
-
   const visibleArtifacts = useMemo(() => {
     const filtered =
       typeFilter === 'all'
@@ -301,18 +244,9 @@ export default function PackDetail() {
 
   const source = packSource(pack, user?.id);
   const kind = packKindLabel(pack.collection_type);
-  const isAddon = pack.collection_type === 'additional';
   const frameworks = packFrameworks(artifacts ?? []);
   const useCount = pack.download_count;
   const signupHref = '/login?mode=register';
-
-  const beginUse = () => {
-    if (isAddon) {
-      setPickerOpen(true);
-      return;
-    }
-    useMutationResult.mutate();
-  };
 
   const commentCanDelete = (commentUserId: string) =>
     !!user &&
@@ -685,19 +619,7 @@ export default function PackDetail() {
               </>
             ) : loggedIn ? (
               <>
-                <button
-                  onClick={beginUse}
-                  disabled={useMutationResult.isPending}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
-                >
-                  {useMutationResult.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  Use this pack
-                </button>
-                {pack && <AddToSetup collection={pack} showUse={false} />}
+                {pack && <AddToSetup collection={pack} />}
                 <button
                   onClick={() => copyMutation.mutate()}
                   disabled={copyMutation.isPending}
@@ -745,11 +667,6 @@ export default function PackDetail() {
             {copyMutation.isError && (
               <p className="text-xs text-destructive">
                 {(copyMutation.error as Error).message}
-              </p>
-            )}
-            {useMutationResult.isError && (
-              <p className="text-xs text-destructive">
-                {(useMutationResult.error as Error).message}
               </p>
             )}
           </div>
@@ -825,53 +742,6 @@ export default function PackDetail() {
           </div>
         </aside>
       </div>
-
-      {pickerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-6">
-            <h2 className="text-lg font-semibold text-card-foreground">
-              Pair this add-on with a starting point
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Add-ons layer onto a starting point. Pick the one this new setup begins from —
-              you can change its frameworks and install it next.
-            </p>
-            <select
-              value={selectedBaseId}
-              onChange={(event) => setPickedBaseId(event.target.value)}
-              className={inputClass}
-              aria-label="Starting point"
-            >
-              <option value="">Select a starting point…</option>
-              {(basePacks?.items ?? []).map((base) => (
-                <option key={base.id} value={base.id}>
-                  {base.name}
-                </option>
-              ))}
-            </select>
-            {useMutationResult.isError && (
-              <p className="text-sm text-destructive">
-                {(useMutationResult.error as Error).message}
-              </p>
-            )}
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setPickerOpen(false)}
-                className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => useMutationResult.mutate()}
-                disabled={!selectedBaseId || useMutationResult.isPending}
-                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
-              >
-                {useMutationResult.isPending ? 'Creating setup…' : 'Create setup with this add-on'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {metaEditOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
