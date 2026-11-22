@@ -619,7 +619,16 @@ export default function PackDetail() {
               </>
             ) : loggedIn ? (
               <>
-                {pack && <AddToSetup collection={pack} />}
+                {pack && (
+                  <AddToSetup
+                    collection={pack}
+                    frameworks={[
+                      ...new Set(
+                        (artifacts ?? []).flatMap((artifact) => artifact.target_compatibility),
+                      ),
+                    ]}
+                  />
+                )}
                 <button
                   onClick={() => copyMutation.mutate()}
                   disabled={copyMutation.isPending}

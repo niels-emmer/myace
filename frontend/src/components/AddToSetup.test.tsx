@@ -83,13 +83,16 @@ function LocationProbe() {
   return <div data-testid="path">{location.pathname}</div>;
 }
 
-function renderFor(collection: Collection) {
+function renderFor(collection: Collection, frameworks?: string[]) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/packs/pack-qa']}>
         <Routes>
-          <Route path="/packs/:id" element={<AddToSetup collection={collection} />} />
+          <Route
+            path="/packs/:id"
+            element={<AddToSetup collection={collection} frameworks={frameworks} />}
+          />
           <Route path="*" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
@@ -160,6 +163,20 @@ describe('AddToSetup', () => {
       ),
     );
     expect(await screen.findByTestId('path')).toHaveTextContent('/setups/setup-1');
+  });
+
+  it('forwards frameworks the pack declares into the new setup', async () => {
+    renderFor(baseA, ['claude-code', 'opencode']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use this pack' }));
+
+    await waitFor(() =>
+      expect(setupProfilesApi.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          target_frameworks: ['claude-code', 'opencode'],
+        }),
+      ),
+    );
   });
 
   it('caps a generated setup name at the profile column limit', async () => {

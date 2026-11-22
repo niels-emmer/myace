@@ -41,10 +41,13 @@ export interface AddToSetupPack {
 export default function AddToSetup({
   collection,
   showUse = true,
+  frameworks = [],
 }: {
   collection: AddToSetupPack;
   /** PackDetail often keeps its own "Use this pack" flow; then mount the menu only. */
   showUse?: boolean;
+  /** Adapter names the pack declares (artifact target_compatibility); filtered server-side. */
+  frameworks?: string[];
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -94,7 +97,10 @@ export default function AddToSetup({
         base_collection_id: baseId,
         additional_collection_ids: addOnIds,
         disabled_artifact_ids: [],
-        target_frameworks: [],
+        // Prefer whatever the pack declares; if it declares nothing the user
+        // lands on the setup page, where Advanced adds frameworks — never on
+        // an install screen with nothing to install.
+        target_frameworks: frameworks,
       });
       recordUse();
       finish(created);
