@@ -571,13 +571,50 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 - Security model — preserve all of it if you touch this file: refuses to
   start without existing `myace login` credentials; binds loopback-only;
   CORS reflects exactly the logged-in server's origin (never `*`);
-  `POST /scan` additionally requires a custom `X-MyACE-Companion` header
+  every non-`GET /health` route (`/scan`, `/audit`, `/apply/preview`,
+  `/apply`) additionally requires a custom `X-MyACE-Companion` header
   (forces a real preflight, blocks blind `no-cors` POSTs) and a
   server-side `Origin` check (not just a CORS response header) so a
   non-browser client can't skip the dance. Also implements Chrome's
   Private Network Access preflight (`Access-Control-Allow-Private-Network`)
   since a page on a public origin fetching a loopback address gets an
   extra preflight beyond normal CORS.
+- **Direct install (`/apply/preview`, `/apply`) is opt-in and off by
+  default.** The write routes only exist when `myace serve` was started
+  with `--allow-apply` or `MYACE_COMPANION_ALLOW_APPLY=1`; without it they
+  return 403. `GET /health` advertises `apply.supported`,
+  `apply.targets`, and `apply.machine_targets` so a client can hide the
+  option; leaving both off must remain the default. See
+  [ADR-0016](docs/adr/0016-companion-direct-apply.md).
+- **The write path's safety properties are load-bearing — keep every one
+  of them when editing this file.** `/apply/preview` fetches the compiled
+  profile with the stored CLI credentials (never logging the token) and
+  returns a per-file diff plus a single-use, five-minute, in-memory
+  `preview_id` (no disk persistence of tokens). `/apply` requires
+  `confirm: true` and that token, re-fetches and re-diffs, and returns 409
+  if anything changed since the preview — the diff digest covers both the
+  new content *and* each destination file's pre-existing sha256, so a
+  local edit between preview and apply also invalidates it. Overwritten
+  files are copied to `<root>/.myace-backups/<UTC timestamp>/` **before**
+  any write; writes go through a temp file + `os.replace()`; nothing is
+  ever deleted. Paths must stay inside the resolved install root
+  (`location: "project"` = the confirmed absolute, existing
+  `project_root`, default cwd; `location: "machine"` = the framework's
+  home root): `safe_output_path()` rejects lexical escapes and
+  `resolve(strict=False)` rejects symlink escapes, and `.myace/` /
+  `.myace-backups/` are unwritable targets. A successful apply records
+  `.myace/<target>.manifest.json` via `sync.write_manifest()` so
+  `myace check`/`watch` see it exactly like a `myace pull`. Requests are
+  capped (64 KiB `Content-Length`, 500 files, 5 MiB compiled output).
+  `location: "machine"` returns 400 for targets whose adapter output is
+  project-only (`aider`, `goose`, `cline`, `copilot-cli`) rather than
+  confining writes to the whole home directory.
+- **`MACHINE_SUBDIRS`/`MACHINE_TARGETS` (`local_server.py`) are a
+  hand-maintained mirror of the adapters' conventional per-framework home
+  locations, not an import** — same syncing contract as
+  `ADAPTER_EXPECTED_PATHS` (rule 35). Adding or renaming an adapter means
+  updating this map (and the project-only set) by hand, or `location:
+  "machine"` silently rejects or misplaces that target.
 - **Gotcha — never add `from __future__ import annotations` to this
   file.** Its FastAPI app, route handlers, and Pydantic model are all
   defined *inside* `build_app()` so the base CLI install never needs
@@ -586,8 +623,8 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   *module* globals — which don't include names only bound in
   `build_app()`'s local scope, so `Request`/the request model silently
   fail to resolve and every route 422s as if the parameters don't exist.
-- **Follow-up calls (`/scan`, `/audit`) go to the URL that answered
-  `/health`**, not `COMPANION_URLS[0]`: `useCompanionHealth()`
+- **Follow-up calls (`/scan`, `/audit`, `/apply/*`) go to the URL that
+  answered `/health`**, not `COMPANION_URLS[0]`: `useCompanionHealth()`
   (`LocalCompanionSetup.tsx`) returns `baseUrl` alongside the health body.
   The companion binds `127.0.0.1` only, so on a machine where `localhost`
   resolves to `::1` the first candidate never answers.
