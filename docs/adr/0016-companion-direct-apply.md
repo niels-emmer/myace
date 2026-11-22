@@ -28,10 +28,12 @@ Add two opt-in routes to the companion server:
   sha256) plus a single-use `preview_id`. It writes nothing.
 - `POST /apply` requires that `preview_id`, `confirm: true`, and the same
   profile/target/location/root; re-fetches and re-diffs the profile; refuses
-  with `409` if the diff hash changed; backs up every file it is about to
-  overwrite under `<root>/.myace-backups/<UTC timestamp>/`; then writes each
-  file atomically (temp file in the destination directory + `os.replace`).
-  It never deletes a file.
+  with `409` if the diff hash changed (the digest covers both the new content
+  and each file's pre-existing state, so a local edit made after the preview
+  invalidates it too); backs up every file it is about to overwrite under
+  `<root>/.myace-backups/<UTC timestamp>/`; then writes each file atomically
+  (temp file in the destination directory + `os.replace`). It never deletes a
+  file.
 
 Both routes are disabled unless `myace serve` is started with
 `--allow-apply` or `MYACE_COMPANION_ALLOW_APPLY=1`; `/health` advertises

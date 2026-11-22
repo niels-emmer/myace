@@ -4,6 +4,7 @@ Every test uses `tmp_path` and a fake compiled-profile fetcher — nothing
 reaches the network and nothing is written outside the temporary root.
 """
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -272,7 +273,7 @@ def test_apply_backs_up_overwritten_file_before_writing(tmp_path: Path) -> None:
     backup_dir = Path(result["backup_dir"])
     assert backup_dir.is_relative_to(root)
     assert (backup_dir / "CLAUDE.md").read_text() == "original\n"
-    assert backup_dir.name.startswith(("19", "20")) or "T" in backup_dir.name
+    assert re.fullmatch(r"\d{8}T\d{12,}Z(-\d+)?", backup_dir.name)
 
 
 def test_apply_never_deletes_unrelated_files(tmp_path: Path) -> None:
@@ -308,6 +309,22 @@ def test_apply_refuses_when_diff_changed_since_preview(tmp_path: Path) -> None:
     res = post_apply(client, apply_body(preview, project_root=root))
     assert res.status_code == 409
     assert not (root / "CLAUDE.md").exists()
+
+
+def test_apply_refuses_when_local_file_changed_since_preview(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "CLAUDE.md").write_text("original\n")
+
+    client = make_client(FakeFetcher({"CLAUDE.md": "replacement\n"}))
+    preview = post_preview(client, preview_body(root)).json()
+
+    # A local hand-edit after the preview must invalidate it even though the
+    # server's compiled content has not changed.
+    (root / "CLAUDE.md").write_text("user edit after preview\n")
+    res = post_apply(client, apply_body(preview, project_root=root))
+    assert res.status_code == 409
+    assert (root / "CLAUDE.md").read_text() == "user edit after preview\n"
 
 
 # ── Path confinement ──────────────────────────────────────────────────────

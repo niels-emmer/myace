@@ -222,6 +222,7 @@ def build_diff(
         new_sha = hashlib.sha256(data).hexdigest()
 
         exists = dest.exists()
+        old_sha: str | None = None
         if exists:
             old_sha = hashlib.sha256(dest.read_bytes()).hexdigest()
             action = "unchanged" if old_sha == new_sha else "changed"
@@ -235,13 +236,20 @@ def build_diff(
                 "exists": exists,
                 "bytes": len(data),
                 "sha256": new_sha,
+                "old_sha256": old_sha,
                 "action": action,
             }
         )
 
     digest = hashlib.sha256()
     for entry in entries:
-        digest.update(f"{entry['relative_path']}\0{entry['sha256']}\n".encode())
+        # The pre-existing file's hash is part of the digest: a local edit
+        # made after the preview must invalidate it, not just a server-side
+        # change to the new content.
+        old_sha = entry.get("old_sha256") or ""
+        digest.update(
+            f"{entry['relative_path']}\0{entry['sha256']}\0{old_sha}\n".encode()
+        )
     return entries, digest.hexdigest(), contents
 
 
