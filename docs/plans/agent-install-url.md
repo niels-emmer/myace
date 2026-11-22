@@ -113,6 +113,12 @@ GET /api/v1/collections/community/{collection_id}/install.md?target=<adapter>
      message. This one *is* an error: the adapter exists and an administrator
      turned it off, so the actionable answer is the message, not a list.
 
+  **`format` is ignored for cases 1 and 3.** The guidance document is always
+  `text/markdown`, even when the caller asked for `json` or `zip`: there are no
+  files to package, and an agent that asked for `?target=typo&format=json`
+  still needs something it can read and act on. Document that, and cover it in
+  the test matrix — otherwise the behaviour is undefined for half the matrix.
+
   There is no default target and no `pack_install_default_target` setting:
   guessing a framework writes files into the wrong layout.
 - Media type `text/markdown; charset=utf-8`, plus:
@@ -594,6 +600,8 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
   URLs (not a 422); an unrecognised `target` → the same guidance document with
   an "unknown target" line, **not** a 400; a registered-but-admin-disabled
   adapter → 400 with `AdapterDisabledError`'s message.
+- Guidance cases ignore `format`: `?target=typo&format=json` and
+  `&format=zip` still return `text/markdown` guidance, not a JSON/zip error.
 - `target` is a plain `str` param: a `CompileTarget` Literal would make the
   unrecognised case an unreachable 422, so assert the 200-guidance behaviour
   explicitly.
@@ -683,7 +691,8 @@ assembly, not invention.
 `_compile_collections()`), one public GET route in the `/community/...` family
 returning a sentinel-delimited Markdown document (plus `json`/`zip` variants),
 a small frontend panel with a target picker and two copy buttons, and the
-matching tests/ADR. No migration, no model change, no adapter change.
+matching tests/ADR. No migration, no **table** model change, no adapter change —
+the only added schema is the `PackCompileResponse` response model.
 
 **Where in the UI?** Confirmed: the pack detail aside, below `Use this pack` /
 `Add to a setup…` / `Customize a copy`, styled as a muted secondary disclosure
