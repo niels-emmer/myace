@@ -731,7 +731,7 @@ export default function PackDetail() {
                   to={signupHref}
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
                 >
-                  Add to a setup…
+                  Sign up to build a setup
                 </Link>
                 <Link
                   to={signupHref}

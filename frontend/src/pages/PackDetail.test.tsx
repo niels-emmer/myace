@@ -128,7 +128,7 @@ describe('PackDetail', () => {
 
     const useLinks = screen.getAllByRole('link', { name: 'Use this pack' });
     expect(useLinks[0]).toHaveAttribute('href', '/login?mode=register');
-    expect(screen.getByRole('link', { name: 'Add to a setup…' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Sign up to build a setup' })).toHaveAttribute(
       'href',
       '/login?mode=register',
     );
