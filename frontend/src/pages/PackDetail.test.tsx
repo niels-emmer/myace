@@ -3,8 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PackDetail from './PackDetail';
-import { collectionsApi, commentsApi, ratingsApi } from '../lib/api';
+import { collectionsApi, commentsApi, profilesApi, ratingsApi } from '../lib/api';
 import { packApi } from '../lib/packApi';
+import { packUsageApi, setupProfilesApi } from '../lib/setupApi';
 import type { Collection } from '../types';
 
 let mockUser: { id: string; role: 'user' | 'moderator' | 'admin' } | null = null;
@@ -20,11 +21,22 @@ vi.mock('../lib/api', () => ({
     importCommunity: vi.fn(),
     unpublish: vi.fn(),
     verify: vi.fn(),
+    list: vi.fn(),
   },
+  profilesApi: { create: vi.fn(), list: vi.fn() },
   ratingsApi: { get: vi.fn(), rate: vi.fn(), remove: vi.fn() },
   commentsApi: { list: vi.fn(), create: vi.fn(), remove: vi.fn() },
   moderationApi: { updateMeta: vi.fn() },
 }));
+
+vi.mock('../lib/setupApi', async () => {
+  const actual = await vi.importActual<typeof import('../lib/setupApi')>('../lib/setupApi');
+  return {
+    ...actual,
+    setupProfilesApi: { create: vi.fn(), update: vi.fn() },
+    packUsageApi: { use: vi.fn() },
+  };
+});
 
 vi.mock('../lib/packApi', () => ({
   packApi: {
@@ -108,6 +120,17 @@ function renderDetail() {
 describe('PackDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(collectionsApi.list).mockResolvedValue([]);
+    vi.mocked(profilesApi.list).mockResolvedValue([]);
+    vi.mocked(setupProfilesApi.create).mockResolvedValue({
+      ...basePack,
+      id: 'setup-new',
+    } as never);
+    vi.mocked(setupProfilesApi.update).mockResolvedValue({
+      ...basePack,
+      id: 'setup-1',
+    } as never);
+    vi.mocked(packUsageApi.use).mockResolvedValue({});
     vi.mocked(packApi.listCommunity).mockResolvedValue({ items: [], total: 0 });
     vi.mocked(ratingsApi.get).mockResolvedValue({ avg_rating: 4.9, rating_count: 4, my_rating: null });
     vi.mocked(commentsApi.list).mockResolvedValue([]);
@@ -176,10 +199,7 @@ describe('PackDetail', () => {
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Leave a comment...')).toBeInTheDocument();
     expect(ratingsApi.get).toHaveBeenCalledWith('pack-1');
-    expect(screen.getByRole('link', { name: 'Add to a setup…' })).toHaveAttribute(
-      'href',
-      '/setups?pack=pack-1',
-    );
+    expect(screen.getByRole('button', { name: /Add to a setup/ })).toBeInTheDocument();
   });
 
   it('shows owner publish and manage actions plus the status tracker', async () => {
@@ -208,7 +228,7 @@ describe('PackDetail', () => {
     expect(screen.queryByRole('link', { name: 'Use this pack' })).not.toBeInTheDocument();
   });
 
-  it('records a use for a starting point and points at Setups for the install', async () => {
+  it('creates a setup from a starting point and records the reference', async () => {
     mockUser = { id: 'user-2', role: 'user' };
     const starterPack = {
       ...basePack,
@@ -220,44 +240,54 @@ describe('PackDetail', () => {
     };
     vi.mocked(collectionsApi.get).mockResolvedValue(starterPack as never);
     vi.mocked(collectionsApi.getArtifacts).mockResolvedValue(artifacts);
-    vi.mocked(packApi.usePack).mockResolvedValue({
-      collection_id: 'pack-1',
-      download_count: 121,
-    });
 
     renderDetail();
     await screen.findByRole('heading', { name: 'Software Engineer' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Use this pack' }));
 
-    await waitFor(() => expect(packApi.usePack).toHaveBeenCalledWith('pack-1'));
-    expect(
-      await screen.findByText(/Recorded a use\. To install it, build a setup from/i),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(setupProfilesApi.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          base_collection_id: 'pack-1',
+          additional_collection_ids: [],
+        }),
+      ),
+    );
+    expect(packUsageApi.use).toHaveBeenCalledWith('pack-1');
   });
 
-  it('records an add-on use without pretending the pairing is saved', async () => {
+  it('pairs an add-on with a starting point and creates the setup with both', async () => {
     mockUser = { id: 'user-2', role: 'user' };
+    const starterBase = {
+      ...basePack,
+      id: 'pack-base',
+      name: 'Software Engineer',
+      collection_type: 'base',
+      download_count: 900,
+      is_starter_pack: true,
+    };
     vi.mocked(collectionsApi.get).mockResolvedValue(basePack as never);
     vi.mocked(collectionsApi.getArtifacts).mockResolvedValue(artifacts);
-    vi.mocked(packApi.usePack).mockResolvedValue({
-      collection_id: 'pack-1',
-      download_count: 411,
-    });
+    vi.mocked(collectionsApi.list).mockResolvedValue([starterBase] as never);
 
     renderDetail();
     await screen.findByRole('heading', { name: 'Security & Compliance' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use this add-on' }));
-    await waitFor(() => expect(packApi.usePack).toHaveBeenCalledWith('pack-1'));
+    const useButton = screen.getByRole('button', { name: 'Use this pack' });
+    await waitFor(() => expect(useButton).toBeEnabled());
+    fireEvent.click(useButton);
 
-    // No picker, no pairing claim: the confirmation says what actually
-    // happened and where the real combine flow lives.
-    expect(
-      await screen.findByText(
-        /Recorded a use of this add-on\. To combine it with a starting point, add both to a setup from/i,
+    expect(await screen.findByRole('radio', { name: /Software Engineer/ })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: /Create setup with this pack/ }));
+
+    await waitFor(() =>
+      expect(setupProfilesApi.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          base_collection_id: 'pack-base',
+          additional_collection_ids: ['pack-1'],
+        }),
       ),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/paired with/i)).not.toBeInTheDocument();
+    );
   });
 });

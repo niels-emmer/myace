@@ -1,253 +1,160 @@
-import { useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Download, Copy, Terminal, Check, AlertTriangle, X } from 'lucide-react';
-import { profilesApi, adaptersApi } from '../lib/api';
-import type { CompileResult } from '../types';
+import { useMemo, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Download } from 'lucide-react';
+import { profilesApi } from '../lib/api';
+import { installsApi } from '../lib/setupApi';
+import { profileTargets, resolveInstallPath, supportsMachineInstall } from '../types/setup';
+import type { InstallLocation } from '../types/setup';
+import InstallMethodPanel from '../components/InstallMethodPanel';
 
 export default function TargetExporter() {
-  const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
-  const [selectedProfile, setSelectedProfile] = useState(searchParams.get('profile') ?? id ?? '');
-  const [selectedTarget, setSelectedTarget] = useState('opencode');
-  const [result, setResult] = useState<CompileResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
-  const [warningsDismissed, setWarningsDismissed] = useState(false);
+  const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
 
-  const { data: profiles } = useQuery({
-    queryKey: ['profiles'],
-    queryFn: () => profilesApi.list(),
+  const { data: profile, isLoading: loadingProfile } = useQuery({
+    queryKey: ['profile', id],
+    queryFn: () => profilesApi.get(id!),
+    enabled: !!id,
   });
 
-  const { data: adapters } = useQuery({
-    queryKey: ['adapters'],
-    queryFn: () => adaptersApi.list(),
+  const { data: claims } = useQuery({
+    queryKey: ['installs', id],
+    queryFn: () => installsApi.list(id!),
+    enabled: !!id,
   });
 
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const targets = useMemo(() => (profile ? profileTargets(profile) : []), [profile]);
+  const requestedTarget = searchParams.get('target');
+  const [targetOverride, setTargetOverride] = useState<string | null>(null);
+  const [locationOverride, setLocationOverride] = useState<InstallLocation | null>(null);
 
-  const handleCompile = async () => {
-    if (!selectedProfile) return;
-    setLoading(true);
-    try {
-      const res = await profilesApi.compile({
-        profile_id: selectedProfile,
-        target: selectedTarget,
-      });
-      setResult(res);
-      // A fresh compile can carry its own new warnings (or resolve old
-      // ones) — don't let a dismissal from a previous result carry over.
-      setWarningsDismissed(false);
-    } catch (err) {
-      console.error('Compilation failed:', err);
-    }
-    setLoading(false);
-  };
+  // Derived, not stored in an effect: the requested target wins when it is
+  // one of the setup's frameworks, otherwise the first configured framework.
+  const selectedTarget =
+    targetOverride ??
+    (requestedTarget && (targets.length === 0 || targets.includes(requestedTarget))
+      ? requestedTarget
+      : (targets[0] ?? ''));
 
-  const handleDownloadZip = async () => {
-    if (!result) return;
-    setDownloading(true);
-    setDownloadError(null);
-    try {
-      // Use result.profile_id/target — the values that actually produced the
-      // displayed preview — not the live dropdown state. The dropdowns can
-      // change after Compile is clicked (e.g. comparing targets) without
-      // triggering a recompile, and the zip must match what's on screen.
-      const res = await fetch('/api/v1/profiles/compile/zip', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ profile_id: result.profile_id, target: result.target }),
-      });
-      if (!res.ok) {
-        throw new Error(`Download failed (${res.status})`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${result.profile_name}-${result.target}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      // Revoking synchronously right after click() races Safari's native
-      // "Save As" dialog: WebKit defers reading the blob until the user
-      // responds, and an immediately-revoked object URL can make that read
-      // fail or save a truncated/empty file. Give the browser a tick to
-      // start consuming the blob before invalidating the URL.
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (err) {
-      console.error('Zip download failed:', err);
-      setDownloadError('Could not download the zip. Try again.');
-    }
-    setDownloading(false);
-  };
+  const claimForTarget = claims?.find((claim) => claim.target === selectedTarget);
+  const location: InstallLocation =
+    locationOverride ??
+    claimForTarget?.location ??
+    (supportsMachineInstall(selectedTarget) ? 'machine' : 'project');
 
-  const copyToClipboard = async (text: string, key: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 2000);
-  };
+  if (loadingProfile) {
+    return <div className="py-12 text-center text-muted-foreground">Loading setup…</div>;
+  }
 
-  const cliCommand = result
-    ? `myace pull --profile ${result.profile_name} --target ${result.target}`
-    : '';
+  if (!profile) {
+    return <div className="py-12 text-center text-muted-foreground">Setup not found.</div>;
+  }
+
+  const machineSupported = supportsMachineInstall(selectedTarget);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Install setup</h1>
-        <p className="text-muted-foreground mt-1">
-          Turn a setup into the config files a framework expects (CLAUDE.md, AGENTS.md, etc.) — copy them out or pull with the CLI.
+        <Link
+          to={`/setups/${profile.id}`}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {profile.name}
+        </Link>
+        <h1 className="mt-2 text-2xl font-bold text-foreground">Install “{profile.name}”</h1>
+        <p className="mt-1 text-muted-foreground">
+          Choose a framework and where its files should go. Nothing is written until you confirm.
         </p>
       </div>
 
-      {/* Controls */}
-      <div className="bg-card rounded-xl border border-border p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div className="bg-card rounded-xl border border-border p-6 space-y-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Setup</label>
+            <label htmlFor="install-target" className="mb-1 block text-sm font-medium text-foreground">
+              Framework
+            </label>
             <select
-              value={selectedProfile}
-              onChange={(e) => setSelectedProfile(e.target.value)}
-              className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm"
-            >
-              <option value="">Select a setup…</option>
-              {profiles?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Framework</label>
-            <select
+              id="install-target"
               value={selectedTarget}
-              onChange={(e) => setSelectedTarget(e.target.value)}
-              className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm"
+              onChange={(event) => {
+                setTargetOverride(event.target.value);
+                setLocationOverride(null);
+              }}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
             >
-              {adapters?.filter((a) => a.enabled).map((a) => (
-                <option key={a.name} value={a.name}>
-                  {a.name}
+              {targets.length === 0 && <option value="">No frameworks configured</option>}
+              {targets.map((target) => (
+                <option key={target} value={target}>
+                  {target} — {resolveInstallPath(target, 'machine')}
                 </option>
               ))}
             </select>
           </div>
-          <div className="flex items-end">
-            <button
-              onClick={handleCompile}
-              disabled={!selectedProfile || loading}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium"
-            >
-              <Download className="h-4 w-4" />
-              {loading ? 'Installing…' : 'Install'}
-            </button>
-          </div>
-        </div>
 
-        {/* CLI Command */}
-        {cliCommand && (
-          <div className="bg-muted rounded-lg p-3 flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Terminal className="h-4 w-4 text-muted-foreground" />
-              <code className="text-sm text-foreground">{cliCommand}</code>
-            </div>
-            <button
-              onClick={() => copyToClipboard(cliCommand, 'cli')}
-              className="p-1.5 hover:bg-accent rounded transition-colors"
-            >
-              {copied === 'cli' ? (
-                <Check className="h-4 w-4 text-green-600" />
-              ) : (
-                <Copy className="h-4 w-4 text-muted-foreground" />
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Browser-only download, no CLI required */}
-        {result && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleDownloadZip}
-              disabled={downloading}
-              className="flex items-center gap-2 px-3 py-1.5 border border-border rounded-lg hover:bg-accent disabled:opacity-50 text-sm font-medium text-foreground"
-            >
-              <Download className="h-4 w-4" />
-              {downloading ? 'Preparing zip...' : 'Download as .zip'}
-            </button>
-            {downloadError && (
-              <span className="text-sm text-destructive">{downloadError}</span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Results */}
-      {result && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">
-              Output — {result.artifact_count} items, {Object.keys(result.files).length} files
-            </h2>
-          </div>
-
-          {/* Compile-time validation warnings — advisory (amber), not errors (red).
-              The compiled output above is still valid; these just flag something
-              worth a human look, e.g. an artifact name collision across composed
-              collections. */}
-          {!warningsDismissed && result.warnings && result.warnings.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-amber-800">
-                  {result.warnings.length === 1
-                    ? '1 warning from install'
-                    : `${result.warnings.length} warnings from install`}
-                </h3>
-                <ul className="mt-2 space-y-1.5">
-                  {result.warnings.map((warning, index) => (
-                    <li key={index} className="text-sm text-amber-700">
-                      {warning.message}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          <div>
+            <span className="mb-1 block text-sm font-medium text-foreground">Location</span>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
-                onClick={() => setWarningsDismissed(true)}
-                aria-label="Dismiss warnings"
-                className="p-1 hover:bg-amber-100 rounded transition-colors flex-shrink-0"
+                type="button"
+                onClick={() => setLocationOverride('project')}
+                className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                  location === 'project'
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-border text-muted-foreground hover:border-input'
+                }`}
               >
-                <X className="h-4 w-4 text-amber-600" />
+                <span className="block font-medium">This project</span>
+                <span className="block font-mono text-xs">
+                  {resolveInstallPath(selectedTarget, 'project')}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocationOverride('machine')}
+                disabled={!machineSupported}
+                title={
+                  machineSupported
+                    ? undefined
+                    : 'This framework’s output is project-only — it has no machine-wide root'
+                }
+                className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                  location === 'machine'
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-border text-muted-foreground hover:border-input'
+                } disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                <span className="block font-medium">This machine</span>
+                <span className="block font-mono text-xs">
+                  {resolveInstallPath(selectedTarget, 'machine')}
+                </span>
               </button>
             </div>
-          )}
-
-          {Object.entries(result.files).map(([filename, content]) => (
-            <div key={filename} className="bg-card rounded-xl border border-border overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-2 bg-muted border-b border-border">
-                <span className="text-sm font-mono text-foreground">{filename}</span>
-                <button
-                  onClick={() => copyToClipboard(content, filename)}
-                  className="p-1.5 hover:bg-accent rounded transition-colors"
-                >
-                  {copied === filename ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <Copy className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </button>
-              </div>
-              <pre className="p-4 text-xs text-muted-foreground overflow-x-auto max-h-64 overflow-y-auto">
-                {content}
-              </pre>
-            </div>
-          ))}
+          </div>
         </div>
-      )}
+
+        {selectedTarget && targets.length > 0 && (
+          <InstallMethodPanel
+            key={`${selectedTarget}:${location}`}
+            profileId={profile.id}
+            profileName={profile.name}
+            target={selectedTarget}
+            location={location}
+            onClaimed={() => {
+              queryClient.invalidateQueries({ queryKey: ['installs', profile.id] });
+            }}
+          />
+        )}
+
+        {targets.length === 0 && (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Download className="h-4 w-4" />
+            This setup has no frameworks yet. Edit it to add one before installing.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

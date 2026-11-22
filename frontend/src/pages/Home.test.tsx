@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Home from './Home';
 import { adaptersApi, collectionsApi, profilesApi, syncApi } from '../lib/api';
+import { installsApi } from '../lib/setupApi';
 import type { Collection, Profile, SyncStatus } from '../types';
 
 vi.mock('../contexts/AuthContext', () => ({
@@ -15,6 +16,10 @@ vi.mock('../lib/api', () => ({
   syncApi: { getStatus: vi.fn() },
   collectionsApi: { list: vi.fn(), listCommunity: vi.fn() },
   adaptersApi: { list: vi.fn() },
+}));
+
+vi.mock('../lib/setupApi', () => ({
+  installsApi: { list: vi.fn() },
 }));
 
 const basePack: Collection = {
@@ -91,6 +96,7 @@ describe('Home', () => {
     vi.mocked(adaptersApi.list).mockResolvedValue([]);
     vi.mocked(profilesApi.list).mockResolvedValue([]);
     vi.mocked(syncApi.getStatus).mockResolvedValue([]);
+    vi.mocked(installsApi.list).mockResolvedValue([]);
   });
 
   it('prompts a user with no setups to build their first one', async () => {
@@ -99,7 +105,7 @@ describe('Home', () => {
     expect(await screen.findByText('Build your first setup')).toBeInTheDocument();
     expect(profilesApi.list).toHaveBeenCalledWith({ owner_id: 'user-1' });
     const cta = screen.getByRole('link', { name: /Start setup/i });
-    expect(cta).toHaveAttribute('href', '/setups');
+    expect(cta).toHaveAttribute('href', '/onboarding');
   });
 
   it('never treats another user\'s public profile as one of your setups', async () => {
@@ -142,7 +148,10 @@ describe('Home', () => {
     expect(screen.getByText('Software Engineer · QA / Test Engineer')).toBeInTheDocument();
     expect(screen.getByText('claude-code — verified')).toBeInTheDocument();
     expect(screen.getByText('opencode — not verified')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /New setup/i })).toHaveAttribute('href', '/setups');
+    expect(screen.getByRole('link', { name: /New setup/i })).toHaveAttribute(
+      'href',
+      '/onboarding',
+    );
   });
 
   it('shows an amber drift banner naming the setup and file count', async () => {
@@ -233,6 +242,32 @@ describe('Home', () => {
     expect(await screen.findByText('Real Community Pack')).toBeInTheDocument();
     expect(screen.queryByText('Starter One')).not.toBeInTheDocument();
     expect(screen.queryByText('No community packs yet. Publish one of yours to start the shelf.')).not.toBeInTheDocument();
+  });
+
+  it('shows installed, not verified when a claim exists and no sync report does', async () => {
+    vi.mocked(profilesApi.list).mockResolvedValue([profile]);
+    vi.mocked(installsApi.list).mockImplementation(async (id: string) =>
+      id === 'setup-1'
+        ? [
+            {
+              id: 'claim-1',
+              profile_id: 'setup-1',
+              target: 'claude-code',
+              location: 'machine',
+              method: 'zip',
+              created_at: '2026-01-01T00:00:00Z',
+              updated_at: '2026-01-01T00:00:00Z',
+            },
+          ]
+        : [],
+    );
+
+    renderHome();
+
+    expect(await screen.findByText('Installed, not verified yet')).toBeInTheDocument();
+    expect(screen.queryByText('Your setup is ready — install it')).not.toBeInTheDocument();
+    expect(screen.getByText('claude-code — installed, not verified')).toBeInTheDocument();
+    expect(screen.getByText('opencode — not installed')).toBeInTheDocument();
   });
 
   it('keeps the single footer line with no object-count cards', async () => {

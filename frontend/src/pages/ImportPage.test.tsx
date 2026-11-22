@@ -1,8 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ImportPage from './ImportPage';
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="path">{`${location.pathname}${location.search}`}</div>;
+}
 
 function renderImportPage() {
   const queryClient = new QueryClient({
@@ -95,5 +100,71 @@ describe('ImportPage local companion detection', () => {
       expect(urls).toContain('http://127.0.0.1:8765/scan');
     });
     expect(fetchMock.mock.calls.map((c) => c[0])).not.toContain('http://localhost:8765/scan');
+  });
+});
+
+describe('ImportPage onboarding return path', () => {
+  it('returns to the wizard at step 3 with the new pack after an import', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/api/v1/collections/scan') {
+        return {
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              artifacts: [
+                {
+                  artifact_type: 'rule',
+                  name: 'Imported Rule',
+                  version: '1.0.0',
+                  priority: 50,
+                  target_compatibility: [],
+                  tags: [],
+                  description: '',
+                  body: 'body',
+                  file_path: 'AGENTS.md',
+                },
+              ],
+            }),
+        };
+      }
+      if (url === '/api/v1/collections/import') {
+        return {
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              collection_id: 'new-pack',
+              collection_name: 'imported-opencode',
+              artifacts_imported: 1,
+            }),
+        };
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/packs/import?return=onboarding']}>
+          <Routes>
+            <Route path="/packs/import" element={<ImportPage />} />
+            <Route path="*" element={<LocationProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /GitHub repository/ }));
+    fireEvent.change(screen.getByPlaceholderText('https://github.com/owner/repo'), {
+      target: { value: 'https://github.com/owner/repo' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Scan Resources/i }));
+
+    expect(await screen.findByText('Imported Rule')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Import 1 Resource from GitHub/i }));
+
+    expect(await screen.findByTestId('path')).toHaveTextContent(
+      '/onboarding?step=3&pack=new-pack',
+    );
   });
 });

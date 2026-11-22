@@ -47,6 +47,7 @@ PAGE_MAP: dict[str, str] = {
     "adapters-research.md": "Adapter-Research",
     "deployment.md": "Deployment",
     "cli.md": "CLI",
+    "onboarding-wizard.md": "Onboarding-Wizard",
     "backups.md": "Backups",
     "ci-drift-check.md": "CI-Drift-Check",
     "adr/README.md": "ADR-Index",

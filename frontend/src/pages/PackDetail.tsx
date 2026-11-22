@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   BookOpen,
-  Check,
   ChevronDown,
   ChevronRight,
   Copy,
@@ -16,7 +15,6 @@ import {
   Loader2,
   MessageSquare,
   Pencil,
-  Plus,
   ShieldCheck,
   Star,
   Trash2,
@@ -25,6 +23,7 @@ import {
 import { collectionsApi, commentsApi, moderationApi, ratingsApi } from '../lib/api';
 import { packApi } from '../lib/packApi';
 import { FreshnessBadge } from '../components/FreshnessBadge';
+import AddToSetup from '../components/AddToSetup';
 import { PublishStatusTracker } from '../components/PublishStatusTracker';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -163,19 +162,6 @@ export default function PackDetail() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pack-comments', id] }),
   });
 
-  // "Use this pack" records a reference use only — it increments
-  // download_count. Attaching a pack to a setup (or pairing an add-on with a
-  // starting point) is the setup lifecycle, owned by a later phase; do not
-  // pretend a selection here was persisted.
-  const useMutationResult = useMutation({
-    mutationFn: () => packApi.usePack(id!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['public-pack', id] });
-      queryClient.invalidateQueries({ queryKey: ['collection', id] });
-      queryClient.invalidateQueries({ queryKey: ['community-collections'] });
-    },
-  });
-
   const copyMutation = useMutation({
     mutationFn: () => collectionsApi.importCommunity(id!),
     onSuccess: (result) => {
@@ -258,12 +244,8 @@ export default function PackDetail() {
 
   const source = packSource(pack, user?.id);
   const kind = packKindLabel(pack.collection_type);
-  const isAddon = pack.collection_type === 'additional';
   const frameworks = packFrameworks(artifacts ?? []);
   const useCount = pack.download_count;
-  // State survives /packs/:id navigation, so only show the confirmation for
-  // the pack that was actually used.
-  const useRecorded = useMutationResult.data?.collection_id === pack.id;
   const signupHref = '/login?mode=register';
 
   const commentCanDelete = (commentUserId: string) =>
@@ -637,24 +619,16 @@ export default function PackDetail() {
               </>
             ) : loggedIn ? (
               <>
-                <button
-                  onClick={() => useMutationResult.mutate()}
-                  disabled={useMutationResult.isPending}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
-                >
-                  {useMutationResult.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  {isAddon ? 'Use this add-on' : 'Use this pack'}
-                </button>
-                <Link
-                  to={`/setups?pack=${pack.id}`}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                >
-                  Add to a setup…
-                </Link>
+                {pack && (
+                  <AddToSetup
+                    collection={pack}
+                    frameworks={[
+                      ...new Set(
+                        (artifacts ?? []).flatMap((artifact) => artifact.target_compatibility),
+                      ),
+                    ]}
+                  />
+                )}
                 <button
                   onClick={() => copyMutation.mutate()}
                   disabled={copyMutation.isPending}
@@ -699,29 +673,9 @@ export default function PackDetail() {
             )}
 
 
-            {useRecorded && (
-              <p className="flex items-start gap-1.5 text-xs text-green-700">
-                <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-                <span>
-                  {isAddon
-                    ? 'Recorded a use of this add-on. To combine it with a starting point, add both to a setup from '
-                    : 'Recorded a use. To install it, build a setup from '}
-                  <Link to="/setups" className="font-medium underline">
-                    Setups
-                  </Link>
-                  .
-                </span>
-              </p>
-            )}
-
             {copyMutation.isError && (
               <p className="text-xs text-destructive">
                 {(copyMutation.error as Error).message}
-              </p>
-            )}
-            {useMutationResult.isError && (
-              <p className="text-xs text-destructive">
-                {(useMutationResult.error as Error).message}
               </p>
             )}
           </div>

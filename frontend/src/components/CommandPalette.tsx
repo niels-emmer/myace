@@ -34,7 +34,7 @@ interface PaletteItem {
 }
 
 const ACTIONS: PaletteItem[] = [
-  { id: 'action-new-setup', group: 'Actions', label: 'New setup', hint: 'Build a setup from packs', to: '/setups', icon: FilePlus2 },
+  { id: 'action-new-setup', group: 'Actions', label: 'New setup', hint: 'Guided setup from packs', to: '/onboarding', icon: FilePlus2 },
   { id: 'action-import', group: 'Actions', label: 'Import packs', hint: 'From your machine or a repository', to: '/packs/import', icon: Upload },
   { id: 'action-machine', group: 'Actions', label: 'Check my machine', hint: 'Companion status, audit, and drift', to: '/machine', icon: Laptop },
   { id: 'action-publish', group: 'Actions', label: 'Publish a pack', hint: 'Manage and publish your packs', to: '/packs/mine', icon: FolderGit2 },

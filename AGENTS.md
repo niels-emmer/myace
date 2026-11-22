@@ -1383,9 +1383,11 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `docs/plans/v2.0-onboarding-revamp.md` are the "also known as" reference.
   Advanced editors may mention the internal term, but ordinary flows should
   read as Pack/Setup/Install/Item only.
-- **Canonical routes (v2.0 onboarding revamp):** `/` Home; `/setups`
+- **Canonical routes (v2.0 onboarding revamp):** `/` Home; `/onboarding`
+  first-run wizard (five steps; see `docs/onboarding-wizard.md`); `/setups`
   setups list; `/setups/:id` setup detail; `/setups/:id/install` install
-  panel (reads `:id`, with the legacy `?profile=` query still accepted);
+  panel (route-bound to `:id`; legacy `?profile=` links are mapped by
+  `LegacyCompileRedirect`, not read by the page);
   `/packs` library (public read-only browse for anonymous visitors);
   `/packs/mine` owned packs; `/packs/pipelines` and `/packs/pipelines/new`;
   `/packs/import`; `/packs/:id` unified pack detail (owned, starter, and
@@ -1396,7 +1398,8 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `/packs/:id` (the community detail merged into the unified pack detail).
   `CollectionsManager.tsx` is My packs, `PackDetail.tsx` is the unified pack
   detail, `PublishPack.tsx` is the publish wizard, `ProfileComposer.tsx` is
-  Setups, `TargetExporter.tsx` is Install, and `MachinePage.tsx` is the
+  Setups, `Onboarding.tsx` is the first-run wizard, `TargetExporter.tsx` is
+  Install, and `MachinePage.tsx` is the
   tabbed shell around `SetupAudit` and `SyncDashboard` (both accept an
   `embedded` prop so their page-level heading is suppressed inside a tab).
 - **`frontend/src/lib/packs.ts` owns source/kind presentation** —
@@ -1419,21 +1422,28 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   user-incrementable (invariant 25 / ADR-0015). The storefront/library must
   not offer "Most used" sorting or a "Top packs" ranking; "used N times" as
   a soft signal is fine.
-- **"Use this pack" records a reference use only.** `PackDetail.tsx` calls
-  `POST /collections/{id}/use` (the counter) and nothing else: it does not
-  create or mutate a setup, and it must not claim that a starting-point
-  pairing was saved. Attaching a pack to a setup — including pairing an
-  add-on with a base — is the setup lifecycle (Phase 2 scope). The
-  "Add to a setup…" link carries `?pack=<id>` for that flow to consume.
-  Don't add a picker whose choice isn't persisted.
-- **Home derives exactly one state banner from setups + sync reports**
-  (`GET /profiles` + `GET /sync/status`): no setups → build your first
-  setup; setups but no rows → install it; any row with `in_sync === false`
-  or non-empty `locally_modified_files` → amber drift banner; otherwise a
-  quiet healthy line. Per-framework chips use the matching
-  `(profile_id, target)` row: no row = not installed, local edits =
-  changed, `in_sync === false` = not verified, clean = verified. Keep the
-  single footer line — no object-count cards.
+- **"Use this pack" creates a setup that references the pack; "Add to a
+  setup" attaches it to an existing one.** `components/AddToSetup.tsx` (mounted
+  by `PackDetail.tsx`) calls `POST /profiles` (or `PUT /profiles/{id}`) to
+  persist the reference and the advisory `POST /collections/{id}/use` counter
+  alongside it, with the pack as `base_collection_id` —
+  or, for an add-on, after asking which starting point to pair with, with that
+  base and the add-on in `additional_collection_ids`; Phase 3's snapshot
+  capture does the rest. "Add to a setup" appends the pack (or replaces the
+  base) through `PUT /profiles/{id}`, so that choice is persisted too. The
+  counter alone is never treated as an attach. Don't add a picker whose
+  choice isn't persisted.
+- **Home derives its state banner from setups + sync reports + install
+  claims** (`GET /profiles` + `GET /sync/status`, plus a per-setup
+  `GET /profiles/{id}/installs`): no setups → build your first setup;
+  setups with claims but no sync rows → "Installed, not verified yet";
+  setups but no rows and no claims → install it; any row with
+  `in_sync === false` or non-empty `locally_modified_files` → amber drift
+  banner; otherwise a quiet healthy line. Per-framework chips use the
+  matching `(profile_id, target)` row: no row with a claim = installed,
+  not verified; no row and no claim = not installed; local edits = changed;
+  `in_sync === false` = not verified; clean = verified. Keep the single
+  footer line — no object-count cards.
 - **`Profile.target_frameworks` is read optionally.** The frontend type has
   `target_frameworks?: string[]` ahead of the backend Phase 3 column; every
   surface must fall back to `target_framework` when it is absent, so a
