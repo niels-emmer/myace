@@ -1,8 +1,9 @@
 # Data Model
 
-All tables use UUID primary keys (never auto-increment integers — see
-[invariants.md](invariants.md)). Timestamps are timezone-aware
-(`DateTime(timezone=True)`), stored in UTC.
+All resource tables use UUID primary keys (never auto-increment integers —
+see [invariants.md](invariants.md)); the singleton `system_settings` row is
+the one deliberate exception, with a fixed integer `id=1`. Timestamps are
+timezone-aware (`DateTime(timezone=True)`), stored in UTC.
 
 ## Entity relationships
 
@@ -46,7 +47,7 @@ erDiagram
         string visibility "private | public"
         bool is_active "soft-delete flag"
         int artifact_count "denormalized cache"
-        int download_count "tracked for community collections"
+        int download_count "incremented by community import and /use"
         bool published "true only once moderation_status = approved"
         string category "nullable — browse category"
         string license "nullable — SPDX-style identifier"
@@ -114,6 +115,7 @@ erDiagram
         int stars "1-5, CHECK constraint"
         datetime created_at
         datetime updated_at
+        datetime deleted_at "nullable — soft-delete timestamp"
     }
     COLLECTION_COMMENT {
         uuid id PK
@@ -125,9 +127,10 @@ erDiagram
     }
 ```
 
-`DOC_CACHE` (framework documentation cache for adapter compatibility rules)
+`DOC_CACHE` (framework documentation cache populated by the doc verifier)
 has no relationships to the rest of the schema — it's a standalone TTL cache,
-keyed by `framework` + `content_hash`.
+keyed by `framework` + `content_hash`. The adapters do not read it yet; see
+the `doc_cache` section below.
 
 `SYSTEM_SETTINGS` also has no relationships — it's a singleton row
 (`id` always `1`) holding global, admin-editable config: which auth
@@ -183,8 +186,8 @@ adds/removes artifacts (import, bulk delete, bulk export) — if you add a new
 artifact-mutating route, update it there too or the count will drift.
 `is_starter_pack` marks the collections seeded on every backend startup from
 `collections/base/` and `collections/additional/`, owned by a dedicated
-passwordless system account — see the "Starter packs" section in
-`CLAUDE.md`. `avg_rating`/`rating_count` are a denormalized cache of
+passwordless system account — see AGENTS.md rule 25.
+`avg_rating`/`rating_count` are a denormalized cache of
 `collection_ratings`, recomputed transactionally on every rating
 write/delete — see the `collection_ratings` section below.
 `moderation_status` (`draft`/`submitted`/`approved`/`denied`/
@@ -440,9 +443,12 @@ job that revokes expired tokens, they just stop authenticating.
 ### `doc_cache`
 
 Unrelated to the auth/ownership model above — a TTL-based cache of fetched
-framework documentation, used by adapter compatibility checks. Not
-owner-scoped; it's shared, read-only reference data. `deleted_at` supports
-soft-delete — cache entries are never physically removed from the database.
+framework documentation, populated by the documentation verifier. It is
+**not consumed by the adapters yet**: their translation logic is hardcoded,
+and reading the cache to adjust output is a documented future enhancement
+(see `backend/app/adapters/__init__.py`). Not owner-scoped; it's shared,
+read-only reference data. `deleted_at` supports soft-delete — cache entries
+are never physically removed from the database.
 
 ### `system_settings`
 
@@ -493,7 +499,7 @@ so the restriction can't be bypassed by calling the API directly.
 
 ## Why JSON-as-text instead of proper junction tables
 
-`Collection.tags`/`target_compatibility` and `Profile.additional_collection_ids`/`disabled_artifact_ids`
+`Artifact.tags`/`target_compatibility` and `Profile.additional_collection_ids`/`disabled_artifact_ids`
 could be normalized into join tables. They're JSON-in-text instead because:
 
 - These lists are always read/written as a whole (never queried
@@ -507,7 +513,7 @@ could be normalized into join tables. They're JSON-in-text instead because:
 Publishing goes through a moderation queue, not a self-serve DB write — see
 [ADR-0008](adr/0008-collection-moderation-state-machine.md) for the full
 state machine. `POST /collections/{id}/publish` moves a collection from
-`draft`/`denied` to `submitted`; only the moderator/admin-only
+`draft`/`denied`/`unpublished` to `submitted`; only the moderator/admin-only
 `POST /moderation/{id}/approve` action flips `published = True` and
 `visibility = "public"`. `GET /collections/community` lists anything with
 `published = True AND is_active = True` (unchanged query, but now that

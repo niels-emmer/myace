@@ -1,6 +1,6 @@
 # ADR-0015: Referenced packs freeze to a snapshot when unavailable
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 

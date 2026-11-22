@@ -1,6 +1,6 @@
 # ADR-0014: Public read-only pack browsing
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 

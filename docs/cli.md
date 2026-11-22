@@ -213,9 +213,9 @@ MYACE_COMPANION_ALLOW_APPLY=1 myace serve
 ```
 
 Without the flag (or variable) the companion never exposes a write route.
-This CLI PR ships the companion side only; the browser install step that
-consumes these routes lands separately (and uses `apply.supported` to hide
-the option when it is off):
+The web UI's install panel consumes these routes — it shows **Install
+directly** only when `/health` reports `apply.supported` for the target and
+location, and hides the method entirely otherwise:
 
 ```json
 { "status": "ok", "server": "https://your-server", "apply": { "supported": true, "targets": ["aider", "claude-code", "..."], "machine_targets": ["claude-code", "..."] } }

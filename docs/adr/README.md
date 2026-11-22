@@ -38,4 +38,6 @@ ADR-00XX`.
 | [0011](0011-public-demo-sandbox.md) | A stateless, rate-limited public demo endpoint | Accepted |
 | [0012](0012-manual-collection-freshness-verification.md) | Manual freshness verification, not automated content checking | Accepted |
 | [0013](0013-post-hoc-unpublish.md) | Post-hoc unpublish for approved collections | Accepted |
-| [0014](0014-public-pack-browsing.md) | Public read-only pack browsing (storefront allowlist) | Proposed |
+| [0014](0014-public-pack-browsing.md) | Public read-only pack browsing (storefront allowlist) | Accepted |
+| [0015](0015-pack-reference-freeze.md) | Referenced packs freeze to a snapshot when unavailable | Accepted |
+| [0016](0016-companion-direct-apply.md) | Companion direct apply: preview-then-confirm local writes | Accepted |

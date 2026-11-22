@@ -19,9 +19,9 @@ update this file in the same change.
 | Local dev — via nginx | `http://localhost:80` |
 | Hosted instance | `https://myace.macjuu.com` |
 
-All routes are prefixed `/api/v1/` (the one exception is `GET /health`).
-Breaking changes move to `/api/v2/`; backward-compatible additions stay
-within v1.
+All API routes are prefixed `/api/v1/`; the only exceptions are
+`GET /health` and the spec endpoints listed below. Breaking changes move to
+`/api/v2/`; backward-compatible additions stay within v1.
 
 ## Spec endpoints
 

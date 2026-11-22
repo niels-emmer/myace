@@ -57,7 +57,7 @@ depth, it links here.
 - **[plans/](plans/)** — design records for multi-phase work. Most relevant
   now: [`plans/v2.0-onboarding-revamp.md`](plans/v2.0-onboarding-revamp.md)
   (pack/setup/install vocabulary, navigation, Home, packs library, ⌘K, and
-  the v2.0 pre-release versioning decision).
+  how the work was versioned and shipped as 2.0.0).
 
 ## Keeping this up to date
 
