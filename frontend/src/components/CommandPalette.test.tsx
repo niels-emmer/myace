@@ -182,4 +182,14 @@ describe('CommandPalette', () => {
       );
     });
   });
+
+  it('sends New setup to the onboarding wizard', async () => {
+    renderPalette();
+    const input = screen.getByRole('combobox', { name: /Search commands/i });
+
+    fireEvent.change(input, { target: { value: 'new setup' } });
+    fireEvent.keyDown(screen.getByRole('dialog', { name: /Command palette/i }), { key: 'Enter' });
+
+    expect(await screen.findByText('at:/onboarding')).toBeInTheDocument();
+  });
 });

@@ -17,11 +17,22 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../lib/api', () => ({
   collectionsApi: { get: vi.fn(), getArtifacts: vi.fn(), list: vi.fn() },
-  profilesApi: { get: vi.fn() },
+  profilesApi: { get: vi.fn(), compile: vi.fn() },
   adaptersApi: { list: vi.fn() },
+  syncApi: { getStatus: vi.fn() },
 }));
 
-import { collectionsApi, profilesApi, adaptersApi } from '../lib/api';
+vi.mock('../lib/setupApi', () => ({
+  installsApi: { list: vi.fn() },
+  setupProfilesApi: { update: vi.fn() },
+}));
+
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'u' } }),
+}));
+
+import { collectionsApi, profilesApi, adaptersApi, syncApi } from '../lib/api';
+import { installsApi } from '../lib/setupApi';
 
 const artifact = (id: string, enabled: boolean) => ({
   id, collection_id: 'c1', artifact_type: 'rule', name: id, version: '1.0.0', priority: 50,
@@ -50,6 +61,12 @@ describe('artifact query keys', () => {
       is_public: false, created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z',
     });
     (adaptersApi.list as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (profilesApi.compile as ReturnType<typeof vi.fn>).mockResolvedValue({
+      profile_id: 'p1', profile_name: 'P', target: 'claude-code',
+      artifact_count: 1, files: {}, warnings: [], compiled_hash: 'h',
+    });
+    (syncApi.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (installsApi.list as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   });
 
   it('keeps the include_disabled and enabled-only fetches in separate cache entries', async () => {

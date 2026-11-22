@@ -1,21 +1,18 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Upload,
   FolderOpen,
   Scan,
   CheckSquare,
   Square,
-  Terminal,
   Globe,
   Folder,
   HardDrive,
-  Copy,
-  Check as CheckIcon,
   Loader2,
+  FilePlus2,
 } from 'lucide-react';
-import GithubIcon from '../components/GithubIcon';
 import { COMPANION_URLS, LocalCompanionSetup, useCompanionHealth } from '../components/LocalCompanionSetup';
 
 const FRAMEWORKS = [
@@ -24,7 +21,7 @@ const FRAMEWORKS = [
   { id: 'cursor', label: 'Cursor', globalPath: '~/.cursor' },
 ];
 
-type SourceType = 'local' | 'git';
+type SourceType = 'local' | 'git' | 'scratch';
 
 interface Artifact {
   artifact_type: string;
@@ -41,8 +38,18 @@ interface Artifact {
 
 export default function ImportPage() {
   const [searchParams] = useSearchParams();
-  const initialSource: SourceType = searchParams.get('source') === 'git' ? 'git' : 'local';
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const initialSource: SourceType =
+    searchParams.get('source') === 'git'
+      ? 'git'
+      : searchParams.get('source') === 'scratch'
+        ? 'scratch'
+        : 'local';
   const [sourceType, setSourceType] = useState<SourceType>(initialSource);
+  const returnToOnboarding = searchParams.get('return') === 'onboarding';
+  const [scratchName, setScratchName] = useState('');
+  const [scratchDescription, setScratchDescription] = useState('');
   const [collectionName, setCollectionName] = useState('');
   const [framework, setFramework] = useState('opencode');
   const [scope, setScope] = useState<'global' | 'project'>('global');
@@ -52,8 +59,6 @@ export default function ImportPage() {
   const [gitSubdirectory, setGitSubdirectory] = useState('');
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [scanned, setScanned] = useState(false);
-  const [cliCommand, setCliCommand] = useState('');
-  const [copied, setCopied] = useState(false);
 
   const sourceLabel = sourceType === 'git' ? gitUrl : sourcePath;
 
@@ -133,6 +138,40 @@ export default function ImportPage() {
     },
   });
 
+  const afterPackCreated = (collectionId: string) => {
+    queryClient.invalidateQueries({ queryKey: ['collections'] });
+    navigate(
+      returnToOnboarding
+        ? `/onboarding?step=3&pack=${collectionId}`
+        : `/packs/${collectionId}`,
+    );
+  };
+
+  // "Start from scratch" creates an empty pack and hands it to the same
+  // pack/editor surfaces as an import.
+  const scratchMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/v1/collections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          name: scratchName.trim(),
+          description: scratchDescription.trim() || undefined,
+          git_url: '',
+          collection_type: 'base',
+          visibility: 'private',
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || 'Could not create the pack');
+      }
+      return res.json();
+    },
+    onSuccess: (collection: { id: string }) => afterPackCreated(collection.id),
+  });
+
   // Import mutation
   const importMutation = useMutation({
     mutationFn: async () => {
@@ -156,13 +195,8 @@ export default function ImportPage() {
       }
       return res.json();
     },
-    onSuccess: (data) => {
-      // The CLI's `import` command only supports --path today; git imports are web-only for now.
-      setCliCommand(
-        sourceType === 'git'
-          ? ''
-          : `myace import --path "${sourcePath}" --name "${data.collection_name}" --push`
-      );
+    onSuccess: (data: { collection_id: string; collection_name: string }) => {
+      afterPackCreated(data.collection_id);
     },
   });
 
@@ -175,12 +209,6 @@ export default function ImportPage() {
     setArtifacts(
       artifacts.map((a, i) => (i === index ? { ...a, selected: !a.selected } : a))
     );
-  };
-
-  const copyToClipboard = async (text: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const typeColors: Record<string, string> = {
@@ -198,39 +226,111 @@ export default function ImportPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Import packs</h1>
         <p className="text-muted-foreground mt-1">
-          Scan a GitHub repository or your local machine, pick which items to bring in, then import them as a pack you own.
+          Bring in an existing pack from your machine or a repository, or start an empty
+          one — then pick which items to keep.
         </p>
       </div>
 
-      {/* Source Type Toggle */}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setSourceType('local')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-            sourceType === 'local'
-              ? 'border-brand-500 bg-brand-50 text-brand-700'
-              : 'border-border text-muted-foreground hover:border-input'
-          }`}
-        >
-          <HardDrive className="h-4 w-4" />
-          Local Machine
-        </button>
-        <button
-          type="button"
-          onClick={() => setSourceType('git')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-            sourceType === 'git'
-              ? 'border-brand-500 bg-brand-50 text-brand-700'
-              : 'border-border text-muted-foreground hover:border-input'
-          }`}
-        >
-          <GithubIcon className="h-4 w-4" />
-          GitHub Repository
-        </button>
+      {/* Source cards — three ways to acquire a pack */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {[
+          {
+            id: 'local' as const,
+            icon: HardDrive,
+            title: 'This machine',
+            description: 'Scan your existing framework configs with the local companion.',
+          },
+          {
+            id: 'git' as const,
+            icon: Globe,
+            title: 'GitHub repository',
+            description: 'Import from a public repo the server can reach.',
+          },
+          {
+            id: 'scratch' as const,
+            icon: FilePlus2,
+            title: 'Start from scratch',
+            description: 'Create a new, empty pack and add items yourself.',
+          },
+        ].map((card) => {
+          const Icon = card.icon;
+          const selected = sourceType === card.id;
+          return (
+            <button
+              key={card.id}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setSourceType(card.id)}
+              className={`rounded-xl border p-4 text-left transition-colors ${
+                selected
+                  ? 'border-brand-500 bg-brand-50'
+                  : 'border-border bg-card hover:border-input'
+              }`}
+            >
+              <span
+                className={`mb-2 flex h-9 w-9 items-center justify-center rounded-lg ${
+                  selected ? 'bg-brand-100 text-brand-700' : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+              </span>
+              <span className="block text-sm font-semibold text-foreground">{card.title}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {card.description}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Configuration Form */}
+      {sourceType === 'scratch' ? (
+        <div className="bg-card rounded-xl border border-border p-6 space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Pack name</label>
+              <input
+                type="text"
+                value={scratchName}
+                onChange={(e) => setScratchName(e.target.value)}
+                placeholder="e.g., my-team-conventions"
+                className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Description <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={scratchDescription}
+                onChange={(e) => setScratchDescription(e.target.value)}
+                placeholder="What this pack is for…"
+                className="w-full px-3 py-2 bg-background text-foreground border border-input rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => scratchMutation.mutate()}
+              disabled={!scratchName.trim() || scratchMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 text-sm font-medium transition-colors"
+            >
+              {scratchMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FilePlus2 className="h-4 w-4" />
+              )}
+              Create empty pack
+            </button>
+          </div>
+          {scratchMutation.isError && (
+            <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
+              {scratchMutation.error.message}
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="bg-card rounded-xl border border-border p-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Pack name */}
@@ -412,6 +512,8 @@ export default function ImportPage() {
         )}
       </div>
 
+      )}
+
       {/* Scan Results */}
       {scanned && artifacts.length > 0 && (
         <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -507,38 +609,6 @@ export default function ImportPage() {
               {sourceType === 'git' ? 'GitHub' : 'Local System'}
             </button>
           </div>
-
-          {/* Import Success */}
-          {importMutation.isSuccess && (
-            <div className="bg-foreground text-background rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Terminal className="h-4 w-4 text-green-400" />
-                <span className="text-sm font-medium text-green-400">
-                  Import complete!{cliCommand ? ' CLI equivalent:' : ''}
-                </span>
-              </div>
-              {cliCommand ? (
-                <div className="flex items-center justify-between gap-2">
-                  <code className="text-xs block flex-1">{cliCommand}</code>
-                  <button
-                    onClick={() => copyToClipboard(cliCommand)}
-                    className="p-1.5 hover:bg-foreground/80 rounded transition-colors flex-shrink-0"
-                  >
-                    {copied ? (
-                      <CheckIcon className="h-4 w-4 text-green-400" />
-                    ) : (
-                      <Copy className="h-4 w-4 text-background/60" />
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <p className="text-xs text-background/70">
-                  Head to Packs to view and manage the imported items. (Git imports
-                  aren't yet supported by the CLI.)
-                </p>
-              )}
-            </div>
-          )}
 
           {/* Import Error */}
           {importMutation.isError && (

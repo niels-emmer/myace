@@ -12,6 +12,7 @@ import CollectionDetail from './pages/CollectionDetail';
 import NewArtifactRule from './pages/NewArtifactRule';
 import CommunityCollectionDetail from './pages/CommunityCollectionDetail';
 import ProfileComposer from './pages/ProfileComposer';
+import Onboarding from './pages/Onboarding';
 import ProfileDetail from './pages/ProfileDetail';
 import TargetExporter from './pages/TargetExporter';
 import OrchestrationGallery from './pages/OrchestrationGallery';
@@ -117,6 +118,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
 
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/setups" element={<ProfileComposer />} />
           <Route path="/setups/:id" element={<ProfileDetail />} />
           <Route path="/setups/:id/install" element={<TargetExporter />} />

@@ -137,6 +137,7 @@ export function getBreadcrumb(pathname: string): Crumb[] {
 
   if (path === '/') return [{ label: 'Home' }];
   if (path === '/setups') return [{ label: 'Setups' }];
+  if (path === '/onboarding') return [{ label: 'Set up MyACE' }];
   if (path.startsWith('/setups/')) {
     const [id, child] = path.slice('/setups/'.length).split('/');
     const crumbs: Crumb[] = [{ label: 'Setups', to: '/setups' }];

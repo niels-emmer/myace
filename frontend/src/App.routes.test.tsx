@@ -16,6 +16,7 @@ vi.mock('./lib/api', () => ({
 // (which path lands where), not each page's own data fetching.
 vi.mock('./pages/Home', () => ({ default: () => <div>home-page</div> }));
 vi.mock('./pages/ProfileComposer', () => ({ default: () => <div>setups-page</div> }));
+vi.mock('./pages/Onboarding', () => ({ default: () => <div>onboarding-page</div> }));
 vi.mock('./pages/ProfileDetail', async () => {
   const { useParams } = await import('react-router-dom');
   function SetupDetailStub() {
@@ -117,6 +118,7 @@ describe('canonical routes', () => {
 
   it.each([
     ['/', 'home-page'],
+    ['/onboarding', 'onboarding-page'],
     ['/setups', 'setups-page'],
     ['/setups/abc', 'setup-detail:abc'],
     ['/setups/abc/install', 'install-page:abc:'],

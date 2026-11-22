@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -11,17 +11,24 @@ import {
   Star,
 } from 'lucide-react';
 import { adaptersApi, collectionsApi, profilesApi, syncApi } from '../lib/api';
+import { installsApi } from '../lib/setupApi';
 import { useAuth } from '../contexts/AuthContext';
 import { BUNDLES } from '../lib/bundles';
 import { formatUses, packHref, packSource, packSourceLabel } from '../lib/packs';
 import type { Profile, SyncStatus } from '../types';
 
-type InstallState = 'verified' | 'changed' | 'not-verified' | 'not-installed';
+type InstallState =
+  | 'verified'
+  | 'changed'
+  | 'not-verified'
+  | 'claimed'
+  | 'not-installed';
 
 const INSTALL_STATE_LABELS: Record<InstallState, string> = {
   verified: 'verified',
   changed: 'changed',
   'not-verified': 'not verified',
+  claimed: 'installed, not verified',
   'not-installed': 'not installed',
 };
 
@@ -29,14 +36,19 @@ const INSTALL_STATE_CLASSES: Record<InstallState, string> = {
   verified: 'bg-green-50 text-green-700 border-green-200',
   changed: 'bg-amber-50 text-amber-700 border-amber-200',
   'not-verified': 'bg-blue-50 text-blue-700 border-blue-200',
+  claimed: 'bg-blue-50 text-blue-700 border-blue-200',
   'not-installed': 'bg-muted text-muted-foreground border-border',
 };
 
-function installState(row?: SyncStatus): InstallState {
-  if (!row) return 'not-installed';
-  if (row.locally_modified_files.length > 0) return 'changed';
-  if (!row.in_sync) return 'not-verified';
-  return 'verified';
+// A sync row is verified/drift; an install claim is only ever
+// "installed, not verified" (AGENTS.md rule 32, ADR-0015).
+function installState(row: SyncStatus | undefined, claimed: boolean): InstallState {
+  if (row) {
+    if (row.locally_modified_files.length > 0) return 'changed';
+    if (!row.in_sync) return 'not-verified';
+    return 'verified';
+  }
+  return claimed ? 'claimed' : 'not-installed';
 }
 
 function profileTargets(profile: Profile): string[] {
@@ -84,6 +96,21 @@ export default function Home() {
   // Defensive as well as owner-scoped: a cached/older API response must never
   // surface another user's public profile as one of your setups.
   const setups = (profiles ?? []).filter((profile) => profile.owner_id === user?.id);
+
+  // Install claims turn "not installed" into "installed, not verified" before
+  // the CLI has ever reported a sync result. One query per setup, keyed by id.
+  const installQueries = useQueries({
+    queries: setups.map((profile) => ({
+      queryKey: ['installs', profile.id],
+      queryFn: () => installsApi.list(profile.id),
+      enabled: !!user,
+    })),
+  });
+  const claimsBySetup = new Map(
+    setups.map((profile, index) => [profile.id, installQueries[index]?.data ?? []]),
+  );
+  const hasAnyClaim = setups.some((profile) => (claimsBySetup.get(profile.id) ?? []).length > 0);
+
   const syncRows = syncStatuses ?? [];
   const driftRows = syncRows.filter(
     (row) => !row.in_sync || row.locally_modified_files.length > 0,
@@ -135,7 +162,7 @@ export default function Home() {
                 </p>
               </div>
               <Link
-                to="/setups"
+                to="/onboarding"
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
               >
                 Start setup
@@ -161,6 +188,27 @@ export default function Home() {
               >
                 Install now
                 <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          )}
+
+          {setups.length > 0 && syncRows.length === 0 && hasAnyClaim && (
+            <div className="flex flex-col gap-4 rounded-xl border border-blue-200 bg-blue-50 p-6 sm:flex-row sm:items-center">
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <h2 className="font-semibold text-blue-900">Installed, not verified yet</h2>
+                <p className="mt-1 text-sm text-blue-800">
+                  Run <code className="font-mono">myace check --report</code> in the install root
+                  to verify the files on disk.
+                </p>
+              </div>
+              <Link
+                to="/machine?tab=sync"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-300 bg-card px-4 py-2 text-sm font-medium text-blue-900 transition-colors hover:bg-blue-100"
+              >
+                Open sync
               </Link>
             </div>
           )}
@@ -213,6 +261,7 @@ export default function Home() {
             {setups.map((profile) => {
               const targets = profileTargets(profile);
               const packNames = packNamesFor(profile);
+              const claims = claimsBySetup.get(profile.id) ?? [];
               return (
                 <Link
                   key={profile.id}
@@ -231,7 +280,10 @@ export default function Home() {
                       const row = syncRows.find(
                         (status) => status.profile_id === profile.id && status.target === target,
                       );
-                      const state = installState(row);
+                      const state = installState(
+                        row,
+                        claims.some((claim) => claim.target === target),
+                      );
                       return (
                         <span
                           key={target}
@@ -247,7 +299,7 @@ export default function Home() {
             })}
 
             <Link
-              to="/setups"
+              to="/onboarding"
               className="flex min-h-[9rem] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border p-5 text-muted-foreground transition-colors hover:border-brand-300 hover:text-brand-700"
             >
               <Plus className="h-5 w-5" />
