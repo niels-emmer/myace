@@ -264,43 +264,50 @@ with the per-file sha256s below, so a later hand-edit is detectable locally:
 <<<END FILE>>>
 ```
 
-**What that trailer does and does not buy — be precise.** It writes `pack_id`,
-never the envelope's `profile_id`. That is not cosmetic: `_report_results()`
-(`cli/myace_cli/main.py:362`) skips a result only when it has **no** `profile_id`
-or has an `error`, so a copied `profile_id` would put a bogus pack id on the
-sync dashboard instead of being skipped. `check_target()`
-(`cli/myace_cli/sync.py:157`) reads `profile_id` out of the manifest and then
-calls `GET /api/v1/profiles/{profile_id}/compile-status` (line 171) to decide
-`stale`. A pack-scoped install has no setup id, so:
+**What that trailer does and does not buy — be precise.** `check_target()`
+(`cli/myace_cli/sync.py:157`) reads `profile_id` from the manifest and
+unconditionally calls `GET /api/v1/profiles/{profile_id}/compile-status`
+(line 171) to decide `stale`. A pack-scoped install has no setup id, so with
+`profile_id` absent the URL is `/profiles//compile-status`, the call fails, and
+`error` is set. The result:
 
-- the **local** half works: recomputing each file's sha256 against the manifest
-  detects hand-edits with no network call;
-- the **server** half cannot work: there is no `profile_id` to poll, so `check`
-  would report an error and can never say `stale`/`in_sync`.
+- `locally_modified` still works. `compute_local_file_hashes()` runs before the
+  network call, so hand-edits are detected and reported with no server involved
+  — that is the only part of `check` a pack manifest buys.
+- `stale` is always `None`, `in_sync` is always `False`, and every run prints a
+  `Server returned 404`-style error for that target. `check` therefore exits
+  non-zero because of a manifest it cannot reconcile, which is noise a user will
+  read as "my install is broken."
 
-Therefore v1 must not claim `myace check`-visibility for a pack install. Two
-concrete consequences:
+Note what copying the envelope `profile_id` into the manifest would **not** do:
+`_report_results()` (`cli/myace_cli/main.py:362`) skips a result that has no
+`profile_id` *or* has an `error`, and `check_target()` sets `error` in either
+case — so neither shape can put a bogus pack id on the sync dashboard.
+The argument for `pack_id` is truthfulness in the file, not dashboard safety.
+
+Therefore v1 must not claim `myace check`-visibility for a pack install, and the
+trailer should be labelled accordingly. Two further consequences:
 
 - The trailer's filename is `.myace/pack-<collection-id>.<target>.manifest.json`,
   which `find_manifests()` discovers (`*.manifest.json`) but
   `check --target <target>` does **not**: that path is built by
   `manifest_file_path()`, which looks for exactly `.myace/<target>.manifest.json`
-  (`cli/myace_cli/sync.py`). The local-drift half therefore only works via
+  (`cli/myace_cli/sync.py`). So even the local-drift half only works via
   `myace check --all`. Say that in the trailer, or name the file
   `.myace/<target>.manifest.json` and accept that it collides with a setup pull
   for the same target in the same directory.
-- `--report` will not create a bogus verification row in the meantime:
-  `_report_results()` (`cli/myace_cli/main.py:362`) skips any result with no
-  `profile_id`, so an agent-written pack manifest stays off the sync dashboard
-  by construction.
+- Because of the permanent `error`, the honest v1 default is to make the trailer
+  **opt-in** (a sentence the agent may act on), not a normal part of the
+  install — or to leave it out of v1 entirely and ship it in Phase 2 with the
+  route and CLI change that make it truthful.
 
 Either write the manifest with a `pack_id` field and let `check` treat a manifest
 with no `profile_id` as local-only, or add a pack-scoped
 `GET /api/v1/collections/community/{id}/compile-status?target=…` (collection id
 in the path — §3.2) and extend `check_target()` to use it. That second option is
 a Phase 2 item, since it needs a small CLI change (`cli/myace_cli/sync.py`) as
-well as the route. Until then the trailer is a self-check convenience for the
-agent, and the plan's phasing treats the manifest as optional and unverified.
+well as the route. Until then the plan's phasing treats the manifest as optional
+and unverified.
 
 `?format=json` returns the `ProfileCompileResponse` fields
 (`{files, warnings, compiled_hash, artifact_count, profile_name, profile_id}`)
@@ -326,11 +333,32 @@ equal by construction. A consumer that ignores `subject` and treats
 `profile_id` as a setup id will 404 on `/api/v1/profiles/{id}` — the docstring
 must say so.
 
-`?format=zip` returns the same archive `/compile/zip` builds. It deliberately
-carries **no** discriminator file: the URL is already pack-scoped, and injecting
-an extra `_pack.json` would drop a MyACE bookkeeping file into the directory the
-user just unzipped into the install root. All three formats share one
-`compile_pack()` call.
+**How the discriminator survives serialization.** This is the one place the
+implementation can silently lose the whole mechanism: the route returns three
+media types, so it must **not** declare
+`response_model=ProfileCompileResponse` — FastAPI would validate the handler's
+return value against that model and drop `subject`/`pack_id` as unlisted fields,
+with no error to notice. Two acceptable shapes, pick one and test it:
+
+- declare `response_model=None` and build the JSON branch explicitly, e.g.
+  `JSONResponse(PackCompileResponse(...).model_dump(mode="json"))`; or
+- declare a small `PackCompileResponse(ProfileCompileResponse)` schema with
+  `subject: Literal["pack"]` and `pack_id: uuid.UUID`, and return that from the
+  JSON branch, accepting that a single route cannot carry a per-format
+  `response_model` and so still needs `response_model=None` at the decorator.
+
+`PackCompileResponse` is a response schema only — **no table, no migration**.
+The test in §6 must assert `subject`/`pack_id` in the parsed body, because a
+`response_model` regression that strips them still returns 200 with every other
+field intact.
+
+`?format=zip` returns the same archive `/compile/zip` builds. It carries no
+discriminator file, and that is a judgement call rather than an invariable rule:
+`/compile/zip` already adds `_myace_warnings.txt` when there are warnings, so a
+bookkeeping file in the archive is an established precedent. The reasoning here
+is that a warnings file is an exceptional, transient report while a
+discriminator would ship on every install, and the URL is already pack-scoped so
+nothing needs disambiguating. All three formats share one `compile_pack()` call.
 
 ### 3.4 Size and abuse
 
@@ -527,7 +555,11 @@ is *absent*, not a disabled tease (the `direct` tab already does this).
 4. Docstring on the route stating the ADR-0014 auth exception it inherits, why
    no counter moves, and that `profile_id` in the envelope carries a **pack**
    id (branch on `subject`).
-5. No migration, no model change, no adapter change.
+5. Add a `PackCompileResponse(ProfileCompileResponse)` **response schema**
+   (`subject: Literal["pack"]`, `pack_id: uuid.UUID`) and return the JSON branch
+   through it with `response_model=None` on the decorator (§3.3 — a
+   `response_model` here would silently strip the discriminator). No table
+   model, no migration, no adapter change.
 
 ### Frontend
 
@@ -626,9 +658,10 @@ work, most of it tests and docs.
    cheap either way.
 6. **No server-side drift tracking for a pack install.** `myace check` keys
    off `profile_id` from the manifest, and a pack-scoped install has none — so
-   even with the optional trailer, only the *local* hash comparison works;
-   `stale`/`in_sync` cannot be reported until a pack-scoped compile-status
-   route exists (§3.3, Phase 2). Do not claim "verified" anywhere — the existing
+   even with the optional trailer, only `locally_modified` works and every run
+   reports an `error` and exits non-zero until a pack-scoped compile-status
+   route exists (§3.3, Phase 2). That is why the trailer is opt-in rather than
+   part of a normal install. Do not claim "verified" anywhere — the existing
    install-claim vs `SyncStatus` distinction (ADR-0015) still holds.
 7. **The roadmap now advertises an unbuilt feature.** Publishing the plan also
    publishes the gap on the project's front page. That is deliberate (it is
