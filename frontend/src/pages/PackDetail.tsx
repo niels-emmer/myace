@@ -668,7 +668,8 @@ export default function PackDetail() {
                   Customize a copy
                 </Link>
                 <p className="text-xs text-muted-foreground">
-                  Browsing is free. Sign up to build a setup, install it, or customize a copy.
+                  Browsing needs no account. MyACE is free. Create one only when you want to
+                  build a setup, install it, or customize a copy.
                 </p>
               </>
             )}

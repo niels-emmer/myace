@@ -133,14 +133,11 @@ export default function Landing() {
             Browse packs
             <ArrowRight className="h-4 w-4" />
           </Link>
-          {/* Phase 2 owns the dedicated `/onboarding` entry point; until its
-              parallel branch lands, this CTA points at the public browse view
-              so a standalone Phase 5 branch has no dead destination. */}
           <Link
-            to="/packs"
+            to="/login?mode=register"
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-6 py-3 text-base font-medium text-foreground transition-colors hover:border-brand-600 hover:text-brand-600"
           >
-            Browse starter packs
+            Create a free account
           </Link>
         </div>
 
@@ -263,7 +260,8 @@ export default function Landing() {
               )}
               <p className="text-xs text-muted-foreground">
                 Only <code className="bg-muted px-1 rounded">## Section</code>-style rules are
-                parsed for this demo — sign up to also compile skills, agents, and workflows.
+                parsed for this demo — sign up for free to also compile skills, agents, and
+                workflows.
               </p>
             </div>
 
