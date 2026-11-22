@@ -12,10 +12,15 @@ names where it's enforced so you can verify it hasn't regressed.
    `/auth/login/mfa`, `/auth/logout`, `/auth/forgot-password`,
    `/auth/reset-password`, `/auth/login/{provider}`,
    `/auth/callback/{provider}`, `/auth/providers`,
-   and `POST /demo/compile` (added in Phase 4 — see
+   `POST /demo/compile` (see
    [ADR-0011](adr/0011-public-demo-sandbox.md) and AGENTS.md rule 36 for
    why this one earns the exception, and invariant 22 below for what makes
-   it safe to leave public).
+   it safe to leave public), and the five anonymous storefront reads
+   `GET /api/v1/collections/community`, `/community/top`,
+   `/community/categories`, `/community/{id}`, and
+   `/community/{id}/artifacts` (added in Phase 5 — see
+   [ADR-0014](adr/0014-public-pack-browsing.md) and AGENTS.md rules 13/42:
+   approved-only, sanitized response, read-only, rate-limited).
    Enforced by `Depends(get_current_user)` — `backend/app/core/deps.py`.
    *If you add a route and forget this dependency, it's open to anyone.*
 

@@ -32,7 +32,7 @@ from app.api.demo import limiter as demo_limiter
 from app.core.body_limit import MaxBodySizeMiddleware
 from app.core.config import settings
 from app.core.database import get_session_factory, init_db
-from app.core.ratelimit import auth_limiter
+from app.core.ratelimit import auth_limiter, storefront_limiter
 from app.services.seed_collections import seed_starter_collections
 
 logger = logging.getLogger("myace")
@@ -168,8 +168,9 @@ app = FastAPI(
 # Rate limiter state + exception handler for slowapi's @limiter.limit(...)
 # decorators — this is app-wide *plumbing* required to raise 429s at all, not
 # app-wide rate limiting. Only POST /demo/compile uses this instance; the
-# credential-guessing auth routes use their own `auth_limiter`
-# (app/core/ratelimit.py).
+# credential-guessing auth routes use their own `auth_limiter` and the public
+# storefront reads use `storefront_limiter` (both in app/core/ratelimit.py).
+# The exception handler below selects the instance by route path.
 app.state.limiter = demo_limiter
 
 
@@ -200,8 +201,10 @@ def _handle_rate_limit_exceeded(request: Request, exc: Exception) -> Response:
     # declared `Response` return.
     # The limiter that *counted* this request must inject the headers: each
     # Limiter owns its own storage, so the demo limiter would report its empty
-    # bucket for an auth 429. The two instances are disjoint by route — auth
-    # routes live under /api/v1/auth/ — so the path picks the right one.
+    # bucket for an auth 429. The three instances are disjoint by route —
+    # auth under /api/v1/auth/, the public storefront under
+    # /api/v1/collections/community, everything else on the demo limiter — so
+    # the path picks the right one.
     #
     # Note `_inject_headers` is a no-op while `headers_enabled` is False (the
     # default): slowapi calls it with the handler's return value, and these
@@ -209,7 +212,12 @@ def _handle_rate_limit_exceeded(request: Request, exc: Exception) -> Response:
     # which that helper rejects. Selecting the right limiter here keeps the
     # call correct if headers are ever enabled on handlers that return a
     # `Response`.
-    limiter = auth_limiter if request.url.path.startswith("/api/v1/auth/") else demo_limiter
+    if request.url.path.startswith("/api/v1/auth/"):
+        limiter = auth_limiter
+    elif request.url.path.startswith("/api/v1/collections/community"):
+        limiter = storefront_limiter
+    else:
+        limiter = demo_limiter
     injected: Response = limiter._inject_headers(
         response, request.state.view_rate_limit
     )

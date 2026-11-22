@@ -36,8 +36,11 @@ within v1.
 Two mechanisms feed one `get_current_user` dependency. Every route except
 `/health`, the auth entry points (`/api/v1/auth/register`, `/login`,
 `/login/mfa`, `/logout`, `/forgot-password`, `/reset-password`,
-`/login/{provider}`, `/callback/{provider}`, `/providers`), and
-`POST /api/v1/demo/compile` requires one of them:
+`/login/{provider}`, `/callback/{provider}`, `/providers`),
+`POST /api/v1/demo/compile`, and the five anonymous storefront reads
+(`GET /api/v1/collections/community`, `/community/top`,
+`/community/categories`, `/community/{id}`, `/community/{id}/artifacts` —
+see [ADR-0014](docs/adr/0014-public-pack-browsing.md)) requires one of them:
 
 1. **Session cookie** (`myace_session`) — set by `POST /api/v1/auth/login`
    (or the OIDC/GitHub/Google callback). Used by the web UI.

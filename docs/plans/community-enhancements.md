@@ -323,7 +323,7 @@ positive and the owner opted in, then updates the two columns.
 ### Epic 6: Frontend — Meta-edit UI
 
 **Files:**
-- `frontend/src/pages/CommunityCollectionDetail.tsx` — edit form, visible only to mod/admin viewers
+- `frontend/src/pages/PackDetail.tsx` (merged from the old community detail page) — edit form, visible only to mod/admin viewers
 - `frontend/src/pages/ModerationQueue.tsx` — optional inline edit-before-approve
 - `frontend/src/lib/api.ts` — `moderationApi.updateMeta`
 
@@ -392,7 +392,7 @@ positive and the owner opted in, then updates the two columns.
 ### Epic 8: Frontend — Ratings & comments UI
 
 **Files:**
-- `frontend/src/pages/CommunityCollectionDetail.tsx` — star widget + comment thread
+- `frontend/src/pages/PackDetail.tsx` (merged from the old community detail page) — star widget + comment thread
 - `frontend/src/lib/api.ts` — rating/comment API methods
 - `frontend/src/types/index.ts` — types
 

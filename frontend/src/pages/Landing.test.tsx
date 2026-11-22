@@ -16,6 +16,14 @@ vi.mock('../lib/api', () => ({
   },
 }));
 
+vi.mock('../lib/packApi', () => ({
+  packApi: {
+    listCommunity: vi.fn(),
+  },
+}));
+
+import { packApi } from '../lib/packApi';
+
 function renderLanding() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -34,6 +42,7 @@ function renderLanding() {
 describe('Landing page', () => {
   beforeEach(() => {
     vi.mocked(authApi.me).mockRejectedValue(new Error('not authenticated'));
+    vi.mocked(packApi.listCommunity).mockResolvedValue({ items: [], total: 0 });
   });
 
   it('renders the pitch and a pre-filled demo textarea with no auth required', async () => {
@@ -44,7 +53,7 @@ describe('Landing page', () => {
     expect(textarea.value).toContain('## Formatting');
 
     expect(screen.getByRole('link', { name: /Log in/i })).toHaveAttribute('href', '/login');
-    expect(screen.getByRole('link', { name: /Sign up/i })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'Sign up' })[0]).toHaveAttribute(
       'href',
       '/login?mode=register'
     );
@@ -85,6 +94,60 @@ describe('Landing page', () => {
     expect(await screen.findByText(/markdown must be at most 20480 bytes/i)).toBeInTheDocument();
   });
 
+  it('shows the four-step story and CTAs to browse packs and set up', async () => {
+    renderLanding();
+    await screen.findByText(/Write your AI agent rules once/i);
+
+    expect(screen.getAllByText('Browse packs').length).toBeGreaterThan(0);
+    expect(screen.getByText('Build a setup')).toBeInTheDocument();
+    expect(screen.getByText('Install everywhere')).toBeInTheDocument();
+    expect(screen.getByText('Publish')).toBeInTheDocument();
+
+    expect(screen.getAllByRole('link', { name: /Browse packs/i })[0]).toHaveAttribute(
+      'href',
+      '/packs',
+    );
+    // Until Phase 2 ships its `/onboarding` route, the CTA points at sign-up.
+    expect(screen.getByRole('link', { name: /Set up mine/i })).toHaveAttribute(
+      'href',
+      '/login?mode=register',
+    );
+  });
+
+  it('renders featured packs from the public community endpoint', async () => {
+    vi.mocked(packApi.listCommunity).mockResolvedValue({
+      items: [
+        {
+          id: 'starter-1',
+          owner_id: 'starter',
+          name: 'Software Engineer',
+          description: 'A complete starting point.',
+          collection_type: 'base',
+          artifact_count: 20,
+          download_count: 1200,
+          published: true,
+          is_starter_pack: true,
+          avg_rating: 4.8,
+          rating_count: 12,
+          moderation_status: 'approved',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+      total: 1,
+    });
+
+    renderLanding();
+    expect(await screen.findByText('Software Engineer')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Software Engineer/ })).toHaveAttribute(
+      'href',
+      '/packs/starter-1',
+    );
+    expect(screen.getByText('Starter')).toBeInTheDocument();
+    expect(screen.getAllByText('All 12 frameworks').length).toBeGreaterThan(0);
+    expect(screen.getByText('1.2k uses')).toBeInTheDocument();
+  });
+
   it('shows the large centered brand mark above the headline', async () => {
     renderLanding();
     const headline = await screen.findByRole('heading', {
@@ -106,7 +169,7 @@ describe('Landing page', () => {
   it('ends with a call to action that leads to signup, after the feature blocks', async () => {
     renderLanding();
     const cta = await screen.findByRole('link', {
-      name: 'Accounts are free, register today and start building!',
+      name: 'Sign up free — start building',
     });
     expect(cta).toHaveAttribute('href', '/login?mode=register');
 

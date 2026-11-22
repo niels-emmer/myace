@@ -46,21 +46,29 @@ vi.mock('./pages/ImportPage', async () => {
   }
   return { default: ImportStub };
 });
-vi.mock('./pages/CommunityCollectionDetail', async () => {
-  const { useParams } = await import('react-router-dom');
-  function CommunityDetailStub() {
-    const { id } = useParams();
-    return <div>community-detail:{id}</div>;
-  }
-  return { default: CommunityDetailStub };
-});
-vi.mock('./pages/CollectionDetail', async () => {
+vi.mock('./pages/PackDetail', async () => {
   const { useParams } = await import('react-router-dom');
   function PackDetailStub() {
     const { id } = useParams();
     return <div>pack-detail:{id}</div>;
   }
   return { default: PackDetailStub };
+});
+vi.mock('./pages/PublishPack', async () => {
+  const { useParams } = await import('react-router-dom');
+  function PublishStub() {
+    const { id } = useParams();
+    return <div>publish-page:{id}</div>;
+  }
+  return { default: PublishStub };
+});
+vi.mock('./pages/CollectionDetail', async () => {
+  const { useParams } = await import('react-router-dom');
+  function ManagePackStub() {
+    const { id } = useParams();
+    return <div>manage-pack:{id}</div>;
+  }
+  return { default: ManagePackStub };
 });
 vi.mock('./pages/NewArtifactRule', async () => {
   const { useParams } = await import('react-router-dom');
@@ -127,8 +135,9 @@ describe('canonical routes', () => {
     ['/packs/pipelines', 'pipelines-page'],
     ['/packs/pipelines/new', 'pipeline-new-page'],
     ['/packs/import', 'import-page:'],
-    ['/packs/community/abc', 'community-detail:abc'],
     ['/packs/abc', 'pack-detail:abc'],
+    ['/packs/abc/publish', 'publish-page:abc'],
+    ['/packs/abc/manage', 'manage-pack:abc'],
     ['/packs/abc/items/new', 'new-item:abc'],
     ['/machine', 'machine-page:overview'],
     ['/machine?tab=audit', 'machine-page:audit'],
@@ -143,6 +152,28 @@ describe('canonical routes', () => {
   });
 });
 
+describe('public browse routes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (authApi.me as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('not authenticated'));
+  });
+
+  it.each([
+    ['/packs', 'packs-page'],
+    ['/packs/abc', 'pack-detail:abc'],
+  ])('%s renders without a session', async (path, expectedText) => {
+    renderAt(path);
+    expect(await screen.findByText(expectedText)).toBeInTheDocument();
+  });
+
+  it('still protects the authenticated packs children', async () => {
+    renderAt('/packs/mine');
+    // PublicLayout is not rendered for an authenticated-only path; the
+    // RequireAuth redirect sends the visitor to /welcome instead.
+    expect(await screen.findByText(/Write your AI agent rules once/i)).toBeInTheDocument();
+  });
+});
+
 describe('legacy route redirects', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -152,7 +183,9 @@ describe('legacy route redirects', () => {
   it.each([
     ['/collections', 'packs-page'],
     ['/collections/community', 'packs-page'],
-    ['/collections/community/abc', 'community-detail:abc'],
+    ['/collections/community/abc', 'pack-detail:abc'],
+    // The old split community detail path merged into /packs/:id (decision A).
+    ['/packs/community/abc', 'pack-detail:abc'],
     ['/collections/mine', 'my-packs-page'],
     ['/collections/abc', 'pack-detail:abc'],
     ['/collections/abc/artifacts/new', 'new-item:abc'],

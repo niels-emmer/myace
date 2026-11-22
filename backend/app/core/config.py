@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     auth_rate_limit: str = "10/minute"
     mfa_rate_limit: str = "5/minute"
 
+    # Per-client-IP cap on the anonymous community/storefront read routes
+    # (ADR-0014). Generous enough for a browsing session, bounded enough that
+    # a scraper cannot hammer the public listing endpoints unchecked.
+    storefront_rate_limit: str = "120/minute"
+
     # API Keys
     api_key_length: int = 48
 

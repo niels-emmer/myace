@@ -222,7 +222,7 @@ describe('Home', () => {
     expect(await screen.findByText('Rust Systems Engineer')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Rust Systems Engineer/ })).toHaveAttribute(
       'href',
-      '/packs/community/community-1',
+      '/packs/community-1',
     );
   });
 

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FolderGit2, Plus, Search, Sparkles, Star, Upload } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
+import { packApi } from '../lib/packApi';
 import { BUNDLES } from '../lib/bundles';
 import {
   formatUses,
@@ -13,10 +14,10 @@ import {
   type PackSource,
 } from '../lib/packs';
 import { useAuth } from '../contexts/AuthContext';
-import type { Collection } from '../types';
+import type { Pack } from '../types/packs';
 
 type Facet = 'all' | 'base' | 'additional' | 'mine' | 'community';
-type Sort = 'recommended' | 'used' | 'rated';
+type Sort = 'recommended' | 'rated' | 'recent';
 
 const FACETS: { id: Facet; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -32,54 +33,79 @@ const SOURCE_CLASSES: Record<PackSource, string> = {
   community: 'bg-card text-muted-foreground border-border',
 };
 
-function sortPacks(packs: Collection[], sort: Sort): Collection[] {
+function createdAt(pack: Pack): number {
+  return Date.parse(pack.updated_at || pack.created_at) || 0;
+}
+
+/**
+ * Sort deliberately excludes "most used": `download_count` is advisory and
+ * user-incrementable (invariant 25 / ADR-0015), so it is shown as a soft
+ * "used N times" signal but never treated as an authoritative ranking.
+ */
+function sortPacks(packs: Pack[], sort: Sort): Pack[] {
   const copy = [...packs];
-  if (sort === 'used') {
-    return copy.sort((a, b) => b.download_count - a.download_count || a.name.localeCompare(b.name));
-  }
   if (sort === 'rated') {
     return copy.sort((a, b) => b.avg_rating - a.avg_rating || b.rating_count - a.rating_count);
   }
-  // Recommended: starter packs first, starting points before add-ons, then usage.
+  if (sort === 'recent') {
+    return copy.sort((a, b) => createdAt(b) - createdAt(a) || a.name.localeCompare(b.name));
+  }
+  // Recommended: starter packs first, starting points before add-ons, then rating.
   return copy.sort((a, b) => {
     if (a.is_starter_pack !== b.is_starter_pack) return a.is_starter_pack ? -1 : 1;
     if (a.collection_type !== b.collection_type) return a.collection_type === 'base' ? -1 : 1;
-    return b.download_count - a.download_count || a.name.localeCompare(b.name);
+    return b.avg_rating - a.avg_rating || a.name.localeCompare(b.name);
   });
 }
 
-function emptyMessage(facet: Facet): string {
+function emptyMessage(facet: Facet, anonymous: boolean): string {
   if (facet === 'mine') return 'You do not have any packs yet.';
-  if (facet === 'community') return 'No community packs match these filters.';
+  if (facet === 'community') {
+    return anonymous
+      ? 'No community packs match these filters yet.'
+      : 'No community packs match these filters.';
+  }
   if (facet === 'base') return 'No starting-point packs match these filters.';
   if (facet === 'additional') return 'No add-ons match these filters.';
-  return 'No packs match these filters.';
+  return anonymous ? 'No packs match these filters yet.' : 'No packs match these filters.';
 }
 
 export default function PacksLibrary() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const anonymous = !authLoading && !user;
   const [search, setSearch] = useState('');
   const [facet, setFacet] = useState<Facet>('all');
   const [category, setCategory] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>('recommended');
 
   const { data: collections, isLoading } = useQuery({
-    queryKey: ['collections'],
-    queryFn: () => collectionsApi.list(),
+    queryKey: anonymous ? ['public-packs'] : ['collections'],
+    queryFn: async () => {
+      if (anonymous) {
+        const response = await packApi.listCommunity({ limit: 100, sort: 'alpha' });
+        return response.items;
+      }
+      return collectionsApi.list();
+    },
+    enabled: !authLoading,
   });
+
   const { data: categories } = useQuery({
-    queryKey: ['community-categories'],
-    queryFn: () => collectionsApi.listCommunityCategories(),
+    queryKey: anonymous ? ['public-pack-categories'] : ['community-categories'],
+    queryFn: () =>
+      anonymous ? packApi.communityCategories() : collectionsApi.listCommunityCategories(),
+    enabled: !authLoading,
   });
 
   const packs = useMemo(() => {
     const query = search.trim().toLowerCase();
     const filtered = (collections ?? []).filter((collection) => {
       const source = packSource(collection, user?.id);
+      if (anonymous && source !== 'community' && source !== 'starter') return false;
+      if (facet === 'mine' && (anonymous || source !== 'mine')) return false;
+      if (facet === 'community' && source !== 'community') return false;
       if (facet === 'base' && collection.collection_type !== 'base') return false;
       if (facet === 'additional' && collection.collection_type !== 'additional') return false;
-      if (facet === 'mine' && source !== 'mine') return false;
-      if (facet === 'community' && source !== 'community') return false;
       if (category && collection.category !== category) return false;
       if (!query) return true;
       return `${collection.name} ${collection.description ?? ''} ${collection.category ?? ''}`
@@ -87,7 +113,7 @@ export default function PacksLibrary() {
         .includes(query);
     });
     return sortPacks(filtered, sort);
-  }, [collections, facet, category, search, sort, user?.id]);
+  }, [collections, facet, category, search, sort, user?.id, anonymous]);
 
   const bundlePacks = BUNDLES.map((bundle) => ({
     bundle,
@@ -99,6 +125,8 @@ export default function PacksLibrary() {
     ),
   }));
 
+  const facets = anonymous ? FACETS.filter((item) => item.id !== 'mine') : FACETS;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -108,22 +136,31 @@ export default function PacksLibrary() {
             Rules, skills, agents, and workflows — curated starting points and community add-ons.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        {anonymous ? (
           <Link
-            to="/packs/import"
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-colors hover:border-brand-600 hover:text-brand-600"
-          >
-            <Upload className="h-4 w-4" />
-            Import packs
-          </Link>
-          <Link
-            to="/packs/mine"
+            to="/login?mode=register"
             className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
           >
-            <Plus className="h-4 w-4" />
-            New pack
+            Sign up free
           </Link>
-        </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/packs/import"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-colors hover:border-brand-600 hover:text-brand-600"
+            >
+              <Upload className="h-4 w-4" />
+              Import packs
+            </Link>
+            <Link
+              to="/packs/mine"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+            >
+              <Plus className="h-4 w-4" />
+              New pack
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
@@ -140,7 +177,7 @@ export default function PacksLibrary() {
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {FACETS.map((item) => (
+            {facets.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setFacet(item.id)}
@@ -162,19 +199,23 @@ export default function PacksLibrary() {
             className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground lg:ml-auto"
           >
             <option value="recommended">Recommended</option>
-            <option value="used">Most used</option>
             <option value="rated">Highest rated</option>
+            <option value="recent">Recently updated</option>
           </select>
         </div>
 
         {(categories ?? []).length > 0 && (
           <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Category</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Category
+            </span>
             <button
               onClick={() => setCategory(null)}
               aria-pressed={category === null}
               className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
-                category === null ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground'
+                category === null
+                  ? 'bg-foreground text-background'
+                  : 'bg-muted text-muted-foreground hover:text-foreground'
               }`}
             >
               All categories
@@ -185,7 +226,9 @@ export default function PacksLibrary() {
                 onClick={() => setCategory(name === category ? null : name)}
                 aria-pressed={category === name}
                 className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
-                  category === name ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground'
+                  category === name
+                    ? 'bg-foreground text-background'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {name}
@@ -238,7 +281,9 @@ export default function PacksLibrary() {
                   <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                     {packKindLabel(collection.collection_type)}
                   </span>
-                  <span className={`rounded border px-2 py-0.5 text-xs font-medium ${SOURCE_CLASSES[source]}`}>
+                  <span
+                    className={`rounded border px-2 py-0.5 text-xs font-medium ${SOURCE_CLASSES[source]}`}
+                  >
                     {packSourceLabel(source)}
                   </span>
                 </div>
@@ -265,29 +310,40 @@ export default function PacksLibrary() {
       ) : (
         <div className="rounded-xl border border-border bg-card py-12 text-center">
           <FolderGit2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-          <p className="text-muted-foreground">{emptyMessage(facet)}</p>
+          <p className="text-muted-foreground">{emptyMessage(facet, anonymous)}</p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              to="/packs/mine"
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-colors hover:border-brand-600 hover:text-brand-600"
-            >
-              <Plus className="h-4 w-4" />
-              Create a pack
-            </Link>
-            <Link
-              to="/packs/import"
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-colors hover:border-brand-600 hover:text-brand-600"
-            >
-              <Upload className="h-4 w-4" />
-              Import packs
-            </Link>
+            {anonymous ? (
+              <Link
+                to="/login?mode=register"
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+              >
+                Sign up to create a pack
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/packs/mine"
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-colors hover:border-brand-600 hover:text-brand-600"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create a pack
+                </Link>
+                <Link
+                  to="/packs/import"
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium transition-colors hover:border-brand-600 hover:text-brand-600"
+                >
+                  <Upload className="h-4 w-4" />
+                  Import packs
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}
 
       <p className="text-sm text-muted-foreground">
         Showing {packs.length} of {collections?.length ?? 0} packs. Starter = bundled with MyACE ·
-        Community = published by a user.
+        Community = published by a user. Browsing is public; installing needs an account.
       </p>
     </div>
   );

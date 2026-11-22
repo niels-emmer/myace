@@ -2,15 +2,17 @@ import { Routes, Route, Navigate, Outlet, useLocation, useParams } from 'react-r
 import { Loader2 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
+import PublicLayout from './components/PublicLayout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
 import PacksLibrary from './pages/PacksLibrary';
+import PackDetail from './pages/PackDetail';
+import PublishPack from './pages/PublishPack';
 import CollectionsManager from './pages/CollectionsManager';
 import CollectionDetail from './pages/CollectionDetail';
 import NewArtifactRule from './pages/NewArtifactRule';
-import CommunityCollectionDetail from './pages/CommunityCollectionDetail';
 import ProfileComposer from './pages/ProfileComposer';
 import Onboarding from './pages/Onboarding';
 import ProfileDetail from './pages/ProfileDetail';
@@ -44,6 +46,24 @@ function LegacyCompileRedirect() {
   const { search } = useLocation();
   const profile = new URLSearchParams(search).get('profile');
   return <Navigate to={profile ? `/setups/${profile}/install` : '/setups'} replace />;
+}
+
+// Browse routes are public (ADR-0014): anonymous visitors get the storefront
+// header, signed-in visitors keep the app's normal sidebar Layout. Both
+// shells render an <Outlet/>, so this is a route element rather than a
+// page-level wrapper.
+function PackBrowseShell() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return user ? <Layout /> : <PublicLayout />;
 }
 
 function RequireAuth() {
@@ -114,6 +134,16 @@ export default function App() {
       <Route path="/welcome" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+
+      {/* Public browse surface — no session required. */}
+      <Route element={<PackBrowseShell />}>
+        <Route path="/packs" element={<PacksLibrary />} />
+        {/* The community detail merged into the unified pack detail
+            (decision A). Keep the old path as a param-preserving redirect. */}
+        <Route path="/packs/community/:id" element={<ParamRedirect to={(id) => `/packs/${id}`} />} />
+        <Route path="/packs/:id" element={<PackDetail />} />
+      </Route>
+
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
@@ -123,14 +153,13 @@ export default function App() {
           <Route path="/setups/:id" element={<ProfileDetail />} />
           <Route path="/setups/:id/install" element={<TargetExporter />} />
 
-          <Route path="/packs" element={<PacksLibrary />} />
           <Route path="/packs/mine" element={<CollectionsManager />} />
           <Route path="/packs/pipelines" element={<OrchestrationGallery />} />
           <Route path="/packs/pipelines/new" element={<OrchestratorBuilder />} />
           <Route path="/packs/import" element={<ImportPage />} />
-          <Route path="/packs/community/:id" element={<CommunityCollectionDetail />} />
+          <Route path="/packs/:id/publish" element={<PublishPack />} />
+          <Route path="/packs/:id/manage" element={<CollectionDetail />} />
           <Route path="/packs/:id/items/new" element={<NewArtifactRule />} />
-          <Route path="/packs/:id" element={<CollectionDetail />} />
 
           <Route path="/machine" element={<MachinePage />} />
 
@@ -139,7 +168,7 @@ export default function App() {
           <Route path="/collections/community" element={<Navigate to="/packs" replace />} />
           <Route
             path="/collections/community/:id"
-            element={<ParamRedirect to={(id) => `/packs/community/${id}`} />}
+            element={<ParamRedirect to={(id) => `/packs/${id}`} />}
           />
           <Route path="/collections/mine" element={<Navigate to="/packs/mine" replace />} />
           <Route
