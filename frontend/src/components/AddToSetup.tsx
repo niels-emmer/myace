@@ -106,8 +106,15 @@ export default function AddToSetup({
   };
 
   const attachTo = async (profile: Profile) => {
-    setBusy(true);
     setError(null);
+    // Guard before setting busy: an early return must not leave the panel stuck
+    // with every control disabled.
+    if (isBase && profile.base_collection_id === collection.id) {
+      // Already this setup's base — nothing to write, and no counter bump.
+      setMenuOpen(false);
+      finish(profile);
+      return;
+    }
     // A pack cannot be both the base and an add-on of the same setup.
     if (!isBase && profile.base_collection_id === collection.id) {
       setError('This pack is already this setup’s starting point.');
@@ -120,6 +127,7 @@ export default function AddToSetup({
       finish(profile);
       return;
     }
+    setBusy(true);
     try {
       const additional = isBase
         ? // A pack becoming the base must not also remain an add-on.

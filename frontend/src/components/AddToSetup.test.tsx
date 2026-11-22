@@ -191,6 +191,10 @@ describe('AddToSetup', () => {
       await screen.findByText(/already this setup’s starting point/i),
     ).toBeInTheDocument();
     expect(setupProfilesApi.update).not.toHaveBeenCalled();
+
+    // Re-opening the menu must not leave the row disabled (no stuck busy state).
+    fireEvent.click(screen.getByRole('button', { name: /Add to a setup/ }));
+    expect(await screen.findByRole('button', { name: /My setup/ })).toBeEnabled();
   });
 
   it('uses a starting-point pack as the base when attaching to an existing setup', async () => {
