@@ -1,0 +1,18 @@
+name: README
+
+# Structural floor for README.md: required sections, no placeholder text,
+# relative links/images resolve, and package.json scripts are mentioned.
+# It cannot catch a wrong port or a stale screenshot — that needs a human
+# running Quick Start. See scripts/check-readme.sh.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check README structure
+        run: bash scripts/check-readme.sh

@@ -4,7 +4,7 @@
 [![Latest release](https://img.shields.io/github/v/release/niels-emmer/myace)](https://github.com/niels-emmer/myace/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](backend/pyproject.toml)
-[![Node 20+](https://img.shields.io/badge/node-20%2B-green)](frontend/package.json)
+[![Node 20.19+](https://img.shields.io/badge/node-20.19%2B-green)](frontend/package.json)
 
 > **Built entirely by AI coding agents.** Every line of code, every test,
 > every doc, and every infrastructure config in this repo was written by
@@ -28,8 +28,8 @@ A live instance runs at **[myace.macjuu.com](https://myace.macjuu.com)** —
 sign up and start building a profile in minutes, no setup required.
 
 MyACE ships with **23 starter collections** (4 base + 19 specializations)
-holding **278 artifacts** — 130 rules, 84 skills, 49 agents, 14 workflows,
-and 1 model config — across **8 categories** and **133 tags**, and compiles
+holding **282 artifacts** — 130 rules, 88 skills, 49 agents, 14 workflows,
+and 1 model config — across **8 categories** and **140 tags**, and compiles
 to **12 target frameworks** (Claude Code, OpenCode, Cursor, Codex CLI,
 Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q Developer,
 and pi.dev). You can start from scratch and build your own rules, import
@@ -176,7 +176,8 @@ model.
 
 - Docker & Docker Compose
 - Python 3.12+ (for the CLI)
-- Node.js 20+ (for frontend development)
+- Node.js 20.19+ (for frontend development — Vite 8's floor; CI and the
+  frontend Docker image use Node 26)
 
 ### Quick Start
 
@@ -198,6 +199,10 @@ docker compose exec backend alembic upgrade head
 #    API (direct): http://localhost:8000
 #    API Docs:     http://localhost:8000/docs
 
+# 5. Verify the API is up
+curl -fsS http://localhost:8000/health
+# {"status":"ok"}
+
 # For Vite HMR during frontend development:
 cd frontend && npm run dev   # starts on :5173, proxies /api to :8000
 ```
@@ -215,11 +220,10 @@ Full install instructions, the command reference, and the `myace import` /
 `myace serve` workflows are in [docs/cli.md](docs/cli.md). The short version:
 
 ```bash
-myace login --server <your-server-url> --token <your-api-token>
+# MYACE_API_TOKEN is a token you create in the web UI's Settings → Account page
+myace login --server https://myace.example.com --token "$MYACE_API_TOKEN"
 myace --help
 ```
-
-Create an API token from the web UI's Settings → Account page.
 
 ### Deploying it for real
 
@@ -228,11 +232,34 @@ hardening a fresh fork, and configuring SSO/SMTP are all covered in
 [docs/deployment.md](docs/deployment.md). Database backups are covered in
 [docs/backups.md](docs/backups.md).
 
+## Usage
+
+The shortest path to the main workflows:
+
+```bash
+# Pull a compiled profile into the local layout of the framework you use
+myace pull --profile "Software Engineer" --target claude-code
+
+# See what would be written before committing to it
+myace pull --profile "Software Engineer" --target cursor --dry-run
+
+# Later: has the local copy been hand-edited, or gone stale on the server?
+myace check --target claude-code
+```
+
+In the web UI the same compile lives under **Build → Compile & Export**
+(`/build/compile`): pick a profile and a target, then copy the files or
+download a zip. To turn existing rules into a collection, use
+**My Machine → Import** (`/machine/import`) against `~/.claude`,
+`~/.config/opencode`, or a GitHub repo. Full command reference:
+[docs/cli.md](docs/cli.md).
+
 ## Project Structure
 
 ```
 ├── AGENTS.md                    # AI agent maintenance guidelines
 ├── CLAUDE.md                    # Claude Code-specific agent guidance
+├── API.md                       # HTTP API reference (canonical spec at /openapi.json)
 ├── CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, LICENSE
 ├── docs/                        # Deep-dive documentation (humans + agents)
 ├── collections/                 # Starter-pack content (seeded on boot),
@@ -287,7 +314,9 @@ hardening a fresh fork, and configuring SSO/SMTP are all covered in
 │       ├── scanner.py            # Local directory scanner
 │       └── adapters/             # Client-side translation fallbacks
 │
-└── .github/                      # Issue/PR templates, CI workflow, Dependabot config
+├── scripts/                      # bootstrap-import (binary installer), docs→Wiki sync,
+│                                 #   README structure check
+└── .github/                      # Issue/PR templates, CI workflows, Dependabot config
 ```
 
 ### Documentation map
@@ -362,6 +391,14 @@ their own fork:
   [docs/debugging.md](docs/debugging.md) for why that split matters).
 - **Documentation moves in the same PR as the code it describes** — see
   [`AGENTS.md`](AGENTS.md#14-documentation-maintenance).
+
+### Testing
+
+Run the suites with `pytest` in `backend/` and `cli/`, and `npm run test` in
+`frontend/`. Exact setup, plus the `ruff`, `mypy`, `tsc`, and `eslint`
+commands, is in
+[`CONTRIBUTING.md#running-checks-locally`](CONTRIBUTING.md#running-checks-locally);
+CI runs all of them on every PR.
 
 ## Acknowledgements
 
