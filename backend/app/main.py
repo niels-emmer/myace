@@ -2,6 +2,8 @@
 
 import logging
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -100,18 +102,32 @@ async def lifespan(app: FastAPI):
     yield
 
 
+def _app_version() -> str:
+    """Version reported in `/openapi.json`.
+
+    Read from installed package metadata so it tracks `pyproject.toml` instead
+    of drifting from it. Falls back to a placeholder when running from a source
+    tree that was never installed (e.g. a bare `PYTHONPATH=.` run).
+    """
+    try:
+        return package_version("myace-backend")
+    except PackageNotFoundError:
+        return "0.0.0+unknown"
+
+
 app = FastAPI(
     title=settings.app_name,
-    version="0.1.0",
+    version=_app_version(),
     lifespan=lifespan,
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
 )
 
-# Rate limiter state + exception handler for app.api.demo's @limiter.limit(...)
-# decorator — this is app-wide *plumbing* slowapi requires to raise 429s at
-# all, not app-wide rate limiting. No route other than POST /demo/compile
-# carries the decorator, so no other route is actually rate-limited by this.
+# Rate limiter state + exception handler for slowapi's @limiter.limit(...)
+# decorators — this is app-wide *plumbing* required to raise 429s at all, not
+# app-wide rate limiting. Only POST /demo/compile uses this instance; the
+# credential-guessing auth routes use their own `auth_limiter`
+# (app/core/ratelimit.py).
 app.state.limiter = demo_limiter
 
 
