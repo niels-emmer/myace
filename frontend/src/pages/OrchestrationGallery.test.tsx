@@ -18,6 +18,11 @@ vi.mock('../lib/api', () => ({
   },
 }));
 
+// The setup lookup is owner-scoped, so the page reads the signed-in user.
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'owner-1' } }),
+}));
+
 // @xyflow/react's <ReactFlow> measures its container via ResizeObserver,
 // which jsdom doesn't implement — a minimal stub is enough for it to
 // mount without throwing.
@@ -213,6 +218,7 @@ describe('OrchestrationGallery', () => {
     fireEvent.click(await screen.findByText('Orchestrator'));
 
     expect(await screen.findByText('Destination setup')).toBeInTheDocument();
+    expect(profilesApi.list).toHaveBeenCalledWith({ owner_id: 'owner-1' });
     expect(screen.getByRole('link', { name: /My setup/ })).toHaveAttribute('href', '/setups/setup-1');
     expect(screen.getByRole('link', { name: /software-engineer/ })).toHaveAttribute(
       'href',

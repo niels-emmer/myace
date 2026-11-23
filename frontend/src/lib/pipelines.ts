@@ -3,11 +3,13 @@
  * wizard (AGENTS.md rule 34) — everything here is derived client-side from
  * artifacts and setups the API already exposes, no dedicated backend endpoint.
  *
- * Both pages must build their diagram through `buildPipelineGraph()`: the
- * gallery renders a saved agent's real handoff graph, and the wizard previews
- * the graph the agent it is about to save will have. Building the preview as
- * a separate synthetic chain made the two diagrams disagree about the same
- * pipeline.
+ * Both pages build their diagram through `buildPipelineGraph()` so the same
+ * pipeline (or the pipeline about to be composed) gets the same shape: the
+ * entry point, its direct handoff targets, and each of their own handoffs.
+ * The agent sets they resolve against differ on purpose — the gallery uses the
+ * pipeline's own pack, the wizard uses the whole selected setup — so a stage
+ * that lives in another pack of the setup can render as "not found" in the
+ * gallery after saving.
  */
 import type { Artifact, Profile } from '../types';
 import type { PipelineEdgeSpec, PipelineNodeSpec } from '../components/PipelineFlow';

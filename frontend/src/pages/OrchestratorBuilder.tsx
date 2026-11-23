@@ -66,9 +66,13 @@ export default function OrchestratorBuilder() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedArtifactName, setSavedArtifactName] = useState<string | null>(null);
 
+  // Only the user's own setups — scoping matters twice here: the dropdown must
+  // not offer another user's public setup, and the prefill has to match the
+  // Pipelines detail view's "Destination setup" (same owner-scoped query).
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
-    queryKey: ['profiles'],
-    queryFn: () => profilesApi.list(),
+    queryKey: ['profiles', { owner_id: user?.id }],
+    queryFn: () => profilesApi.list({ owner_id: user?.id }),
+    enabled: !!user,
   });
 
   const { data: ownedCollections } = useQuery({
@@ -148,11 +152,13 @@ export default function OrchestratorBuilder() {
   };
 
   const slug = slugify(agentName);
-  // The preview renders the graph the saved orchestrator will have: it is the
-  // entry point, and every selected stage is a direct handoff target. Each
-  // stage's own handoffs are included too, exactly like the Pipelines detail
-  // view renders the same agent after saving — one shared builder, so the two
-  // diagrams can't disagree (AGENTS.md rule 34).
+  // Same builder and shape as the Pipelines detail view — the entry point plus
+  // every selected stage as a direct handoff target, plus each stage's own
+  // handoffs. The resolution scope deliberately differs: this preview resolves
+  // agents across the whole selected setup (everything you can compose with),
+  // while the detail view resolves inside the saved pipeline's own pack, so a
+  // stage that only lives in another pack of the setup can still render as
+  // "not found" there (AGENTS.md rule 34).
   const preview = useMemo(() => {
     if (sequence.length === 0) return null;
     const { nodes, edges } = buildPipelineGraph({
@@ -259,10 +265,10 @@ export default function OrchestratorBuilder() {
             </option>
           ))}
         </select>
-        {editRecipe && !suggestedProfileId && !loadingProfiles && (
+        {editRecipe && !suggestedProfileId && !loadingProfiles && profiles !== undefined && (
           <p className="mt-1 text-xs text-muted-foreground">
             {editRecipe.collectionName} isn't part of any of your setups yet, so there is no setup to
-            preselect — pick the setup you want this pipeline to live in.
+            preselect — pick the setup whose agents you want to compose this pipeline from.
           </p>
         )}
       </div>

@@ -3,6 +3,7 @@ import { useQuery, useQueries } from '@tanstack/react-query';
 import { Workflow, GitBranch, ArrowLeft, FolderGit2, Layers, Wrench, Pencil } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { collectionsApi, profilesApi } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import {
   formatAgentName,
   layoutPipeline,
@@ -55,7 +56,7 @@ function buildRecipes(
 // ─── Flow graph construction ─────────────────────────────────────
 //
 // The BFS itself lives in `lib/pipelines.ts` so the composition wizard's
-// preview renders the same graph the saved agent will have.
+// preview draws the same shape of graph, resolved within its own agent set.
 
 function recipeGraph(recipe: Recipe) {
   const { nodes, edges } = buildPipelineGraph({
@@ -100,6 +101,7 @@ function RecipeCard({ recipe, onSelect }: { recipe: Recipe; onSelect: () => void
 export default function OrchestrationGallery() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const { data: ownedCollections, isLoading: loadingOwned } = useQuery({
     queryKey: ['collections'],
@@ -117,10 +119,13 @@ export default function OrchestrationGallery() {
   });
 
   // A pipeline's "destination setup" isn't persisted anywhere — derive it from
-  // the user's own setups (same helper the composition wizard prefills from).
+  // *your* setups (same helper the composition wizard prefills from), scoped to
+  // the signed-in user: `GET /profiles` without `owner_id` also returns every
+  // public setup, which this card must never present as the user's destination.
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
-    queryKey: ['profiles'],
-    queryFn: () => profilesApi.list(),
+    queryKey: ['profiles', { owner_id: user?.id }],
+    queryFn: () => profilesApi.list({ owner_id: user?.id }),
+    enabled: !!user,
   });
 
   const allCollections = useMemo(() => {
@@ -224,7 +229,7 @@ export default function OrchestrationGallery() {
             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Destination setup
             </div>
-            {loadingProfiles ? (
+            {loadingProfiles || !user ? (
               <p className="mt-1 text-sm text-muted-foreground">Checking your setups…</p>
             ) : pipelineSetups.length > 0 ? (
               <>
@@ -275,7 +280,7 @@ export default function OrchestrationGallery() {
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Workflow className="h-6 w-6 text-muted-foreground" />
             Pipelines

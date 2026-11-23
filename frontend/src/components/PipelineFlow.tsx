@@ -7,9 +7,9 @@ import { useTheme } from '../contexts/ThemeContext';
 // Shared building blocks for rendering a pipeline as a flow diagram — used
 // by both the Orchestration Gallery (Epic 3.3, diagramming a real,
 // possibly-branching handoff_to graph) and the pipeline composition wizard
-// (Epic 3.4, previewing a simple linear chain before it's saved). Layout,
-// node styling, and the ReactFlow wrapper live here once so the two pages
-// render pipelines identically rather than diverging.
+// (Epic 3.4, previewing the graph the agent it is about to save will have).
+// Layout, node styling, and the ReactFlow wrapper live here once so the two
+// pages render pipelines identically rather than diverging.
 
 export function formatAgentName(name: string): string {
   return name
