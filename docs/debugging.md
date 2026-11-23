@@ -728,6 +728,29 @@ practice (nothing prevents the compiled output from shipping, since
 metadata for the Pipelines gallery/wizard, not the compiled file
 content itself).
 
+## The Pipelines diagram shows the agents but no connectors between them
+
+**Symptom:** `/packs/pipelines`, or the composition wizard's preview at
+`/packs/pipelines/new`, renders every agent as a card but draws no
+handoff arrows at all — even though the same agent's `handoff_to` is
+populated and `PipelineFlow.tsx`'s `layoutPipeline()` clearly returns
+edges.
+
+**Cause:** React Flow only draws an edge when both endpoint nodes expose
+a handle it can anchor to (`getEdgePosition()` in `@xyflow/system`
+returns `null` when `internals.handleBounds` is empty), and a *custom*
+node type renders no handles unless it includes `<Handle>` itself.
+`PipelineNode` was just a `<div>`, so every edge was silently dropped —
+no console error in the shipped library version, just no arrows.
+
+**Fix:** `frontend/src/components/PipelineFlow.tsx`'s `PipelineNode`
+renders a `<Handle type="target" position={Position.Left}>` and a
+`<Handle type="source" position={Position.Right}>`. Keep both when
+restyling the node. Their inline `style` is deliberate: the library's
+handle CSS ships inside `@layer xyflow` (v13+), which outranks Tailwind
+utilities in this app's layer order, so utility classes won't resize or
+recolor them. `PipelineFlow.test.tsx` guards against removing them.
+
 ## The Install zip download doesn't match the on-screen preview
 
 **Symptom:** `/setups/:id/install` (TargetExporter.tsx) shows a compiled setup with

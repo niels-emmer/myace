@@ -111,6 +111,18 @@ function renderPage(initialEntries?: Parameters<typeof MemoryRouter>[0]['initial
   );
 }
 
+/**
+ * Select a setup. The `<select>` renders its placeholder option immediately,
+ * while the options only appear once the (owner-scoped) profiles query
+ * resolves, so changing it before then is a no-op — wait for the option.
+ */
+async function chooseSetup(id = 'profile-1', name = 'my-profile') {
+  const select = await screen.findByDisplayValue(/Select a setup/);
+  await screen.findByRole('option', { name });
+  fireEvent.change(select, { target: { value: id } });
+  return select as HTMLSelectElement;
+}
+
 describe('OrchestratorBuilder', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -133,9 +145,7 @@ describe('OrchestratorBuilder', () => {
   it('lists available agents once a profile is selected, and adds them to the sequence', async () => {
     renderPage();
 
-    fireEvent.change(await screen.findByDisplayValue(/Select a setup/), {
-      target: { value: 'profile-1' },
-    });
+    await chooseSetup();
 
     expect(await screen.findByText('Builder')).toBeInTheDocument();
     expect(screen.getByText('Verifier')).toBeInTheDocument();
@@ -155,9 +165,7 @@ describe('OrchestratorBuilder', () => {
 
     renderPage();
 
-    fireEvent.change(await screen.findByDisplayValue(/Select a setup/), {
-      target: { value: 'profile-1' },
-    });
+    await chooseSetup();
     fireEvent.click((await screen.findAllByText('Add'))[0]);
 
     fireEvent.change(await screen.findByDisplayValue(/Select one of your packs/), {
@@ -209,6 +217,14 @@ describe('OrchestratorBuilder', () => {
     // Agent name input is prefilled from the recipe's primary agent.
     expect(await screen.findByDisplayValue('orchestrator')).toBeInTheDocument();
 
+    // The setup select preselects the setup that contains the pipeline's pack,
+    // which is the same setup the Pipelines detail view shows as its destination.
+    await screen.findByRole('option', { name: 'my-profile' });
+    const setupSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
+    await waitFor(() => expect(setupSelect.value).toBe('profile-1'));
+    // Only the signed-in user's setups may be offered/prefilled.
+    expect(profilesApi.list).toHaveBeenCalledWith({ owner_id: 'user-1' });
+
     // The handoff sequence is prefilled and rendered in the sequence panel.
     expect(await screen.findByText('Pipeline sequence')).toBeInTheDocument();
     expect(screen.getAllByText('Builder').length).toBeGreaterThan(0);
@@ -218,9 +234,7 @@ describe('OrchestratorBuilder', () => {
   it('blocks saving when the new agent name collides with a sequence member', async () => {
     renderPage();
 
-    fireEvent.change(await screen.findByDisplayValue(/Select a setup/), {
-      target: { value: 'profile-1' },
-    });
+    await chooseSetup();
     // Wait for the agents list to render before clicking "Add" — the list
     // loads asynchronously after profile selection, and on slow CI the
     // "Add" buttons may not exist yet when findAllByText first polls.

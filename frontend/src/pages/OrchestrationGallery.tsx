@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
-import { Workflow, GitBranch, ArrowLeft, FolderGit2, Wrench, Pencil } from 'lucide-react';
+import { Workflow, GitBranch, ArrowLeft, FolderGit2, Layers, Wrench, Pencil } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { collectionsApi } from '../lib/api';
+import { collectionsApi, profilesApi } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 import {
   formatAgentName,
   layoutPipeline,
   PipelineFlowDiagram,
-  type PipelineNodeSpec,
-  type PipelineEdgeSpec,
 } from '../components/PipelineFlow';
+import { buildPipelineGraph, setupsForCollection } from '../lib/pipelines';
 import type { Artifact, Collection } from '../types';
 
 // ─── Recipe discovery ───────────────────────────────────────────
@@ -55,56 +55,16 @@ function buildRecipes(
 
 // ─── Flow graph construction ─────────────────────────────────────
 //
-// BFS from the primary agent, following each visited agent's own
-// handoff_to (not just the primary's) so multi-hop chains and back-edges
-// (e.g. verifier -> builder on failure) both show up. A handoff_to
-// target that isn't one of this collection's known agents (a dangling
-// reference — see compile_profile()'s dangling_handoff warning) still
-// renders as a node, just visually marked "not found" rather than
-// silently dropped.
+// The BFS itself lives in `lib/pipelines.ts` so the composition wizard's
+// preview draws the same shape of graph, resolved within its own agent set.
 
-function buildFlowGraph(recipe: Recipe) {
-  const levelOf = new Map<string, number>();
-  const edgeSet = new Set<string>();
-  const edgeSpecs: PipelineEdgeSpec[] = [];
-  const queue: string[] = [recipe.primary.name];
-  const expanded = new Set<string>();
-  levelOf.set(recipe.primary.name, 0);
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    if (expanded.has(current)) continue;
-    expanded.add(current);
-    const currentLevel = levelOf.get(current) ?? 0;
-    const agent = recipe.agentsByName.get(current);
-    for (const target of agent?.handoff_to ?? []) {
-      const edgeKey = `${current}->${target}`;
-      if (!edgeSet.has(edgeKey)) {
-        edgeSet.add(edgeKey);
-        edgeSpecs.push({ id: edgeKey, source: current, target });
-      }
-      if (!levelOf.has(target)) {
-        levelOf.set(target, currentLevel + 1);
-      }
-      if (!expanded.has(target)) {
-        queue.push(target);
-      }
-    }
-  }
-
-  const nodeSpecs: PipelineNodeSpec[] = Array.from(levelOf.entries()).map(([name, level]) => {
-    const agent = recipe.agentsByName.get(name);
-    return {
-      id: name,
-      level,
-      label: formatAgentName(name),
-      description: agent?.description,
-      isPrimary: name === recipe.primary.name,
-      isMissing: !agent,
-    };
+function recipeGraph(recipe: Recipe) {
+  const { nodes, edges } = buildPipelineGraph({
+    primary: recipe.primary.name,
+    handoff: recipe.primary.handoff_to ?? [],
+    agentsByName: recipe.agentsByName,
   });
-
-  return layoutPipeline(nodeSpecs, edgeSpecs);
+  return layoutPipeline(nodes, edges);
 }
 
 // ─── UI ────────────────────────────────────────────────────────
@@ -124,7 +84,7 @@ function RecipeCard({ recipe, onSelect }: { recipe: Recipe; onSelect: () => void
         {formatAgentName(recipe.primary.name)}
       </h3>
       {recipe.primary.description && (
-        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{recipe.primary.description}</p>
+        <p className="text-sm text-muted-foreground mt-1 line-clamp-4">{recipe.primary.description}</p>
       )}
       <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1">
@@ -141,6 +101,7 @@ function RecipeCard({ recipe, onSelect }: { recipe: Recipe; onSelect: () => void
 export default function OrchestrationGallery() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const { data: ownedCollections, isLoading: loadingOwned } = useQuery({
     queryKey: ['collections'],
@@ -155,6 +116,16 @@ export default function OrchestrationGallery() {
   const { data: communityCollections, isLoading: loadingCommunity } = useQuery({
     queryKey: ['community-collections', { limit: 100 }],
     queryFn: () => collectionsApi.listCommunity({ limit: 100 }),
+  });
+
+  // A pipeline's "destination setup" isn't persisted anywhere — derive it from
+  // *your* setups (same helper the composition wizard prefills from), scoped to
+  // the signed-in user: `GET /profiles` without `owner_id` also returns every
+  // public setup, which this card must never present as the user's destination.
+  const { data: profiles, isLoading: loadingProfiles } = useQuery({
+    queryKey: ['profiles', { owner_id: user?.id }],
+    queryFn: () => profilesApi.list({ owner_id: user?.id }),
+    enabled: !!user,
   });
 
   const allCollections = useMemo(() => {
@@ -191,8 +162,13 @@ export default function OrchestrationGallery() {
 
   const selectedRecipe = recipes.find((r) => r.key === selectedKey) ?? null;
   const flowGraph = useMemo(
-    () => (selectedRecipe ? buildFlowGraph(selectedRecipe) : null),
+    () => (selectedRecipe ? recipeGraph(selectedRecipe) : null),
     [selectedRecipe],
+  );
+
+  const pipelineSetups = useMemo(
+    () => (selectedRecipe ? setupsForCollection(profiles, selectedRecipe.collectionId) : []),
+    [profiles, selectedRecipe],
   );
 
   const isLoading = loadingOwned || loadingCommunity || agentsLoading;
@@ -230,11 +206,72 @@ export default function OrchestrationGallery() {
             {formatAgentName(selectedRecipe.primary.name)}
           </h1>
           <p className="text-muted-foreground mt-1">
-            From <span className="font-medium">{selectedRecipe.collectionName}</span>. Nodes are
-            agents, edges are handoff direction — including back-edges (e.g. a failed check
-            routing back to the builder).
+            Nodes are agents, edges are the handoff direction each agent declares — including
+            back-edges (e.g. a failed check routing work back to the builder).
           </p>
         </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Pack
+            </div>
+            <Link
+              to={`/packs/${selectedRecipe.collectionId}`}
+              className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
+            >
+              <FolderGit2 className="h-4 w-4 text-muted-foreground" />
+              {selectedRecipe.collectionName}
+            </Link>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Destination setup
+            </div>
+            {loadingProfiles || !user ? (
+              <p className="mt-1 text-sm text-muted-foreground">Checking your setups…</p>
+            ) : pipelineSetups.length > 0 ? (
+              <>
+                <Link
+                  to={`/setups/${pipelineSetups[0].id}`}
+                  className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
+                >
+                  <Layers className="h-4 w-4 text-muted-foreground" />
+                  {pipelineSetups[0].name}
+                </Link>
+                {pipelineSetups.length > 1 && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Also used by {pipelineSetups.length - 1} other setup
+                    {pipelineSetups.length - 1 === 1 ? '' : 's'}
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="mt-1 text-sm text-muted-foreground">Not part of a setup yet.</p>
+                <Link
+                  to={`/packs/${selectedRecipe.collectionId}`}
+                  className="mt-1 inline-flex text-xs font-medium text-brand-700 hover:underline"
+                >
+                  Add this pack to a setup
+                </Link>
+              </>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Flow
+            </div>
+            <div className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+              <GitBranch className="h-4 w-4 text-muted-foreground" />
+              {flowGraph.nodes.length} agent{flowGraph.nodes.length === 1 ? '' : 's'} ·{' '}
+              {flowGraph.edges.length} handoff{flowGraph.edges.length === 1 ? '' : 's'}
+            </div>
+          </div>
+        </div>
+
         <PipelineFlowDiagram nodes={flowGraph.nodes} edges={flowGraph.edges} />
       </div>
     );
@@ -242,24 +279,35 @@ export default function OrchestrationGallery() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Workflow className="h-6 w-6 text-muted-foreground" />
             Pipelines
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Multi-agent pipelines declared across your packs and the community — a primary
-            agent that routes work to a sequence of specialists via <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">handoff_to</code>.
-            Select one to see how it routes.
+          <Link
+            to="/packs/pipelines/new"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors shrink-0"
+          >
+            <Wrench className="h-4 w-4" /> Compose your pipeline
+          </Link>
+        </div>
+        <div className="max-w-3xl space-y-2 text-muted-foreground">
+          <p>
+            A pipeline is how a pack's agents work as a team: one entry-point agent (tagged{' '}
+            <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">mode: primary</code>)
+            takes each request and hands it to the right specialists through its{' '}
+            <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">handoff_to</code> list —
+            build, verify, review, document — and a failed check routes the work back to the agent
+            that has to fix it.
+          </p>
+          <p>
+            Nothing extra is stored: a pipeline is read from the agents in your packs and the
+            community, so changing an agent's handoffs changes its pipeline. Open one to see how work
+            would flow through it, or compose a straight-line pipeline from the agents in one of your
+            setups.
           </p>
         </div>
-        <Link
-          to="/packs/pipelines/new"
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors shrink-0"
-        >
-          <Wrench className="h-4 w-4" /> Compose your pipeline
-        </Link>
       </div>
 
       {isLoading ? (

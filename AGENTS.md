@@ -1059,15 +1059,29 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   exposes — no dedicated backend endpoint for either beyond the create
   route above.** A "recipe" is any agent with a `mode:primary` tag
   (still encoded as a tag string, e.g. `"mode:primary"` — not a first-
-  class field) and a non-empty `handoff_to`. The gallery's diagram does
-  a real BFS over each visited agent's own `handoff_to` (so back-edges
-  like `verifier -> builder` render); the wizard's preview is a
-  synthetic straight-line chain matching the sequence being composed,
-  not the real graph — they intentionally show different things. Both
-  reuse the shared rendering/layout primitives in
-  `frontend/src/components/PipelineFlow.tsx` rather than duplicating
-  the `@xyflow/react` setup — extend that file, don't fork it, if a
-  third page ever needs to render a pipeline diagram.
+  class field) and a non-empty `handoff_to`. **Both diagrams are built by
+  `buildPipelineGraph()` in `frontend/src/lib/pipelines.ts`** — a real
+  BFS over each visited agent's own `handoff_to` (so back-edges like
+  `verifier -> builder` render), so the gallery and the wizard preview
+  draw the same shape for the same pipeline instead of the wizard
+  faking a straight-line chain. The two resolve that shape against
+  different agent sets on purpose: the gallery only knows the pipeline's
+  own pack, while the wizard knows every pack in the selected setup, so a
+  stage that lives in another pack of the setup can still render as
+  "not found" in the gallery after saving. Both still render through
+  `frontend/src/components/PipelineFlow.tsx`'s
+  `layoutPipeline`/`PipelineFlowDiagram` rather than duplicating the
+  `@xyflow/react` setup — extend that file, don't fork it, if a third
+  page ever needs a pipeline diagram. **Its custom node must keep its
+  `<Handle>` pair**: React Flow silently drops every edge whose endpoint
+  node exposes no handle (symptom: agents render, no connectors — see
+  [debugging.md](docs/debugging.md#the-pipelines-diagram-shows-the-agents-but-no-connectors-between-them)).
+  A pipeline's "destination setup" isn't persisted anywhere; both pages
+  derive it with `setupsForCollection()` from the **signed-in user's own
+  setups** (the wizard prefills its setup select from it) so the detail's
+  metadata and the editor can't disagree — scope that query with
+  `owner_id`, because `GET /profiles` also returns other users' public
+  setups.
 
 ### 35. Local Setup Audit — `expected_paths()` Is a Hand-Maintained Contract, Not a Shared Import
 
