@@ -1059,15 +1059,23 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   exposes — no dedicated backend endpoint for either beyond the create
   route above.** A "recipe" is any agent with a `mode:primary` tag
   (still encoded as a tag string, e.g. `"mode:primary"` — not a first-
-  class field) and a non-empty `handoff_to`. The gallery's diagram does
-  a real BFS over each visited agent's own `handoff_to` (so back-edges
-  like `verifier -> builder` render); the wizard's preview is a
-  synthetic straight-line chain matching the sequence being composed,
-  not the real graph — they intentionally show different things. Both
-  reuse the shared rendering/layout primitives in
-  `frontend/src/components/PipelineFlow.tsx` rather than duplicating
-  the `@xyflow/react` setup — extend that file, don't fork it, if a
-  third page ever needs to render a pipeline diagram.
+  class field) and a non-empty `handoff_to`. **Both diagrams are built by
+  `buildPipelineGraph()` in `frontend/src/lib/pipelines.ts`** — a real
+  BFS over each visited agent's own `handoff_to` (so back-edges like
+  `verifier -> builder` render), and the wizard previews the graph the
+  agent it is about to save will have (the entry point handing off to
+  every selected stage), not a separate straight-line chain, so the two
+  surfaces agree about the same pipeline. Both still render through
+  `frontend/src/components/PipelineFlow.tsx`'s
+  `layoutPipeline`/`PipelineFlowDiagram` rather than duplicating the
+  `@xyflow/react` setup — extend that file, don't fork it, if a third
+  page ever needs a pipeline diagram. **Its custom node must keep its
+  `<Handle>` pair**: React Flow silently drops every edge whose endpoint
+  node exposes no handle (symptom: agents render, no connectors — see
+  [debugging.md](docs/debugging.md#the-pipelines-diagram-shows-the-agents-but-no-connectors-between-them)).
+  A pipeline's "destination setup" isn't persisted anywhere; both pages
+  derive it with `setupsForCollection()` (the wizard prefills its setup
+  select from it) so the detail's metadata and the editor can't disagree.
 
 ### 35. Local Setup Audit — `expected_paths()` Is a Hand-Maintained Contract, Not a Shared Import
 

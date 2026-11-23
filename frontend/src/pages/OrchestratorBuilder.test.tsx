@@ -209,6 +209,11 @@ describe('OrchestratorBuilder', () => {
     // Agent name input is prefilled from the recipe's primary agent.
     expect(await screen.findByDisplayValue('orchestrator')).toBeInTheDocument();
 
+    // The setup select preselects the setup that contains the pipeline's pack,
+    // which is the same setup the Pipelines detail view shows as its destination.
+    const setupSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement;
+    expect(setupSelect.value).toBe('profile-1');
+
     // The handoff sequence is prefilled and rendered in the sequence panel.
     expect(await screen.findByText('Pipeline sequence')).toBeInTheDocument();
     expect(screen.getAllByText('Builder').length).toBeGreaterThan(0);

@@ -8,9 +8,8 @@ import {
   formatAgentName,
   layoutPipeline,
   PipelineFlowDiagram,
-  type PipelineNodeSpec,
-  type PipelineEdgeSpec,
 } from '../components/PipelineFlow';
+import { buildPipelineGraph, setupsForCollection } from '../lib/pipelines';
 import type { Artifact, ArtifactCreate, EditRecipeState } from '../types';
 
 // ─── Pipeline composition wizard (Epic 3.4) ─────────────────────
@@ -67,7 +66,7 @@ export default function OrchestratorBuilder() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedArtifactName, setSavedArtifactName] = useState<string | null>(null);
 
-  const { data: profiles } = useQuery({
+  const { data: profiles, isLoading: loadingProfiles } = useQuery({
     queryKey: ['profiles'],
     queryFn: () => profilesApi.list(),
   });
@@ -80,18 +79,16 @@ export default function OrchestratorBuilder() {
 
   // The recipe's collection may not be part of any of the user's profiles
   // (e.g. a starter pack), so the profile/collection prefill is best-effort:
-  // pick the first profile that includes the recipe's collection, and default
-  // the save target to the recipe's own collection only if the user owns it.
-  // These are derived fallbacks, not state — an explicit user selection in
-  // the selects below always wins over the suggestion.
-  const suggestedProfileId = useMemo(() => {
-    if (!editRecipe || !profiles) return '';
-    return (
-      profiles.find((p) =>
-        [p.base_collection_id, ...p.additional_collection_ids].includes(editRecipe.collectionId),
-      )?.id ?? ''
-    );
-  }, [editRecipe, profiles]);
+  // pick the setup the Pipelines detail view shows as the pack's destination
+  // setup, and default the save target to the recipe's own collection only if
+  // the user owns it. These are derived fallbacks, not state — an explicit
+  // user selection in the selects below always wins over the suggestion.
+  const recipeSetups = useMemo(
+    () => (editRecipe ? setupsForCollection(profiles, editRecipe.collectionId) : []),
+    [editRecipe, profiles],
+  );
+
+  const suggestedProfileId = editRecipe ? (recipeSetups[0]?.id ?? '') : '';
 
   const suggestedTargetCollectionId = useMemo(() => {
     if (!editRecipe || !ownedCollections) return '';
@@ -151,23 +148,19 @@ export default function OrchestratorBuilder() {
   };
 
   const slug = slugify(agentName);
+  // The preview renders the graph the saved orchestrator will have: it is the
+  // entry point, and every selected stage is a direct handoff target. Each
+  // stage's own handoffs are included too, exactly like the Pipelines detail
+  // view renders the same agent after saving — one shared builder, so the two
+  // diagrams can't disagree (AGENTS.md rule 34).
   const preview = useMemo(() => {
     if (sequence.length === 0) return null;
-    const nodeSpecs: PipelineNodeSpec[] = [
-      { id: slug, level: 0, label: formatAgentName(slug), isPrimary: true },
-      ...sequence.map((name, index) => ({
-        id: name,
-        level: index + 1,
-        label: formatAgentName(name),
-        description: agentsByName.get(name)?.description,
-      })),
-    ];
-    const edgeSpecs: PipelineEdgeSpec[] = [];
-    const chain = [slug, ...sequence];
-    for (let i = 0; i < chain.length - 1; i++) {
-      edgeSpecs.push({ id: `${chain[i]}->${chain[i + 1]}`, source: chain[i], target: chain[i + 1] });
-    }
-    return layoutPipeline(nodeSpecs, edgeSpecs);
+    const { nodes, edges } = buildPipelineGraph({
+      primary: slug,
+      handoff: sequence,
+      agentsByName,
+    });
+    return layoutPipeline(nodes, edges);
   }, [sequence, slug, agentsByName]);
 
   // The generated orchestrator's own name becomes a node id in the preview
@@ -266,6 +259,12 @@ export default function OrchestratorBuilder() {
             </option>
           ))}
         </select>
+        {editRecipe && !suggestedProfileId && !loadingProfiles && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {editRecipe.collectionName} isn't part of any of your setups yet, so there is no setup to
+            preselect — pick the setup you want this pipeline to live in.
+          </p>
+        )}
       </div>
 
       {profile && (
@@ -352,7 +351,15 @@ export default function OrchestratorBuilder() {
       {preview && (
         <div>
           <h2 className="text-sm font-semibold text-card-foreground mb-3">Preview</h2>
-          <PipelineFlowDiagram nodes={preview.nodes} edges={preview.edges} />
+          {profile ? (
+            <PipelineFlowDiagram nodes={preview.nodes} edges={preview.edges} />
+          ) : (
+            // Without a setup there are no agents to resolve, so every stage
+            // would render as "not found" — say what's actually needed instead.
+            <p className="text-sm text-muted-foreground">
+              Select a setup above to preview how this pipeline routes through your agents.
+            </p>
+          )}
         </div>
       )}
 

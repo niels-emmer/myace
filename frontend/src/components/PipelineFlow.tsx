@@ -1,4 +1,4 @@
-import { ReactFlow, Background, Controls, Position, MarkerType } from '@xyflow/react';
+import { ReactFlow, Background, Controls, Handle, Position, MarkerType } from '@xyflow/react';
 import type { Node, Edge, NodeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { HelpCircle } from 'lucide-react';
@@ -26,11 +26,25 @@ interface PipelineNodeData {
   [key: string]: unknown;
 }
 
+// React Flow only draws an edge when both endpoints expose a handle it can
+// anchor to (`getEdgePosition()` returns null otherwise), and a custom node
+// type renders no handles of its own. Without these two `<Handle>`s every
+// edge silently disappears: the diagram shows the agents but no handoff flow.
+// Inline styles are deliberate — the library's handle CSS lives in
+// `@layer xyflow`, which outranks Tailwind utilities in this app's layer order.
+const handleStyle = {
+  width: 8,
+  height: 8,
+  background: 'var(--xf-edge-stroke, #94a3b8)',
+  border: 'none',
+  pointerEvents: 'none',
+} as const;
+
 function PipelineNode({ data }: NodeProps) {
   const { label, description, isPrimary, isMissing } = data as PipelineNodeData;
   return (
     <div
-      className={`rounded-lg border px-3 py-2 shadow-xs min-w-[140px] max-w-[200px] ${
+      className={`relative rounded-lg border px-3 py-2 shadow-xs min-w-[140px] max-w-[200px] ${
         isMissing
           ? 'border-dashed border-destructive/50 bg-destructive/5'
           : isPrimary
@@ -39,6 +53,7 @@ function PipelineNode({ data }: NodeProps) {
       }`}
       title={description || (isMissing ? `${label} is not defined in this collection` : undefined)}
     >
+      <Handle type="target" position={Position.Left} isConnectable={false} style={handleStyle} />
       <div
         className={`text-sm font-medium truncate ${
           isMissing ? 'text-destructive' : isPrimary ? 'text-brand-700' : 'text-card-foreground'
@@ -55,6 +70,7 @@ function PipelineNode({ data }: NodeProps) {
           {description}
         </div>
       ) : null}
+      <Handle type="source" position={Position.Right} isConnectable={false} style={handleStyle} />
     </div>
   );
 }
@@ -141,7 +157,10 @@ export function PipelineFlowDiagram({ nodes, edges }: { nodes: Node[]; edges: Ed
         zoomOnScroll={false}
         fitView
         proOptions={{ hideAttribution: true }}
-        className={resolvedTheme === 'dark' ? 'dark' : undefined}
+        // @xyflow/react v13 themes its own canvas from `prefers-color-scheme`
+        // unless told otherwise, so without this the diagram goes dark inside
+        // a light app on a dark-mode OS (and vice versa). Follow the app theme.
+        forceColorMode={resolvedTheme}
       >
         <Background gap={20} />
         <Controls showInteractive={false} />

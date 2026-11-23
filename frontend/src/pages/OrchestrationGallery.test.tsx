@@ -4,14 +4,17 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import OrchestrationGallery from './OrchestrationGallery';
 import { ThemeProvider } from '../contexts/ThemeContext';
-import { collectionsApi } from '../lib/api';
-import type { Collection, Artifact, CommunityCollectionsResponse } from '../types';
+import { collectionsApi, profilesApi } from '../lib/api';
+import type { Collection, Artifact, CommunityCollectionsResponse, Profile } from '../types';
 
 vi.mock('../lib/api', () => ({
   collectionsApi: {
     list: vi.fn(),
     listCommunity: vi.fn(),
     getArtifacts: vi.fn(),
+  },
+  profilesApi: {
+    list: vi.fn(),
   },
 }));
 
@@ -82,6 +85,22 @@ function makeAgent(overrides: Partial<Artifact>): Artifact {
 
 const emptyCommunity: CommunityCollectionsResponse = { items: [], total: 0 };
 
+function makeProfile(overrides: Partial<Profile>): Profile {
+  return {
+    id: 'setup-1',
+    owner_id: 'owner-1',
+    name: 'My setup',
+    base_collection_id: 'collection-1',
+    additional_collection_ids: [],
+    disabled_artifact_ids: [],
+    is_public: false,
+    version: 1,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
 function EditStateProbe() {
   const state = useLocation().state as { editRecipe?: { primary?: { name?: string } } } | null;
   return <span data-testid="edit-state">{state?.editRecipe?.primary?.name ?? 'none'}</span>;
@@ -90,6 +109,7 @@ function EditStateProbe() {
 describe('OrchestrationGallery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (profilesApi.list as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   });
 
   it('shows an empty state when no agent has mode:primary + handoff_to', async () => {
@@ -123,6 +143,8 @@ describe('OrchestrationGallery', () => {
     expect(await screen.findByText('Orchestrator')).toBeInTheDocument();
     expect(screen.getByText('software-engineer')).toBeInTheDocument();
     expect(screen.getByText('2 stages')).toBeInTheDocument();
+    // Cards give the description four lines before clamping (not two).
+    expect(screen.getByText('Routes work through the pipeline.')).toHaveClass('line-clamp-4');
 
     fireEvent.click(screen.getByText('Orchestrator'));
 
@@ -173,6 +195,52 @@ describe('OrchestrationGallery', () => {
 
     expect(await screen.findByText('builder-page')).toBeInTheDocument();
     expect(screen.getByTestId('edit-state').textContent).toBe('orchestrator');
+  });
+
+  it('shows the pack and destination setup metadata for a selected pipeline', async () => {
+    (collectionsApi.list as ReturnType<typeof vi.fn>).mockResolvedValue([collection]);
+    (collectionsApi.listCommunity as ReturnType<typeof vi.fn>).mockResolvedValue(emptyCommunity);
+    (collectionsApi.getArtifacts as ReturnType<typeof vi.fn>).mockResolvedValue([
+      makeAgent({ name: 'orchestrator', tags: ['mode:primary'], handoff_to: ['builder'] }),
+      makeAgent({ name: 'builder', tags: ['mode:subagent'] }),
+    ]);
+    (profilesApi.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      makeProfile({ id: 'setup-1', name: 'My setup' }),
+    ]);
+
+    renderPage();
+
+    fireEvent.click(await screen.findByText('Orchestrator'));
+
+    expect(await screen.findByText('Destination setup')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /My setup/ })).toHaveAttribute('href', '/setups/setup-1');
+    expect(screen.getByRole('link', { name: /software-engineer/ })).toHaveAttribute(
+      'href',
+      '/packs/collection-1',
+    );
+    expect(await screen.findByText(/2 agents · 1 handoff/)).toBeInTheDocument();
+  });
+
+  it('says so when no setup contains the pipeline pack', async () => {
+    (collectionsApi.list as ReturnType<typeof vi.fn>).mockResolvedValue([collection]);
+    (collectionsApi.listCommunity as ReturnType<typeof vi.fn>).mockResolvedValue(emptyCommunity);
+    (collectionsApi.getArtifacts as ReturnType<typeof vi.fn>).mockResolvedValue([
+      makeAgent({ name: 'orchestrator', tags: ['mode:primary'], handoff_to: ['builder'] }),
+      makeAgent({ name: 'builder', tags: ['mode:subagent'] }),
+    ]);
+    (profilesApi.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      makeProfile({ id: 'setup-2', name: 'Unrelated', base_collection_id: 'other-pack' }),
+    ]);
+
+    renderPage();
+
+    fireEvent.click(await screen.findByText('Orchestrator'));
+
+    expect(await screen.findByText(/Not part of a setup yet/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Add this pack to a setup/ })).toHaveAttribute(
+      'href',
+      '/packs/collection-1',
+    );
   });
 
   it('marks a dangling handoff_to target as not found instead of dropping it', async () => {
