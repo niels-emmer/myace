@@ -22,12 +22,14 @@ names where it's enforced so you can verify it hasn't regressed.
    [ADR-0014](adr/0014-public-pack-browsing.md) and AGENTS.md rules 13/42:
    approved-only, sanitized response, read-only, rate-limited), plus
    `GET /api/v1/collections/community/{id}/install.md` and
-   `GET /api/v1/frameworks` (ADR-0018). The last two compile a pack for an
-   anonymous caller, so their safety rests on more than the visibility
-   predicate: `compile_pack()` hard-codes `can_use_frozen=False` (never
-   serves a snapshot of an unpublished pack — invariant on ADR-0015), only
-   enabled items are compiled, and neither route moves `download_count`.
-   Enforced by `Depends(get_current_user)` — `backend/app/core/deps.py`.
+   `GET /api/v1/frameworks` (ADR-0018). The install document compiles a pack
+   for an anonymous caller, so its safety rests on more than the visibility
+   predicate: `compile_pack()` hard-codes `can_use_frozen=False` (never serves
+   a snapshot of an unpublished pack — see ADR-0015), only enabled items are
+   compiled, and it never moves `download_count`. `GET /frameworks` compiles
+   nothing: it only lists the adapter names an admin has left enabled, loading
+   no collection and reading no artifact. Enforced by
+   `Depends(get_current_user)` — `backend/app/core/deps.py`.
    *If you add a route and forget this dependency, it's open to anyone.*
 
 2. **A regular user can read and write their own resources**, read (never
