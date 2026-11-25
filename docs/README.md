@@ -36,6 +36,8 @@ depth, it links here.
   reverse proxy — including an nginx-proxy-manager walkthrough).
 - **[cli.md](cli.md)** — installing `myace` (binary or pip), the full
   command reference, and the `import`/`serve`/`check`/`watch` workflows.
+- **[mcp.md](mcp.md)** — the read-only MCP server: connecting an agent, the
+  five tools and four resources, limits, and troubleshooting.
 - **[onboarding-wizard.md](onboarding-wizard.md)** — the five-step first-run
   wizard, resume/skip semantics, add-on pairing, install methods, and why an
   install claim is not verification.
