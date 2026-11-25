@@ -26,12 +26,32 @@ Take a backup first — `docs/deployment.md` covers the database dump.
 
 import argparse
 import asyncio
+import sys
 
 from app.core.database import get_session_factory
+from app.services.seed_collections import (
+    COMMUNITY_CONTRIBUTED_COLLECTIONS,
+    STARTER_COLLECTIONS,
+)
 from app.services.seed_reconcile import ReconcileReport, reconcile_seeded_collections
 
 
+def _known_slugs() -> set[str]:
+    return {
+        slug
+        for registry in (STARTER_COLLECTIONS, COMMUNITY_CONTRIBUTED_COLLECTIONS)
+        for packs in registry.values()
+        for slug in packs
+    }
+
+
 def _print_report(report: ReconcileReport, *, show_content: bool) -> None:
+    if report.skipped:
+        print("Skipped — no source directory (nothing deleted for these):")
+        for ref in report.skipped:
+            print(f"  {ref}")
+        print()
+
     if report.missing_packs:
         print("Not seeded yet (they seed on the next backend start):")
         for ref in report.missing_packs:
@@ -46,24 +66,34 @@ def _print_report(report: ReconcileReport, *, show_content: bool) -> None:
     for pack in changed:
         print(pack.name)
         if pack.added:
-            print(f"  + add:      {', '.join(sorted(pack.added))}")
+            print(f"  + add:       {', '.join(sorted(pack.added))}")
         if pack.removed:
-            print(f"  - remove:   {', '.join(sorted(pack.removed))}")
+            print(f"  - remove:    {', '.join(sorted(pack.removed))}")
         if pack.duplicates_removed:
             print(f"  - duplicate: {', '.join(sorted(pack.duplicates_removed))}")
         if pack.content_updated:
-            print(f"  ~ updated:  {', '.join(sorted(pack.content_updated))}")
+            print(f"  ~ updated:   {', '.join(sorted(pack.content_updated))}")
         if show_content and pack.content_changed:
-            print(f"  ~ differs:  {', '.join(sorted(pack.content_changed))} (not applied)")
+            print(f"  ~ differs:   {', '.join(sorted(pack.content_changed))} (not applied)")
         print()
 
-    packs = f"{len(changed)} pack(s)"
+    structural = len(report.structural_packs)
+    content_only = len(report.content_only_packs)
+
     if report.applied:
-        print(f"Applied to {packs}. Stale items were soft-deleted, not removed.")
+        print(
+            f"Applied changes to {structural} pack(s). "
+            "Stale items were soft-deleted, not removed."
+        )
     else:
-        print(f"Dry run: {packs} need changes, nothing was written. Re-run with --apply.")
-        if any(pack.content_changed for pack in changed):
-            print("Add --update-content to also rewrite those items' text.")
+        print(f"Dry run: {len(changed)} pack(s) need changes, nothing was written.")
+        if structural:
+            print("Re-run with --apply to write them.")
+    if content_only and show_content:
+        print(
+            f"{content_only} pack(s) also have text changes on disk. "
+            "Add --update-content to rewrite those items."
+        )
 
 
 async def main() -> None:
@@ -95,6 +125,10 @@ async def main() -> None:
 
     if args.update_content and not args.apply:
         parser.error("--update-content requires --apply")
+    if args.only is not None and args.only not in _known_slugs():
+        parser.error(
+            f"unknown pack slug {args.only!r}; known slugs: {', '.join(sorted(_known_slugs()))}"
+        )
 
     session_factory = get_session_factory()
     async with session_factory() as session:
@@ -104,6 +138,10 @@ async def main() -> None:
             update_content=args.update_content,
             only=args.only,
         )
+
+    if report.root_error:
+        print(f"error: {report.root_error}", file=sys.stderr)
+        sys.exit(1)
 
     _print_report(report, show_content=not args.update_content)
 

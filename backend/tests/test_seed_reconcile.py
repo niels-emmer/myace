@@ -264,3 +264,89 @@ async def test_user_collections_are_never_touched(db_session: AsyncSession, monk
     assert all(pack.seed_ref.startswith("seed://") for pack in report.packs)
     untouched = await _artifacts(db_session, user_collection)
     assert [artifact.name for artifact in untouched] == ["Hand Written Skill"]
+
+
+async def test_missing_collections_root_deletes_nothing(
+    db_session: AsyncSession, monkeypatch, tmp_path
+) -> None:
+    """A wrong COLLECTIONS_ROOT must not read as "every file was deleted".
+
+    The default root is /app/collections, which does not exist on a host
+    checkout, so this is one mistyped command away from wiping every seeded
+    pack. Mirrors `seed_starter_collections()`'s early return.
+    """
+    await _seed(db_session, monkeypatch)
+    before = (await db_session.execute(select(Artifact).where(Artifact.deleted_at.is_(None)))).scalars().all()
+
+    monkeypatch.setattr(settings, "collections_root", str(tmp_path / "nope"))
+    report = await reconcile_seeded_collections(db_session, apply=True)
+
+    assert report.root_error is not None
+    assert report.packs == []
+    assert report.changed_packs == []
+
+    db_session.expire_all()
+    after = (await db_session.execute(select(Artifact).where(Artifact.deleted_at.is_(None)))).scalars().all()
+    assert len(after) == len(before)
+
+
+async def test_missing_pack_directory_is_skipped_not_reconciled_to_zero(
+    db_session: AsyncSession, monkeypatch, tmp_path
+) -> None:
+    """One missing pack directory is "unreadable", not "all its items went away"."""
+    await _seed(db_session, monkeypatch)
+    editor = await _collection(db_session, EDITOR_REF)
+    editor_id = editor.id
+    before = len(await _artifacts(db_session, editor))
+    assert before > 0
+
+    empty_root = tmp_path / "collections"
+    (empty_root / "base").mkdir(parents=True)
+    (empty_root / "additional").mkdir(parents=True)
+    monkeypatch.setattr(settings, "collections_root", str(empty_root))
+
+    report = await reconcile_seeded_collections(db_session, apply=True)
+
+    assert EDITOR_REF in report.skipped
+    assert all(pack.seed_ref != EDITOR_REF for pack in report.packs)
+    db_session.expire_all()
+    remaining = (
+        await db_session.execute(
+            select(Artifact).where(
+                Artifact.collection_id == editor_id, Artifact.deleted_at.is_(None)
+            )
+        )
+    ).scalars().all()
+    assert len(remaining) == before
+
+
+async def test_content_only_pack_is_not_counted_as_structural(
+    db_session: AsyncSession, monkeypatch
+) -> None:
+    """The CLI trailer promises "applied changes" only for real writes."""
+    await _seed(db_session, monkeypatch)
+    editor = await _collection(db_session, EDITOR_REF)
+
+    item = (
+        await db_session.execute(
+            select(Artifact).where(
+                Artifact.collection_id == editor.id,
+                Artifact.name == "Documentation Standards",
+            )
+        )
+    ).scalars().one()
+    item.body = "hand-written replacement"
+    db_session.add(item)
+    await db_session.commit()
+
+    report = await reconcile_seeded_collections(db_session, apply=True)
+
+    assert report.structural_packs == []
+    assert [pack.seed_ref for pack in report.content_only_packs] == [EDITOR_REF]
+
+
+def test_known_slugs_covers_both_registries() -> None:
+    from app.scripts.reconcile_seeded_collections import _known_slugs
+
+    slugs = _known_slugs()
+    assert {"editor", "dev-writing", "software-engineer", "eu-ai-act"} <= slugs
