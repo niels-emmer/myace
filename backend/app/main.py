@@ -21,6 +21,7 @@ from app.api import (
     comments,
     demo,
     doc_cache,
+    frameworks,
     freshness,
     moderation,
     profiles,
@@ -303,6 +304,7 @@ app.include_router(comments.router, prefix="/api/v1/collections", tags=["Comment
 app.include_router(moderation.router, prefix="/api/v1/moderation", tags=["Moderation"])
 app.include_router(profiles.router, prefix="/api/v1/profiles", tags=["Profiles"])
 app.include_router(adapters.router, prefix="/api/v1/adapters", tags=["Adapters"])
+app.include_router(frameworks.router, prefix="/api/v1/frameworks", tags=["Frameworks"])
 app.include_router(doc_cache.router, prefix="/api/v1/doc-cache", tags=["Documentation Cache"])
 app.include_router(sync.router, prefix="/api/v1/sync", tags=["Sync"])
 

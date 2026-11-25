@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     # a scraper cannot hammer the public listing endpoints unchecked.
     storefront_rate_limit: str = "120/minute"
 
+    # Cap on the install document/archive the anonymous pack-compile route
+    # renders (ADR-0018). A pathological pack must not pin a worker per
+    # request; past this the caller is told to fetch `format=zip`, which is
+    # compressed and therefore smaller than the markdown it encodes.
+    pack_install_max_bytes: int = 2 * 1024 * 1024
+
     # API Keys
     api_key_length: int = 48
 

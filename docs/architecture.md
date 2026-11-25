@@ -18,6 +18,9 @@ flowchart LR
     Browser["Browser<br/>(you)"] -->|HTTPS| Frontend["Frontend<br/>React SPA, served by nginx<br/>:80"]
     Frontend -->|"/api/* proxy"| Backend["Backend<br/>FastAPI<br/>:8000"]
     CLI["CLI (myace)<br/>Typer"] -->|"Bearer token"| Backend
+    Agent["MCP client<br/>(any coding agent)"] -->|"/mcp proxy"| Frontend
+    Frontend -->|"HTTP, no creds"| MCP["MCP server<br/>(optional profile)"]
+    MCP -->|"anonymous reads"| Backend
     Backend --> DB[("PostgreSQL<br/>:5432")]
     Backend -->|"push branch + PR"| GitHub[("GitHub<br/>REST API")]
     Backend -->|"clone (read-only)"| GitSource[("Any Git repo<br/>(import source)")]
@@ -38,9 +41,16 @@ flowchart LR
   drift (local hand-edits, or a stale server-side compile) against a local
   manifest `pull` writes — see [ADR-0009](adr/0009-manifest-based-drift-detection.md)
   and [docs/cli.md](cli.md#sync-and-drift-detection-check-and-watch).
+- **`mcp/`** — an optional, separate container exposing public packs to any
+  MCP-capable agent over Streamable HTTP at `/mcp`. Read-only by
+  construction: no database, no credentials, no write tool. It calls the
+  backend's anonymous routes and adds nothing of its own — the only new
+  primitive it needed was a pack-scoped compile
+  (`compile_pack()`), see [ADR-0018](adr/0018-public-read-only-mcp-server.md)
+  and [docs/mcp.md](mcp.md).
 
-None of the three talk to Postgres directly except the backend — the
-frontend and CLI only ever see the HTTP API.
+Only the backend talks to Postgres directly — the frontend, CLI and MCP
+server only ever see the HTTP API.
 
 ## Canonical IR
 

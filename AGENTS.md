@@ -214,6 +214,14 @@ Three compose files with layered overrides:
 | `docker-compose.dev.yml` | Dev — adds `:8000` for backend, mounts `~/` to `/host-home/`, CORS for Vite |
 | `docker-compose.prod.yml` | VPS — removes host ports, attaches external proxy network via `PROXY_NETWORK` |
 
+- **The `mcp` service is opt-in** (`profiles: ["mcp"]` in
+  `docker-compose.yml`), so a self-hoster who does not want a public MCP
+  surface never runs it. It has no `env_file` and no database — only
+  `MCP_BACKEND_URL`, `MCP_SITE_URL` and the DNS-rebinding allow-list — and it
+  is reachable only through the frontend's `location /mcp`. Without the
+  profile, that location 502s and the rest of the site is unaffected. See
+  rule 43 and [ADR-0018](docs/adr/0018-public-read-only-mcp-server.md).
+
 Usage: `docker compose -f docker-compose.yml -f docker-compose.<layer>.yml up -d`
 
 - **`PROXY_NETWORK` is real now**: `docker-compose.prod.yml` names its
@@ -372,7 +380,7 @@ When two components fetch the same resource with different filters (e.g. an unfi
 
 ### 13. Authentication & Authorization
 
-- **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/mfa` (completes a login the caller already passed the password step of, via a signed 5-minute `mfa_token`), `/auth/logout` (clears the caller's own session; nothing to protect), `/auth/forgot-password` and `/auth/reset-password` (the caller can't be logged in — a signed one-hour reset token is the credential), `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`, `POST /demo/compile` (rule 36), and the five `GET /api/v1/collections/community*` storefront reads (ADR-0014, rule 42) — each a deliberate, narrowly-scoped exception rather than a precedent for public routes in general. Everything else requires it.
+- **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/mfa` (completes a login the caller already passed the password step of, via a signed 5-minute `mfa_token`), `/auth/logout` (clears the caller's own session; nothing to protect), `/auth/forgot-password` and `/auth/reset-password` (the caller can't be logged in — a signed one-hour reset token is the credential), `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`, `POST /demo/compile` (rule 36), and the seven anonymous public reads: the five `GET /api/v1/collections/community*` storefront reads (ADR-0014, rule 42), `GET /api/v1/collections/community/{id}/install.md` (ADR-0018), and `GET /api/v1/frameworks` — each a deliberate, narrowly-scoped exception rather than a precedent for public routes in general. Everything else requires it.
 - **Authorization is ownership + visibility, not per-route roles.** Use `authorize_access()` (single resource) and `owner_or_public_clause()` (list endpoints) from `backend/app/core/authz.py` — don't hand-roll owner checks. `authorize_access` 404s (not 403s) on denial, matching the rest of the codebase's convention of not revealing a resource's existence to someone who can't see it. `current_user.is_admin` bypasses both.
 - **`Artifact` has no `owner_id` of its own.** Authorize against its parent `Collection` — load the collection first, call `authorize_access` on that, then proceed.
 - **Bulk/cross-resource operations need a check per resource touched.** `bulk_export_artifacts`'s target collection needs its own write-check independent of the source collection's read-check — don't assume checking one resource covers every resource an endpoint touches.
@@ -1435,9 +1443,11 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   Starter detection is `Collection.is_starter_pack`; ownership is
   `owner_id === current user`.
 - **Anonymous pack browsing is a deliberate, narrow auth exception
-  (ADR-0014), not a precedent.** Only the five
-  `GET /api/v1/collections/community*` read routes are public; every other
-  collection route (including `GET /collections/{id}`) still requires auth.
+  (ADR-0014), not a precedent.** Only the `GET
+  /api/v1/collections/community*` read routes, the pack install document
+  (`/community/{id}/install.md`) and `GET /api/v1/frameworks` are public
+  (ADR-0018 for the last two); every other collection route (including
+  `GET /collections/{id}`) still requires auth.
   The public detail/contents routes return only active + published +
   approved packs and 404 otherwise. Public reads are rate-limited by the
   separate `storefront_limiter` (`settings.storefront_rate_limit`). Do not
@@ -1478,3 +1488,51 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `Layout.tsx`.** It reuses the existing `['collections']` and `['profiles']`
   query keys (rule 12) and adds no backend endpoint; keep new palette
   entries in the Actions/Pages constants rather than fetching anything new.
+
+### 43. The MCP Server Is a Thin Read-Only Wrapper — Never a Second Backend
+
+- **`mcp/` is a separate container precisely so it cannot drift.** It holds no
+  database driver, no credentials, no session, and no compiler. Every tool
+  calls an existing backend route over the private network
+  (`mcp/backend.py`); `search_packs` → `/collections/community`, `get_pack` /
+  `get_item` → `/community/{id}/artifacts`, `download_pack` →
+  `/community/{id}/install.md`, `list_targets` → `/api/v1/frameworks`. If a tool
+  needs data the backend does not expose, add a backend route — do not query
+  a database, re-implement a visibility check, or compile anything in the
+  container.
+- **It is read-only by construction, and that is the feature.** There is no
+  `install_pack`/write tool and there must never be one: a public anonymous
+  endpoint that can install files is an unaccountable write, and the whole
+  point is that a human applies what an agent fetched. Do not add a token, a
+  cookie, or any credential to "unlock" more.
+- **Visibility stays in the backend.** `_get_public_collection_or_404()`
+  (active + published + approved) is the only predicate; the MCP must never
+  filter packs itself, or the two answers will diverge.
+- **`compile_pack()` is the only pack-scoped compile.** It shares
+  `_compile_collections()` with `compile_profile()` and passes
+  `can_use_frozen=False` and `requesting_user=None`. The `None` is safe
+  *only* because the route proves each collection public first — never call
+  `compile_pack()` with an id straight from a request, and never re-derive
+  the ADR-0015 frozen gate inside the shared helper.
+- **Transport settings are load-bearing.** `stateless_http=True` (no session
+  store, no sticky routing) and `json_response=True` (no SSE chunking to
+  misconfigure in nginx) are deliberate. DNS-rebinding protection is on and
+  allow-listed from `MCP_ALLOWED_HOSTS`: the SDK's localhost default 421s
+  every public request, and turning the protection *off* instead is not an
+  acceptable fix.
+- **Pack bodies are untrusted text.** Item bodies are returned inside
+  `PACK CONTENT` markers and tool descriptions say they are publisher-authored
+  data, not server instructions. Keep that framing when adding any surface
+  that echoes item text.
+- **No counters move.** The MCP never touches `download_count`; only
+  `POST /collections/{id}/use` does (invariant 25). No MCP-side rate limiter
+  or size cap exists either — the backend routes it calls already enforce
+  `storefront_rate_limit` and `pack_install_max_bytes`, and a second knob with
+  no distinct effect is config debt. **The inbound caller's IP must keep being
+  forwarded** as `X-Forwarded-For` (`ClientIPMiddleware` →
+  `BackendClient._forwarded_headers()`): every tool call leaves one container,
+  so dropping the header silently collapses every client into a single
+  rate-limit bucket.
+- Tests (`mcp/tests/`) stub the backend with `httpx.MockTransport` — no
+  Docker, no network, no database. Keep them that way so CI stays fast and a
+  failing MCP test always means the wrapper changed, not the environment.

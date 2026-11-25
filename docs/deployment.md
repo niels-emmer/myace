@@ -158,6 +158,42 @@ Three Compose files layer on top of each other:
 See [`AGENTS.md`](../AGENTS.md#9-compose-file-strategy) for what each
 override layer is responsible for.
 
+### MCP server (optional)
+
+The public MCP server ([docs/mcp.md](mcp.md)) is a fourth container, behind a
+Compose *profile* rather than another compose file:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile mcp up -d
+```
+
+Without `--profile mcp` it does not start, and `https://<host>/mcp` returns 502
+while everything else works — that is the intended default for anyone who does
+not want a public agent endpoint.
+
+Two `.env` values matter:
+
+| Variable | Why |
+|---|---|
+| `MCP_ALLOWED_HOSTS=myace.example.com` | The container validates the `Host` header (DNS-rebinding protection) and **fails closed**: a host not listed here gets `421` on every request. Include the public hostname; the localhost/container defaults stay in the compose file as a fallback. |
+| `MCP_SITE_URL` | Defaults to `FRONTEND_BASE_URL`, and is what makes the links in tool results (`url`, `zip_url`, `install_url`) point at the public site instead of an internal Docker hostname. |
+
+No reverse-proxy change is needed: the frontend's nginx already owns `/mcp`
+(`location /mcp` in `frontend/nginx.conf`) and an nginx-proxy-manager host that
+forwards every path for the domain to `frontend:80` needs no new rule. Verify
+after enabling with a real handshake rather than a `curl /mcp` GET, which may
+answer `405`:
+
+```bash
+curl -sS https://<host>/mcp \
+  -H 'Accept: application/json, text/event-stream' \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
+```
+
+A `421` there means `MCP_ALLOWED_HOSTS` is missing the public host; a `502`
+means the profile is not running.
+
 ## Container users
 
 Both images run as a non-root user, so a compromise inside a container is

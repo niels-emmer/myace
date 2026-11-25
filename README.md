@@ -130,6 +130,11 @@ model.
   target frameworks, or body to edit it directly, validated and auto-saved
   on blur. A right-aligned "Add rule" button adds a new rule without leaving
   the pack.
+- **Agent access over MCP** — a read-only MCP endpoint at `/mcp` lets any
+  MCP-capable coding agent browse public packs, read an item's full text, and
+  fetch a pack compiled for a chosen framework — no account, no CLI. It cannot
+  write, so the human still approves every install. See
+  [docs/mcp.md](docs/mcp.md).
 
 ### Orchestrate
 
@@ -364,6 +369,12 @@ companion health check, setup audit, and per-framework sync report. Full command
 │       ├── scanner.py            # Local directory scanner
 │       └── adapters/             # Client-side translation fallbacks
 │
+├── mcp/                          # Read-only MCP server (optional, ADR-0018)
+│   ├── Dockerfile
+│   ├── server.py                 # 5 tools + 4 resources; Streamable HTTP at /mcp
+│   ├── backend.py                # Thin HTTP client for the anonymous API reads
+│   └── tests/                    # pytest against a stubbed backend
+│
 ├── scripts/                      # bootstrap-import (binary installer), docs→Wiki sync,
 │                                 #   README structure check
 └── .github/                      # Issue/PR templates, CI workflows, Dependabot config
@@ -405,17 +416,16 @@ existing pipeline are known to be incomplete:
   client-side in `cli/myace_cli/adapters/`, but `myace pull` doesn't call
   into them yet, so it always needs a reachable server today. See
   [docs/architecture.md#adapters](docs/architecture.md#adapters).
-- **No install URL an agent can fetch** — today a pack or setup reaches a
-  machine only as a `.zip` download, via `myace pull`, or through the local
-  companion's direct apply (which does write files for you, but needs
-  `myace serve --allow-apply` running on that same machine) — so every path
-  needs a browser session, a CLI login, or a local service already running. A
-  public, agent-readable URL (for example
-  `GET /api/v1/collections/community/{id}/install.md?target=…`) would let
-  someone paste one link into any coding agent and have it install the pack.
-  This has been researched and scoped but not built; the design, payload
-  format, and the three gaps blocking it are written up in
-  [docs/plans/agent-install-url.md](docs/plans/agent-install-url.md).
+- **Agent access is direct now, with two gaps left** — an agent can reach a
+  public pack without a browser or CLI: `GET
+  /api/v1/collections/community/{id}/install.md?target=…` returns a
+  self-describing install document (or a zip/JSON file set), and the
+  read-only MCP server at `/mcp` exposes the same thing as tools. Still
+  missing from that plan: a `myace install <url>` CLI subcommand (so the CLI
+  and an agent share one install path) and a stdio shim for clients that
+  cannot speak Streamable HTTP. See
+  [docs/plans/agent-install-url.md](docs/plans/agent-install-url.md) and
+  [docs/mcp.md](docs/mcp.md).
 
 If you use a framework not listed above, or want to pick up an open item,
 see [Contributing](#contributing-and-forking) below — an issue or PR is

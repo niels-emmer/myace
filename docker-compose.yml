@@ -43,6 +43,34 @@ services:
     networks:
       - myace
 
+  # Public, read-only MCP server (ADR-0018). Opt-in: a self-hoster who does not
+  # want a public MCP surface never runs it, and the frontend's `location /mcp`
+  # simply 502s for that path. Enable with `--profile mcp` — see
+  # docs/deployment.md. It has no database, no credentials and no write path;
+  # it reads the backend's anonymous routes over this private network.
+  mcp:
+    build:
+      context: ./mcp
+      dockerfile: Dockerfile
+    container_name: myace-mcp
+    restart: unless-stopped
+    profiles: ["mcp"]
+    environment:
+      # No `env_file`: this container needs none of the stack's secrets.
+      - MCP_BACKEND_URL=http://backend:8000
+      # A link a human can open; the backend URL above is internal-only.
+      - MCP_SITE_URL=${FRONTEND_BASE_URL:-}
+      # DNS-rebinding protection is on; the public Host must be allow-listed
+      # or every request 421s. Keep the defaults for local/container access.
+      - MCP_ALLOWED_HOSTS=${MCP_ALLOWED_HOSTS:-localhost:*,127.0.0.1:*,myace-mcp:*}
+      - MCP_ALLOWED_ORIGINS=${MCP_ALLOWED_ORIGINS:-http://localhost:*,http://127.0.0.1:*}
+    expose:
+      - "8001"
+    depends_on:
+      - backend
+    networks:
+      - myace
+
   postgres:
     image: postgres:16-alpine
     container_name: myace-postgres

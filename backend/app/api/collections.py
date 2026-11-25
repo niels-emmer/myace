@@ -1,18 +1,21 @@
 """Collection management routes."""
 
 import asyncio
+import io
 import json
 import logging
 import uuid
+import zipfile
 from datetime import UTC, date, datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement, case, func
+from sqlalchemy import ColumnElement, case, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel, select
 
+from app.adapters import get_adapter, list_adapters
 from app.core.authz import authorize_access, owner_or_public_clause
 from app.core.config import settings
 from app.core.database import get_session
@@ -26,9 +29,15 @@ from app.models.artifact import (
     CanonicalArtifact,
 )
 from app.models.collection import Collection, CollectionCreate, CollectionRead, CollectionUpdate
+from app.models.profile import PackCompileResponse, ProfileCompileResponse
 from app.models.user import User
-from app.services.effective_settings import get_effective_smtp_config
+from app.services.compiler import AdapterDisabledError, UnknownAdapterError, compile_pack
+from app.services.effective_settings import (
+    get_disabled_adapter_names,
+    get_effective_smtp_config,
+)
 from app.services.email import EmailSendError, build_moderation_unpublished_email, send_email
+from app.services.github_export import slugify
 
 logger = logging.getLogger("myace")
 
@@ -269,6 +278,7 @@ async def list_community_collections(
     request: Request,
     collection_type: str | None = Query(None, alias="type"),
     category: str | None = None,
+    q: str | None = Query(None, max_length=200),
     sort: Literal["rating", "downloads", "alpha"] = "downloads",
     offset: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
@@ -296,6 +306,15 @@ async def list_community_collections(
         base_query = base_query.where(Collection.collection_type == collection_type)
     if category:
         base_query = base_query.where(Collection.category == category)
+    if q:
+        # Case-insensitive name/description match, added for the MCP's
+        # `search_packs` tool (ADR-0018). Purely additive to this route's
+        # contract; `%`/`_` in the term are treated as SQL wildcards, which
+        # only widens a search the caller explicitly asked for.
+        pattern = f"%{q}%"
+        base_query = base_query.where(
+            or_(Collection.name.ilike(pattern), Collection.description.ilike(pattern))
+        )
 
     # Total count for pagination
     count_query = select(func.count()).select_from(base_query.subquery())
@@ -416,6 +435,273 @@ async def list_public_community_artifacts(
         query = query.where(Artifact.artifact_type == type)
     result = await session.execute(query.order_by(Artifact.name.asc()))
     return [_artifact_to_read(artifact) for artifact in result.scalars().all()]
+
+
+def _install_url(request: Request, collection_id: uuid.UUID, target: str, fmt: str = "md") -> str:
+    base = str(request.base_url).rstrip("/")
+    return (
+        f"{base}/api/v1/collections/community/{collection_id}/install.md"
+        f"?target={target}&format={fmt}"
+    )
+
+
+def _install_guidance_document(
+    request: Request,
+    collection: Collection,
+    enabled: list[str],
+    disabled: list[str],
+    unknown_target: str | None,
+) -> str:
+    """The "which framework?" document, returned instead of a 422 or a guess.
+
+    `target` is deliberately a plain `str` on the route rather than the
+    `CompileTarget` Literal: an agent holding a link it did not build should
+    get a browsable list of valid targets, not a validation error it can only
+    retry blindly. Guessing a target would write files into the wrong
+    framework's layout, which is worse than asking.
+    """
+    base = str(request.base_url).rstrip("/")
+    lines = [
+        f"# Choose a coding framework for {collection.name}",
+        "",
+        f"Pack:   {collection.name}",
+        f"Kind:   {collection.collection_type}",
+        f"Source: {base}/packs/{collection.id}",
+        "",
+        "This pack can be compiled for any of the frameworks below. Fetch the same",
+        "URL with `?target=<id>` for the one that matches your agent.",
+        "",
+    ]
+    if unknown_target is not None:
+        lines += [
+            f"Requested target `{unknown_target}` is not recognised. The list below is",
+            "authoritative.",
+            "",
+        ]
+    lines += [f"- `{name}` — {_install_url(request, collection.id, name)}" for name in enabled]
+    if disabled:
+        lines += [
+            "",
+            "Currently disabled by an administrator, so not offered: "
+            + ", ".join(f"`{name}`" for name in disabled),
+        ]
+    lines += [
+        "",
+        "## Formats",
+        "",
+        "- `format=md` (default) — this self-describing Markdown document.",
+        "- `format=zip` — a zip archive of the compiled files.",
+        '- `format=json` — `{"subject": "pack", "files": {...}}`.',
+        "",
+        "Add `&with=<pack-id>` to compose an add-on with its base pack. Nothing",
+        "here is stored, and fetching it does not count as a download.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def _install_files_document(
+    collection: Collection, compiled: ProfileCompileResponse, target: str
+) -> str:
+    """Render a compiled pack as a self-describing, sentinel-delimited document.
+
+    Sentinels rather than Markdown fences: file bodies are themselves Markdown
+    and routinely contain ``` fences, so nesting them inside a fence breaks
+    the document. `<<<FILE: path>>>` survives any body.
+    """
+    lines = [
+        f"# MyACE pack — {collection.name}",
+        "",
+        f"Pack:    {collection.name}",
+        f"Kind:    {collection.collection_type}",
+        f"Target:  {target}",
+        f"Items:   {compiled.artifact_count}",
+        f"Digest:  sha256:{compiled.compiled_hash}",
+        "",
+        "## Instructions",
+        "",
+        "You are installing an agent configuration pack. Do this:",
+        "",
+        "1. Show the user the file list below and confirm before writing anything.",
+        "2. Write each file relative to the install root (the project root unless the",
+        "   user says otherwise). Create parent directories as needed.",
+        "3. Never delete or rename a file that already exists. If a file exists and",
+        "   its content differs, ask before overwriting.",
+        "4. Do not install into a system directory or a home-directory root without",
+        "   explicit confirmation.",
+        "5. When done, list the files you wrote and which ones you skipped.",
+        "",
+        "Nothing here is executable. These files are rules, skills, agent definitions",
+        "and workflow prompts in text form — and they become instructions your agent",
+        "will follow. The human decides whether to adopt them.",
+        "",
+    ]
+    if compiled.warnings:
+        lines += ["## Warnings", ""]
+        lines += [f"- ({w.code}) {w.message}" for w in compiled.warnings]
+        lines.append("")
+    lines += [f"## Files ({len(compiled.files)})", ""]
+    for filename in sorted(compiled.files):
+        lines += [
+            f"<<<FILE: {filename}>>>",
+            compiled.files[filename],
+            "<<<END FILE>>>",
+            "",
+        ]
+    return "\n".join(lines)
+
+
+def _install_zip_bytes(compiled: ProfileCompileResponse) -> bytes:
+    """Same archive `/profiles/compile/zip` builds, warnings file included."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for filename, content in compiled.files.items():
+            zf.writestr(filename, content)
+        if compiled.warnings:
+            zf.writestr(
+                "_myace_warnings.txt",
+                "\n".join(f"[{w.code}] {w.message}" for w in compiled.warnings) + "\n",
+            )
+    return buf.getvalue()
+
+
+@router.get("/community/{collection_id}/install.md")
+@storefront_limiter.limit(settings.storefront_rate_limit)
+async def get_pack_install_document(
+    collection_id: uuid.UUID,
+    request: Request,
+    target: str | None = Query(None),
+    format: Literal["md", "json", "zip"] = Query("md"),
+    with_: list[uuid.UUID] = Query(default_factory=list, alias="with"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Compile a public pack — or return guidance on how to — without an account.
+
+    The agent-facing read that the MCP server (ADR-0018) and any
+    `WebFetch`-capable agent consume. Public contents only, exactly like
+    `GET /community/{id}/artifacts`: the pack and every `with=` pack must pass
+    `_get_public_collection_or_404()` (active + published + approved), and
+    only enabled items are compiled.
+
+    Four `target` outcomes, all deliberate:
+
+    1. omitted → `200 text/markdown` guidance listing every enabled adapter and
+       its full URL, so a bare pasted link is useful instead of a 422.
+    2. unrecognised → the same document plus a line naming the unknown value.
+       Returning 200 lets a stale link self-heal; a 400 would dead-end.
+    3. registered but admin-disabled → `400` with `AdapterDisabledError`'s
+       message: the actionable answer is the message, not a list.
+    4. registered and enabled → the compiled output.
+
+    Never increments `download_count` — only `POST /{id}/use` moves it, so a
+    crawler cannot inflate a pack's ranking. Auth exception documented in
+    ADR-0014/ADR-0018 and AGENTS.md rule 13.
+    """
+    collection = await _get_public_collection_or_404(session, collection_id)
+
+    # Every composed pack must be public too; silently dropping an invisible
+    # `with=` id would compile a different set than the caller asked for.
+    pack_ids = [collection_id]
+    for extra_id in with_:
+        if extra_id == collection_id:
+            continue
+        await _get_public_collection_or_404(session, extra_id)
+        pack_ids.append(extra_id)
+
+    disabled = await get_disabled_adapter_names(session)
+    all_names = [adapter.adapter_name() for adapter in list_adapters()]
+    enabled = [name for name in all_names if name not in disabled]
+
+    # Guidance is always markdown, whatever `format` asked for: there are no
+    # files to package, and an agent that sent `format=zip` with a typo'd
+    # target still needs something it can read and act on.
+    if target is None:
+        return Response(
+            content=_install_guidance_document(
+                request, collection, enabled, [n for n in all_names if n in disabled], None
+            ),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Cache-Control": "public, max-age=300", "X-Robots-Tag": "noindex"},
+        )
+    if get_adapter(target) is not None and target not in enabled:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Adapter '{target}' is currently disabled by an administrator",
+        )
+    if get_adapter(target) is None:
+        return Response(
+            content=_install_guidance_document(
+                request, collection, enabled, [n for n in all_names if n in disabled], target
+            ),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Cache-Control": "public, max-age=300", "X-Robots-Tag": "noindex"},
+        )
+
+    try:
+        compiled = await compile_pack(
+            session=session,
+            collection_ids=pack_ids,
+            target=target,
+            pack_name=collection.name,
+        )
+    except (AdapterDisabledError, UnknownAdapterError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    etag = f'W/"{compiled.compiled_hash}"'
+    common_headers = {
+        "ETag": etag,
+        "Cache-Control": "public, max-age=300",
+        "X-Robots-Tag": "noindex",
+    }
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=common_headers)
+
+    limit = settings.pack_install_max_bytes
+
+    def too_large(kind: str, hint: str) -> HTTPException:
+        return HTTPException(
+            status_code=413,
+            detail=f"This pack is too large to return as {kind}; {hint}",
+        )
+
+    if format == "json":
+        payload = PackCompileResponse(
+            pack_id=collection.id,
+            profile_id=str(collection.id),
+            profile_name=collection.name,
+            target=target,
+            artifact_count=compiled.artifact_count,
+            files=compiled.files,
+            warnings=compiled.warnings,
+            compiled_hash=compiled.compiled_hash,
+        )
+        body = json.dumps(payload.model_dump(mode="json")).encode()
+        if len(body) > limit:
+            raise too_large("JSON", "retry with format=zip.")
+        return Response(content=body, media_type="application/json", headers=common_headers)
+
+    if format == "zip":
+        raw = _install_zip_bytes(compiled)
+        if len(raw) > limit:
+            # Not "use format=zip" — this *is* the zip. The only smaller option
+            # is compiling fewer packs.
+            raise too_large("a zip archive", "try compiling fewer packs with `with=`.")
+        return Response(
+            content=raw,
+            media_type="application/zip",
+            headers={
+                **common_headers,
+                # rule 22: never interpolate a pack name raw into a header.
+                "Content-Disposition": (
+                    f'attachment; filename="{slugify(collection.name)}.{target}.zip"'
+                ),
+            },
+        )
+
+    body = _install_files_document(collection, compiled, target).encode()
+    if len(body) > limit:
+        raise too_large("a document", "retry with format=zip.")
+    return Response(content=body, media_type="text/markdown; charset=utf-8", headers=common_headers)
 
 
 @router.get("/{collection_id}", response_model=CollectionRead)

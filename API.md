@@ -37,10 +37,12 @@ Two mechanisms feed one `get_current_user` dependency. Every route except
 `/health`, the auth entry points (`/api/v1/auth/register`, `/login`,
 `/login/mfa`, `/logout`, `/forgot-password`, `/reset-password`,
 `/login/{provider}`, `/callback/{provider}`, `/providers`),
-`POST /api/v1/demo/compile`, and the five anonymous storefront reads
+`POST /api/v1/demo/compile`, and the seven anonymous public reads
 (`GET /api/v1/collections/community`, `/community/top`,
-`/community/categories`, `/community/{id}`, `/community/{id}/artifacts` —
-see [ADR-0014](docs/adr/0014-public-pack-browsing.md)) requires one of them:
+`/community/categories`, `/community/{id}`, `/community/{id}/artifacts`,
+`/community/{id}/install.md`, and `GET /api/v1/frameworks` —
+see [ADR-0014](docs/adr/0014-public-pack-browsing.md) and
+[ADR-0018](docs/adr/0018-public-read-only-mcp-server.md)) requires one of them:
 
 1. **Session cookie** (`myace_session`) — set by `POST /api/v1/auth/login`
    (or the OIDC/GitHub/Google callback). Used by the web UI.
@@ -58,10 +60,11 @@ will not see how to authenticate.
 |---|---|
 | `GET /health` | Liveness check |
 | `/api/v1/auth` | Register, login (password + OIDC/GitHub/Google), MFA/TOTP, password reset, API tokens, onboarding completion, user management (admin) |
-| `/api/v1/collections` | Collections CRUD, artifacts, scan/import, community listing, publish/unpublish, ratings, comments, GitHub export, freshness verify, use-count (`/use`) |
+| `/api/v1/collections` | Collections CRUD, artifacts, scan/import, community listing, pack install document (`/community/{id}/install.md`), publish/unpublish, ratings, comments, GitHub export, freshness verify, use-count (`/use`) |
 | `/api/v1/moderation` | Moderation queue, approve/deny, meta-edit (moderator/admin only) |
 | `/api/v1/profiles` | Profiles CRUD, compile, compile/zip, compile-status, install claims (`/installs`) |
-| `/api/v1/adapters` | Adapter registry listing |
+| `/api/v1/adapters` | Adapter registry listing (authenticated) |
+| `/api/v1/frameworks` | Public compile-target ids (no auth) |
 | `/api/v1/admin` | System settings, adapter enable/disable, freshness queue |
 | `/api/v1/doc-cache` | Documentation cache entries |
 | `/api/v1/sync` | Sync status reporting (CLI `--report`) |
@@ -169,6 +172,19 @@ curl -X POST http://localhost:8000/api/v1/demo/compile \
   -d '{"markdown": "## my-rule\n\nBody text"}'
 # {artifact_count, targets: {framework: {filename: content}}}
 ```
+
+## MCP server
+
+A read-only MCP endpoint exposes the public packs to coding agents at
+`https://<host>/mcp` (Streamable HTTP, no auth). It wraps the anonymous reads
+above plus the pack install document; it has no write capability and no
+database. Five tools (`search_packs`, `get_pack`, `get_item`, `list_targets`,
+`download_pack`) and four resource templates. It runs only when the stack is
+started with the `mcp` compose profile.
+
+See [docs/mcp.md](docs/mcp.md) for client config, tool reference and
+troubleshooting, and [ADR-0018](docs/adr/0018-public-read-only-mcp-server.md)
+for why it is anonymous and read-only.
 
 ## Notes
 
