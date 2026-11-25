@@ -1,7 +1,15 @@
 # Agent-Fetchable Install URL for Packs and Setups
 
-Status: **Researched, not started.** Design record only — no code exists for
-this feature.
+Status: **Phases 1 and 3 shipped** (2026-11-25). The endpoint this doc designs
+— `GET /api/v1/collections/community/{id}/install.md?target=…&format=md|json|zip`
+— is live, together with the `compile_pack()` seam it depends on; the MCP
+server that wraps it is live too. See
+[mcp-server.md](mcp-server.md) for what shipped and
+[ADR-0018](../adr/0018-public-read-only-mcp-server.md) for the decisions.
+Still unbuilt from this doc: Phase 1.5's `AgentInstallPanel` UI, Phase 2's
+authenticated twin and pack-scoped `compile-status`, Phase 2.5's
+`myace install <url>`, and the stdio MCP shim. The design below is kept as
+written, for the parts that remain.
 Scope: a URL a user can hand to *any* coding agent (whatever framework), which
 the agent fetches and uses to install a pack, with no CLI and no account.
 
