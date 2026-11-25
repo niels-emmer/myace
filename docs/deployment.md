@@ -322,6 +322,18 @@ untouched. Stale items are soft-deleted, never removed, so a backup plus the
 row's `deleted_at` is enough to undo a run. Take a dump first per
 [backups.md](backups.md) if the deployment matters.
 
+Two things it refuses to guess about, because for this command a missing
+directory would otherwise look like "every item was deleted":
+
+- a missing or wrong `collections_root` (the default `/app/collections` only
+  exists inside the container) prints an error and exits non-zero without
+  touching anything;
+- a registry pack whose own directory is missing is listed as skipped, and its
+  rows are left alone.
+
+It reconciles artifacts only. A changed pack `name`, `description`, or
+`category` in the registry still will not reach an existing row.
+
 It is deliberately manual: making it part of startup would let every restart
 rewrite seeded content, which is exactly the guarantee the seed's
 idempotency provides.

@@ -22,6 +22,14 @@ its files and, when asked to apply:
 Anything the seed has never seen (a pack that was never seeded, a user's own
 collection) is left alone. Run it with `--dry-run` (the default) first; see
 `app/scripts/reconcile_seeded_collections.py`.
+
+**A missing directory is never "the files dropped everything".** This mirrors
+`seed_starter_collections()`, which returns early when `collections_root` is
+not a directory and warns-and-skips an individually missing pack. Without those
+guards a wrong `COLLECTIONS_ROOT` (the default `/app/collections` does not
+exist on a host checkout) would soft-delete all 320 seeded items and zero every
+count. An unusable root yields an empty report carrying `root_error`; a missing
+pack directory lands in `skipped`. Neither deletes anything.
 """
 
 import logging
@@ -82,21 +90,37 @@ class PackChange:
             or self.content_changed
         )
 
+    @property
+    def has_structural_change(self) -> bool:
+        """True when a run actually does something to this pack.
+
+        `content_changed` is excluded: it records text that differs but was
+        left alone because `--update-content` was not passed.
+        """
+        return bool(
+            self.added or self.removed or self.duplicates_removed or self.content_updated
+        )
+
 
 @dataclass
 class ReconcileReport:
     applied: bool
     packs: list[PackChange] = field(default_factory=list)
     missing_packs: list[str] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
+    root_error: str | None = None
 
     @property
     def changed_packs(self) -> list[PackChange]:
         return [p for p in self.packs if not p.is_empty]
 
+    @property
+    def structural_packs(self) -> list[PackChange]:
+        return [p for p in self.packs if p.has_structural_change]
 
-def _disk_items(collection_type: str, slug: str) -> dict[str, dict]:
-    directory = Path(settings.collections_root) / collection_type / slug
-    return {item["name"]: item for item in _scan_seeded_collection(directory)}
+    @property
+    def content_only_packs(self) -> list[PackChange]:
+        return [p for p in self.changed_packs if not p.has_structural_change]
 
 
 def _content_differs(artifact: Artifact, item: dict) -> bool:
@@ -139,8 +163,24 @@ async def reconcile_seeded_collections(
     `apply=False` computes the same report without touching the session, so a
     dry run is a true preview. `only` limits the run to one registry slug (its
     `seed://` ref is still the lookup key).
+
+    Refuses to do anything when `settings.collections_root` is missing, and
+    skips any pack whose own directory is missing, exactly like the boot-time
+    seed does. Reconciliation treats absence of *files* as drift, so without
+    those guards an unreadable directory would look like "every item was
+    deleted".
     """
     report = ReconcileReport(applied=apply)
+
+    collections_root = Path(settings.collections_root)
+    if not collections_root.is_dir():
+        message = (
+            f"Collections root not found: {collections_root}. "
+            "Nothing was reconciled; check COLLECTIONS_ROOT."
+        )
+        logger.warning(message)
+        report.root_error = message
+        return report
 
     seeded = (
         await session.execute(select(Collection).where(Collection.git_url.like("seed://%")))
@@ -159,7 +199,18 @@ async def reconcile_seeded_collections(
                     report.missing_packs.append(seed_ref)
                     continue
 
-                on_disk = _disk_items(collection_type, slug)
+                pack_dir = collections_root / collection_type / slug
+                if not pack_dir.is_dir():
+                    logger.warning(
+                        "Seeded collection directory missing: %s — skipping reconcile.",
+                        pack_dir,
+                    )
+                    report.skipped.append(seed_ref)
+                    continue
+
+                on_disk = {
+                    item["name"]: item for item in _scan_seeded_collection(pack_dir)
+                }
                 live = (
                     await session.execute(
                         select(Artifact).where(
@@ -209,8 +260,7 @@ async def reconcile_seeded_collections(
                         session.add(artifact_from_scanned(collection.id, item))
 
                 if apply:
-                    surviving = len([n for n in on_disk if n in by_name]) + len(change.added)
-                    collection.artifact_count = surviving
+                    collection.artifact_count = len(on_disk)
                     session.add(collection)
 
                 report.packs.append(change)
