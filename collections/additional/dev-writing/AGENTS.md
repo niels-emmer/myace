@@ -6,7 +6,7 @@ Text published under a person's name reads as though a person typed it. Use cont
 
 ## No Dashes And No Forced Contrast
 
-Never use an em or en dash as a connector; use a comma, a period, or a line break. Never frame a point as "not X but Y" when nobody raised X — the negative half only adds weight, so state the point directly. A contrast whose two halves both carry information stays.
+Never use an em or en dash as a connector; use a comma, a period, or a line break. Never frame a point as "not X but Y" when nobody raised X: the negative half only adds weight, so state the point directly. A contrast whose two halves both carry information stays.
 
 ## Stop At The Last Point
 

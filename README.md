@@ -30,7 +30,7 @@ sign up and build your first setup in minutes, no setup required.
 MyACE ships with **24 starter packs** (4 starting points + 20 add-ons)
 plus **4 community-contributed add-ons**, holding **320 items** — 149 rules,
 101 skills, 51 agents, 18 workflows, and 1 model config — across
-**8 categories** and **176 tags**, and installs
+**8 categories** and **173 tags**, and installs
 to **12 target frameworks** (Claude Code, OpenCode, Cursor, Codex CLI,
 Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q Developer,
 and pi.dev). You can start from scratch and build your own rules, import
