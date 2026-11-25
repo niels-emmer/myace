@@ -1,6 +1,6 @@
 ---
 name: Developer Voice
-description: The register for text a developer publishes under their own name — review replies, PR descriptions, commit subjects, chat messages — so it reads as typed by a person rather than generated.
+description: The register for text a developer publishes under their own name (review replies, PR descriptions, commit subjects, chat messages), so it reads as typed by a person rather than generated.
 version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
@@ -9,7 +9,7 @@ tags: [writing, tone, review, commits, communication]
 
 ## Purpose
 
-Most text an agent writes for a developer is read by another developer in a channel that is already informal: a review thread, a PR description, a commit subject, a chat message. That register is short, plain, and uneven. Generated text tends to the opposite — evenly weighted sentences, decorative structure, a closing line nobody needed — and readers notice it even when they cannot name why. This skill covers the voice itself. The shape of each genre is in the review-and-commit-wording skill.
+Most text an agent writes for a developer is read by another developer in a channel that is already informal: a review thread, a PR description, a commit subject, a chat message. That register is short, plain, and uneven. Generated text tends to the opposite: evenly weighted sentences, decorative structure, a closing line nobody needed. Readers notice it even when they cannot name why. This skill covers the voice itself. The shape of each genre is in the review-and-commit-wording skill.
 
 ## When to use it
 
@@ -35,10 +35,10 @@ Hard rules, not preferences:
 
 These are tips, not bans; cut them when they add nothing.
 
-- **Openers that stall.** "Good question", "quick note", "just to clarify", "honestly" — start with the substance.
+- **Openers that stall.** "Good question", "quick note", "just to clarify", "honestly": start with the substance.
 - **Arguing with nobody.** Answering an objection that was never raised. Cut it, or state the claim it was hiding.
 - **Threes by reflex.** Three adjectives, three examples, three facts and a lesson. Keep three only when there are three.
-- **Stacked qualifiers.** "could potentially", "might arguably" — one hedge at most, and only for real doubt.
+- **Stacked qualifiers.** "could potentially", "might arguably": one hedge at most, and only for real doubt.
 - **Over-precision.** Naming every path, value and timestamp to prove you looked reads generated. Keep the precision the point needs; let the rest stay plain ("the lock timeout", not "`lockTimeoutMs: 30000`").
 - **Dense blocks.** Past a couple of sentences, one idea per short paragraph.
 - **Decoration by rule.** A bold label and colon on every bullet, title-case headings, decorative arrows. Bold only what needs it.
