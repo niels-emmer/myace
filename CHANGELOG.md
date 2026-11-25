@@ -89,11 +89,13 @@ no migrations, no removed routes, no changed response shapes.
 
 ### Security
 
-- The two new anonymous reads compile a pack for unauthenticated callers, so
-  their safety does not rest on the visibility predicate alone:
+- The new pack install document compiles a pack for unauthenticated callers,
+  so its safety does not rest on the visibility predicate alone:
   `compile_pack()` hard-codes `can_use_frozen=False` (never serves a snapshot
   of an unpublished pack), only enabled items are compiled, and no read route
-  moves `download_count`. Both are covered by `storefront_rate_limit`.
+  moves `download_count`. `GET /frameworks` compiles nothing — it only lists
+  the adapter names an admin has enabled. Both are covered by
+  `storefront_rate_limit`.
 - The MCP container is non-root, binds no host port, holds no database
   credential, and enables DNS-rebinding protection (`MCP_ALLOWED_HOSTS`),
   failing closed with `421` rather than open.
