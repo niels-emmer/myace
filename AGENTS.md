@@ -703,6 +703,15 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `packSource()` calls it Community and the Home/landing highlights can
   show it — add it to `COMMUNITY_CONTRIBUTED_COLLECTIONS` instead. Never
   list the same slug in both maps.
+- Third-party writing material used as a source for pack content is credited
+  in `README.md`'s Acknowledgements section, not copied wholesale into the
+  artifacts. State what each source contributed and its license. A source
+  that ships no license (or a non-permissive one) is re-expressed in this
+  repo's own wording — the ideas are fine to use, the text is not — and the
+  Acknowledgements entry says so explicitly. Adding pack content also means
+  updating the item/rule/skill/agent/workflow counts near the top of
+  `README.md` and the add-on list under "Packs out of the box"; seed the real
+  numbers with the backend seeder rather than estimating them.
 - **Seeding is idempotent by the stable `seed://<collection_type>/<slug>`
   `git_url`, not by name.** An existing row is skipped for *content*, but
   its `is_starter_pack` flag is reconciled to whichever map currently
