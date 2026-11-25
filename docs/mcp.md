@@ -112,8 +112,11 @@ unaffected — the frontend's `location /mcp` proxies to a container that is not
 there. For the same reason the signed-out landing page probes
 `GET /mcp/health` (an exact-match nginx location that maps to this container's
 own `/health`) and only advertises the endpoint when it answers, so a stack
-without the profile never shows a dead URL. That probe is access-logged off;
-its expected 502 still appears in the nginx error log.
+without the profile never shows a dead URL. That probe is silent by design:
+its access line is off, and it is proxied through a loopback-only helper server
+whose error log is discarded, because nginx attributes the expected resolver
+failure of a variable `proxy_pass` to the server rather than the location.
+An MCP-less deployment therefore collects nothing per visitor.
 
 Two settings matter in production:
 
