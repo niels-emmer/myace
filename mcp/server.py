@@ -9,6 +9,7 @@ See docs/adr/0018-public-read-only-mcp-server.md and docs/mcp.md.
 """
 
 import json
+import logging
 import os
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
@@ -352,6 +353,14 @@ def build_app():
     behind nginx sends (`Host: myace.macjuu.com`). Passing explicit settings
     avoids that trap while keeping the protection.
     """
+    if not os.environ.get("MCP_SITE_URL"):
+        logging.getLogger("myace.mcp").warning(
+            "MCP_SITE_URL is unset. Tool calls will not present a public Host "
+            "header, and a backend with TRUSTED_HOSTS configured will reject "
+            "every one with '400 Invalid host header'. Set it to the site's "
+            "public origin, e.g. https://myace.example.com."
+        )
+
     security = TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
         allowed_hosts=_csv_env(

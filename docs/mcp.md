@@ -104,9 +104,13 @@ Two settings matter in production:
 - `MCP_ALLOWED_HOSTS` must include the public hostname (e.g.
   `myace.macjuu.com`), or the container's DNS-rebinding protection answers
   **421** to every request. It fails closed on purpose.
-- `MCP_SITE_URL` (usually `${FRONTEND_BASE_URL}`) is what makes the
-  human-openable `url`/`zip_url`/`install_url` fields in tool results point at
-  the public site rather than an internal Docker hostname.
+- `MCP_SITE_URL` (usually `${FRONTEND_BASE_URL}`) does two jobs: it makes the
+  human-openable `url`/`zip_url`/`install_url` fields point at the public site
+  rather than an internal Docker hostname, **and** it supplies the `Host`
+  header for backend calls. The backend runs `TrustedHostMiddleware` with
+  `TRUSTED_HOSTS` set to your public domain, so a call whose `Host` is
+  `backend:8000` is rejected with `400 Invalid host header` — every tool would
+  fail. Leave it unset and the container logs a startup warning.
 
 ## Troubleshooting
 
@@ -119,6 +123,7 @@ Two settings matter in production:
 | Download is 400 "disabled by an administrator" | Same thing, from the compile route |
 | Download returns the target list instead of files | The `target` is unrecognised (typo, stale link, or an alias like `claude`); use an id from `list_targets` |
 | `"Rate limited by MyACE"` | More than 120 requests in a minute from one caller IP. The backend's storefront limit is per client IP, and the MCP forwards the caller's address, so one busy agent does not consume anyone else's budget — but a single agent looping will hit its own ceiling. Retry after a minute. |
+| `400 Invalid host header` | `MCP_SITE_URL` is unset, so backend calls present the internal `backend:8000` host and `TRUSTED_HOSTS` rejects them. Set `MCP_SITE_URL` (usually `${FRONTEND_BASE_URL}`) and restart the container. |
 | Very large pack | `format=md`/`json` capped at 2 MiB; fetch the zip resource |
 
 ## For maintainers

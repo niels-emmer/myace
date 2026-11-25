@@ -248,3 +248,41 @@ async def test_no_forwarded_header_when_caller_ip_is_unknown() -> None:
     await client.search_packs()
 
     assert seen["xff"] is None
+
+
+async def test_public_host_is_presented_to_the_backend() -> None:
+    """A production backend's TrustedHostMiddleware rejects `backend:8000`."""
+    seen: dict[str, str | None] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["host"] = request.headers.get("host")
+        return httpx.Response(200, json={"items": [], "total": 0})
+
+    client = BackendClient(BASE, site_url=SITE, transport=httpx.MockTransport(handler))
+    await client.search_packs()
+
+    assert seen["host"] == "myace.example"
+
+
+async def test_no_host_header_without_a_site_url() -> None:
+    seen: dict[str, str | None] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["host"] = request.headers.get("host")
+        return httpx.Response(200, json={"items": [], "total": 0})
+
+    client = BackendClient(BASE, transport=httpx.MockTransport(handler))
+    await client.search_packs()
+
+    # Whatever httpx sends by default, it must not be a fabricated public host.
+    assert seen["host"] != "myace.example"
+
+
+async def test_plain_text_rejection_is_surfaced() -> None:
+    """Starlette's TrustedHostMiddleware answers plain text, not JSON."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, text="Invalid host header")
+
+    with pytest.raises(BackendError, match="Invalid host header"):
+        await make_client(handler).search_packs()
