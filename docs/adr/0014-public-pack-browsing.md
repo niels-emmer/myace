@@ -1,6 +1,11 @@
 # ADR-0014: Public read-only pack browsing
 
-**Status:** Accepted
+**Status:** Accepted — **amended by [ADR-0018](0018-public-read-only-mcp-server.md).**
+The public-read family this ADR established has since grown from five routes
+to seven: `GET /collections/community/{id}/install.md` and
+`GET /api/v1/frameworks` joined it. The invariants below (approved-only,
+sanitized, read-only, rate-limited) still govern all of them; "five" below is
+the count at the time of this decision.
 
 ## Context
 

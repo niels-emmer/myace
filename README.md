@@ -150,11 +150,13 @@ model.
 
 - **Browse before you sign up** — `/welcome` features proven starter and
   community packs, and `/packs` is a read-only library for signed-out
-  visitors. The server exposes exactly five anonymous read routes (community
-  list/top/categories, pack detail, pack contents), each approved-only and
-  rate-limited per IP; see
-  [ADR-0014](docs/adr/0014-public-pack-browsing.md). Everything that writes —
-  using, rating, commenting, installing, publishing — still needs an account.
+  visitors. The server exposes exactly seven anonymous read routes (community
+  list/top/categories, pack detail, pack contents, the pack install document,
+  and the framework list), each approved-only and rate-limited per IP; see
+  [ADR-0014](docs/adr/0014-public-pack-browsing.md) and
+  [ADR-0018](docs/adr/0018-public-read-only-mcp-server.md). Everything that
+  writes — using, rating, commenting, installing, publishing — still needs an
+  account.
 - **One pack page for every pack** — `/packs/:id` renders owned, starter,
   and community packs with the same header, actions (**Use this pack**,
   **Add to a setup…**, **Customize a copy**, and owner **Publish**), and

@@ -15,13 +15,21 @@ names where it's enforced so you can verify it hasn't regressed.
    `POST /demo/compile` (see
    [ADR-0011](adr/0011-public-demo-sandbox.md) and AGENTS.md rule 36 for
    why this one earns the exception, and invariant 22 below for what makes
-   it safe to leave public), and the five anonymous storefront reads
-   `GET /api/v1/collections/community`, `/community/top`,
+   it safe to leave public), and the anonymous public reads: the storefront
+   routes `GET /api/v1/collections/community`, `/community/top`,
    `/community/categories`, `/community/{id}`, and
    `/community/{id}/artifacts` (added in Phase 5 — see
    [ADR-0014](adr/0014-public-pack-browsing.md) and AGENTS.md rules 13/42:
-   approved-only, sanitized response, read-only, rate-limited).
-   Enforced by `Depends(get_current_user)` — `backend/app/core/deps.py`.
+   approved-only, sanitized response, read-only, rate-limited), plus
+   `GET /api/v1/collections/community/{id}/install.md` and
+   `GET /api/v1/frameworks` (ADR-0018). The install document compiles a pack
+   for an anonymous caller, so its safety rests on more than the visibility
+   predicate: `compile_pack()` hard-codes `can_use_frozen=False` (never serves
+   a snapshot of an unpublished pack — see ADR-0015), only enabled items are
+   compiled, and it never moves `download_count`. `GET /frameworks` compiles
+   nothing: it only lists the adapter names an admin has left enabled, loading
+   no collection and reading no artifact. Enforced by
+   `Depends(get_current_user)` — `backend/app/core/deps.py`.
    *If you add a route and forget this dependency, it's open to anyone.*
 
 2. **A regular user can read and write their own resources**, read (never

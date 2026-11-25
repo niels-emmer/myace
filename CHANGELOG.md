@@ -4,6 +4,36 @@ All notable changes to MyACE are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Read-only MCP server** (`mcp/`) — any MCP-capable coding agent can browse
+  public packs, read an item's full text, and fetch a pack compiled for a
+  chosen framework, with no account and no CLI. Five tools and four resource
+  templates over Streamable HTTP at `/mcp`; opt-in via the `mcp` compose
+  profile. It has no database, no credentials and no write tool — installing
+  stays a human decision. See [ADR-0018](docs/adr/0018-public-read-only-mcp-server.md)
+  and [docs/mcp.md](docs/mcp.md).
+- **Agent-fetchable pack install document** —
+  `GET /api/v1/collections/community/{id}/install.md?target=…` returns a
+  self-describing Markdown document (or `format=json`/`zip`) for a public
+  pack, with an ETag and a 2 MiB cap. Hand the URL to any agent that cannot
+  speak MCP.
+- **`GET /api/v1/frameworks`** — the public list of compile targets, so a
+  typed client can offer a picker without the authenticated adapter route.
+- **`compile_pack()`** — pack-scoped compilation over the same
+  `_compile_collections()` body `compile_profile()` uses, so a pack and a
+  setup can never drift apart.
+- Optional `q` filter (name/description) on the anonymous community listing.
+
+### Fixed
+
+- MCP tool calls present the public `Host` header, so a backend running
+  `TrustedHostMiddleware` no longer rejects them with `400 Invalid host
+  header`, and they forward the caller's IP so per-IP rate limits stay
+  per-client rather than collapsing into one shared bucket.
+
 ## [2.0.0] — 2026-11-22
 
 The onboarding and usage revamp: MyACE now speaks in **packs**, **setups** and

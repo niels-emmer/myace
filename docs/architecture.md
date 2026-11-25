@@ -167,11 +167,13 @@ public list: `/health`, the auth entry points (`/auth/register`,
 `/auth/callback/{provider}`, `/auth/providers`), `POST /demo/compile` — the
 stateless public demo endpoint behind the `/welcome` landing page (see
 [ADR-0011](adr/0011-public-demo-sandbox.md) and AGENTS.md rule 36 for why
-this one earns the exception) — and the five anonymous storefront reads
-under `/collections/community*` (see
-[ADR-0014](adr/0014-public-pack-browsing.md) and AGENTS.md rules 13/42:
-approved-only, sanitized, read-only, and rate-limited). Everything else goes
-through one of two mechanisms feeding one dependency:
+this one earns the exception) — and the anonymous public reads under
+`/collections/community*`, together with `GET
+/collections/community/{id}/install.md` and `GET /frameworks` (see
+[ADR-0014](adr/0014-public-pack-browsing.md),
+[ADR-0018](adr/0018-public-read-only-mcp-server.md) and AGENTS.md rules
+13/42/43: approved-only, sanitized, read-only, and rate-limited). Everything
+else goes through one of two mechanisms feeding one dependency:
 
 - **Session cookie** — set after `/auth/login` (email+password) or an
   OIDC/GitHub/Google callback. This is what the web UI uses.

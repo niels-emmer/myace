@@ -57,9 +57,13 @@ Out of scope:
 MyACE has real authentication and authorization — every API route that
 touches user data requires an authenticated user (session cookie or Bearer
 API token). The deliberate exceptions are the auth entry points,
-`GET /health`, the stateless public demo compile endpoint, and the five
-read-only community pack routes behind the storefront (approved-only,
-sanitized, and rate-limited). Access to collections/profiles/artifacts is
+`GET /health`, the stateless public demo compile endpoint, and the
+read-only community pack routes behind the storefront — the community
+listings, pack detail, pack contents, the pack install document, and the
+framework list (approved-only, sanitized, and rate-limited). The optional MCP
+server is public and read-only by construction: it has no database, no
+credentials and no write tool, so it can only ever serve bytes an anonymous
+visitor can already fetch. Access to collections/profiles/artifacts is
 scoped by ownership plus an explicit public/private flag, with an admin role
 that bypasses ownership for oversight. See
 [`docs/invariants.md`](docs/invariants.md) for the exact

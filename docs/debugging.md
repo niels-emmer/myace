@@ -835,3 +835,45 @@ download), `sudo xattr -cr /usr/local/bin/myace` after installing, or
 System Settings → Privacy & Security → **Open Anyway**. For `Killed: 9`,
 re-sign it ad hoc: `codesign --force --sign - /usr/local/bin/myace`. See
 [cli.md](cli.md#quick-install-binary-no-python-required).
+
+## MCP tool calls all fail with `400 Invalid host header`
+
+**Symptom:** Against a real deployment, every MCP tool that touches a pack
+(`search_packs`, `get_pack`, `download_pack`, `list_targets`) returns
+`{"error": "MyACE backend returned HTTP 400."}` — while `tools/list` works
+fine and the public `install.md` URL returns data. CI is green.
+
+**Cause:** The `mcp` container called `http://backend:8000`, so httpx sent
+`Host: backend:8000`. A production backend runs `TrustedHostMiddleware` with
+`TRUSTED_HOSTS` set to the public domain (AGENTS.md rule 27) and answers
+`400 Invalid host header` to anything else. The MCP tests stub the backend
+with `httpx.MockTransport`, which fakes the transport layer but not the
+headers, so nothing in the suite could see it — `tools/list` needs no
+backend call and `install.md` arrives through nginx with the correct Host,
+which is why the endpoint looked healthy.
+
+**Fix:** `BackendClient._forwarded_headers()` (`mcp/backend.py`) presents the
+public host from `MCP_SITE_URL` on every backend call, and `build_app()` logs
+a startup warning when that variable is unset. Do **not** "fix" it by adding
+`backend` to `TRUSTED_HOSTS`: that widens a deliberate hardening boundary.
+Verify changes to this area against a real deployment — a header change is
+invisible to the stubbed tests.
+
+## MCP `download_pack` returns a list of frameworks instead of files
+
+**Symptom:** `download_pack(pack_id, target="claude")` returns prose like
+"Choose a coding framework for …" with a list of `- \`claude-code\` — URL`
+entries, sometimes as an MCP tool error reading `Expecting value: line 1
+column 1`.
+
+**Cause:** `install.md` deliberately answers `200 text/markdown` — not a 4xx —
+for a target it does not recognise (a typo, a stale link, or a
+`supported_targets()` alias like `claude`, which is never a valid compile
+target; AGENTS.md rule 23). A client that unconditionally calls
+`response.json()` either raises `JSONDecodeError` or, worse, hands that prose
+back as `application/zip`.
+
+**Fix:** check the content type before parsing or returning bytes
+(`BackendClient.install()`, `mcp/backend.py`), and raise an error whose
+message *is* the guidance, so the agent gets the target list. Use an id from
+`list_targets()`, not an alias.

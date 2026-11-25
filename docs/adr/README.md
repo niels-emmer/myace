@@ -41,3 +41,4 @@ ADR-00XX`.
 | [0014](0014-public-pack-browsing.md) | Public read-only pack browsing (storefront allowlist) | Accepted |
 | [0015](0015-pack-reference-freeze.md) | Referenced packs freeze to a snapshot when unavailable | Accepted |
 | [0016](0016-companion-direct-apply.md) | Companion direct apply: preview-then-confirm local writes | Accepted |
+| [0018](0018-public-read-only-mcp-server.md) | A public, read-only MCP server for packs | Accepted |

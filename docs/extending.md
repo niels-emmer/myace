@@ -158,6 +158,29 @@ this project has used historically (ask in your PR if you're not sure
 where that lives for your change — see
 [`CONTRIBUTING.md`](../CONTRIBUTING.md)).
 
+## Adding an MCP tool
+
+The MCP server (`mcp/`) is a thin, read-only wrapper over the anonymous API,
+and it must stay that way — see AGENTS.md rule 43. To add a tool:
+
+1. **Does the data already exist anonymously?** If not, add a backend route
+   first, in the `/collections/community*` family or as a new documented
+   public read with `@storefront_limiter.limit(...)`. Never add a database
+   query, a visibility check, or compilation to the container.
+2. **Add the call to `mcp/backend.py`** as a typed method on `BackendClient`.
+   Go through `_get()` so the forwarded `Host` and `X-Forwarded-For` are
+   applied — bypassing it breaks production in ways the stubbed tests cannot
+   see (see [debugging.md](debugging.md#mcp-tool-calls-all-fail-with-400-invalid-host-header)).
+3. **Register it in `mcp/server.py`** with `@mcp.tool()` and a docstring that
+   states when to use it, what it returns, and any caveat (bodies are
+   publisher-authored; a wrong `target` writes the wrong layout).
+4. **Add a resource** only if a URI is a natural way to address the same data.
+   Templates are detected from `{param}` in the URI.
+5. **Record it in [mcp.md](mcp.md)'s tool table** and in the same PR's tests
+   (`mcp/tests/`, `httpx.MockTransport`, no Docker).
+6. **No writes, no counters, no credentials.** If the tool would change state,
+   it does not belong here.
+
 ## Adding a bulk/cross-resource operation
 
 Same as above, but explicitly: write a mental (or literal, in tests) table

@@ -531,15 +531,18 @@ not a verified metric. `category` is a free-text browse string, and
 `license` is an optional SPDX-style string (`String(64)`, no validation) set
 by the publish wizard before submission.
 
-The community read surface is **anonymous** (ADR-0014): `GET
+The community read surface is **anonymous** (ADR-0014, ADR-0018): `GET
 /collections/community`, `/community/top`, `/community/categories`,
-`/community/{id}` and `/community/{id}/artifacts` require no session. Detail
-and contents routes return only active + published + approved rows (404
-otherwise) and the contents route exposes enabled items only; all five are
-rate-limited per client IP by `storefront_limiter`. They serialize through
-`PublicCollectionRead`, not `CollectionRead`, so `git_url`/`git_branch`,
-`visibility`, and the moderation-workflow fields never reach an anonymous
-client. `download_count` remains
+`/community/{id}`, `/community/{id}/artifacts` and
+`/community/{id}/install.md` require no session, and so does `GET
+/api/v1/frameworks`. Detail, contents and install routes return only active +
+published + approved rows (404 otherwise), the contents route exposes enabled
+items only, and `/frameworks` lists only the adapter names an admin has left
+enabled. All seven are rate-limited per client IP by `storefront_limiter`. The
+listing/detail responses serialize through `PublicCollectionRead`, not
+`CollectionRead`, so `git_url`/`git_branch`, `visibility`, and the
+moderation-workflow fields never reach an anonymous client. `download_count`
+remains
 advisory — the storefront shows it as "used N times" and never offers a
 "Most used" sort or ranking.
 
