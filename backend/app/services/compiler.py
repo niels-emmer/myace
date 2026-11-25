@@ -83,7 +83,6 @@ async def compile_profile(
        warnings mechanism)
     5. Translate via the target adapter
     """
-    # Resolve collection IDs
     base_id = profile.base_collection_id
     additional_ids = [
         uuid.UUID(cid) for cid in json.loads(profile.additional_collection_ids)
@@ -91,19 +90,6 @@ async def compile_profile(
     disabled_ids = set(
         uuid.UUID(aid) for aid in json.loads(profile.disabled_artifact_ids)
     )
-
-    # Fetch all referenced collections. A collection that is missing,
-    # inactive, or unreadable by the requester is resolved through the
-    # profile's reference snapshot when one exists AND the requester is an
-    # allowed viewer (internal caller, profile owner, or admin); every other
-    # requester skips it with a `pack_unavailable` warning. See
-    # docs/adr/0015-pack-reference-freeze.md.
-    ordered_collection_ids = _unique_ids([base_id] + additional_ids)
-    snapshots = _parse_pack_snapshots(profile)
-    collection_map: dict[uuid.UUID, Collection] = {}
-    collection_by_id: dict[uuid.UUID, Collection] = {}
-    frozen_snapshots: dict[uuid.UUID, dict[str, object]] = {}
-    warnings: list[ValidationIssue] = []
 
     # Frozen content may only be served to the profile's owner, an admin, or
     # an internal caller with no identity. A third party compiling a public
@@ -115,6 +101,109 @@ async def compile_profile(
         or requesting_user.id == profile.owner_id
         or requesting_user.is_admin
     )
+
+    return await _compile_collections(
+        session,
+        collection_ids=_unique_ids([base_id] + additional_ids),
+        disabled_ids=disabled_ids,
+        snapshots=_parse_pack_snapshots(profile),
+        can_use_frozen=can_use_frozen,
+        profile_id=str(profile.id),
+        profile_name=profile.name,
+        target=target,
+        include_disabled=include_disabled,
+        requesting_user=requesting_user,
+    )
+
+
+async def compile_pack(
+    session: AsyncSession,
+    collection_ids: list[uuid.UUID],
+    target: str,
+    pack_name: str,
+) -> ProfileCompileResponse:
+    """Compile one or more packs *without* a saved setup.
+
+    Used by the anonymous pack-install route (`GET
+    /collections/community/{id}/install.md`, ADR-0018) and therefore by the
+    MyACE MCP server. Same compiler, same adapters, same warnings as a setup
+    compile — only the source of the collection ids differs.
+
+    Three deliberate choices:
+
+    - `can_use_frozen=False`. A pack compile has no `pack_snapshots` to serve,
+      and `True` would be the unsafe default if one ever appeared: ADR-0015
+      lets frozen content out only to a profile's owner, an admin, or an
+      internal caller, none of which describes an anonymous storefront fetch.
+    - `requesting_user=None`, which skips the per-collection read check. That
+      is safe **only** because every caller must resolve each collection
+      through the public-visibility predicate first — do not call this with an
+      arbitrary id from a request.
+    - `include_disabled=False`: public contents are the shipped set only,
+      matching `GET /community/{id}/artifacts`.
+
+    `collection_ids` is a list so a caller can compose an add-on with its base
+    pack; order matters (base first) because name dedup is order-sensitive
+    (AGENTS.md rule 29).
+    """
+    if not collection_ids:
+        raise ValueError("compile_pack() requires at least one collection id")
+
+    return await _compile_collections(
+        session,
+        collection_ids=_unique_ids(collection_ids),
+        disabled_ids=set(),
+        snapshots={},
+        can_use_frozen=False,
+        # `ProfileCompileResponse.profile_id` is required, so a pack compile
+        # carries the *pack* id there and says so via `PackCompileResponse`'s
+        # `subject`/`pack_id` discriminator. Never leave a random or blank id:
+        # a random one is indistinguishable from a real setup id.
+        profile_id=str(collection_ids[0]),
+        profile_name=pack_name,
+        target=target,
+        include_disabled=False,
+        requesting_user=None,
+    )
+
+
+async def _compile_collections(
+    session: AsyncSession,
+    *,
+    collection_ids: list[uuid.UUID],
+    disabled_ids: set[uuid.UUID],
+    snapshots: dict[str, dict[str, object]],
+    can_use_frozen: bool,
+    profile_id: str,
+    profile_name: str,
+    target: str,
+    include_disabled: bool,
+    requesting_user: User | None,
+) -> ProfileCompileResponse:
+    """Shared compile body for a setup (`compile_profile`) and a pack
+    (`compile_pack`).
+
+    Steps 2-5 of `compile_profile()`'s docstring live here: collect, sort,
+    dedup, warn, translate. The caller owns step 1 (resolving the ids) because
+    only it knows where they came from — and, critically, whether frozen
+    snapshots may be served. `can_use_frozen` is the ADR-0015 gate; never
+    re-derive it here and never default it to `True`.
+
+    `requesting_user=None` means "trusted internal caller" and skips the
+    per-collection read check, so a caller must have proven every id readable
+    before using it.
+    """
+    # Fetch all referenced collections. A collection that is missing,
+    # inactive, or unreadable by the requester is resolved through the
+    # profile's reference snapshot when one exists AND the requester is an
+    # allowed viewer (internal caller, profile owner, or admin); every other
+    # requester skips it with a `pack_unavailable` warning. See
+    # docs/adr/0015-pack-reference-freeze.md.
+    ordered_collection_ids = _unique_ids(collection_ids)
+    collection_map: dict[uuid.UUID, Collection] = {}
+    collection_by_id: dict[uuid.UUID, Collection] = {}
+    frozen_snapshots: dict[uuid.UUID, dict[str, object]] = {}
+    warnings: list[ValidationIssue] = []
 
     for cid in ordered_collection_ids:
         result = await session.execute(select(Collection).where(Collection.id == cid))
@@ -246,8 +335,8 @@ async def compile_profile(
     files = adapter.translate(all_artifacts)
 
     return ProfileCompileResponse(
-        profile_id=str(profile.id),
-        profile_name=profile.name,
+        profile_id=profile_id,
+        profile_name=profile_name,
         target=target,
         artifact_count=len(all_artifacts),
         files=files,

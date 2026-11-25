@@ -6,6 +6,7 @@ wins; otherwise the env var (`Settings`) default applies. This mirrors the
 existing enabled/disabled toggle precedence, extended to secrets.
 """
 
+import json
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,6 +36,20 @@ class SmtpConfig:
 async def _get_settings_row(session: AsyncSession) -> SystemSettings | None:
     result = await session.execute(select(SystemSettings).where(SystemSettings.id == 1))
     return result.scalar_one_or_none()
+
+
+async def get_disabled_adapter_names(session: AsyncSession) -> set[str]:
+    """Adapter names an admin has switched off in System Settings.
+
+    Shared by the authenticated adapter routes, the public pack-install
+    route's guidance document, and `GET /frameworks` so all three agree about
+    which targets are currently offered. A missing settings row means "none
+    disabled" — a fresh install has no row until the first settings write.
+    """
+    row = await _get_settings_row(session)
+    if row is None:
+        return set()
+    return set(json.loads(row.disabled_adapters))
 
 
 def _str_override(overrides: Overrides, key: str, db_value: str | None, env_value: str) -> str:

@@ -142,6 +142,26 @@ class ProfileCompileResponse(SQLModel):
     compiled_hash: str
 
 
+class PackCompileResponse(ProfileCompileResponse):
+    """The `?format=json` body of the anonymous pack-install route.
+
+    A *response schema only* — no table, no migration. It exists because
+    `ProfileCompileResponse.profile_id` is required and a pack compile has no
+    setup: the field carries the pack id (see `compiler.compile_pack`), and a
+    consumer that assumes setup semantics would call `/profiles/{id}` and get
+    a 404. `subject` is the discriminator that tells a client which id space it
+    is holding; branch on it, not on the field name.
+
+    The route must not declare `response_model=PackCompileResponse` — it
+    returns markdown, JSON and zip, so FastAPI must be told
+    `response_model=None` and the JSON branch built explicitly. A
+    `response_model` there would silently strip `subject`/`pack_id` while
+    still returning 200.
+    """
+    subject: Literal["pack"] = "pack"
+    pack_id: uuid.UUID
+
+
 class ProfileCompileStatusResponse(SQLModel):
     """Return type of `GET /profiles/{id}/compile-status` — a cheap-to-transfer
     hash + timestamp pair a client can diff against a previously stored
