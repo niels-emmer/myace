@@ -49,6 +49,11 @@ class NotFoundError(Exception):
     """The pack does not exist, or is not published/approved."""
 
 
+# What httpx accepts for `params=`. Named so `_get` does not take a bare
+# `object` (which would silently accept anything and fail at request time).
+QueryParams = dict[str, object] | list[tuple[str, object]] | None
+
+
 class BackendError(Exception):
     """The backend rejected the request; the message is showable to an agent."""
 
@@ -84,7 +89,7 @@ class BackendClient:
         await self._client.aclose()
 
     async def _get(
-        self, path: str, params: object | None = None
+        self, path: str, params: QueryParams = None
     ) -> httpx.Response:
         try:
             response = await self._client.get(path, params=params)

@@ -657,13 +657,12 @@ async def get_pack_install_document(
         return Response(status_code=304, headers=common_headers)
 
     limit = settings.pack_install_max_bytes
-    too_big = HTTPException(
-        status_code=413,
-        detail=(
-            "This pack is too large to return as a document; "
-            "retry with format=zip."
-        ),
-    )
+
+    def too_large(kind: str, hint: str) -> HTTPException:
+        return HTTPException(
+            status_code=413,
+            detail=f"This pack is too large to return as {kind}; {hint}",
+        )
 
     if format == "json":
         payload = PackCompileResponse(
@@ -678,13 +677,15 @@ async def get_pack_install_document(
         )
         body = json.dumps(payload.model_dump(mode="json")).encode()
         if len(body) > limit:
-            raise too_big
+            raise too_large("JSON", "retry with format=zip.")
         return Response(content=body, media_type="application/json", headers=common_headers)
 
     if format == "zip":
         raw = _install_zip_bytes(compiled)
         if len(raw) > limit:
-            raise too_big
+            # Not "use format=zip" — this *is* the zip. The only smaller option
+            # is compiling fewer packs.
+            raise too_large("a zip archive", "try compiling fewer packs with `with=`.")
         return Response(
             content=raw,
             media_type="application/zip",
@@ -699,7 +700,7 @@ async def get_pack_install_document(
 
     body = _install_files_document(collection, compiled, target).encode()
     if len(body) > limit:
-        raise too_big
+        raise too_large("a document", "retry with format=zip.")
     return Response(content=body, media_type="text/markdown; charset=utf-8", headers=common_headers)
 
 

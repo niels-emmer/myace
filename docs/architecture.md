@@ -49,8 +49,8 @@ flowchart LR
   (`compile_pack()`), see [ADR-0018](adr/0018-public-read-only-mcp-server.md)
   and [docs/mcp.md](mcp.md).
 
-None of the three talk to Postgres directly except the backend — the
-frontend and CLI only ever see the HTTP API.
+Only the backend talks to Postgres directly — the frontend, CLI and MCP
+server only ever see the HTTP API.
 
 ## Canonical IR
 

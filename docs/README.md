@@ -20,7 +20,7 @@ depth, it links here.
   + Bearer token), route groups, and working curl examples. The canonical
   machine-readable spec is served at `/openapi.json`; this file is the
   orientation layer on top of it.
-- **[architecture.md](architecture.md)** — the three components, how they
+- **[architecture.md](architecture.md)** — the components, how they
   talk to each other, the compilation pipeline, and the authentication
   model. Start here.
 - **[data-model.md](data-model.md)** — every table, its columns, and how

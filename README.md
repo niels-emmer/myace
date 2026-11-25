@@ -369,6 +369,12 @@ companion health check, setup audit, and per-framework sync report. Full command
 │       ├── scanner.py            # Local directory scanner
 │       └── adapters/             # Client-side translation fallbacks
 │
+├── mcp/                          # Read-only MCP server (optional, ADR-0018)
+│   ├── Dockerfile
+│   ├── server.py                 # 5 tools + 4 resources; Streamable HTTP at /mcp
+│   ├── backend.py                # Thin HTTP client for the anonymous API reads
+│   └── tests/                    # pytest against a stubbed backend
+│
 ├── scripts/                      # bootstrap-import (binary installer), docs→Wiki sync,
 │                                 #   README structure check
 └── .github/                      # Issue/PR templates, CI workflows, Dependabot config
