@@ -60,7 +60,18 @@ def _print_report(report: ReconcileReport, *, show_content: bool) -> None:
 
     changed = report.changed_packs
     if not changed:
-        print("Nothing to reconcile: every seeded pack matches its files.")
+        # Only claim a clean bill of health for packs that were actually
+        # compared. A wrong-but-existing root produces all-skipped, which is
+        # the same absence-of-files confusion the guards exist to prevent.
+        if report.skipped or report.missing_packs:
+            compared = len(report.packs)
+            print(f"Nothing to reconcile for the {compared} pack(s) with a source directory.")
+            if report.skipped:
+                print(f"{len(report.skipped)} pack(s) were skipped (no directory).")
+            if report.missing_packs:
+                print(f"{len(report.missing_packs)} pack(s) are not seeded yet.")
+        else:
+            print("Nothing to reconcile: every seeded pack matches its files.")
         return
 
     for pack in changed:
@@ -79,21 +90,31 @@ def _print_report(report: ReconcileReport, *, show_content: bool) -> None:
 
     structural = len(report.structural_packs)
     content_only = len(report.content_only_packs)
+    soft_deleted = sum(
+        len(pack.removed) + len(pack.duplicates_removed) for pack in report.structural_packs
+    )
 
     if report.applied:
-        print(
-            f"Applied changes to {structural} pack(s). "
-            "Stale items were soft-deleted, not removed."
-        )
+        if structural:
+            print(f"Applied changes to {structural} pack(s).")
+            if soft_deleted:
+                print(f"{soft_deleted} stale item(s) were soft-deleted, not removed.")
+        if content_only:
+            print(
+                f"{content_only} pack(s) have text changes that were not applied. "
+                "Re-run with --update-content to rewrite them."
+            )
+        if not structural and not content_only:
+            print("Nothing to apply.")
     else:
         print(f"Dry run: {len(changed)} pack(s) need changes, nothing was written.")
         if structural:
             print("Re-run with --apply to write them.")
-    if content_only and show_content:
-        print(
-            f"{content_only} pack(s) also have text changes on disk. "
-            "Add --update-content to rewrite those items."
-        )
+        if content_only:
+            print(
+                f"{content_only} pack(s) only have text changes; "
+                "add --update-content (with --apply) to rewrite them."
+            )
 
 
 async def main() -> None:

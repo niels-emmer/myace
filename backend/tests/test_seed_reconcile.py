@@ -9,7 +9,11 @@ from app.core.config import settings
 from app.models.artifact import Artifact
 from app.models.collection import Collection
 from app.services.seed_collections import seed_starter_collections
-from app.services.seed_reconcile import reconcile_seeded_collections
+from app.services.seed_reconcile import (
+    PackChange,
+    ReconcileReport,
+    reconcile_seeded_collections,
+)
 
 # backend/tests/test_seed_reconcile.py -> repo root is two parents up.
 REPO_COLLECTIONS_ROOT = Path(__file__).resolve().parents[2] / "collections"
@@ -350,3 +354,58 @@ def test_known_slugs_covers_both_registries() -> None:
 
     slugs = _known_slugs()
     assert {"editor", "dev-writing", "software-engineer", "eu-ai-act"} <= slugs
+
+
+def test_report_never_claims_clean_when_packs_were_skipped(capsys) -> None:
+    """All-skipped is what a wrong-but-existing root produces, not a clean run."""
+    from app.scripts.reconcile_seeded_collections import _print_report
+
+    report = ReconcileReport(applied=False, skipped=["seed://additional/editor"])
+    _print_report(report, show_content=True)
+
+    out = capsys.readouterr().out
+    assert "every seeded pack matches its files" not in out
+    assert "with a source directory" in out
+
+
+def test_report_never_claims_clean_when_packs_are_not_seeded(capsys) -> None:
+    from app.scripts.reconcile_seeded_collections import _print_report
+
+    report = ReconcileReport(applied=False, missing_packs=["seed://additional/editor"])
+    _print_report(report, show_content=True)
+
+    out = capsys.readouterr().out
+    assert "every seeded pack matches its files" not in out
+    assert "not seeded yet" in out
+
+
+def test_clean_report_still_says_so(capsys) -> None:
+    from app.scripts.reconcile_seeded_collections import _print_report
+
+    report = ReconcileReport(
+        applied=False, packs=[PackChange(name="Documentation Editor", seed_ref="seed://x")]
+    )
+    _print_report(report, show_content=True)
+
+    assert "every seeded pack matches its files" in capsys.readouterr().out
+
+
+def test_applied_content_only_report_does_not_claim_deletions(capsys) -> None:
+    """Nothing was deleted, so the trailer must not say anything was."""
+    from app.scripts.reconcile_seeded_collections import _print_report
+
+    report = ReconcileReport(
+        applied=True,
+        packs=[
+            PackChange(
+                name="Documentation Editor",
+                seed_ref="seed://additional/editor",
+                content_changed=["Documentation Standards"],
+            )
+        ],
+    )
+    _print_report(report, show_content=True)
+
+    out = capsys.readouterr().out
+    assert "soft-deleted" not in out
+    assert "--update-content" in out
