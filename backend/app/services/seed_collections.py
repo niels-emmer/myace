@@ -146,9 +146,20 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
             "name": "Documentation Editor",
             "category": "Documentation",
             "description": (
-                "For keeping documentation accurate to the code. Read-only specialist "
-                "that updates README, AGENTS/CLAUDE, and inline docs in the same "
-                "change set as the code they describe."
+                "For keeping documentation accurate to the code and worth following. "
+                "Read-only specialist that updates README, AGENTS/CLAUDE, and inline "
+                "docs in the same change set, writes docs an agent can execute, and "
+                "keeps every claim traceable to its source."
+            ),
+        },
+        "dev-writing": {
+            "name": "Developer Writing",
+            "category": "Documentation",
+            "description": (
+                "For the text developers publish under their own name. Review "
+                "comments and replies, PR descriptions, code comments, commit "
+                "subjects, and status messages, written in a plain conversational "
+                "voice without the tells that make text read as generated."
             ),
         },
         "fullstack": {
