@@ -17,23 +17,35 @@ Installing the files is something the agent proposes and the human approves.
 
 ## Connecting a client
 
-The transport is Streamable HTTP, so the connection is a URL. Most clients take
-a config object like this:
+The transport is Streamable HTTP, so the connection is a URL. Clients differ
+only in where the config lives.
+
+**Claude Code** — one command:
+
+```bash
+claude mcp add --transport http myace https://myace.example.com/mcp
+```
+
+Add `--scope user` to make it available in every project (the default is
+project-local). To commit it with a repo instead, put `.mcp.json` at the
+project root — Claude Code picks it up automatically, and everyone who checks
+out the repo gets the server with no setup:
 
 ```json
 {
   "mcpServers": {
-    "myace": {
-      "url": "https://myace.example.com/mcp"
-    }
+    "myace": { "type": "http", "url": "https://myace.example.com/mcp" }
   }
 }
 ```
 
-Claude Code has a CLI form of the same thing (`claude mcp add --transport http
-myace https://<host>/mcp`); the exact flags move between versions, so treat the
-config object above as the stable form. Cursor and other clients read an
-equivalent `mcpServers` block in their own config file.
+**Cursor and other clients** read an equivalent `mcpServers` block in their own
+config file. Copy the `url` form above; `type` is Claude Code's key, so drop it
+if a client rejects it.
+
+**Desktop clients** (including Claude Desktop) add remote servers through their
+own UI — Settings → Connectors → *Add custom connector* — rather than the
+`mcpServers` block, which historically accepted only local (stdio) servers.
 
 Stateless and JSON-responding: no session id, no sticky routing, nothing to
 warm up.
