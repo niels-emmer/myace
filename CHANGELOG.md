@@ -6,33 +6,99 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-11-25
+
+The MCP release: MyACE's public packs become usable by any coding agent, not
+just a browser session or the CLI. API and database changes are additive —
+no migrations, no removed routes, no changed response shapes.
+
 ### Added
 
 - **Read-only MCP server** (`mcp/`) — any MCP-capable coding agent can browse
   public packs, read an item's full text, and fetch a pack compiled for a
-  chosen framework, with no account and no CLI. Five tools and four resource
-  templates over Streamable HTTP at `/mcp`; opt-in via the `mcp` compose
-  profile. It has no database, no credentials and no write tool — installing
-  stays a human decision. See [ADR-0018](docs/adr/0018-public-read-only-mcp-server.md)
-  and [docs/mcp.md](docs/mcp.md).
+  chosen framework, with no account and no CLI. Five tools
+  (`search_packs`, `get_pack`, `get_item`, `list_targets`, `download_pack`)
+  and four resource templates over Streamable HTTP at `/mcp`; opt-in via the
+  `mcp` compose profile and proxied through the frontend's nginx. It has no
+  database, no credentials and no write tool — installing stays a human
+  decision. See [ADR-0018](docs/adr/0018-public-read-only-mcp-server.md) and
+  [docs/mcp.md](docs/mcp.md).
 - **Agent-fetchable pack install document** —
   `GET /api/v1/collections/community/{id}/install.md?target=…` returns a
   self-describing Markdown document (or `format=json`/`zip`) for a public
   pack, with an ETag and a 2 MiB cap. Hand the URL to any agent that cannot
-  speak MCP.
+  speak MCP. See [docs/plans/agent-install-url.md](docs/plans/agent-install-url.md).
 - **`GET /api/v1/frameworks`** — the public list of compile targets, so a
   typed client can offer a picker without the authenticated adapter route.
 - **`compile_pack()`** — pack-scoped compilation over the same
   `_compile_collections()` body `compile_profile()` uses, so a pack and a
   setup can never drift apart.
-- Optional `q` filter (name/description) on the anonymous community listing.
+- **Four public starter-pack add-ons** — Git Practices, Design & Scaffold,
+  Self-Hosted Deployment, and Enterprise AI Governance, seeded as public
+  starter packs (#213).
+- **Specialized add-ons as community packs** — EU AI Act, Scaleway, iOS and
+  Android now seed as community-contributed packs (`is_starter_pack=False`)
+  while staying published, approved and public (#214).
+- **`deploy-live-debug` skill** in the DevOps Engineer starter pack: a
+  fix-validate-deploy loop for a live host, with rollback guidance (#212).
+
+### Changed
+
+- Optional `q` filter (case-insensitive name/description) on the anonymous
+  community listing, so an agent can search server-side.
+- Seeding matches existing rows by their stable `seed://` ref and reconciles
+  the starter flag in place, so reclassified packs update instead of
+  duplicating (#214).
+- **Dependencies (frontend):** Tailwind CSS 3.4.19 → 4.3.5 (#191),
+  `@xyflow/react` 12.12.1 → 13.0.2, `@testing-library/jest-dom` 7.0.1 → 8.0.0,
+  `@tanstack/react-query` 5.108.0 → 5.108.1 (#219).
 
 ### Fixed
 
 - MCP tool calls present the public `Host` header, so a backend running
-  `TrustedHostMiddleware` no longer rejects them with `400 Invalid host
-  header`, and they forward the caller's IP so per-IP rate limits stay
-  per-client rather than collapsing into one shared bucket.
+  `TrustedHostMiddleware` no longer rejects every tool with `400 Invalid host
+  header`; they also forward the caller's IP so per-IP rate limits stay
+  per-client instead of collapsing into one shared bucket (#222).
+- MCP surfaces the install route's guidance document for an unknown or
+  aliased `target` instead of failing with a JSON decode error, and never
+  returns that Markdown as an archive. The compile-time size guard now names
+  the right remedy per format.
+- Pipelines diagrams draw their handoff connectors: `PipelineNode` had no
+  React Flow `<Handle>` pair, and React Flow silently drops edges whose
+  endpoint node exposes no handle (#220).
+- Pipeline setup metadata now renders on the pipeline detail (#220).
+- `deploy-live-debug` skill: explicit approval gate before any live-host
+  mutation, rollback via the last good tag instead of a detached HEAD,
+  consistent read-only prechecks (#215).
+
+### Documentation
+
+- [ADR-0018](docs/adr/0018-public-read-only-mcp-server.md) (public read-only
+  MCP server), [docs/mcp.md](docs/mcp.md) (agent/operator guide), and
+  [docs/plans/mcp-server.md](docs/plans/mcp-server.md) (implementation record).
+- Public-route counts corrected across `README.md`, `SECURITY.md`,
+  `docs/architecture.md`, `docs/invariants.md` and `docs/data-model.md` as
+  the anonymous surface grew from five routes to seven; ADR-0014 carries an
+  amendment note rather than rewritten history (#223).
+- `docs/debugging.md` gains the two production-only MCP gotchas (internal
+  `Host` header, guidance-vs-JSON), and `docs/extending.md` gains an
+  "Adding an MCP tool" guide (#223).
+- `docs/mcp.md` added to the wiki page map, so it publishes with the rest of
+  `docs/` (#223).
+- Stale claims corrected across the root docs after 2.0.0 (#210).
+
+### Security
+
+- The new pack install document compiles a pack for unauthenticated callers,
+  so its safety does not rest on the visibility predicate alone:
+  `compile_pack()` hard-codes `can_use_frozen=False` (never serves a snapshot
+  of an unpublished pack), only enabled items are compiled, and no read route
+  moves `download_count`. `GET /frameworks` compiles nothing — it only lists
+  the adapter names an admin has enabled. Both are covered by
+  `storefront_rate_limit`.
+- The MCP container is non-root, binds no host port, holds no database
+  credential, and enables DNS-rebinding protection (`MCP_ALLOWED_HOSTS`),
+  failing closed with `421` rather than open.
 
 ## [2.0.0] — 2026-11-22
 
