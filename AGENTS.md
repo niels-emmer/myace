@@ -1528,7 +1528,11 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `POST /collections/{id}/use` does (invariant 25). No MCP-side rate limiter
   or size cap exists either — the backend routes it calls already enforce
   `storefront_rate_limit` and `pack_install_max_bytes`, and a second knob with
-  no distinct effect is config debt.
+  no distinct effect is config debt. **The inbound caller's IP must keep being
+  forwarded** as `X-Forwarded-For` (`ClientIPMiddleware` →
+  `BackendClient._forwarded_headers()`): every tool call leaves one container,
+  so dropping the header silently collapses every client into a single
+  rate-limit bucket.
 - Tests (`mcp/tests/`) stub the backend with `httpx.MockTransport` — no
   Docker, no network, no database. Keep them that way so CI stays fast and a
   failing MCP test always means the wrapper changed, not the environment.

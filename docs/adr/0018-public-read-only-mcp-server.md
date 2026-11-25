@@ -87,9 +87,13 @@ sense.
   read (invariant 25), so MCP installs are invisible in the counter.
 - **Anonymous, unaccountable load.** Limits are per-IP and in-memory
   (`storefront_rate_limit`, per-process), so the real ceiling is per-replica.
-  The MCP adds no limiter of its own: every tool call goes through a backend
-  route that already has one, and a second knob would be config without a
-  distinct effect.
+  The MCP adds no limiter of its own — every tool call goes through a backend
+  route that already has one — but it **forwards the inbound caller's IP** as
+  `X-Forwarded-For` on those calls. Without that, all MCP traffic would arrive
+  from the container's single address and share one bucket, letting one busy
+  agent throttle every other client. The forwarding is trustworthy because of
+  the hop chain (`--forwarded-allow-ips` private ranges on both servers), not
+  because the header is unspoofable in general.
 - **No CORS.** A browser-based MCP client would need it; this is not enabled.
   Server-to-server and desktop agents are the target, and a wildcard CORS header
   must never be added as a shortcut.

@@ -12,6 +12,7 @@ its own to get wrong.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from urllib.parse import urlencode
 
 import httpx
@@ -77,6 +78,7 @@ class BackendClient:
         site_url: str = "",
         timeout: float = 30.0,
         transport: httpx.AsyncBaseTransport | None = None,
+        client_ip: Callable[[], str | None] | None = None,
     ) -> None:
         self._client = httpx.AsyncClient(
             base_url=base_url.rstrip("/"), timeout=timeout, transport=transport
@@ -84,6 +86,9 @@ class BackendClient:
         # Public site origin, used only to build links a human can open. The
         # backend URL is an internal Docker address, never a usable link.
         self.site_url = site_url.rstrip("/")
+        # Resolves the *inbound* caller's address for the current request. See
+        # `_forwarded_headers()` for why this matters to the backend's limits.
+        self._client_ip = client_ip
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -92,7 +97,9 @@ class BackendClient:
         self, path: str, params: QueryParams = None
     ) -> httpx.Response:
         try:
-            response = await self._client.get(path, params=params)
+            response = await self._client.get(
+                path, params=params, headers=self._forwarded_headers()
+            )
         except httpx.HTTPError as exc:  # pragma: no cover - network failure path
             raise BackendError(
                 f"Could not reach the MyACE backend ({type(exc).__name__})."
@@ -115,6 +122,27 @@ class BackendClient:
                 _detail(response, f"MyACE backend returned HTTP {response.status_code}.")
             )
         return response
+
+    def _forwarded_headers(self) -> dict[str, str]:
+        """Forward the inbound caller's IP so backend limits stay per-client.
+
+        Every tool call leaves this container from one private address. Without
+        this header the backend's `storefront_limiter` keys all MCP traffic on
+        that single address — one shared `120/minute` bucket — so one busy
+        agent would throttle every other MCP client, while browser traffic kept
+        its own keys.
+
+        Trustworthy because of the hop chain, not because the header is
+        hard to forge: nginx appends the real peer to `X-Forwarded-For`, uvicorn
+        is started with the private ranges in `--forwarded-allow-ips`
+        (Dockerfile), so `scope["client"]` here is already the resolved client,
+        and the backend (same flags) re-validates this header the same way.
+        If no caller IP can be resolved, send nothing rather than a guess.
+        """
+        if self._client_ip is None:
+            return {}
+        ip = self._client_ip()
+        return {"X-Forwarded-For": ip} if ip else {}
 
     # ── reads ────────────────────────────────────────────────────────────
 

@@ -117,6 +117,8 @@ Two settings matter in production:
 | Tool returns "No such pack" | Not published, not approved, or inactive — check `/packs/:id` as a signed-out visitor |
 | `list_targets` lacks a framework | An administrator disabled that adapter |
 | Download is 400 "disabled by an administrator" | Same thing, from the compile route |
+| Download returns the target list instead of files | The `target` is unrecognised (typo, stale link, or an alias like `claude`); use an id from `list_targets` |
+| `"Rate limited by MyACE"` | More than 120 requests in a minute from one caller IP. The backend's storefront limit is per client IP, and the MCP forwards the caller's address, so one busy agent does not consume anyone else's budget — but a single agent looping will hit its own ceiling. Retry after a minute. |
 | Very large pack | `format=md`/`json` capped at 2 MiB; fetch the zip resource |
 
 ## For maintainers

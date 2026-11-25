@@ -214,3 +214,37 @@ async def test_valid_json_roundtrip_of_pack_summary() -> None:
     client = make_client(lambda request: httpx.Response(200, json={}))
 
     assert json.loads(json.dumps(client._pack_summary(_pack())))["name"] == "Software Engineer"
+
+
+async def test_client_ip_is_forwarded_to_the_backend() -> None:
+    """Backend limits are per client IP; every call leaves one container IP."""
+    seen: dict[str, str | None] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["xff"] = request.headers.get("x-forwarded-for")
+        return httpx.Response(200, json={"items": [], "total": 0})
+
+    client = BackendClient(
+        BASE,
+        site_url=SITE,
+        transport=httpx.MockTransport(handler),
+        client_ip=lambda: "203.0.113.9",
+    )
+    await client.search_packs()
+
+    assert seen["xff"] == "203.0.113.9"
+
+
+async def test_no_forwarded_header_when_caller_ip_is_unknown() -> None:
+    seen: dict[str, str | None] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["xff"] = request.headers.get("x-forwarded-for")
+        return httpx.Response(200, json={"items": [], "total": 0})
+
+    client = BackendClient(
+        BASE, transport=httpx.MockTransport(handler), client_ip=lambda: None
+    )
+    await client.search_packs()
+
+    assert seen["xff"] is None

@@ -66,8 +66,11 @@ Four, all deliberate:
    (`mcp.server.mcpserver.MCPServer`); pinning `<2` to keep the old name would
    trade a real dependency for a stale one.
 2. **No MCP-side rate limiter or response cap.** Every tool call hits a backend
-   route that already has `storefront_rate_limit` and the 2 MiB cap. A second
-   knob with no distinct effect is configuration debt, not safety.
+   route that already has `storefront_rate_limit` and the 2 MiB cap, so a
+   second knob would have no distinct effect. The container does forward the
+   inbound caller's IP (`X-Forwarded-For`) on those calls — without it the
+   backend would see one address for the whole MCP surface and share a single
+   per-minute bucket across every client.
 3. **The zip resource is `…/files/{target}`, not `…/files/{target}.zip`.**
    A literal suffix after a URI-template variable is unnecessary risk in the
    template matcher; the MIME type already says it is a zip.

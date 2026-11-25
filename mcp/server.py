@@ -11,12 +11,14 @@ See docs/adr/0018-public-read-only-mcp-server.md and docs/mcp.md.
 import json
 import os
 from collections.abc import Awaitable, Callable
+from contextvars import ContextVar
 from typing import Literal, TypeVar
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from backend import BackendClient, BackendError, NotFoundError
 
@@ -58,6 +60,34 @@ mcp: MCPServer = MCPServer(
 
 _backend: BackendClient | None = None
 
+# The inbound caller's resolved IP, per request. Tools have no access to the
+# Starlette request, so the transport middleware parks it here and the backend
+# client reads it when it builds the outbound `X-Forwarded-For`.
+inbound_client_ip: ContextVar[str | None] = ContextVar("inbound_client_ip", default=None)
+
+
+class ClientIPMiddleware:
+    """Record the inbound caller's IP for the duration of one ASGI request.
+
+    Without this, every backend call would arrive from this container's single
+    address and the backend would rate-limit the whole MCP surface as one
+    client. See `BackendClient._forwarded_headers()`.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        client = scope.get("client")
+        token = inbound_client_ip.set(client[0] if client else None)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            inbound_client_ip.reset(token)
+
 
 def client() -> BackendClient:
     """Process-wide backend client (lazily built so tests can swap it)."""
@@ -66,6 +96,7 @@ def client() -> BackendClient:
         _backend = BackendClient(
             base_url=os.environ.get("MCP_BACKEND_URL", "http://backend:8000"),
             site_url=os.environ.get("MCP_SITE_URL", ""),
+            client_ip=lambda: inbound_client_ip.get(),
         )
     return _backend
 
@@ -330,15 +361,17 @@ def build_app():
             "MCP_ALLOWED_ORIGINS", "http://localhost:*,http://127.0.0.1:*"
         ),
     )
-    return mcp.streamable_http_app(
-        streamable_http_path="/mcp",
-        # Stateless + JSON: no session store, no sticky routing, and no SSE
-        # chunking to get wrong in nginx. Every tool call is a plain
-        # request/response.
-        stateless_http=True,
-        json_response=True,
-        transport_security=security,
-        host=os.environ.get("MCP_BIND_HOST", "0.0.0.0"),
+    return ClientIPMiddleware(
+        mcp.streamable_http_app(
+            streamable_http_path="/mcp",
+            # Stateless + JSON: no session store, no sticky routing, and no SSE
+            # chunking to get wrong in nginx. Every tool call is a plain
+            # request/response.
+            stateless_http=True,
+            json_response=True,
+            transport_security=security,
+            host=os.environ.get("MCP_BIND_HOST", "0.0.0.0"),
+        )
     )
 
 

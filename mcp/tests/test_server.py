@@ -267,3 +267,28 @@ async def test_health_route_exists_without_touching_the_backend() -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+async def test_client_ip_middleware_records_and_resets() -> None:
+    """The inbound IP must be visible to the outbound call, then cleared."""
+    seen: dict[str, str | None] = {}
+
+    async def inner(scope, receive, send) -> None:
+        seen["ip"] = server.inbound_client_ip.get()
+
+    middleware = server.ClientIPMiddleware(inner)
+    await middleware({"type": "http", "client": ("203.0.113.9", 5555)}, None, None)
+
+    assert seen["ip"] == "203.0.113.9"
+    assert server.inbound_client_ip.get() is None
+
+
+async def test_client_ip_middleware_tolerates_a_missing_client() -> None:
+    seen: dict[str, str | None] = {}
+
+    async def inner(scope, receive, send) -> None:
+        seen["ip"] = server.inbound_client_ip.get()
+
+    await server.ClientIPMiddleware(inner)({"type": "http"}, None, None)
+
+    assert seen["ip"] is None
