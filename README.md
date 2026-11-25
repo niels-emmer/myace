@@ -308,6 +308,29 @@ a pack, use
 companion health check, setup audit, and per-framework sync report. Full command reference:
 [docs/cli.md](docs/cli.md).
 
+### Point your agent at MyACE (MCP)
+
+MyACE serves its public packs over the
+[Model Context Protocol](https://modelcontextprotocol.io), so a coding agent
+can browse and read them itself. It is anonymous and read-only: the agent
+fetches, you decide what gets written.
+
+```bash
+claude mcp add --transport http myace https://myace.macjuu.com/mcp   # or your own host
+```
+
+Then ask in plain language — the agent picks the tools:
+
+| You say | What happens |
+|---|---|
+| "Using myace, find security-auditor related assets." | `search_packs(query="security")` → 7 packs, including **Security Auditor** (13 items) |
+| "What's in that pack? Read the `security-auditor` agent." | `get_pack` for the item index, then `get_item` for the full text |
+| "Download it for Cursor, paired with Software Engineer." | `list_targets`, then `download_pack` — it shows the file list and asks before overwriting |
+
+Public, approved packs only; no account or token. Per-client config
+(including a project-scoped `.mcp.json`), the full tool reference and
+troubleshooting are in [docs/mcp.md](docs/mcp.md).
+
 ## Project Structure
 
 ```
