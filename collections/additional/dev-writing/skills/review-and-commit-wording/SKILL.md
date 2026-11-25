@@ -1,6 +1,6 @@
 ---
 name: Review And Commit Wording
-description: Genre shapes for developer text a person signs their name to — reviewer comments, author replies, reporting back after a check, code comments, and commit subjects — with the wording each one needs.
+description: Genre shapes for developer text a person signs their name to (reviewer comments, author replies, reporting back after a check, code comments, and commit subjects), with the wording each one needs.
 version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
@@ -9,7 +9,7 @@ tags: [writing, review, commits, comments, communication]
 
 ## Purpose
 
-Each of these genres is short, and each fails in its own way: a review comment that diagnoses before it asks, a commit subject that describes the diff instead of the change, a code comment that explains what a reader can already see. This skill gives the shape of each. The voice itself — bans on dashes, stock vocabulary, closers — lives in the developer-voice skill; where a project's own rules on what to say conflict with a shape here, the project's rules win.
+Each of these genres is short, and each fails in its own way: a review comment that diagnoses before it asks, a commit subject that describes the diff instead of the change, a code comment that explains what a reader can already see. This skill gives the shape of each. The voice itself, meaning the bans on dashes, stock vocabulary and closers, lives in the developer-voice skill; where a project's own rules on what to say conflict with a shape here, the project's rules win.
 
 For the mechanical format of a commit or PR (types, scopes, length limits), use the project's commit and PR conventions. This skill covers the wording only.
 
