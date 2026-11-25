@@ -11,12 +11,13 @@ COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY security-headers.conf /etc/nginx/security-headers.conf
 
-# Run as the unprivileged `nginx` user (L-15). The container still has to
-# bind port 80 — docker-compose maps 80:80 and the prod reverse proxy
-# targets frontend:80 — and a non-root process can only bind a privileged
-# port with CAP_NET_BIND_SERVICE. Grant exactly that one capability to the
-# nginx binary (rather than running the whole master process as root) and
-# hand the two runtime-writable paths to the user. `user nginx;` in the
+# Run as the unprivileged `nginx` user (L-15). The container binds two
+# privileged ports: 80 (docker-compose maps 80:80 and the prod reverse proxy
+# targets frontend:80) and 81 on loopback only, the helper behind the public
+# /mcp/health probe (see nginx.conf). A non-root process can only bind a
+# privileged port with CAP_NET_BIND_SERVICE. Grant exactly that one capability
+# to the nginx binary (rather than running the whole master process as root)
+# and hand the two runtime-writable paths to the user. `user nginx;` in the
 # base image's nginx.conf becomes a harmless "ignored" warning once the
 # master is unprivileged.
 RUN apk add --no-cache libcap \

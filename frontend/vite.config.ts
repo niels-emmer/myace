@@ -29,6 +29,21 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
+      // Mirrors frontend/nginx.conf: the landing page's probe path maps onto
+      // the MCP container's own /health, and /mcp is the endpoint itself.
+      // Both only answer if the MCP server runs on the host (`uvicorn
+      // server:app --port 8001` from mcp/); the dev compose stack does not
+      // publish its port. Without it the section stays hidden, exactly as on
+      // a deployment without the `mcp` profile.
+      '/mcp/health': {
+        target: 'http://localhost:8001',
+        changeOrigin: true,
+        rewrite: () => '/health',
+      },
+      '/mcp': {
+        target: 'http://localhost:8001',
+        changeOrigin: true,
+      },
     },
   },
   test: {

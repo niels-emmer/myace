@@ -133,8 +133,10 @@ model.
 - **Agent access over MCP** — a read-only MCP endpoint at `/mcp` lets any
   MCP-capable coding agent browse public packs, read an item's full text, and
   fetch a pack compiled for a chosen framework — no account, no CLI. It cannot
-  write, so the human still approves every install. See
-  [docs/mcp.md](docs/mcp.md).
+  write, so the human still approves every install. `/welcome` advertises the
+  endpoint to signed-out visitors — copyable, with the `claude mcp add`
+  one-liner — and checks `/mcp/health` first so a deployment without the
+  `mcp` profile never shows a dead URL. See [docs/mcp.md](docs/mcp.md).
 
 ### Orchestrate
 

@@ -180,9 +180,12 @@ Two `.env` values matter:
 
 No reverse-proxy change is needed: the frontend's nginx already owns `/mcp`
 (`location /mcp` in `frontend/nginx.conf`) and an nginx-proxy-manager host that
-forwards every path for the domain to `frontend:80` needs no new rule. Verify
-after enabling with a real handshake rather than a `curl /mcp` GET, which may
-answer `405`:
+forwards every path for the domain to `frontend:80` needs no new rule. The
+same file also maps the exact path `/mcp/health` — through a loopback-only
+helper server whose log is discarded — to the container's liveness route, which
+the signed-out landing page uses to decide whether to advertise the endpoint at
+all. Verify after enabling with a real handshake rather than a `curl /mcp` GET,
+which may answer `405`:
 
 ```bash
 curl -sS https://<host>/mcp \
@@ -199,10 +202,12 @@ means the profile is not running.
 Both images run as a non-root user, so a compromise inside a container is
 not root: the backend runs as `app` (uid 10001), and the frontend's nginx
 runs as the upstream `nginx` user (uid 101), with only
-`CAP_NET_BIND_SERVICE` granted to the nginx *binary* — enough to bind port
-80, nothing more. If you add a volume the app must write to, make it
-writable by that uid; the paths the app already writes to (`/tmp`, and in
-prod nothing else) work as shipped.
+`CAP_NET_BIND_SERVICE` granted to the nginx *binary* — enough to bind its two
+privileged listeners, port 80 and the loopback-only port 81 that serves the
+`/mcp/health` probe (see [mcp.md](mcp.md#operational-notes)), and nothing
+more. If you add a volume the app must write to, make it writable by that
+uid; the paths the app already writes to (`/tmp`, and in prod nothing else)
+work as shipped.
 
 ## Request body size limits
 
