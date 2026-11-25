@@ -27,10 +27,10 @@ lock-in.
 A live instance runs at **[myace.macjuu.com](https://myace.macjuu.com)** —
 sign up and build your first setup in minutes, no setup required.
 
-MyACE ships with **23 starter packs** (4 starting points + 19 add-ons)
-plus **4 community-contributed add-ons**, holding **311 items** — 144 rules,
-97 skills, 51 agents, 18 workflows, and 1 model config — across
-**8 categories** and **166 tags**, and installs
+MyACE ships with **24 starter packs** (4 starting points + 20 add-ons)
+plus **4 community-contributed add-ons**, holding **320 items** — 149 rules,
+101 skills, 51 agents, 18 workflows, and 1 model config — across
+**8 categories** and **173 tags**, and installs
 to **12 target frameworks** (Claude Code, OpenCode, Cursor, Codex CLI,
 Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q Developer,
 and pi.dev). You can start from scratch and build your own rules, import
@@ -184,10 +184,11 @@ model.
   soft signal; it is not a ranking (the counter is user-incrementable).
 - **Packs out of the box** — every fresh install seeds itself with 4
   starting-point packs (Vibecoder, Software Engineer, Data Scientist, DevOps
-  Engineer) and 19 add-ons (Frontend, Backend, Database, QA/Test Engineer,
+  Engineer) and 20 add-ons (Frontend, Backend, Database, QA/Test Engineer,
   Infrastructure as Code Expert, Azure, AWS, Google Cloud, Security Auditor,
-  Documentation Editor, Full-Stack Developer, DevOps/Platform Engineer,
-  Java/Spring Developer, Spec-Driven Development, AI/LLM Engineering, Git
+  Documentation Editor, Developer Writing, Full-Stack Developer,
+  DevOps/Platform Engineer, Java/Spring Developer, Spec-Driven Development,
+  AI/LLM Engineering, Git
   Practices, Design & Scaffold, Self-Hosted Deployment, Enterprise AI
   Governance), so there's real, opinionated content to build a first setup
   from on day one. Four highly-specialized add-ons (Scaleway Cloud Architect,
@@ -522,6 +523,17 @@ copied verbatim into the artifacts themselves:
   [wshobson/agents](https://github.com/wshobson/agents) (MIT) and
   [VoltAgent/awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents)
   (MIT) against this repo's existing agent/skill lineup.
+- The `editor` collection's `writing-for-agent-readers` skill is an
+  adaptation of the `writing-for-agents` skill and article by
+  [Matt Pocock](https://www.aihero.dev/skills-writing-for-agents)
+  ([mattpocock/skills](https://github.com/mattpocock/skills), MIT).
+- The `editor` collection's `editorial-restraint` skill and the whole
+  `dev-writing` collection draw on
+  [eai-org/agent-toolkit](https://github.com/eai-org/agent-toolkit)'s
+  `use-conversational-language` skill (MIT) and on
+  [betaHi/write-like-human](https://github.com/betaHi/write-like-human).
+  That last repository publishes no license, so its rules were re-expressed
+  in this repo's own wording rather than copied.
 
 Logo: <a href="https://www.flaticon.com/free-icons/layers" title="layers icons">Layers icons created by Good Ware - Flaticon</a>.
 

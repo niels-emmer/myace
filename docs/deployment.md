@@ -295,3 +295,51 @@ Two deployment-relevant points:
 
 Database backups (retention, restore procedure, offsite copy guidance) are
 covered separately in [backups.md](backups.md).
+
+## Reconciling seeded packs after a content change
+
+The boot-time seed never re-reads a pack it has already imported (AGENTS.md
+rule 25), so an edit to an existing pack — a rename, an added skill, a
+corrected body — reaches a fresh install and nothing else. Restarting does
+not help. On an already-seeded deployment, run the reconcile command from the
+backend container:
+
+```bash
+# 1. See what differs. Writes nothing.
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+  exec -T backend python -m app.scripts.reconcile_seeded_collections
+
+# 2. Apply the structural changes: add what the files have, soft-delete what
+#    they dropped, collapse duplicate names, recompute artifact counts.
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+  exec -T backend python -m app.scripts.reconcile_seeded_collections --apply
+
+# 3. Optional: also rewrite the text of items that exist on both sides but
+#    changed on disk. This overwrites any in-app edit to a seeded item.
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+  exec -T backend python -m app.scripts.reconcile_seeded_collections \
+  --apply --update-content
+```
+
+Add `--only <slug>` (e.g. `--only editor`) to restrict a run to one pack. It
+only ever looks at `seed://` collections, so packs you built yourself are
+untouched. Stale items are soft-deleted, never removed, so a backup plus the
+row's `deleted_at` is enough to undo a run. Take a dump first per
+[backups.md](backups.md) if the deployment matters.
+
+Two things it refuses to guess about, because for this command a missing
+directory would otherwise look like "every item was deleted":
+
+- a missing or wrong `collections_root` (the default `/app/collections` only
+  exists inside the container) prints an error and exits non-zero without
+  touching anything;
+- a registry pack whose own directory is missing is listed as skipped, and its
+  rows are left alone.
+
+It reconciles artifacts only. A changed pack `name`, `description`, or
+`category` in the registry still will not reach an existing row.
+
+It is deliberately manual: making it part of startup would let every restart
+rewrite seeded content, which is exactly the guarantee the seed's
+idempotency provides.
+

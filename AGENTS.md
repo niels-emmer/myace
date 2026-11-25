@@ -703,6 +703,15 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `packSource()` calls it Community and the Home/landing highlights can
   show it — add it to `COMMUNITY_CONTRIBUTED_COLLECTIONS` instead. Never
   list the same slug in both maps.
+- Third-party writing material used as a source for pack content is credited
+  in `README.md`'s Acknowledgements section, not copied wholesale into the
+  artifacts. State what each source contributed and its license. A source
+  that ships no license (or a non-permissive one) is re-expressed in this
+  repo's own wording — the ideas are fine to use, the text is not — and the
+  Acknowledgements entry says so explicitly. Adding pack content also means
+  updating the item/rule/skill/agent/workflow counts near the top of
+  `README.md` and the add-on list under "Packs out of the box"; seed the real
+  numbers with the backend seeder rather than estimating them.
 - **Seeding is idempotent by the stable `seed://<collection_type>/<slug>`
   `git_url`, not by name.** An existing row is skipped for *content*, but
   its `is_starter_pack` flag is reconciled to whichever map currently
@@ -718,11 +727,25 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `orchestrator.md`, an added `handoff_to:` field, or any other
   in-place edit to that collection's source files — only a *new*
   collection (new slug/name) is ever picked up automatically. On an
-  existing deployment, an in-place content change needs a manual fix
-  (re-run seeding against a DB where that starter collection's rows have
-  been deleted first, or hand-edit the affected artifact rows directly)
-  — this is a known, unaddressed gap in the seeding mechanism itself, not
-  something to work around ad hoc per content change. See
+  existing deployment, an in-place content change is applied with the
+  reconcile command — a dry run by default, `--apply` to write, and
+  `--update-content` to also rewrite items whose text changed:
+  `python -m app.scripts.reconcile_seeded_collections` (see
+  [deployment.md](docs/deployment.md#reconciling-seeded-packs-after-a-content-change)).
+  It adds what the files have, soft-deletes what they dropped, collapses
+  same-named duplicates, recomputes `artifact_count`, and ignores every
+  non-`seed://` collection. The logic is `reconcile_seeded_collections()` in
+  `app/services/seed_reconcile.py`, and it builds rows through the same
+  `artifact_from_scanned()` helper the seed uses, so a reconciled pack has
+  the exact shape a freshly seeded one does. Never make it run on boot: a
+  restart must not rewrite seeded content. Open a backup first if the
+  deployment matters. It reconciles **artifacts only** — a changed pack
+  `name`, `description`, or `category` in the registry still does not reach
+  an existing row, so treat those as fresh-install-only unless you edit the
+  row by hand. Two guards mirror the seed, because absence of files must
+  never read as "every item was deleted": a missing `collections_root`
+  returns an empty report (the CLI exits non-zero) and a missing pack
+  directory is reported as skipped. See
   [debugging.md](docs/debugging.md#my-starter-pack-content-edit-isnt-showing-up-on-an-existing-deployment)
   for the concrete symptom/fix.
 

@@ -388,13 +388,22 @@ NEW_ADDON_PACKS: dict[str, set[str]] = {
         "Keep A Zero-Egress Path",
         "Attribute AI-Authored Changes",
     },
+    "Developer Writing": {
+        "Developer Voice",
+        "Review And Commit Wording",
+        "Write The Way A Person Types",
+        "No Dashes And No Forced Contrast",
+        "Stop At The Last Point",
+        "Name Things The Way People Do",
+        "Never Invent An Event",
+    },
 }
 
 
 async def test_new_addon_packs_seed_their_artifacts(
     db_session: AsyncSession, monkeypatch
 ) -> None:
-    """The four newer add-on packs seed with exactly the expected artifact names.
+    """The newer add-on packs seed with exactly the expected artifact names.
 
     Guards the public starter-pack contract from rule 42's vocabulary pass and
     rule 29's naming discipline: a renamed skill or moved file would change the
@@ -426,7 +435,7 @@ async def test_new_addon_packs_seed_their_artifacts(
 async def test_new_addons_compile_clean_together_on_software_engineer(
     async_client: AsyncClient, db_session: AsyncSession, monkeypatch
 ) -> None:
-    """Software Engineer + all four new add-ons in one profile must compile with
+    """Software Engineer + every newer add-on in one profile must compile with
     zero `name_collision` and zero `dangling_handoff` warnings.
 
     This is the exact composition the add-ons are designed to layer onto, and
