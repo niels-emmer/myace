@@ -17,6 +17,7 @@ multi-replica startups never create duplicates.
 import json
 import logging
 from pathlib import Path
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -361,6 +362,31 @@ def _scan_seeded_collection(collection_dir: Path) -> list[dict]:
     return artifacts
 
 
+def artifact_from_scanned(collection_id: UUID, item: dict) -> Artifact:
+    """Build an Artifact row from one dict returned by `_scan_seeded_collection()`.
+
+    Shared by the initial seed and by `seed_reconcile`, so a re-imported pack
+    produces exactly the row shape the first import did. The JSON-text columns
+    (`target_compatibility`, `tags`, `handoff_to`) and their `NULL` vs `"[]"`
+    distinction are the easy thing to get wrong twice (AGENTS.md rule 34).
+    """
+    return Artifact(
+        collection_id=collection_id,
+        artifact_type=item["artifact_type"],
+        name=item["name"],
+        version=item.get("version", "1.0.0"),
+        priority=item.get("priority", 50),
+        target_compatibility=json.dumps(item.get("target_compatibility", [])),
+        tags=json.dumps(item.get("tags", [])),
+        description=item.get("description", ""),
+        body=item.get("body", ""),
+        file_path=item.get("file_path", ""),
+        handoff_to=(
+            json.dumps(item["handoff_to"]) if item.get("handoff_to") is not None else None
+        ),
+    )
+
+
 async def get_or_create_system_user(session: AsyncSession) -> User:
     """Idempotently fetch (or create) the owner account for starter-pack content.
 
@@ -469,25 +495,7 @@ async def seed_starter_collections(session: AsyncSession) -> None:
                 await session.refresh(collection)
 
                 for item in scanned:
-                    session.add(
-                        Artifact(
-                            collection_id=collection.id,
-                            artifact_type=item["artifact_type"],
-                            name=item["name"],
-                            version=item.get("version", "1.0.0"),
-                            priority=item.get("priority", 50),
-                            target_compatibility=json.dumps(item.get("target_compatibility", [])),
-                            tags=json.dumps(item.get("tags", [])),
-                            description=item.get("description", ""),
-                            body=item.get("body", ""),
-                            file_path=item.get("file_path", ""),
-                            handoff_to=(
-                                json.dumps(item["handoff_to"])
-                                if item.get("handoff_to") is not None
-                                else None
-                            ),
-                        )
-                    )
+                    session.add(artifact_from_scanned(collection.id, item))
 
                 await session.commit()
                 logger.info(

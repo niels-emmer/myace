@@ -624,17 +624,34 @@ keys off of already exists from the previous seed. (The `is_starter_pack`
 flag itself *is* reconciled on each boot, so moving a slug between those
 two maps reclassifies it in place.)
 
-**Fix:** there is no automatic content-propagation path today — this is a
-known gap in the seeding mechanism, not a bug to patch around per edit. On
-an already-seeded deployment, either:
+**Fix:** run the reconcile command from the backend container:
 
-1. Delete the affected seeded pack's row (and its artifacts — respect the
-   `seed://` system-owner filter so you don't touch user data) from the
-   database and restart the backend so
-   `seed_starter_collections()` re-imports it fresh, or
-2. Hand-edit the specific artifact row(s) directly (e.g. a one-off `UPDATE
-   artifacts SET handoff_to = '...' WHERE ...`) if a full reseed isn't
-   practical.
+```bash
+docker compose exec -T backend python -m app.scripts.reconcile_seeded_collections
+docker compose exec -T backend python -m app.scripts.reconcile_seeded_collections --apply
+```
+
+The first is a dry run that prints which packs differ and how (added, removed,
+duplicate, content). With `--apply` it adds what the files have, soft-deletes
+what they dropped, collapses same-named duplicates and recomputes
+`artifact_count`. `--update-content` additionally rewrites items whose text
+changed on disk (overwriting any in-app edit to a seeded item), and
+`--only <slug>` restricts the run to one pack. Only `seed://` collections are
+considered, so a pack you built yourself is never touched. Details:
+[deployment.md](deployment.md#reconciling-seeded-packs-after-a-content-change).
+
+Do **not** reach for the older workaround of deleting the collection row and
+restarting. Setups reference packs by id (`profiles.base_collection_id` and
+`additional_collection_ids`), so a delete/reseed cycle leaves those setups
+pointing at a row that no longer exists while the reseed creates a new one.
+The reconcile path keeps ids stable, which is why it is the supported fix.
+
+A single pack edit is not the only thing this catches: a long-lived deployment
+accumulates every rename and addition that shipped after it was first seeded.
+A real deployment had nine stale packs, including an editor agent that had
+been renamed `docs-writer` → `technical-writer` upstream and a
+`security-auditor` agent that collided with the base pack's same-named agent.
+One reconcile run brought all 28 packs back in line.
 
 A fresh install (or one where that specific pack has never been seeded
 before) always reflects the current state of `collections/` in this repo,

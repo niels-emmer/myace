@@ -727,11 +727,19 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `orchestrator.md`, an added `handoff_to:` field, or any other
   in-place edit to that collection's source files — only a *new*
   collection (new slug/name) is ever picked up automatically. On an
-  existing deployment, an in-place content change needs a manual fix
-  (re-run seeding against a DB where that starter collection's rows have
-  been deleted first, or hand-edit the affected artifact rows directly)
-  — this is a known, unaddressed gap in the seeding mechanism itself, not
-  something to work around ad hoc per content change. See
+  existing deployment, an in-place content change is applied with the
+  reconcile command — a dry run by default, `--apply` to write, and
+  `--update-content` to also rewrite items whose text changed:
+  `python -m app.scripts.reconcile_seeded_collections` (see
+  [deployment.md](docs/deployment.md#reconciling-seeded-packs-after-a-content-change)).
+  It adds what the files have, soft-deletes what they dropped, collapses
+  same-named duplicates, recomputes `artifact_count`, and ignores every
+  non-`seed://` collection. The logic is `reconcile_seeded_collections()` in
+  `app/services/seed_reconcile.py`, and it builds rows through the same
+  `artifact_from_scanned()` helper the seed uses, so a reconciled pack has
+  the exact shape a freshly seeded one does. Never make it run on boot: a
+  restart must not rewrite seeded content. Open a backup first if the
+  deployment matters. See
   [debugging.md](docs/debugging.md#my-starter-pack-content-edit-isnt-showing-up-on-an-existing-deployment)
   for the concrete symptom/fix.
 
