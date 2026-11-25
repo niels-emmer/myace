@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Loader2, Play, Package, Boxes, Layers, ArrowRight, Star } from 'lucide-react';
+import { Loader2, Play, Package, Boxes, Layers, ArrowRight, Star, Bot, Check, Copy } from 'lucide-react';
 import GithubIcon from '../components/GithubIcon';
 import { demoApi } from '../lib/api';
 import { packApi } from '../lib/packApi';
@@ -38,6 +38,17 @@ export default function Landing() {
   const navigate = useNavigate();
   const [markdown, setMarkdown] = useState(SAMPLE_MARKDOWN);
   const [activeTarget, setActiveTarget] = useState('claude-code');
+  const [copied, setCopied] = useState<'endpoint' | 'command' | null>(null);
+
+  // Same origin serves the read-only MCP endpoint (ADR-0018). Interpolated
+  // rather than hardcoded so a self-hosted instance advertises its own host.
+  const mcpEndpoint = `${window.location.origin}/mcp`;
+  const mcpCommand = `claude mcp add --transport http myace ${mcpEndpoint}`;
+  const copyToClipboard = async (text: string, key: 'endpoint' | 'command') => {
+    await navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
 
   // Already signed in — /welcome is for unauthenticated visitors, send an
   // existing session straight to the dashboard instead (same pattern as
@@ -219,6 +230,78 @@ export default function Landing() {
             .
           </p>
         )}
+      </section>
+
+      {/* Agent access — the same public packs, read by an agent (ADR-0018). */}
+      <section className="mx-auto max-w-5xl px-4 pb-16">
+        <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.15fr_1fr] lg:items-center">
+            <div>
+              <h2 className="flex items-center gap-2 text-xl font-semibold text-foreground">
+                <Bot className="h-5 w-5 text-brand-600" />
+                Point your agent at the library
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Already working with a coding agent? Point it at the MCP endpoint and it can
+                search the public packs, read any item in full, and compile a pack for your
+                framework — anonymously, with no account or token.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                It is read-only by design: the agent can propose an install, but every file it
+                writes is a decision you approve.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  MCP endpoint
+                </p>
+                <div className="mt-1 flex items-center justify-between gap-2 rounded-lg bg-muted p-3">
+                  <code className="min-w-0 flex-1 break-all text-sm text-foreground">
+                    {mcpEndpoint}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(mcpEndpoint, 'endpoint')}
+                    aria-label="Copy MCP endpoint"
+                    className="shrink-0 rounded p-1.5 transition-colors hover:bg-accent"
+                  >
+                    {copied === 'endpoint' ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  In Claude Code
+                </p>
+                <div className="mt-1 flex items-center justify-between gap-2 rounded-lg bg-muted p-3">
+                  <code className="min-w-0 flex-1 overflow-x-auto whitespace-pre text-xs text-muted-foreground">
+                    {mcpCommand}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(mcpCommand, 'command')}
+                    aria-label="Copy Claude Code command"
+                    className="shrink-0 rounded p-1.5 transition-colors hover:bg-accent"
+                  >
+                    {copied === 'command' ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Works with Cursor and any other MCP-capable agent too.
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Live demo */}

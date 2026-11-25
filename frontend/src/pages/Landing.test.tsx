@@ -147,6 +147,40 @@ describe('Landing page', () => {
     expect(screen.getByText('1.2k uses')).toBeInTheDocument();
   });
 
+  it('advertises the anonymous, read-only MCP endpoint between the pack grid and the demo', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
+    renderLanding();
+    await screen.findByText(/Write your AI agent rules once/i);
+
+    const agentHeading = screen.getByRole('heading', { name: /Point your agent at the library/i });
+    expect(screen.getByText(/read-only by design/i)).toBeInTheDocument();
+
+    // Placement: after "Start from a proven pack", before "See the translation".
+    const demoHeading = screen.getByRole('heading', { name: /See the translation/i });
+    expect(
+      agentHeading.compareDocumentPosition(demoHeading) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    const featuredHeading = screen.getByRole('heading', { name: /Start from a proven pack/i });
+    expect(
+      featuredHeading.compareDocumentPosition(agentHeading) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+
+    const endpoint = `${window.location.origin}/mcp`;
+    const command = `claude mcp add --transport http myace ${endpoint}`;
+    expect(screen.getAllByText(endpoint, { exact: false }).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /copy MCP endpoint/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(endpoint));
+
+    fireEvent.click(screen.getByRole('button', { name: /copy Claude Code command/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(command));
+  });
+
   it('shows the large centered brand mark above the headline', async () => {
     renderLanding();
     const headline = await screen.findByRole('heading', {
