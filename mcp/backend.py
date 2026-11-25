@@ -13,7 +13,7 @@ its own to get wrong.
 from __future__ import annotations
 
 from collections.abc import Callable
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 
@@ -63,7 +63,11 @@ def _detail(response: httpx.Response, fallback: str) -> str:
     try:
         body = response.json()
     except ValueError:
-        return fallback
+        # Many rejections are plain text, not `{"detail": ...}` — notably
+        # Starlette's `Invalid host header`, which is exactly the kind of
+        # misconfiguration someone needs to read. Never swallow it.
+        text = response.text.strip()
+        return text[:300] if text else fallback
     if isinstance(body, dict) and isinstance(body.get("detail"), str):
         return body["detail"]
     return fallback
@@ -86,6 +90,13 @@ class BackendClient:
         # Public site origin, used only to build links a human can open. The
         # backend URL is an internal Docker address, never a usable link.
         self.site_url = site_url.rstrip("/")
+        # The Host header the backend expects. A production backend runs
+        # `TrustedHostMiddleware` (AGENTS.md rule 27) with `TRUSTED_HOSTS` set to
+        # the public domain, so a call to `http://backend:8000` answers
+        # `400 Invalid host header`. Presenting the public host is the correct
+        # fix; adding the internal service name to TRUSTED_HOSTS would widen a
+        # deliberate hardening boundary.
+        self._host_header = urlsplit(self.site_url).netloc or None
         # Resolves the *inbound* caller's address for the current request. See
         # `_forwarded_headers()` for why this matters to the backend's limits.
         self._client_ip = client_ip
@@ -124,25 +135,31 @@ class BackendClient:
         return response
 
     def _forwarded_headers(self) -> dict[str, str]:
-        """Forward the inbound caller's IP so backend limits stay per-client.
+        """Headers that make the backend see the *real* caller, not this box.
 
-        Every tool call leaves this container from one private address. Without
-        this header the backend's `storefront_limiter` keys all MCP traffic on
-        that single address — one shared `120/minute` bucket — so one busy
-        agent would throttle every other MCP client, while browser traffic kept
-        its own keys.
+        `Host` first: a production backend's `TrustedHostMiddleware` (AGENTS.md
+        rule 27) rejects the internal `backend:8000` with
+        `400 Invalid host header`, so *every* tool call fails without it. The
+        public host comes from `MCP_SITE_URL`; leaving that unset is a
+        misconfiguration, warned about at startup in `server.py`. Presenting the
+        public host is the fix — adding the internal service name to
+        `TRUSTED_HOSTS` would widen a deliberate hardening boundary.
 
-        Trustworthy because of the hop chain, not because the header is
-        hard to forge: nginx appends the real peer to `X-Forwarded-For`, uvicorn
-        is started with the private ranges in `--forwarded-allow-ips`
-        (Dockerfile), so `scope["client"]` here is already the resolved client,
-        and the backend (same flags) re-validates this header the same way.
-        If no caller IP can be resolved, send nothing rather than a guess.
+        Then `X-Forwarded-For`: all traffic leaves this container from one
+        address, so without it the backend's per-IP storefront limiter treats
+        the whole MCP surface as a single client, letting one busy agent
+        throttle every other client. Trustworthy because of the hop chain
+        (nginx appends the real peer; both uvicorn processes run with private
+        `--forwarded-allow-ips` ranges), not because the header is unspoofable.
         """
-        if self._client_ip is None:
-            return {}
-        ip = self._client_ip()
-        return {"X-Forwarded-For": ip} if ip else {}
+        headers: dict[str, str] = {}
+        if self._host_header:
+            headers["Host"] = self._host_header
+        if self._client_ip is not None:
+            ip = self._client_ip()
+            if ip:
+                headers["X-Forwarded-For"] = ip
+        return headers
 
     # ── reads ────────────────────────────────────────────────────────────
 
