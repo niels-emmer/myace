@@ -22,7 +22,12 @@ vi.mock('../lib/packApi', () => ({
   },
 }));
 
+vi.mock('../lib/mcp', () => ({
+  probeMcpAvailability: vi.fn(),
+}));
+
 import { packApi } from '../lib/packApi';
+import { probeMcpAvailability } from '../lib/mcp';
 
 function renderLanding() {
   const queryClient = new QueryClient({
@@ -43,6 +48,7 @@ describe('Landing page', () => {
   beforeEach(() => {
     vi.mocked(authApi.me).mockRejectedValue(new Error('not authenticated'));
     vi.mocked(packApi.listCommunity).mockResolvedValue({ items: [], total: 0 });
+    vi.mocked(probeMcpAvailability).mockResolvedValue(true);
   });
 
   it('renders the pitch and a pre-filled demo textarea with no auth required', async () => {
@@ -157,7 +163,9 @@ describe('Landing page', () => {
     renderLanding();
     await screen.findByText(/Write your AI agent rules once/i);
 
-    const agentHeading = screen.getByRole('heading', { name: /Point your agent at the library/i });
+    const agentHeading = await screen.findByRole('heading', {
+      name: /Point your agent at the library/i,
+    });
     expect(screen.getByText(/read-only by design/i)).toBeInTheDocument();
 
     // Placement: after "Start from a proven pack", before "See the translation".
@@ -179,6 +187,22 @@ describe('Landing page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /copy Claude Code command/i }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(command));
+  });
+
+  it('hides the agent section when the MCP service does not answer', async () => {
+    vi.mocked(probeMcpAvailability).mockResolvedValue(false);
+
+    renderLanding();
+    await screen.findByText(/Write your AI agent rules once/i);
+    // Let the probe settle before asserting absence.
+    await waitFor(() => expect(probeMcpAvailability).toHaveBeenCalled());
+
+    expect(
+      screen.queryByRole('heading', { name: /Point your agent at the library/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/read-only by design/i)).not.toBeInTheDocument();
+    // The rest of the page is unaffected.
+    expect(screen.getByRole('heading', { name: /See the translation/i })).toBeInTheDocument();
   });
 
   it('shows the large centered brand mark above the headline', async () => {

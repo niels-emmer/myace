@@ -109,7 +109,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile mcp up
 
 Without it, `https://<host>/mcp` returns 502 and the rest of the site is
 unaffected — the frontend's `location /mcp` proxies to a container that is not
-there.
+there. For the same reason the signed-out landing page probes
+`GET /mcp/health` (an exact-match nginx location that maps to this container's
+own `/health`) and only advertises the endpoint when it answers, so a stack
+without the profile never shows a dead URL. That probe is access-logged off;
+its expected 502 still appears in the nginx error log.
 
 Two settings matter in production:
 

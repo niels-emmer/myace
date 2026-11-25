@@ -180,9 +180,11 @@ Two `.env` values matter:
 
 No reverse-proxy change is needed: the frontend's nginx already owns `/mcp`
 (`location /mcp` in `frontend/nginx.conf`) and an nginx-proxy-manager host that
-forwards every path for the domain to `frontend:80` needs no new rule. Verify
-after enabling with a real handshake rather than a `curl /mcp` GET, which may
-answer `405`:
+forwards every path for the domain to `frontend:80` needs no new rule. The
+same file also maps the exact path `/mcp/health` to the container's liveness
+route, which the signed-out landing page uses to decide whether to advertise
+the endpoint at all. Verify after enabling with a real handshake rather than a
+`curl /mcp` GET, which may answer `405`:
 
 ```bash
 curl -sS https://<host>/mcp \

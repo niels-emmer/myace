@@ -5,6 +5,7 @@ import { Loader2, Play, Package, Boxes, Layers, ArrowRight, Star, Bot, Check, Co
 import GithubIcon from '../components/GithubIcon';
 import { demoApi } from '../lib/api';
 import { packApi } from '../lib/packApi';
+import { probeMcpAvailability } from '../lib/mcp';
 import {
   FRAMEWORK_LABELS,
   formatUses,
@@ -33,11 +34,12 @@ const DEMO_TARGET_LABELS: Record<string, string> = {
   opencode: 'OpenCode',
 };
 
-export default function Landing() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [markdown, setMarkdown] = useState(SAMPLE_MARKDOWN);
-  const [activeTarget, setActiveTarget] = useState('claude-code');
+/**
+ * The signed-out landing page's MCP section. Rendered only where the opt-in
+ * MCP service answers (see lib/mcp.ts), so a deployment without it never
+ * advertises a dead endpoint.
+ */
+function AgentAccessSection() {
   const [copied, setCopied] = useState<'endpoint' | 'command' | null>(null);
 
   // Same origin serves the read-only MCP endpoint (ADR-0018). Interpolated
@@ -49,6 +51,87 @@ export default function Landing() {
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
   };
+
+  // Agent access — the same public packs, read by an agent (ADR-0018).
+  return (
+    <section className="mx-auto max-w-5xl px-4 pb-16">
+      <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.15fr_1fr] lg:items-center">
+          <div>
+            <h2 className="flex items-center gap-2 text-xl font-semibold text-foreground">
+              <Bot className="h-5 w-5 text-brand-600" />
+              Point your agent at the library
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Already working with a coding agent? Point it at the MCP endpoint and it can
+              search the public packs, read any item in full, and compile a pack for your
+              framework — anonymously, with no account or token.
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              It is read-only by design: the agent can propose an install, but every file it
+              writes is a decision you approve.
+            </p>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                MCP endpoint
+              </p>
+              <div className="mt-1 flex items-center justify-between gap-2 rounded-lg bg-muted p-3">
+                <code className="min-w-0 flex-1 break-all text-sm text-foreground">
+                  {mcpEndpoint}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(mcpEndpoint, 'endpoint')}
+                  aria-label="Copy MCP endpoint"
+                  className="shrink-0 rounded p-1.5 transition-colors hover:bg-accent"
+                >
+                  {copied === 'endpoint' ? (
+                    <Check className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                In Claude Code
+              </p>
+              <div className="mt-1 flex items-center justify-between gap-2 rounded-lg bg-muted p-3">
+                <code className="min-w-0 flex-1 overflow-x-auto whitespace-pre text-xs text-muted-foreground">
+                  {mcpCommand}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(mcpCommand, 'command')}
+                  aria-label="Copy Claude Code command"
+                  className="shrink-0 rounded p-1.5 transition-colors hover:bg-accent"
+                >
+                  {copied === 'command' ? (
+                    <Check className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Works with Cursor and any other MCP-capable agent too.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default function Landing() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [markdown, setMarkdown] = useState(SAMPLE_MARKDOWN);
+  const [activeTarget, setActiveTarget] = useState('claude-code');
 
   // Already signed in — /welcome is for unauthenticated visitors, send an
   // existing session straight to the dashboard instead (same pattern as
@@ -68,6 +151,15 @@ export default function Landing() {
     queryKey: ['public-featured-packs'],
     queryFn: () => packApi.listCommunity({ limit: 50, sort: 'alpha' }),
   });
+  // The MCP service is opt-in per deployment (ADR-0018), so the section below
+  // only renders where the advertised endpoint actually answers.
+  const { data: mcpAvailable = false } = useQuery({
+    queryKey: ['mcp-availability'],
+    queryFn: probeMcpAvailability,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
   const featured = [
     ...(community?.items ?? []).filter((pack) => pack.is_starter_pack).slice(0, 4),
     ...(community?.items ?? [])
@@ -232,77 +324,7 @@ export default function Landing() {
         )}
       </section>
 
-      {/* Agent access — the same public packs, read by an agent (ADR-0018). */}
-      <section className="mx-auto max-w-5xl px-4 pb-16">
-        <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.15fr_1fr] lg:items-center">
-            <div>
-              <h2 className="flex items-center gap-2 text-xl font-semibold text-foreground">
-                <Bot className="h-5 w-5 text-brand-600" />
-                Point your agent at the library
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Already working with a coding agent? Point it at the MCP endpoint and it can
-                search the public packs, read any item in full, and compile a pack for your
-                framework — anonymously, with no account or token.
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                It is read-only by design: the agent can propose an install, but every file it
-                writes is a decision you approve.
-              </p>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  MCP endpoint
-                </p>
-                <div className="mt-1 flex items-center justify-between gap-2 rounded-lg bg-muted p-3">
-                  <code className="min-w-0 flex-1 break-all text-sm text-foreground">
-                    {mcpEndpoint}
-                  </code>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(mcpEndpoint, 'endpoint')}
-                    aria-label="Copy MCP endpoint"
-                    className="shrink-0 rounded p-1.5 transition-colors hover:bg-accent"
-                  >
-                    {copied === 'endpoint' ? (
-                      <Check className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <Copy className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  In Claude Code
-                </p>
-                <div className="mt-1 flex items-center justify-between gap-2 rounded-lg bg-muted p-3">
-                  <code className="min-w-0 flex-1 overflow-x-auto whitespace-pre text-xs text-muted-foreground">
-                    {mcpCommand}
-                  </code>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(mcpCommand, 'command')}
-                    aria-label="Copy Claude Code command"
-                    className="shrink-0 rounded p-1.5 transition-colors hover:bg-accent"
-                  >
-                    {copied === 'command' ? (
-                      <Check className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <Copy className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Works with Cursor and any other MCP-capable agent too.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {mcpAvailable && <AgentAccessSection />}
 
       {/* Live demo */}
       <section className="max-w-5xl mx-auto px-4 pb-16">
