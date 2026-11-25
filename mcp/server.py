@@ -192,9 +192,12 @@ async def list_targets() -> str:
 
     Returns the target ids accepted by download_pack (e.g. "claude-code",
     "cursor", "opencode"). These are the frameworks currently offered: an id
-    absent here has been disabled by an administrator and would be rejected.
-    Ask the user which framework they use rather than guessing — a wrong
-    target writes files into the wrong directory layout.
+    absent here is either unrecognised (download_pack then returns this list
+    instead of compiling, rather than failing blindly) or disabled by an
+    administrator (a clear error naming the adapter).
+
+    Ask the user which framework they use rather than guessing — a wrong target
+    writes files into the wrong directory layout.
     """
     return await _call(lambda: _targets())
 

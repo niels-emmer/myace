@@ -150,6 +150,40 @@ async def test_install_zip_returns_bytes() -> None:
     assert archive == b"PK\x03\x04"
 
 
+async def test_unknown_target_guidance_is_showable_not_a_decode_error() -> None:
+    """The route answers 200 *markdown* for a target it does not know.
+
+    Regression for a real failure: `install()` assumed JSON, so a typo or an
+    alias like "claude" surfaced to the agent as `Expecting value: line 1
+    column 1` instead of the backend's list of valid targets.
+    """
+    guidance = "# Choose a coding framework for X\n\n- `claude-code` — https://…"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, text=guidance, headers={"content-type": "text/markdown; charset=utf-8"}
+        )
+
+    with pytest.raises(BackendError, match="claude-code"):
+        await make_client(handler).install(
+            "11111111-1111-1111-1111-111111111111", "claude", fmt="json"
+        )
+
+
+async def test_guidance_is_never_returned_as_an_archive() -> None:
+    """The same 200-markdown body must not be handed back as `application/zip`."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, text="# Choose a coding framework", headers={"content-type": "text/markdown"}
+        )
+
+    with pytest.raises(BackendError, match="Choose a coding framework"):
+        await make_client(handler).install(
+            "11111111-1111-1111-1111-111111111111", "claude", fmt="zip"
+        )
+
+
 async def test_install_url_omits_nothing_and_encodes() -> None:
     client = make_client(lambda request: httpx.Response(200, json={}))
 

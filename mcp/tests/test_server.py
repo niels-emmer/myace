@@ -213,6 +213,25 @@ async def test_download_pack_returns_files_and_urls(monkeypatch: pytest.MonkeyPa
     assert "confirm" in payload["install_prompt"].lower()
 
 
+async def test_download_pack_unknown_target_returns_the_target_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exact reproduction of the reported failure: guidance, not a decode error."""
+    guidance = "# Choose a coding framework\n\n- `claude-code` — https://…"
+
+    install_backend(
+        monkeypatch,
+        lambda request: httpx.Response(
+            200, text=guidance, headers={"content-type": "text/markdown; charset=utf-8"}
+        ),
+    )
+
+    payload = json.loads(await server.download_pack(PACK_ID, "claude"))
+
+    assert "claude-code" in payload["error"]
+    assert "Expecting value" not in payload["error"]
+
+
 async def test_zip_resource_returns_archive_bytes(monkeypatch: pytest.MonkeyPatch) -> None:
     install_backend(
         monkeypatch,

@@ -185,6 +185,19 @@ class BackendClient:
         response = await self._get(
             f"/api/v1/collections/community/{pack_id}/install.md", params
         )
+
+        # `install.md` deliberately answers **200 text/markdown** for a target it
+        # does not recognise — that body *is* the useful answer (the valid target
+        # list), per its four-case contract. Parsing it as JSON raises
+        # JSONDecodeError and handing it back as a zip mislabels prose as an
+        # archive, so surface it as a showable failure instead. Reachable from
+        # any stale link, typo, or `supported_targets()` alias such as "claude".
+        content_type = response.headers.get("content-type", "")
+        if content_type.startswith("text/markdown"):
+            raise BackendError(
+                "No compiled output for that target. " + response.text.strip()
+            )
+
         if fmt == "zip":
             return response.content
         return response.json()
