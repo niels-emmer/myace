@@ -18,6 +18,23 @@ import type { CollectionType, ModerationStatus } from '../types';
  *
  * `types/index.ts` is owned by another phase, so pack-only shapes live here.
  */
+/** A link to a related pack (resolved by the public detail route). */
+export interface PackRef {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+/**
+ * Advisory relations (like `handoff_to`, rule 34): `layers_on` packs are
+ * assumed to be in the same setup, `pairs_with` is a suggestion. Only the
+ * public detail route fills this; lists leave it null.
+ */
+export interface PackRelations {
+  layers_on: PackRef[];
+  pairs_with: PackRef[];
+}
+
 export interface Pack {
   id: string;
   owner_id: string;
@@ -36,6 +53,9 @@ export interface Pack {
   /** Owner-only (authenticated reads); never returned by the public schema. */
   moderation_reason?: string | null;
   last_verified_at?: string | null;
+  /** When the pack's items last changed (seeded packs); null otherwise. */
+  content_updated_at?: string | null;
+  relations?: PackRelations | null;
   created_at: string;
   updated_at: string;
 }
@@ -54,7 +74,7 @@ export interface PackMetadataUpdate {
   license?: string | null;
 }
 
-export type PackTab = 'overview' | 'contents' | 'ratings';
+export type PackTab = 'overview' | 'contents' | 'preview' | 'ratings';
 
 /**
  * Moderation states surfaced by the publish wizard's status tracker.

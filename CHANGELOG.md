@@ -6,8 +6,31 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Pack page: related packs and "Updated".** Seeded packs can declare `layers_on`
+  and `pairs_with` (registry entries; the cloud packs layer on `iac-expert`). The
+  public pack page shows them as links and shows when the pack's items last
+  changed. Adding a pack to a setup warns, without blocking, when the setup lacks a
+  pack it layers on, and offers to add it when creating a new setup. New nullable
+  columns `collections.relations` and `collections.content_updated_at` (migration
+  `c1d2e3f4a5b6`, run `alembic upgrade head`); the MCP's `get_pack` returns both.
+- **Preview install tab** on public pack pages: what a pack compiles to for any
+  framework, with warnings, a zip download, the install URL for coding agents and,
+  where the MCP server is enabled, the `claude mcp add` command. Read-only, no
+  account needed, and it does not count as a use.
+- **Library discovery:** topic chips and search over topics, derived from item tags
+  (new anonymous `GET /collections/community/topics`); filters are kept in the URL;
+  and a new "Languages & Platforms" category for the language and platform add-ons.
+- **`reconcile_seeded_collections --update-metadata`** rewrites a seeded pack's
+  name, category, description and relations from the registry (dry run lists each
+  old and new value), so pack-card text no longer drifts from the registry on a
+  long-lived deployment. It never touches ratings, verification or moderation.
+
 ### Fixed
 
+- The anonymous pack library no longer silently stops at 100 packs; it pages
+  through the whole listing.
 - **Add-ons and base packs now list pi.dev under "Works with".** Every item's
   `compatibility` list stopped at 11 adapters, so the pack page showed 11
   frameworks while the product compiles to 12. All 229 lists now name `pi-dev`,

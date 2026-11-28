@@ -16,7 +16,9 @@ multi-replica startups never create duplicates.
 
 import json
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import NotRequired, TypedDict
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,10 +39,36 @@ from app.services.scanner import (
 
 logger = logging.getLogger("myace")
 
+class PackMeta(TypedDict):
+    """Registry entry for one seeded pack.
+
+    `layers_on` names packs this one assumes are in the same setup (the cloud
+    add-ons layer on `iac-expert`); `pairs_with` is a softer suggestion. Both
+    hold registry slugs and are advisory only, like `handoff_to` (rule 34):
+    nothing enforces them, and a slug that does not resolve on a deployment is
+    dropped when the API resolves them.
+    """
+
+    name: str
+    category: str
+    description: str
+    layers_on: NotRequired[list[str]]
+    pairs_with: NotRequired[list[str]]
+
+
+def relations_json(meta: PackMeta) -> str | None:
+    """Encode a registry entry's relations for `Collection.relations` (NULL if none)."""
+    layers_on = list(meta.get("layers_on", []))
+    pairs_with = list(meta.get("pairs_with", []))
+    if not layers_on and not pairs_with:
+        return None
+    return json.dumps({"layers_on": layers_on, "pairs_with": pairs_with})
+
+
 SYSTEM_USER_EMAIL = "starter-packs@myace.local"
 SYSTEM_USER_DISPLAY_NAME = "MyACE Starter Packs"
 
-STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
+STARTER_COLLECTIONS: dict[str, dict[str, PackMeta]] = {
     "base": {
         "vibecoder": {
             "name": "Vibecoder",
@@ -84,6 +112,7 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "frontend": {
             "name": "Frontend Specialist",
             "category": "Frontend",
+            "pairs_with": ["accessibility"],
             "description": (
                 "For building and maintaining UI code. Component and accessibility "
                 "conventions, plus a rule that nothing is done until it's been "
@@ -101,6 +130,7 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "iac-expert": {
             "name": "Infrastructure as Code Expert",
             "category": "Infrastructure",
+            "pairs_with": ["devops-engineer"],
             "description": (
                 "For managing infrastructure as code across any cloud. Consistent "
                 "naming and invariants, approval-gated applies, documented "
@@ -110,6 +140,8 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "azure": {
             "name": "Azure Cloud Architect",
             "category": "Infrastructure",
+            "layers_on": ["iac-expert"],
+            "pairs_with": ["devops-engineer"],
             "description": (
                 "For Azure infrastructure and governance. Well-architected pillars, "
                 "landing zones, Entra ID identity, and Azure Policy/Defender security "
@@ -119,6 +151,8 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "aws": {
             "name": "AWS Cloud Architect",
             "category": "Infrastructure",
+            "layers_on": ["iac-expert"],
+            "pairs_with": ["devops-engineer"],
             "description": (
                 "For AWS infrastructure and governance. Well-architected pillars, "
                 "landing zones, IAM identity, and Security Hub/GuardDuty/Config "
@@ -128,6 +162,8 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "gcp": {
             "name": "Google Cloud Architect",
             "category": "Infrastructure",
+            "layers_on": ["iac-expert"],
+            "pairs_with": ["devops-engineer"],
             "description": (
                 "For Google Cloud infrastructure and governance. Well-Architected "
                 "pillars, landing zones, IAM/service-account identity, "
@@ -176,6 +212,7 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "devops": {
             "name": "DevOps / Platform Engineer",
             "category": "Infrastructure",
+            "pairs_with": ["devops-engineer"],
             "description": (
                 "For CI/CD, containers, and platform tooling. Pipeline design, "
                 "container builds, observability, incident response, and release "
@@ -184,7 +221,8 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         },
         "java-spring": {
             "name": "Java / Spring Developer",
-            "category": "Backend",
+            "category": "Languages & Platforms",
+            "pairs_with": ["software-engineer"],
             "description": (
                 "For Java and Spring Boot services. Layered architecture, dependency "
                 "injection discipline, Spring conventions, and reproducible builds."
@@ -202,6 +240,7 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "ai-engineering": {
             "name": "AI / LLM Engineering",
             "category": "AI/LLM Engineering",
+            "pairs_with": ["software-engineer"],
             "description": (
                 "For building features around LLMs. Prompt iteration backed by evals, "
                 "treating model output as untrusted input, and deliberate "
@@ -265,7 +304,8 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         },
         "python-developer": {
             "name": "Python Developer",
-            "category": "Backend",
+            "category": "Languages & Platforms",
+            "pairs_with": ["software-engineer"],
             "description": (
                 "For Python services, libraries and scripts. Typed public APIs, "
                 "boundary validation, locked dependencies, safe handling of "
@@ -274,7 +314,8 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         },
         "typescript-node": {
             "name": "TypeScript / Node Developer",
-            "category": "Backend",
+            "category": "Languages & Platforms",
+            "pairs_with": ["software-engineer"],
             "description": (
                 "For TypeScript and Node.js services, libraries and CLIs. Strict "
                 "compiler settings, runtime validation at boundaries, promise and "
@@ -285,6 +326,7 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "kubernetes": {
             "name": "Kubernetes Engineer",
             "category": "Infrastructure",
+            "pairs_with": ["devops-engineer", "iac-expert"],
             "description": (
                 "For Kubernetes manifests, Helm and Kustomize. Least-privilege "
                 "pods, resources and probes, RBAC and network policy, secrets "
@@ -294,6 +336,7 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "accessibility": {
             "name": "Accessibility",
             "category": "Frontend",
+            "pairs_with": ["frontend", "fullstack"],
             "description": (
                 "For accessible web UI to WCAG 2.2 AA. Semantic HTML first, "
                 "keyboard and focus rules, labels and contrast, accessible forms "
@@ -303,6 +346,7 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "observability-sre": {
             "name": "Observability & Incident Review",
             "category": "Infrastructure",
+            "pairs_with": ["devops-engineer", "devops"],
             "description": (
                 "For telemetry, SLOs, alerting and incident review. Standard "
                 "logging, metrics and tracing conventions, symptom-based owned "
@@ -313,6 +357,7 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "privacy-data-protection": {
             "name": "Privacy & Data Protection",
             "category": "Governance & Security",
+            "pairs_with": ["eu-ai-act", "auditor"],
             "description": (
                 "For software that handles personal data, built around the EU GDPR. "
                 "Data inventory, minimisation and retention, no personal data in "
@@ -331,11 +376,12 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
 # landing highlights have real content to show. Moving a slug between the two
 # maps reclassifies the existing seeded row in place — see
 # `seed_starter_collections()` — so don't add the same slug to both.
-COMMUNITY_CONTRIBUTED_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
+COMMUNITY_CONTRIBUTED_COLLECTIONS: dict[str, dict[str, PackMeta]] = {
     "additional": {
         "eu-ai-act": {
             "name": "EU AI Act Compliance",
             "category": "Governance & Security",
+            "pairs_with": ["privacy-data-protection", "auditor"],
             "description": (
                 "For assessing AI systems against the EU AI Act (Regulation "
                 "2024/1689). Risk-tier classification, high-risk/transparency/GPAI "
@@ -345,6 +391,8 @@ COMMUNITY_CONTRIBUTED_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         "scaleway": {
             "name": "Scaleway Cloud Architect",
             "category": "Infrastructure",
+            "layers_on": ["iac-expert"],
+            "pairs_with": ["devops-engineer"],
             "description": (
                 "For Scaleway infrastructure and governance. Organization/project "
                 "structure, IAM permission scoping, VPC/private-network topology, "
@@ -354,7 +402,8 @@ COMMUNITY_CONTRIBUTED_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         },
         "ios-developer": {
             "name": "iOS Developer",
-            "category": "Frontend",
+            "category": "Languages & Platforms",
+            "pairs_with": ["software-engineer"],
             "description": (
                 "For building iOS apps. SwiftUI-first development, state management "
                 "patterns, offline-first architecture, and App Store readiness."
@@ -362,7 +411,8 @@ COMMUNITY_CONTRIBUTED_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         },
         "android-developer": {
             "name": "Android Developer",
-            "category": "Frontend",
+            "category": "Languages & Platforms",
+            "pairs_with": ["software-engineer"],
             "description": (
                 "For building Android apps. Jetpack Compose-first development, state "
                 "hoisting, lifecycle-aware architecture, and Play Store readiness."
@@ -370,7 +420,8 @@ COMMUNITY_CONTRIBUTED_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         },
         "go-developer": {
             "name": "Go Developer",
-            "category": "Backend",
+            "category": "Languages & Platforms",
+            "pairs_with": ["software-engineer"],
             "description": (
                 "For Go services, libraries and CLIs. Explicit error handling, "
                 "context propagation, goroutine ownership, module hygiene with "
@@ -379,7 +430,8 @@ COMMUNITY_CONTRIBUTED_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
         },
         "rust-developer": {
             "name": "Rust Developer",
-            "category": "Backend",
+            "category": "Languages & Platforms",
+            "pairs_with": ["software-engineer"],
             "description": (
                 "For Rust services, libraries and CLIs. Typed errors, a strict "
                 "unsafe policy, clippy and format gates, async care, and Cargo "
@@ -570,6 +622,8 @@ async def seed_starter_collections(session: AsyncSession) -> None:
                     published=True,
                     moderation_status="approved",
                     category=meta["category"],
+                    relations=relations_json(meta),
+                    content_updated_at=datetime.now(UTC),
                     is_starter_pack=is_starter_pack,
                     artifact_count=sum(
                         1 for item in scanned

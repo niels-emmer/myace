@@ -31,6 +31,8 @@ _PACK_FIELDS = (
     "avg_rating",
     "rating_count",
     "last_verified_at",
+    "content_updated_at",
+    "relations",
 )
 
 # Item bodies are fetched one at a time on purpose: a pack is often 17+ items

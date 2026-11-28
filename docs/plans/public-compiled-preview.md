@@ -1,6 +1,6 @@
 # Plan: Compiled-Output Preview on the Public Pack Page
 
-Status: **Planned — not started.** This finishes the unbuilt "Phase 1.5" of
+Status: **Built** (branch `feat/pack-page-and-discovery`, 2026-11-28). This finishes the unbuilt "Phase 1.5" of
 [agent-install-url.md](agent-install-url.md) and answers a gap seen on the live
 pack page (2026-11-28): an anonymous visitor cannot see what a pack compiles
 to. The landing demo takes only pasted `##` rules, and real output is reachable
@@ -69,3 +69,17 @@ Frontend:
 
 - Also upgrade the landing demo to accept a starter pack as input? Separate
   decision.
+
+## As built
+
+- `PackPreviewPanel` is the **Preview install** tab on `/packs/:id`, offered
+  only for published, approved packs (the route 404s for anything else). It is
+  mounted only while its tab is open.
+- It calls the existing `install.md?format=json` route and `GET /frameworks`;
+  no backend change. 413 and 429 are mapped to plain messages
+  (`PreviewError`). File text renders in a `<pre>` as text only.
+- The agent block shows the pack's install URL (built from
+  `window.location.origin`) and the `claude mcp add` command, the latter only
+  when the MCP probe (`lib/mcp.ts`) says this deployment serves it.
+- Still not built: the authenticated twin for private packs, and a landing-page
+  demo that takes a real pack.

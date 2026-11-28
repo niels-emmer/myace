@@ -319,6 +319,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml \
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   exec -T backend python -m app.scripts.reconcile_seeded_collections \
   --apply --update-content
+
+# 4. Optional: also rewrite each pack's own name, category, description and
+#    relations from the registry. The dry run (step 1) already lists every
+#    difference as "~ metadata: field: old -> new (not applied)".
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+  exec -T backend python -m app.scripts.reconcile_seeded_collections \
+  --apply --update-metadata
 ```
 
 Add `--only <slug>` (e.g. `--only editor`) to restrict a run to one pack. It
@@ -336,8 +343,11 @@ directory would otherwise look like "every item was deleted":
 - a registry pack whose own directory is missing is listed as skipped, and its
   rows are left alone.
 
-It reconciles artifacts only. A changed pack `name`, `description`, or
-`category` in the registry still will not reach an existing row.
+By default it reconciles artifacts only. A changed pack `name`, `description`,
+`category` or `relations` in the registry reaches an existing row only with
+`--update-metadata`, which touches those four fields and nothing else (not
+ratings, verification dates, moderation state, visibility or ownership). It
+overwrites any in-app edit to them, so read the dry run first.
 
 It is deliberately manual: making it part of startup would let every restart
 rewrite seeded content, which is exactly the guarantee the seed's

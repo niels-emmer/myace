@@ -380,7 +380,7 @@ When two components fetch the same resource with different filters (e.g. an unfi
 
 ### 13. Authentication & Authorization
 
-- **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/mfa` (completes a login the caller already passed the password step of, via a signed 5-minute `mfa_token`), `/auth/logout` (clears the caller's own session; nothing to protect), `/auth/forgot-password` and `/auth/reset-password` (the caller can't be logged in — a signed one-hour reset token is the credential), `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`, `POST /demo/compile` (rule 36), and the seven anonymous public reads: the five `GET /api/v1/collections/community*` storefront reads (ADR-0014, rule 42), `GET /api/v1/collections/community/{id}/install.md` (ADR-0018), and `GET /api/v1/frameworks` — each a deliberate, narrowly-scoped exception rather than a precedent for public routes in general. Everything else requires it.
+- **Two auth mechanisms, one dependency.** `get_current_user` (`backend/app/core/deps.py`) accepts either a session cookie (`request.session["user_id"]`, web UI) or a Bearer API token (CLI). Public routes are the explicit exception list: `/health`, `/auth/register`, `/auth/login`, `/auth/login/mfa` (completes a login the caller already passed the password step of, via a signed 5-minute `mfa_token`), `/auth/logout` (clears the caller's own session; nothing to protect), `/auth/forgot-password` and `/auth/reset-password` (the caller can't be logged in — a signed one-hour reset token is the credential), `/auth/login/{provider}`, `/auth/callback/{provider}`, `/auth/providers`, `POST /demo/compile` (rule 36), and the eight anonymous public reads: the six `GET /api/v1/collections/community*` storefront reads (ADR-0014, rule 42; the sixth, `/community/topics`, maps pack id to derived topics and must stay registered above `/community/{collection_id}`, rule 16), `GET /api/v1/collections/community/{id}/install.md` (ADR-0018), and `GET /api/v1/frameworks` — each a deliberate, narrowly-scoped exception rather than a precedent for public routes in general. Everything else requires it.
 - **Authorization is ownership + visibility, not per-route roles.** Use `authorize_access()` (single resource) and `owner_or_public_clause()` (list endpoints) from `backend/app/core/authz.py` — don't hand-roll owner checks. `authorize_access` 404s (not 403s) on denial, matching the rest of the codebase's convention of not revealing a resource's existence to someone who can't see it. `current_user.is_admin` bypasses both.
 - **`Artifact` has no `owner_id` of its own.** Authorize against its parent `Collection` — load the collection first, call `authorize_access` on that, then proceed.
 - **Bulk/cross-resource operations need a check per resource touched.** `bulk_export_artifacts`'s target collection needs its own write-check independent of the source collection's read-check — don't assume checking one resource covers every resource an endpoint touches.
@@ -739,10 +739,13 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `artifact_from_scanned()` helper the seed uses, so a reconciled pack has
   the exact shape a freshly seeded one does. Never make it run on boot: a
   restart must not rewrite seeded content. Open a backup first if the
-  deployment matters. It reconciles **artifacts only** — a changed pack
-  `name`, `description`, or `category` in the registry still does not reach
-  an existing row, so treat those as fresh-install-only unless you edit the
-  row by hand. Two guards mirror the seed, because absence of files must
+  deployment matters. It reconciles **artifacts** by default; a changed pack
+  `name`, `description`, `category` or `relations` in the registry reaches an
+  existing row only with `--apply --update-metadata` (dry run lists each
+  field's old and new value; it never touches ratings, verification,
+  moderation, visibility or ownership, and overwrites any in-app edit to those
+  four fields). Reconcile also stamps `Collection.content_updated_at` when it
+  changes a pack's items (metadata-only runs do not). Two guards mirror the seed, because absence of files must
   never read as "every item was deleted": a missing `collections_root`
   returns an empty report (the CLI exits non-zero) and a missing pack
   directory is reported as skipped. See

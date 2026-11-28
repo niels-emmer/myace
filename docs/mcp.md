@@ -55,7 +55,7 @@ warm up.
 | Tool | Arguments | Returns |
 |---|---|---|
 | `search_packs` | `query?`, `category?`, `pack_type?` (`base`\|`additional`), `sort?` (`downloads`\|`rating`\|`alpha`), `limit?` (1–100), `offset?` | `{total, offset, limit, packs: [...]}` — metadata only |
-| `get_pack` | `pack_id` | `{pack, items, item_count, hint}` — metadata plus the item index, no bodies |
+| `get_pack` | `pack_id` | `{pack, items, item_count, hint}` — metadata plus the item index, no bodies. `pack` includes `relations` (`layers_on` / `pairs_with` as `{id, name, slug}`, or null) and `content_updated_at` |
 | `get_item` | `pack_id`, `item_name` | `{pack_id, item, body}` — one item's full text |
 | `list_targets` | — | `{targets: ["claude-code", "cursor", …]}` — live and enabled only |
 | `download_pack` | `pack_id`, `target`, `with_packs?` | `{files, compiled_hash, warnings, install_url, zip_url, …}` |

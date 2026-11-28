@@ -63,6 +63,8 @@ erDiagram
         datetime last_digest_sent_at "nullable"
         date last_verified_at "nullable — manual moderator/admin freshness check"
         uuid verified_by FK "nullable — the verifying moderator/admin"
+        text relations "nullable JSON {layers_on, pairs_with} of registry slugs"
+        datetime content_updated_at "nullable — when a seeded pack's items last changed"
     }
     ARTIFACT {
         uuid id PK
@@ -208,6 +210,12 @@ for the daily download-digest script
 (`app/scripts/send_download_digests.py`), not exposed via the API.
 `last_verified_at`/`verified_by` back manual freshness verification (Epic
 4.5) — see the "Freshness verification" section below.
+`relations` (nullable JSON text, `{"layers_on": [slug], "pairs_with": [slug]}`)
+is advisory metadata for seeded packs, like `handoff_to` (rule 34): the public
+detail route resolves the slugs to links and drops any that do not resolve to a
+pack an anonymous visitor may see. `content_updated_at` is stamped by seeding
+and by reconcile when it changes a pack's items; the pack page shows it as
+"Updated <date>".
 `license` (nullable `String(64)`) is an optional SPDX-style identifier
 surfaced in the publish flow and pack detail. There is no validation beyond
 the length cap — existing packs have no license, and nothing gates on it.

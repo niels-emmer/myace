@@ -1,7 +1,7 @@
 # Plan: Pack Relationships, Version and "Updated" on the Pack Page
 
-Status: **Planned — not started.** Found during a walk of the live pack page
-(2026-11-28). Branch it separately from the content work.
+Status: **Built** (branch `feat/pack-page-and-discovery`, 2026-11-28). See
+"As built" at the end for where it differs from the design below.
 
 ## Problem
 
@@ -73,3 +73,25 @@ dry-run diff). Without it `relations` only reaches fresh installs.
 - Is `pairs_with` worth curating, or only `layers_on`? Start with `layers_on`.
 - Show the version for user-published packs, where there is no release?
   Probably only the date.
+
+## As built
+
+- `Collection.relations` (JSON text of slugs) and `Collection.content_updated_at`
+  (migration `c1d2e3f4a5b6`). The registry gained optional `layers_on` and
+  `pairs_with` on `PackMeta`; seeding writes them and
+  `reconcile_seeded_collections --apply --update-metadata` keeps them current.
+- **No `content_updated_in` (release version).** The backend's version comes
+  from installed package metadata, and in production the source is bind-mounted
+  over the image, so it reports the version the image was built at rather than
+  what is running. A stored version would have been wrong in exactly the
+  deployments that matter. The page shows the date only.
+- `GET /collections/community/{id}` resolves `relations` to `{id, name, slug}`
+  links, dropping unknown slugs, self-references and anything an anonymous
+  visitor could not open. The list routes do not resolve them. The MCP's
+  `get_pack` passes `relations` and `content_updated_at` through.
+- Pack page: a "Works with other packs" card and "Updated <date>". AddToSetup
+  shows a per-setup notice when a setup lacks a `layers_on` pack, and a
+  pre-checked "Also add X" box when creating a new setup. It never blocks.
+- Relations are curated in the registry for the cloud packs (`layers_on`
+  `iac-expert`) and a handful of obvious `pairs_with`; user-published packs
+  have none.

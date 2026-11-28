@@ -1,6 +1,6 @@
 # Plan: Pack Discovery Beyond One Flat List
 
-Status: **Planned — not started.** Found on the live `/packs` page
+Status: **Phases 1 and 2 built; Phase 3 partly** (branch `feat/pack-page-and-discovery`, 2026-11-28). Found on the live `/packs` page
 (2026-11-28): 36 packs in one list, nine coarse categories, no stack facet.
 
 ## Problems seen
@@ -60,3 +60,24 @@ without reading 36 descriptions, and the list keeps working at 100+ packs.
 - Is "Languages & Platforms" the right split, or separate "Languages" and
   "Platforms" (iOS, Android)? Start with one.
 - Curate topics or derive them? Try derived first.
+
+## As built
+
+- **Phase 1:** placeholder now says "topics" and search matches them; filters
+  (search, facet, category, topic, sort) live in the URL and a pasted `facet=mine`
+  degrades to "All" when signed out; the seven language and platform add-ons
+  moved to the category **Languages & Platforms** in the registry.
+  Existing deployments get the new category with
+  `reconcile_seeded_collections --apply --update-metadata`.
+- **Phase 2:** `GET /collections/community/topics` (anonymous, rate-limited,
+  public packs only) maps pack id to up to three derived topics (item tags,
+  minus a stoplist, each on at least two items; `services/pack_topics.py`).
+  The library fetches it separately so signed-in and signed-out views share it,
+  shows topic chips for topics on two or more packs, and works without them if
+  the request fails. Derived topics were good enough that no `topics` column was
+  added.
+- **Phase 3, the part that mattered:** the anonymous library now pages through
+  `GET /community` until it has every pack instead of taking the first 100.
+  **Not built:** server-side `topic` and `category` filtering and pagination in
+  the UI. Filtering stays client-side, which is fine for hundreds of packs; add
+  the server side when a library is big enough to be slow.

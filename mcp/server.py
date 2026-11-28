@@ -175,6 +175,11 @@ async def get_pack(pack_id: str) -> str:
     "additional" add-on. An add-on usually assumes a base pack is also
     installed; ask the user which base to pair with and pass it to
     download_pack as `with_packs`.
+
+    `relations` (when present) lists packs this one `layers_on` (assumes are
+    in the same setup; pass their ids in `with_packs`) and packs it
+    `pairs_with` (a suggestion only), each as {id, name, slug}.
+    `content_updated_at` is when the pack's items last changed.
     """
     return await _call(
         lambda: _pack_with_items(pack_id)

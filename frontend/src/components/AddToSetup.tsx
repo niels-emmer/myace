@@ -5,7 +5,7 @@ import { Check, FolderGit2, Loader2, Plus } from 'lucide-react';
 import { adaptersApi, collectionsApi, profilesApi } from '../lib/api';
 import { packUsageApi, profileToCreate, setupProfilesApi } from '../lib/setupApi';
 import { useAuth } from '../contexts/AuthContext';
-import { packKindLabel } from '../lib/packs';
+import { missingLayers, packKindLabel } from '../lib/packs';
 import type { CollectionType, Profile } from '../types';
 
 /**
@@ -43,6 +43,7 @@ export default function AddToSetup({
   showUse = true,
   frameworks = [],
   frameworksReady = true,
+  layersOn = [],
 }: {
   collection: AddToSetupPack;
   /** Callers that supply their own "Use this pack" flow mount the menu only. */
@@ -51,6 +52,12 @@ export default function AddToSetup({
   frameworks?: string[];
   /** False until the caller's artifact query resolves, so Use cannot race it. */
   frameworksReady?: boolean;
+  /**
+   * Packs this one assumes are in the same setup (advisory, rule 34). Shown as
+   * a notice per setup and as an opt-out checkbox when creating a new one;
+   * never blocks.
+   */
+  layersOn?: { id: string; name: string }[];
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -58,6 +65,8 @@ export default function AddToSetup({
   const [menuOpen, setMenuOpen] = useState(false);
   const [pairingOpen, setPairingOpen] = useState(false);
   const [selectedBaseId, setSelectedBaseId] = useState('');
+  // Layered-on packs the user has opted out of adding to a new setup.
+  const [skippedLayerIds, setSkippedLayerIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -211,21 +220,31 @@ export default function AddToSetup({
                 No setups yet — use this pack to create one.
               </p>
             ) : (
-              ownSetups.map((profile) => (
-                <button
-                  key={profile.id}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => attachTo(profile)}
-                  className="flex w-full items-center gap-2 border-b border-border px-3 py-2 text-left text-sm text-foreground transition-colors last:border-b-0 hover:bg-accent disabled:opacity-50"
-                >
-                  <FolderGit2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate">{profile.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {profile.additional_collection_ids.length + 1} packs
-                  </span>
-                </button>
-              ))
+              ownSetups.map((profile) => {
+                const missing = missingLayers(profile, layersOn);
+                return (
+                  <div key={profile.id} className="border-b border-border last:border-b-0">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => attachTo(profile)}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                    >
+                      <FolderGit2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate">{profile.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {profile.additional_collection_ids.length + 1} packs
+                      </span>
+                    </button>
+                    {missing.length > 0 && (
+                      <p className="px-3 pb-2 text-xs text-amber-700 dark:text-amber-400">
+                        This pack layers on {missing.map((ref) => ref.name).join(', ')}, which this
+                        setup does not include yet. You can still add it.
+                      </p>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         )}
@@ -255,11 +274,37 @@ export default function AddToSetup({
               </label>
             ))}
           </div>
+          {layersOn.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-brand-900">
+                This pack layers on {layersOn.map((ref) => ref.name).join(', ')}.
+              </p>
+              {layersOn.map((ref) => (
+                <label key={ref.id} className="flex items-center gap-2 text-xs text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={!skippedLayerIds.includes(ref.id)}
+                    onChange={(event) =>
+                      setSkippedLayerIds((ids) =>
+                        event.target.checked ? ids.filter((id) => id !== ref.id) : [...ids, ref.id],
+                      )
+                    }
+                  />
+                  Also add {ref.name}
+                </label>
+              ))}
+            </div>
+          )}
           <div className="flex gap-2">
             <button
               type="button"
               disabled={!selectedBaseId || busy || !frameworksSettled}
-              onClick={() => void createSetup(selectedBaseId, [collection.id])}
+              onClick={() =>
+                void createSetup(selectedBaseId, [
+                  ...layersOn.filter((ref) => !skippedLayerIds.includes(ref.id)).map((ref) => ref.id),
+                  collection.id,
+                ])
+              }
               className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
             >
               Create setup with this pack
