@@ -22,6 +22,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Owner collection page** shows a pack's permission rules and agent restrictions the same readable way as the public pack page (shared `PolicyRules` component); the raw JSON stays editable.
+
 - **Pack page shows permissions properly.** A pack's global permission rules now appear under their own "Permission rules" filter as a readable list (what, command, ask-first/blocked) instead of a raw `model_config` JSON blob, and agents with restrictions show them as sentences ("Cannot edit files"). Frontend only.
 
 - **Base packs share one governance core.** Change Control, Secrets And

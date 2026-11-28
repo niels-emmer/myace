@@ -23,6 +23,8 @@ import {
   Clock,
   Plus,
 } from 'lucide-react';
+import { PolicyRules } from '../components/PolicyRules';
+import { agentRestrictions, isPermissionPolicy } from '../lib/permissions';
 import { collectionsApi } from '../lib/api';
 import { packKindLabel } from '../lib/packs';
 import TargetChecklist from '../components/TargetChecklist';
@@ -1241,14 +1243,16 @@ function ArtifactRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-card-foreground truncate">
-              {artifact.name}
+              {isPermissionPolicy(artifact) ? 'Permission rules' : artifact.name}
             </span>
             <span
               className={`px-1.5 py-0.5 rounded text-xs font-medium shrink-0 ${
-                typeColors[artifact.artifact_type] || 'bg-muted text-muted-foreground'
+                isPermissionPolicy(artifact)
+                  ? 'bg-orange-50 text-orange-700'
+                  : typeColors[artifact.artifact_type] || 'bg-muted text-muted-foreground'
               }`}
             >
-              {artifact.artifact_type}
+              {isPermissionPolicy(artifact) ? 'permission rules' : artifact.artifact_type}
             </span>
           </div>
         </div>
@@ -1374,6 +1378,23 @@ function ArtifactRow({
 
           {fieldError && <p className="text-xs text-destructive">{fieldError}</p>}
 
+          {isPermissionPolicy(artifact) && editingField !== 'body' && (
+            <PolicyRules body={artifact.body} />
+          )}
+          {artifact.artifact_type === 'agent' &&
+            agentRestrictions(artifact.permissions).length > 0 && (
+              <ul aria-label="Permission restrictions" className="flex flex-wrap gap-2 text-xs">
+                {agentRestrictions(artifact.permissions).map((text) => (
+                  <li
+                    key={text}
+                    className="rounded bg-orange-50 px-2 py-1 font-medium text-orange-700"
+                  >
+                    {text}
+                  </li>
+                ))}
+              </ul>
+            )}
+
           {/* Body */}
           {editingField === 'body' ? (
             <div>
@@ -1408,7 +1429,7 @@ function ArtifactRow({
                   startEditingField('body');
                 }
               }}
-              title="Click to edit"
+              title={isPermissionPolicy(artifact) ? 'Click to edit the raw JSON' : 'Click to edit'}
               className="w-full text-left bg-muted rounded-lg p-3 overflow-x-auto max-h-80 overflow-y-auto hover:ring-2 hover:ring-brand-500/50 transition-shadow cursor-text"
             >
               <pre className="text-xs text-foreground whitespace-pre-wrap font-mono">

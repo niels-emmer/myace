@@ -328,6 +328,43 @@ describe('CollectionDetail — action buttons', () => {
     });
   });
 
+  describe('Permission rules and agent restrictions', () => {
+    it('shows a policy as readable rules, keeping the raw JSON editable', async () => {
+      const base = (mockMixedArtifacts as Record<string, unknown>[])[0];
+      (collectionsApi.getArtifacts as ReturnType<typeof vi.fn>).mockResolvedValue([
+        {
+          ...base,
+          id: 'policy-1',
+          artifact_type: 'model_config',
+          name: 'permissions:default',
+          body: JSON.stringify({
+            rules: [{ capability: 'execute', effect: 'ask', match: 'git push *' }],
+          }),
+        },
+        {
+          ...base,
+          id: 'agent-1',
+          artifact_type: 'agent',
+          name: 'code-reviewer',
+          permissions: { edit: 'deny' },
+        },
+      ]);
+      renderCollectionDetail();
+
+      fireEvent.click(await screen.findByRole('button', { name: /Expand permissions:default/i }));
+      expect(screen.getByText('Permission rules')).toBeInTheDocument();
+      expect(await screen.findByText('git push *')).toBeInTheDocument();
+      expect(screen.getByText('Ask first')).toBeInTheDocument();
+      // The owner can still edit the underlying JSON.
+      expect(screen.getByTitle('Click to edit the raw JSON')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /Expand code-reviewer/i }));
+      expect(await screen.findByRole('list', { name: 'Permission restrictions' })).toHaveTextContent(
+        'Cannot edit files',
+      );
+    });
+  });
+
   describe('Add rule button', () => {
     it('navigates to the new-rule page when clicked', async () => {
       renderCollectionDetail();
