@@ -322,7 +322,7 @@ target:
 | `docker-compose*.yml` | `docker compose up -d` |
 | docs, tests, CI, scripts | nothing beyond the pull |
 
-A real run then: takes a `pg_dump` to `backups/pre-deploy/` (verified with
+A real run then: takes a `pg_dump` to `~/backups/myace-pre-deploy/` (set `BACKUP_DIR` to change it; it is not under the repo's `backups/`, which the backup sidecar owns as root; verified with
 `gzip -t`), fast-forwards, migrates with the new code before the backend serves
 it, rebuilds or restarts, waits for health, and runs the reconcile **dry run**.
 Applying it is a human decision: the script shows the dry run and asks. It

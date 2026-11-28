@@ -169,3 +169,13 @@ def test_help_and_bad_options(tmp_path: Path) -> None:
     bad = subprocess.run(["bash", str(SCRIPT), "--nope"], capture_output=True, text=True)
     assert bad.returncode != 0
     assert "unknown option" in bad.stderr
+
+
+def test_default_backup_dir_is_not_the_sidecars_root_owned_directory() -> None:
+    """The first real deploy failed on `mkdir: Permission denied`: the default sat
+    under ./backups, which the postgres-backup sidecar owns as root."""
+    text = SCRIPT.read_text()
+    default_line = next(line for line in text.splitlines() if line.startswith("BACKUP_DIR="))
+
+    assert "$ROOT/backups" not in default_line
+    assert "HOME" in default_line
