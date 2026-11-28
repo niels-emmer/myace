@@ -397,6 +397,111 @@ NEW_ADDON_PACKS: dict[str, set[str]] = {
         "Review And Commit Wording",
         "Never Invent An Event",
     },
+    "Python Developer": {
+        "Python Error Handling",
+        "Python Mutable State And Async Pitfalls",
+        "Python Packaging And Environments",
+        "Python Project Layout",
+        "Python Testing Patterns",
+        "Python Tests Run With The Code",
+        "Python Typing And Validation",
+        "Python Typing Discipline",
+        "Python Untrusted Input And Secrets",
+        "python-builder",
+        "python-reviewer",
+    },
+    "TypeScript / Node Developer": {
+        "Dependency And Publish Hygiene",
+        "JavaScript Dependency Hygiene",
+        "No Floating Promises",
+        "Node Process And Input Safety",
+        "Node Service Conventions",
+        "TypeScript Config And Types",
+        "TypeScript Strictness",
+        "TypeScript Tests Run With The Code",
+        "Validate Data At The Boundary",
+        "ts-builder",
+        "ts-reviewer",
+    },
+    "Kubernetes Engineer": {
+        "Kubernetes Confirm The Target Before You Change It",
+        "Kubernetes Network And Access Are Default-Deny",
+        "Kubernetes Pods Run Least-Privilege",
+        "Kubernetes Rollouts Are Reversible",
+        "Kubernetes Safe Rollouts",
+        "Kubernetes Secrets And Images Are Controlled",
+        "Kubernetes Security Hardening",
+        "Kubernetes Workload Checklist",
+        "Kubernetes Workloads Declare Resources And Health",
+        "k8s-builder",
+        "k8s-reviewer",
+    },
+    "Accessibility": {
+        "Accessibility Is Tested, Not Assumed",
+        "Accessibility Testing",
+        "Accessible Authentication And Forms",
+        "Accessible Components",
+        "Colour, Size And Motion",
+        "Everything Works From The Keyboard",
+        "Name, Role And Value Are Programmatic",
+        "Semantic HTML Before ARIA",
+        "WCAG 2.2 AA Checklist",
+        "a11y-builder",
+        "a11y-reviewer",
+    },
+    "Observability & Incident Review": {
+        "Alert On Symptoms, With An Owner And A Runbook",
+        "Blameless Postmortem",
+        "Change Production Observability Carefully",
+        "Define SLOs Before Alerts",
+        "Instrument With Standard Conventions",
+        "Postmortems Are Blameless And Produce Actions",
+        "SLO And Alerting Design",
+        "Telemetry Carries No Secrets Or Personal Data",
+        "Telemetry Conventions",
+        "observability-builder",
+        "observability-reviewer",
+    },
+    "Privacy & Data Protection": {
+        "Check Processors And Transfers Before Integrating",
+        "Collect Less, Keep It Shorter",
+        "DPIA Checklist",
+        "Know What Personal Data You Hold",
+        "Personal Data Inventory",
+        "Personal Data Stays Out Of Logs, Prompts And Test Fixtures",
+        "Plan For Subject Rights And Incidents",
+        "Privacy Output Is A Draft, Not Legal Advice",
+        "Subject Request Handling",
+        "privacy-drafter",
+        "privacy-reviewer",
+    },
+}
+
+COMMUNITY_ADDON_PACKS: dict[str, set[str]] = {
+    "Go Developer": {
+        "Go Context And Cancellation",
+        "Go Errors Are Values You Handle",
+        "Go Goroutine Ownership",
+        "Go Module And Build Hygiene",
+        "Go Modules And Vulnerability Checks",
+        "Go Testing Patterns",
+        "Go Tests Run With The Code",
+        "Go Untrusted Input And Secrets",
+        "go-builder",
+        "go-reviewer",
+    },
+    "Rust Developer": {
+        "Rust Async And Concurrency Care",
+        "Rust Cargo Hygiene",
+        "Rust Clippy And Format Gates",
+        "Rust Dependencies And Supply Chain",
+        "Rust Errors Are Typed",
+        "Rust Testing Patterns",
+        "Rust Tests Run With The Code",
+        "Rust Unsafe Is Exceptional",
+        "rust-builder",
+        "rust-reviewer",
+    },
 }
 
 
@@ -530,3 +635,32 @@ async def test_additional_collections_compile_clean_on_devops_engineer(
             f"{name} on devops-engineer has a name collision: {body['warnings']}"
         )
         assert body["artifact_count"] > 0, f"{name} compiled to zero artifacts"
+
+
+async def test_community_addon_packs_seed_their_artifacts(
+    db_session: AsyncSession, monkeypatch
+) -> None:
+    """Go and Rust add-ons ship on the community shelf (not starter packs) with
+    exactly the expected artifact names."""
+    await _seed_against_repo_collections(db_session, monkeypatch)
+
+    collections = (
+        await db_session.execute(
+            select(Collection).where(
+                Collection.git_url.like("seed://%"),
+                Collection.is_starter_pack.is_(False),
+            )
+        )
+    ).scalars().all()
+    by_name = {c.name: c for c in collections}
+
+    for pack_name, expected_names in COMMUNITY_ADDON_PACKS.items():
+        assert pack_name in by_name, f"Missing community add-on pack: {pack_name}"
+        collection = by_name[pack_name]
+        artifacts = (
+            await db_session.execute(
+                select(Artifact).where(Artifact.collection_id == collection.id)
+            )
+        ).scalars().all()
+        assert {a.name for a in artifacts} == expected_names
+        assert collection.artifact_count == len(expected_names)
