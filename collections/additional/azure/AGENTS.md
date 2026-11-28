@@ -54,3 +54,9 @@ Before shipping nontrivial Azure changes, note which Azure Well-Architected
 Framework pillars are affected (reliability, security, cost optimization,
 operational excellence, performance efficiency) and how. See the
 `azure-waf-review` skill.
+
+## Azure Pick The Service For The Workload
+
+<!-- myace: priority=50 tags=azure,architecture -->
+
+Choose managed Azure services deliberately and say why, use managed identities and Private Endpoints with Private DNS rather than keys and public endpoints, and keep secrets in Key Vault with RBAC authorization. See the `azure-service-patterns` skill.

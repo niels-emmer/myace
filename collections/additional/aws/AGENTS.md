@@ -57,3 +57,9 @@ Before shipping nontrivial AWS changes, note which AWS Well-Architected
 Framework pillars are affected (operational excellence, security, reliability,
 performance efficiency, cost optimization, sustainability) and how. See the
 `aws-waf-review` skill.
+
+## AWS Pick The Service For The Workload
+
+<!-- myace: priority=50 tags=aws,architecture -->
+
+Choose managed, narrowly-scoped AWS services deliberately and say why (compute, data store, network path), preferring VPC endpoints and private connectivity over public paths, and S3 Block Public Access with encryption on every bucket. See the `aws-service-patterns` skill.

@@ -54,3 +54,9 @@ Before shipping nontrivial GCP changes, note which Google Cloud Well-Architected
 Framework pillars are affected (operational excellence, security/privacy/
 compliance, reliability, cost optimization, performance optimization,
 sustainability) and how. See the `gcp-waf-review` skill.
+
+## GCP Pick The Service For The Workload
+
+<!-- myace: priority=50 tags=gcp,architecture -->
+
+Choose managed Google Cloud services deliberately and say why, give each workload its own service account with narrowly-scoped roles instead of the default compute service account, and prefer private connectivity (Private Service Connect, private IP) to public endpoints. See the `gcp-service-patterns` skill.
