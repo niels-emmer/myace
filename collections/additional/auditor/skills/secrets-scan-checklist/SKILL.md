@@ -3,7 +3,7 @@ name: Secrets Scan Checklist
 description: Common credential shapes to recognize in a diff (API keys, tokens, connection strings, private key blocks) and the escalation rule to follow when one is found.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [security, secrets, review]
 ---
 ## Purpose

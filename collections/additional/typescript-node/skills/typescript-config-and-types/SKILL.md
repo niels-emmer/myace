@@ -3,7 +3,7 @@ name: TypeScript Config And Types
 description: tsconfig, module-system and type-design checklist. Use when creating a TypeScript project or changing compiler options or core types.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [typescript, typing, config]
 ---
 ## Purpose

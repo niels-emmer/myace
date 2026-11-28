@@ -2,7 +2,7 @@
 description: Implements and fixes accessibility in web UI, covering semantics, keyboard support, focus management, labels and contrast.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [a11y-reviewer]
 ---

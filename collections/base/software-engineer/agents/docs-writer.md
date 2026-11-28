@@ -2,7 +2,7 @@
 description: Updates README/AGENTS-style documentation and the project's memory log to match a code change, in the same change set rather than as a deferred follow-up.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [builder]
 ---

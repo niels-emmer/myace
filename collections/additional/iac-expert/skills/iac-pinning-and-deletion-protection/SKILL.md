@@ -3,7 +3,7 @@ name: IaC Pinning And Deletion Protection
 description: Checklist for pinning IaC tool, provider and module versions and for guarding stateful resources against accidental destroy or replace. Use when creating a stack, upgrading providers or reviewing a plan that destroys resources.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [iac, terraform, safety]
 ---
 ## Purpose

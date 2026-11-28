@@ -2,7 +2,7 @@
 description: Turn a short feature request into a written spec — user-facing behavior and testable acceptance criteria, deliberately free of implementation detail — before any planning starts.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 ---
 1. Restate the request as a short slug (`kebab-case`, e.g. `sso-login`) and create `docs/specs/<slug>/spec.md`.
 2. Write the spec in terms a non-technical stakeholder could review: user stories ("As a ..., I want ..., so that ..."), functional requirements, and explicit out-of-scope items. Say nothing about frameworks, data models, or file structure here — that's `sdd-plan`'s job, not this one.

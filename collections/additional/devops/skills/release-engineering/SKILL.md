@@ -3,7 +3,7 @@ name: Release Engineering
 description: Semantic versioning, changelog generation, and release/hotfix management so releases are predictable and reversible.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [release, versioning, semver, changelog]
 ---
 ## Purpose

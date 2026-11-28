@@ -3,7 +3,7 @@ name: Python Typing And Validation
 description: Typing and boundary-validation checklist for Python. Use when adding a public function, a data model or a type-checker configuration.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [python, typing, validation]
 ---
 ## Purpose

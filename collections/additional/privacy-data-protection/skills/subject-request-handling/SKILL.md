@@ -3,7 +3,7 @@ name: Subject Request Handling
 description: Runbook design for access, export, correction and erasure requests and for breach response. Use when building or reviewing the systems and process behind data-subject rights.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [privacy, operations, gdpr]
 ---
 ## Purpose

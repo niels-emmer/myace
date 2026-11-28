@@ -3,7 +3,7 @@ name: Supply Chain Security
 description: Checklist for securing CI/CD and the build supply chain covering pinning, token permissions, provenance, SBOMs and dependency review. Use when designing or reviewing pipelines and release processes.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [devops, supply-chain, ci]
 ---
 ## Purpose

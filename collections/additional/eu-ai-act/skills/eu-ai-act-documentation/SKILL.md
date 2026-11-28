@@ -3,7 +3,7 @@ name: EU AI Act Documentation
 description: What compliance documentation to produce under the EU AI Act — Annex IV technical documentation, EU declaration of conformity, risk-management file, data-governance records, and GPAI training-data summary — and how to structure it.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [compliance, eu-ai-act, documentation]
 ---
 ## Purpose

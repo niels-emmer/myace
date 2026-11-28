@@ -2,7 +2,7 @@
 description: Read-only DevSecOps reviewer that audits an infrastructure change for security issues — identity, secrets, network exposure, data protection, image/dependency risk — after it's built and before it merges.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [builder, code-reviewer]
 permissions: {edit: deny}

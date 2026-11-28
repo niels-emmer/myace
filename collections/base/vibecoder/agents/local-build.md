@@ -2,7 +2,7 @@
 description: Fast-iteration builder agent for solo/prototype work — broad edit and shell access with minimal ceremony, still holds the line on secrets and destructive commands.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: primary
 handoff_to: []
 ---

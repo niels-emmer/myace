@@ -3,7 +3,7 @@ name: Accessibility Testing
 description: Procedure combining automated checks, keyboard testing and screen-reader passes. Use when verifying accessibility of a change or setting up CI checks.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [accessibility, testing, ci]
 ---
 ## Purpose

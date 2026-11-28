@@ -2,7 +2,7 @@
 description: Builds and maintains LLM-integrated features — RAG pipelines, tool-calling integrations, structured-output parsing, embedding/vector search — treating model output as untrusted input requiring validation.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [verifier, security-auditor]
 ---

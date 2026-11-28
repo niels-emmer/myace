@@ -3,7 +3,7 @@ name: Blameless Postmortem
 description: Template and method for a blameless post-incident review with tracked actions. Use after any user-impacting incident or near miss.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [observability, incident, postmortem]
 ---
 ## Purpose

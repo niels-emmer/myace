@@ -3,7 +3,7 @@ name: Editorial Restraint
 description: Keeping factual documents honest and calm — every claim traceable, tone free of inflation, structure matching the content's shape, and gaps stated rather than filled with plausible-sounding prose.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [documentation, writing, editing, accuracy]
 ---
 

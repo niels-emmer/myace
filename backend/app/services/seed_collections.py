@@ -129,8 +129,8 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
             "name": "Google Cloud Architect",
             "category": "Infrastructure",
             "description": (
-                "For Google Cloud infrastructure and governance. Architecture "
-                "Framework pillars, landing zones, IAM/service-account identity, "
+                "For Google Cloud infrastructure and governance. Well-Architected "
+                "pillars, landing zones, IAM/service-account identity, "
                 "and Security Command Center posture. Layers on the cloud-agnostic "
                 "iac-expert collection."
             ),

@@ -2,7 +2,7 @@
 description: Writes and maintains the test suite — covering failure modes and edge cases deliberately, and shipping a regression test with every bug fix.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [test-reviewer]
 ---

@@ -3,7 +3,7 @@ name: Scaleway Service Patterns
 description: Service-selection and configuration patterns for common Scaleway workloads covering compute, data, networking and residency. Use when choosing or configuring Scaleway products in IaC.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [scaleway, architecture, services]
 ---
 ## Purpose

@@ -3,7 +3,7 @@ name: Observability
 description: Structured logging, RED/USE metrics, tracing, and alerting on symptoms — so production behavior is visible and pages go to the right people for the right reasons.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [observability, monitoring, logging, alerting]
 ---
 ## Purpose

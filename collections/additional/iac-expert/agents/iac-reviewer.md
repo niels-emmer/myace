@@ -2,7 +2,7 @@
 description: Read-only reviewer that checks an infrastructure plan or diff against the iac-expert invariants and flags undocumented exceptions — never edits files or runs infrastructure commands.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [iac-builder]
 permissions: {edit: deny}

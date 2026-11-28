@@ -2,7 +2,7 @@
 description: Turn a clarified spec into a concrete technical plan — architecture, data model, and interfaces — before any task breakdown or code.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 ---
 1. Read `docs/specs/<slug>/spec.md`. If it still has unresolved `[NEEDS CLARIFICATION]` markers, stop and run `sdd-clarify` first — planning against an ambiguous spec just moves the ambiguity into the code.
 2. Resolve open technical unknowns explicitly before designing around them: which library, which existing service boundary, which of two viable data shapes. Where the codebase already has an established pattern for something similar, follow it rather than introducing a second way to do the same thing.

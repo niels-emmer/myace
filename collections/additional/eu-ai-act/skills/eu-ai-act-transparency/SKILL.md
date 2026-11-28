@@ -3,7 +3,7 @@ name: EU AI Act Transparency
 description: Checklist for the Article 50 transparency obligations — chatbot AI disclosure, machine-readable marking of synthetic content, emotion-recognition/biometric-categorisation notice, and deepfake/public-interest-text labelling.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [compliance, eu-ai-act, transparency, deepfake, chatbot]
 ---
 ## Purpose

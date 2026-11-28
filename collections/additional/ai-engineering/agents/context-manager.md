@@ -2,7 +2,7 @@
 description: Curates what goes into an agent's context window across a long-running or multi-agent task — deciding what stays, what gets summarized, and what gets dropped.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: []
 permissions: {edit: deny}

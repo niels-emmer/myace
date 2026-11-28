@@ -3,7 +3,7 @@ name: Secrets Management
 description: Secrets manager usage, rotation, and least privilege — so credentials are injected at deploy time, rotated on a schedule, and never end up in artifacts, config, or logs.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [secrets, security, credentials, rotation]
 ---
 ## Purpose

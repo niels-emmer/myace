@@ -2,7 +2,7 @@
 description: Read-only reviewer that checks test coverage quality — whether the suite actually guards the behavior, covers failure modes, and stays deterministic.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [test-builder]
 permissions: {edit: deny}

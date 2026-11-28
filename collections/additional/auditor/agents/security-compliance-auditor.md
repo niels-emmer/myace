@@ -2,7 +2,7 @@
 description: Read-only agent that reviews diffs and code for OWASP-Top-10-style vulnerabilities, auth/authz gaps, and secrets, producing a structured findings report instead of fixing anything itself.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [compliance-reviewer]
 permissions: {edit: deny}

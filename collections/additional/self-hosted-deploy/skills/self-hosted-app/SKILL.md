@@ -3,7 +3,7 @@ name: Self-Hosted App
 description: Conventions for the single-container, single-database self-hosted web app — admin panel, backup and restore, health checks, and reverse-proxy deployment.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [self-hosted, sqlite, admin-panel, backup, reverse-proxy, deployment]
 ---
 ## Purpose

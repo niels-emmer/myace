@@ -2,7 +2,7 @@
 description: Execute a task list in dependency order, tests before implementation for each task, halting on any non-parallel failure instead of pressing ahead.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 ---
 1. Read `docs/specs/<slug>/tasks.md` and the underlying `spec.md`/`plan.md`. If `sdd-analyze` hasn't been run and the spec or plan changed after `sdd-tasks` was generated, run it first rather than implementing against a possibly-stale task list.
 2. Work through tasks in the order and grouping `sdd-tasks` produced. Within a group, tasks marked parallel-safe may be done in any order; tasks with a stated dependency must wait for it.

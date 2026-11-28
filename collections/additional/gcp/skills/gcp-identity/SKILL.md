@@ -3,7 +3,7 @@ name: GCP Identity Design
 description: IAM roles, service accounts, and identity federation design for GCP — when to use which, and how to avoid long-lived service-account keys.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [gcp, iac, identity, security, iam]
 ---
 ## Purpose

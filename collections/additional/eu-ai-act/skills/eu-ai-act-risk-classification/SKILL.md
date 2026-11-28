@@ -3,7 +3,7 @@ name: EU AI Act Risk Classification
 description: Decision tree for classifying an AI system into the EU AI Act risk tier (unacceptable/high/limited/minimal) and identifying the actor role (provider/deployer/importer/distributor).
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [compliance, eu-ai-act, risk-classification, governance]
 ---
 ## Purpose

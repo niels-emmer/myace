@@ -3,7 +3,7 @@ name: API Discoverability for Agents
 description: Making self-hosted services agent-discoverable — bake in a machine-readable API description (OpenAPI spec or a minimal API.md) when building, and discover-first (spec paths, repo search) before probing when integrating.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [api, discoverability, agents, openapi]
 ---
 ## Purpose

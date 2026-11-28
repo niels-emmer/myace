@@ -3,7 +3,7 @@ name: New App Scaffold
 description: Day-one bootstrap for a new application repository — the baseline file set, docs, CI, decision-log seed, and environment template.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [scaffold, bootstrap, repository, project-setup]
 ---
 ## Purpose

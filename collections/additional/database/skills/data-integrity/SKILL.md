@@ -3,7 +3,7 @@ name: Data Integrity
 description: Checklist for protecting data correctness — transactions, idempotency, referential integrity, and explicit delete semantics.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [database, integrity, transactions]
 ---
 ## Purpose

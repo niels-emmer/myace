@@ -2,7 +2,7 @@
 description: Read-only reviewer for schema design, migration safety, query performance, and data-integrity gaps — flags problems precisely, never edits code.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [schema-builder]
 permissions: {edit: deny}

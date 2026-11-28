@@ -3,7 +3,7 @@ name: Kubernetes Workload Checklist
 description: Checklist for a production-ready Deployment, StatefulSet or Job covering resources, probes, availability and shutdown. Use when writing or reviewing workload manifests.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [kubernetes, workloads, reliability]
 ---
 ## Purpose

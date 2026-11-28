@@ -3,7 +3,7 @@ name: Go Module And Build Hygiene
 description: Module, layout and dependency checklist for Go projects. Use when creating a module, adding dependencies or setting up CI.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [go, build, modules]
 ---
 ## Purpose

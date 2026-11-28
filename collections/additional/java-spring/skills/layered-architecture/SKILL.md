@@ -3,7 +3,7 @@ name: Layered Architecture
 description: Controller → service → repository layering, DTO boundaries, @Transactional placement, and exception hierarchy.
 version: "1.0.0"
 priority: 60
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [java, spring, architecture]
 ---
 ## Purpose

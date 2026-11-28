@@ -2,7 +2,7 @@
 description: The standard pre-merge verification checklist for infrastructure changes — plan/validate/lint/policy checks, tests, security pass, rollback path, and documentation, all confirmed before a change is considered done.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 ---
 1. Run `plan`/`validate`, format/lint, and policy-as-code checks and confirm an actual pass — quote the real output, don't summarize a run you didn't just do.
 2. Read the plan output and confirm it matches the intended change — no resources created or destroyed that the task didn't ask for.

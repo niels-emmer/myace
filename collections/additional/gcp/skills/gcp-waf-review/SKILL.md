@@ -3,7 +3,7 @@ name: GCP Well-Architected Review
 description: Google Cloud Well-Architected Framework (formerly the Architecture Framework) pillar checklists — operational excellence, security/privacy/compliance, reliability, cost optimization, performance optimization, sustainability — for reviewing GCP infrastructure changes.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [gcp, iac, architecture, well-architected, governance]
 ---
 ## Purpose

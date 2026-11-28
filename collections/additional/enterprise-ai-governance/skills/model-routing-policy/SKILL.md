@@ -3,7 +3,7 @@ name: Model Routing Policy
 description: Classify data by sensitivity, route each class to an appropriate model, and keep a zero-egress path for the most sensitive work.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [governance, data-classification, model-routing, privacy, zero-egress]
 ---
 ## Purpose

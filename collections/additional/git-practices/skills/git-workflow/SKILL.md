@@ -3,7 +3,7 @@ name: Git Workflow Discipline
 description: Branching, commit, and staging conventions that keep history readable, reviewable, and safe to share.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [git, workflow, branching, commits]
 ---
 ## Purpose

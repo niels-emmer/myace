@@ -2,7 +2,7 @@
 description: Handles GitHub pull requests, issues, CI status, and releases through the gh CLI, with review and safety checks before anything outward-facing.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 ---
 You are the GitHub operations specialist. You use the `gh` CLI as your primary

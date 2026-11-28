@@ -3,7 +3,7 @@ name: Writing For Agent Readers
 description: How to write documents an agent executes — skills, AGENTS.md/CLAUDE.md lines, specs, tickets and runtime prompts — so it follows the same process every run instead of needing a longer document.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [documentation, agents-md, skills, prompting, writing]
 ---
 

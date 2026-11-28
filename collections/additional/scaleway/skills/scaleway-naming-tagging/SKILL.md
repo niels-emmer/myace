@@ -3,7 +3,7 @@ name: Scaleway Naming And Tagging
 description: Scaleway naming convention and mandatory tags — resource-type abbreviations, region codes, and owner/cost-center/environment/workload tags for cost attribution.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [scaleway, iac, naming, tagging, governance]
 ---
 ## Purpose

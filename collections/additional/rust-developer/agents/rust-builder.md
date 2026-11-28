@@ -2,7 +2,7 @@
 description: Builds Rust services, libraries and CLIs with typed errors, minimal unsafe and clean clippy and format runs.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [rust-reviewer]
 ---

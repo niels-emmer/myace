@@ -3,7 +3,7 @@ name: Migration Safety
 description: Checklist for shipping schema migrations that roll back cleanly and won't lock up a production table.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [database, migrations, schema]
 ---
 ## Purpose

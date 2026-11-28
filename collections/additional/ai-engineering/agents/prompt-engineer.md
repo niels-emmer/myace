@@ -2,7 +2,7 @@
 description: Designs and iterates on prompts, system instructions, and agent/skill copy — owns defining what "better" means for a change before making it, not after.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [ai-engineer, code-reviewer]
 ---

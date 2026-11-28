@@ -3,7 +3,7 @@ name: Component Conventions
 description: Guidance on composing, naming, and sizing components, designing their props, and keeping their state as local as possible.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [frontend, components, architecture]
 ---
 ## Purpose

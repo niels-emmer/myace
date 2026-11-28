@@ -3,7 +3,7 @@ name: LLM Evals
 description: How to design, run and maintain evaluations for prompts, agents and model changes. Use before changing a prompt, model or tool set, or when a quality regression is reported.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [ai, evals, testing]
 ---
 ## Purpose

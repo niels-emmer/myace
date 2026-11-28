@@ -2,7 +2,7 @@
 description: Pre-commit gate — review the staged diff, scan for secrets, run lint and tests, and confirm the change is ready to commit.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 ---
 Run the pre-commit gate before committing. Do not commit if any gate fails.
 

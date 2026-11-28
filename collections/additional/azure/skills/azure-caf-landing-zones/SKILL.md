@@ -3,7 +3,7 @@ name: Azure CAF Landing Zones
 description: Cloud Adoption Framework governance essentials — management-group hierarchy, subscription design, RBAC scoping, Azure Policy guardrails, and network topology for Azure landing zones.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [azure, iac, governance, landing-zones, caf]
 ---
 ## Purpose

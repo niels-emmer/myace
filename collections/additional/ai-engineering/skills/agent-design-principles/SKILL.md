@@ -3,7 +3,7 @@ name: Agent Design Principles
 description: A checklist for designing agent personas, skills, and multi-agent pipelines that stay reliable as they grow — grounded in the 12-factor-agents principles.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [ai, agents, prompt-engineering, principles]
 ---
 ## Purpose

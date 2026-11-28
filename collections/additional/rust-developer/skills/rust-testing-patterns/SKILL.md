@@ -3,7 +3,7 @@ name: Rust Testing Patterns
 description: Unit, integration, doc and property testing patterns for Rust. Use when writing or reviewing Rust tests.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [rust, testing]
 ---
 ## Purpose

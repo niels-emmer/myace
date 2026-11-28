@@ -3,7 +3,7 @@ name: Personal Data Inventory
 description: Procedure for building a record of personal data processing from code and infrastructure. Use when starting a privacy review or before adding a new data store or integration.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [privacy, data-mapping, gdpr]
 ---
 ## Purpose

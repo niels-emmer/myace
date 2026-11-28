@@ -3,7 +3,7 @@ name: EU AI Act High-Risk Obligations
 description: PASS/FAIL/N/A checklist for the high-risk AI obligations under Articles 8-15 of the EU AI Act, plus the quality management system, conformity assessment, registration, post-market monitoring, and incident reporting.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [compliance, eu-ai-act, high-risk, checklist]
 ---
 ## Purpose

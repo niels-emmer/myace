@@ -2,7 +2,7 @@
 description: Read-only reviewer for SwiftUI lifecycle, state correctness, memory management, and App Store guideline compliance.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [ios-builder]
 permissions: {edit: deny}

@@ -2,7 +2,7 @@
 description: Read-only reviewer for Kubernetes manifests covering pod security, resources and probes, RBAC, network policy, secrets and rollout safety.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [k8s-builder]
 permissions: {edit: deny}

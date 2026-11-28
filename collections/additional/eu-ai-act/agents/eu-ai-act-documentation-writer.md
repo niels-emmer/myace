@@ -2,7 +2,7 @@
 description: Read-only agent that drafts the EU AI Act compliance documentation set — technical documentation (Annex IV), EU declaration of conformity, risk-management file, data-governance records, and GPAI training-data summary — as structured drafts for human/legal review.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [eu-ai-act-compliance-reviewer]
 permissions: {edit: deny}

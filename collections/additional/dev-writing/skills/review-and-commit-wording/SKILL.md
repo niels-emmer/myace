@@ -3,7 +3,7 @@ name: Review And Commit Wording
 description: Genre shapes for developer text a developer signs their name to (reviewer comments, author replies, reporting back after a check, code comments, and commit subjects), with the wording each one needs.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [writing, review, commits, comments, communication]
 ---
 

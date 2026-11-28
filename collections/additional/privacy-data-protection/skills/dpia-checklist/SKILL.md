@@ -3,7 +3,7 @@ name: DPIA Checklist
 description: Checklist for drafting a data protection impact assessment. Use when a feature involves high-risk personal-data processing or a regulator or policy requires a DPIA.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [privacy, dpia, gdpr]
 ---
 ## Purpose

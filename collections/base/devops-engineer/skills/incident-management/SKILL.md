@@ -3,7 +3,7 @@ name: Incident Management
 description: Severity classification, runbook structure, and blameless postmortems — so incidents are handled calmly, restored fast, and learned from.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [incident, on-call, runbooks, postmortem]
 ---
 ## Purpose

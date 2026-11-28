@@ -3,7 +3,7 @@ name: Scaleway Guardrails
 description: Guardrail approach for Scaleway where no organisation-level deny policy exists, covering IAM design, Project boundaries, audit logging and review. Use when designing or reviewing governance on Scaleway.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [scaleway, governance, guardrails, iam]
 ---
 ## Purpose

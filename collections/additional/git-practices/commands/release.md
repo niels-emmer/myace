@@ -2,7 +2,7 @@
 description: Release workflow — confirm the default branch is green, choose the next semantic version, update the changelog, tag, push, and publish the release.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 ---
 Run the release flow in order. Stop and ask the user wherever input is
 required, and never skip a gate.

@@ -3,7 +3,7 @@ name: Scaleway Architecture
 description: Scaleway architecture and governance essentials — Organization/Project structure, IAM scoping, VPC/private-network topology, security groups, and guardrails for Scaleway environments.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [scaleway, iac, architecture, governance, landing-zones]
 ---
 ## Purpose

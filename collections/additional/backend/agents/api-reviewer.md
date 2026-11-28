@@ -2,7 +2,7 @@
 description: Read-only reviewer focused on API consistency, migration safety, and boundary-validation gaps — flags problems precisely, never edits code itself.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [backend-builder]
 permissions: {edit: deny}

@@ -3,7 +3,7 @@ name: AI Governance
 description: Data classification, model selection by sensitivity, audit trail, dependency compliance, and environment isolation for agentic coding in enterprise or internet-facing work.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [governance, security, compliance, data-classification]
 ---
 ## Purpose

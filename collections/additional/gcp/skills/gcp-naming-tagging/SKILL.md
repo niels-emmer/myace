@@ -3,7 +3,7 @@ name: GCP Naming And Labeling
 description: GCP naming convention and mandatory labels — resource-type abbreviations, region codes, and owner/cost-center/environment/workload labels for cost attribution.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [gcp, iac, naming, labeling, governance]
 ---
 ## Purpose
