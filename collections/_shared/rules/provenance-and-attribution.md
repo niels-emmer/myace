@@ -1,0 +1,1 @@
+Verify AI-generated output and claims about behavior before treating them as fact: run the tests, read the plan or diff, check the provider docs. Cite actual sources (docs, library code, changelogs) for claims about behavior or security properties. Flag uncertainty explicitly.

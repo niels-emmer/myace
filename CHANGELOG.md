@@ -6,6 +6,18 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Base packs share one governance core.** Change Control, Secrets And
+  Destructive Actions, Provenance And Attribution and Rule Of Least Power are
+  now written once in `collections/_shared/` and generated into each base
+  pack's `AGENTS.md` (`scripts/sync_shared_core.py`, drift-checked in tests).
+  Packs stay self-contained. Vibecoder's overlapping rules merged into these
+  and its opencode-only model config was removed. Data Scientist gains a
+  data-governance rule; Software Engineer and DevOps rules now say what to do
+  on tools without subagents. Existing deployments need
+  `reconcile_seeded_collections --apply --update-content`.
+
 ## [2.1.0] — 2026-11-25
 
 The MCP release: MyACE's public packs become usable by any coding agent, not

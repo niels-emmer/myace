@@ -1,0 +1,1 @@
+Verify AI-generated output and claims about behavior before treating them as fact. Cite actual sources (docs, library code, papers, changelogs) for claims about methods or results. A model result you have not run and logged is a claim, not a result. Flag uncertainty explicitly.

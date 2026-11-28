@@ -1,0 +1,1 @@
+Verify AI-generated output and claims about infrastructure behavior before treating them as fact: check provider docs, changelogs, and plan output. Cite actual sources for claims about behavior or security properties. Flag uncertainty explicitly. Don't trust a `plan` you haven't read.

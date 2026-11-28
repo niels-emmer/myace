@@ -1,0 +1,15 @@
+{
+  "title": {
+    "software-engineer": "Software Engineer",
+    "vibecoder": "Vibecoder",
+    "data-scientist": "Data Scientist",
+    "devops-engineer": "DevOps Engineer"
+  },
+  "rules": [
+    {"slug": "change-control", "name": "Change Control"},
+    {"slug": "secrets-and-destructive-actions", "name": "Secrets And Destructive Actions"},
+    {"slug": "provenance-and-attribution", "name": "Provenance And Attribution"},
+    {"slug": "rule-of-least-power", "name": "Rule Of Least Power"}
+  ],
+  "exclude": {}
+}
