@@ -72,15 +72,15 @@ def test_no_adapter_ever_emits_a_shared_settings_file() -> None:
 
 def test_unenforced_warning_names_agent_and_target() -> None:
     agent = _agent({"edit": "deny", "execute": "ask"})
-    cursor = get_adapter("cursor")
-    warnings = _check_unenforced_permissions(cursor, [agent], "cursor")  # type: ignore[arg-type]
+    cursor = get_adapter("aider")
+    warnings = _check_unenforced_permissions(cursor, [agent], "aider")  # type: ignore[arg-type]
     assert [w.code for w in warnings] == ["permissions_not_enforced"]
     assert "reviewer" in warnings[0].message and "edit=deny" in warnings[0].message
     # claude-code enforces deny but not ask; opencode enforces everything.
     claude = _check_unenforced_permissions(get_adapter("claude-code"), [agent], "claude-code")  # type: ignore[arg-type]
     assert "execute=ask" in claude[0].message and "edit=deny" not in claude[0].message
     assert _check_unenforced_permissions(get_adapter("opencode"), [agent], "opencode") == []  # type: ignore[arg-type]
-    assert _check_unenforced_permissions(cursor, [_agent(None)], "cursor") == []  # type: ignore[arg-type]
+    assert _check_unenforced_permissions(cursor, [_agent(None)], "aider") == []  # type: ignore[arg-type]
 
 
 def test_permissions_survive_export_and_scan(tmp_path: Path) -> None:
@@ -185,11 +185,11 @@ def test_policy_sidecars_are_restrict_only_and_never_a_config_file() -> None:
     assert json.loads(oc[".opencode/myace.permissions.json"]) == {
         "permission": {"bash": {"git push *": "ask"}, "webfetch": "deny"}
     }
-    assert translate_artifacts(get_adapter("cursor"), [_policy()]) == {}  # type: ignore[arg-type]
+    assert translate_artifacts(get_adapter("aider"), [_policy()]) == {}  # type: ignore[arg-type]
 
 
 def test_policy_on_unsupported_target_warns() -> None:
-    cursor = _check_unenforced_permissions(get_adapter("cursor"), [_policy()], "cursor")  # type: ignore[arg-type]
+    cursor = _check_unenforced_permissions(get_adapter("aider"), [_policy()], "aider")  # type: ignore[arg-type]
     assert [w.code for w in cursor] == ["permissions_not_enforced"]
     assert _check_unenforced_permissions(get_adapter("claude-code"), [_policy()], "claude-code") == []  # type: ignore[arg-type]
 
@@ -258,3 +258,42 @@ def test_codex_agents_still_report_per_agent_permissions_unenforced() -> None:
         get_adapter("codex-cli"), [_agent({"edit": "deny"})], "codex-cli"  # type: ignore[arg-type]
     )
     assert "edit=deny" in warnings[0].message
+
+
+# --- Cursor and Copilot: native agent files, added alongside the old output ---
+
+
+def test_cursor_emits_a_native_subagent_alongside_the_rule_file() -> None:
+    files = get_adapter("cursor").translate([_agent({"edit": "deny", "network": "deny"})])  # type: ignore[union-attr]
+    assert ".cursor/rules/reviewer.mdc" in files  # unchanged existing output
+    fm = _frontmatter(files[".cursor/agents/reviewer.md"])
+    assert fm["readonly"] is True and fm["name"] == "reviewer"
+    free = _frontmatter(get_adapter("cursor").translate([_agent(None)])[".cursor/agents/reviewer.md"])  # type: ignore[union-attr]
+    assert "readonly" not in free  # restrict-only: never written as false
+    warnings = _check_unenforced_permissions(
+        get_adapter("cursor"), [_agent({"edit": "deny", "network": "deny"})], "cursor"  # type: ignore[arg-type]
+    )
+    assert "network=deny" in warnings[0].message and "edit=deny" not in warnings[0].message
+
+
+def test_copilot_emits_a_native_agent_with_a_tools_allow_list_minus_denied() -> None:
+    files = get_adapter("copilot-cli").translate(  # type: ignore[union-attr]
+        [_agent({"edit": "deny", "read": "deny", "execute": "ask"})]
+    )
+    assert ".github/instructions/agent-reviewer.instructions.md" in files  # unchanged
+    fm = _frontmatter(files[".github/agents/reviewer.agent.md"])
+    assert fm["tools"] == ["execute", "agent", "web", "todo"]  # read also drops search
+    free = _frontmatter(
+        get_adapter("copilot-cli").translate([_agent(None)])[".github/agents/reviewer.agent.md"]  # type: ignore[union-attr]
+    )
+    assert "tools" not in free  # omitted = everything, so unrestricted stays unrestricted
+    warnings = _check_unenforced_permissions(
+        get_adapter("copilot-cli"), [_agent({"edit": "deny", "execute": "ask"})], "copilot-cli"  # type: ignore[arg-type]
+    )
+    assert "execute=ask" in warnings[0].message and "edit=deny" not in warnings[0].message
+
+
+def test_agent_dot_agent_md_scans_back_to_the_agent_name(tmp_path: Path) -> None:
+    f = tmp_path / "reviewer.agent.md"
+    f.write_text("---\ndescription: d\n---\nBody\n")
+    assert scanner._parse_agent_file(f)["name"] == "reviewer"  # type: ignore[index]

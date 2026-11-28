@@ -1611,4 +1611,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   gets a real `.codex/rules/myace.rules` for global shell rules
   (`unenforced_policy_rules()` reports what a format can't carry). OpenCode v2
   configs get v2 `permissions` rules prepended so the user's own rules win.
+  Cursor (`.cursor/agents/*.md`, `readonly`) and Copilot CLI
+  (`.github/agents/*.agent.md`, `tools`) also emit a native agent file *next to*
+  their old rule/instruction output; both scanners read `x.agent.md` as agent `x`.
 

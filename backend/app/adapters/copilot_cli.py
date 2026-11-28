@@ -2,8 +2,25 @@
 
 import json
 
-from app.adapters.base import BaseAdapter, safe_path_component, yaml_scalar
+import yaml
+
+from app.adapters.base import (
+    BaseAdapter,
+    restricting_permissions,
+    safe_path_component,
+    yaml_scalar,
+)
 from app.models.artifact import CanonicalArtifact
+
+# Copilot custom-agent tool aliases (docs.github.com .../custom-agents-configuration).
+_ALL_ALIASES = ["execute", "read", "edit", "search", "agent", "web", "todo"]
+_DENIED_ALIASES: dict[str, list[str]] = {
+    "read": ["read", "search"],
+    "edit": ["edit"],
+    "execute": ["execute"],
+    "network": ["web"],
+    "delegate": ["agent"],
+}
 
 
 class CopilotCliAdapter(BaseAdapter):
@@ -16,7 +33,33 @@ class CopilotCliAdapter(BaseAdapter):
         return ["copilot-cli", "copilot", "github-copilot"]
 
     def expected_paths(self) -> list[str]:
-        return [".github/copilot-instructions.md", ".github/instructions/"]
+        return [".github/copilot-instructions.md", ".github/instructions/", ".github/agents/"]
+
+    def unenforced_permissions(self, artifact: CanonicalArtifact) -> dict[str, str]:
+        # Only `deny` has a form (drop the alias from the agent's `tools` list);
+        # `ask` is a session/approval concept in Copilot CLI.
+        return {
+            cap: eff
+            for cap, eff in restricting_permissions(artifact).items()
+            if eff != "deny"
+        }
+
+    def _format_native_agent(self, artifact: CanonicalArtifact) -> str:
+        fields: dict[str, object] = {
+            "name": artifact.name,
+            "description": artifact.description,
+        }
+        denied = {
+            cap for cap, eff in restricting_permissions(artifact).items() if eff == "deny"
+        }
+        if denied:
+            # `tools` is an allow-list (omitted = everything), so express a deny
+            # as "all aliases except these". Listing tools also drops MCP tools
+            # for that agent — tighter than asked, never looser.
+            removed = {c for cap in denied for c in _DENIED_ALIASES[cap]}
+            fields["tools"] = [alias for alias in _ALL_ALIASES if alias not in removed]
+        yaml_text = yaml.safe_dump(fields, sort_keys=False, default_flow_style=False).strip()
+        return f"---\n{yaml_text}\n---\n" + artifact.body.strip() + "\n"
 
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         files: dict[str, str] = {}
@@ -34,6 +77,9 @@ class CopilotCliAdapter(BaseAdapter):
                 files[
                     f".github/instructions/agent-{slug}.instructions.md"
                 ] = self._format_instructions_file(artifact, "agent")
+                # Additive: also a native custom agent, the only place a
+                # per-agent `tools` restriction can live (ADR-0019).
+                files[f".github/agents/{slug}.agent.md"] = self._format_native_agent(artifact)
             elif artifact.artifact_type == "workflow":
                 files[
                     f".github/instructions/workflow-{slug}.instructions.md"

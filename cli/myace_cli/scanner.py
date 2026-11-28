@@ -184,7 +184,8 @@ def _parse_agent_file(path: Path) -> dict | None:
     """Parse an agent .md file into a canonical artifact."""
     content = path.read_text(encoding="utf-8")
     frontmatter, body = _parse_yaml_frontmatter(content)
-    name = path.stem
+    # `x.agent.md` (GitHub Copilot custom agents) is the agent named `x`.
+    name = path.stem.removesuffix(".agent")
 
     # Start from any explicit `tags:` list so an agent that was exported and
     # re-scanned keeps its tags (github_export writes them); `mode:`/`model:`

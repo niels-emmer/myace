@@ -22,6 +22,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Cursor and Copilot CLI get native agent files** (`.cursor/agents/<name>.md`, `.github/agents/<name>.agent.md`) in addition to the existing rule/instruction files, so an agent's `edit`/`read`/`execute`/`network`/`delegate` denials can be enforced there (`readonly` / `tools`). Existing output is unchanged. Neither is verified against the real tool.
+
 - **Owner collection page** shows a pack's permission rules and agent restrictions the same readable way as the public pack page (shared `PolicyRules` component); the raw JSON stays editable.
 
 - **Pack page shows permissions properly.** A pack's global permission rules now appear under their own "Permission rules" filter as a readable list (what, command, ask-first/blocked) instead of a raw `model_config` JSON blob, and agents with restrictions show them as sentences ("Cannot edit files"). Frontend only.
