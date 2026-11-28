@@ -6,6 +6,16 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.0] — 2026-11-28
+
+The pack page and discovery release. One additive migration
+(`c1d2e3f4a5b6`: nullable `collections.relations` and `content_updated_at`); no
+removed routes and no changed response shapes (new fields and one new anonymous
+read). Existing deployments run `alembic upgrade head`, restart the backend,
+rebuild the frontend and `mcp` images, then
+`reconcile_seeded_collections --apply --update-content --update-metadata`
+(dry run first).
+
 ### Added
 
 - **Pack page: related packs and "Updated".** Seeded packs can declare `layers_on`
@@ -26,6 +36,18 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   name, category, description and relations from the registry (dry run lists each
   old and new value), so pack-card text no longer drifts from the registry on a
   long-lived deployment. It never touches ratings, verification or moderation.
+
+### Changed
+
+- **Documentation audit.** README counts (30 starter packs, 6 community add-ons,
+  439 items, 9 categories, 223 tags), the anonymous-read lists (README, API.md,
+  invariants, ADR-0014 amendment) and the pack-page notes in AGENTS.md are
+  current; a new "Adding a pack to the shipped set" guide in `docs/extending.md`;
+  two new `docs/debugging.md` entries. AGENTS.md had two rules numbered 42 and two
+  numbered 43: the base-pack governance core is now rule 44 and permissions rule
+  45 (references updated).
+- Stamped `content_updated_at` on seeded packs now reflects the last real content
+  change rather than the time reconcile ran.
 
 ### Fixed
 

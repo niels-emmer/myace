@@ -39,7 +39,7 @@ Two mechanisms feed one `get_current_user` dependency. Every route except
 `/login/{provider}`, `/callback/{provider}`, `/providers`),
 `POST /api/v1/demo/compile`, and the seven anonymous public reads
 (`GET /api/v1/collections/community`, `/community/top`,
-`/community/categories`, `/community/{id}`, `/community/{id}/artifacts`,
+`/community/categories`, `/community/topics`, `/community/{id}`, `/community/{id}/artifacts`,
 `/community/{id}/install.md`, and `GET /api/v1/frameworks` —
 see [ADR-0014](docs/adr/0014-public-pack-browsing.md) and
 [ADR-0018](docs/adr/0018-public-read-only-mcp-server.md)) requires one of them:

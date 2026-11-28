@@ -17,7 +17,7 @@ names where it's enforced so you can verify it hasn't regressed.
    why this one earns the exception, and invariant 22 below for what makes
    it safe to leave public), and the anonymous public reads: the storefront
    routes `GET /api/v1/collections/community`, `/community/top`,
-   `/community/categories`, `/community/{id}`, and
+   `/community/categories`, `/community/topics`, `/community/{id}`, and
    `/community/{id}/artifacts` (added in Phase 5 — see
    [ADR-0014](adr/0014-public-pack-browsing.md) and AGENTS.md rules 13/42:
    approved-only, sanitized response, read-only, rate-limited), plus

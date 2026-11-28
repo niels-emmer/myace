@@ -94,3 +94,17 @@ aggregate rating from `CollectionRead` for anonymous visitors instead.
   returning 404 on the next fetch. The existing frozen-copy behaviour for
   setups is unaffected (ADR-0015); nothing here tells a non-owner they have
   frozen content.
+
+## Amendment (2026-11-28): `GET /community/topics`
+
+A sixth anonymous read joined the list: `GET /api/v1/collections/community/topics`,
+which maps pack id to up to three topics derived from item tags
+(`services/pack_topics.py`) so the library can offer topic filters without a
+pack-tags column. It stays inside this decision's boundary: no
+`Depends(get_current_user)`, no session, read-only, rate-limited by
+`storefront_limiter`, and it reads only approved, published, active packs and
+their enabled, undeleted items. It must stay registered above
+`/community/{collection_id}` (AGENTS.md rule 16). The public pack detail also
+gained `relations` (resolved links to other public packs) and
+`content_updated_at`; both are filtered to what an anonymous visitor may already
+read.
