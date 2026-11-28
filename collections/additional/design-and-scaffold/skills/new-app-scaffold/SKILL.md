@@ -74,7 +74,7 @@ directory once the app stores user input.
 - Keep `AGENTS.md` short and link out to detail rather than inlining it.
 - Default to one container and one local database file; justify anything
   heavier.
-- Record AI authorship in commit bodies.
+- Mark AI-authored commits with an `[ai]` line in the body (the same marker the enterprise-ai-governance and auditor packs use).
 
 ## Definition of done
 

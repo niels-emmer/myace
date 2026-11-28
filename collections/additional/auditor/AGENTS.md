@@ -28,7 +28,7 @@ Cite CWE numbers, OWASP categories, or NIST SSDF practices. "CWE-89: SQL Injecti
 
 <!-- myace: priority=90 tags=security,data -->
 
-Know the sensitivity tier (public/internal/sensitive) before judging handling adequacy. Sensitive data must never reach LLM prompts, logs, repos, or client-facing error messages.
+Know the sensitivity tier (public/internal/sensitive) before judging handling adequacy. Sensitive data must not reach LLM prompts, logs, repos, or client-facing error messages unless the destination is explicitly approved for that tier (see `data-classification-guide`); logs, repos and client errors have no exception.
 
 ## Secrets Are Always A Hard Fail
 

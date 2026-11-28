@@ -10,7 +10,7 @@ Treat all external input (request bodies, query params, headers, webhook payload
 
 <!-- myace: priority=70 tags=backend,database -->
 
-Write and exercise `downgrade()` alongside `upgrade()`. Never edit applied/merged migrations — create a new forward migration instead. For large tables, prefer additive steps (add nullable → backfill → tighten) over single blocking changes.
+Write and exercise the rollback (`downgrade()` in Alembic, `down` elsewhere) alongside the upgrade, and never edit an applied migration. The `migration-safety` skill has the locking and additive-step detail; the database add-on repeats this rule for stand-alone use.
 
 ## Design For Idempotency
 

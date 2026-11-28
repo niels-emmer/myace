@@ -20,7 +20,7 @@ For every feature that spans frontend and backend.
 - **Structure**: use page objects or fixtures for maintainable test code.
 - **Environment**: dedicated test database, clean state per test run.
 - **Data seeding**: set up test data as part of the test, not in shared fixtures.
-- **Flakiness prevention**: use wait strategies for async operations, retry on transient failures.
+- **Flakiness prevention**: use explicit wait strategies for async operations. Do not retry a failing test to get green; fix the root cause. A bounded retry is acceptable only around a named external dependency, and must be reported.
 - **CI integration**: run E2E tests in CI, not just locally. Fail the build on E2E failures.
 
 ## Expected output

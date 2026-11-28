@@ -23,7 +23,7 @@ Run the pre-commit gate before committing. Do not commit if any gate fails.
    slow. Report pass and fail counts.
 
 5. **Commit message** — propose a conventional message
-   (`<type>(<scope>): <summary>`). Add an AI-authorship marker in the body when
+   (`<type>(<scope>): <summary>`). Add an `[ai]` line to the body (the marker enterprise-ai-governance and auditor use) when
    the change was AI-authored.
 
 6. **Report** — list which gates passed or failed and the exact next action.

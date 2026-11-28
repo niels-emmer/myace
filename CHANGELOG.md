@@ -20,6 +20,15 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Add-on pack overlaps trimmed in place** (no pack or item renamed): one
+  AI-authorship marker (`[ai]` line in the body) across enterprise-ai-governance,
+  auditor, git-practices, design-and-scaffold and self-hosted-deploy; the auditor
+  classification tiers map onto the four-class scheme and REGULATED routing allows
+  a documented exception; fullstack E2E no longer says to retry flaky tests;
+  the DevOps add-on says it supplements the DevOps base; backend's rollback rule
+  points at its skill. Existing deployments need
+  `reconcile_seeded_collections --apply --update-content`.
+
 - **Add-on pack currency**: iOS state management now leads with the Observation
   framework (`@Observable`, iOS 17+) and the 6.9" screenshot baseline; the
   security audit checklist names the OWASP Top 10 edition (2025 renumbered the

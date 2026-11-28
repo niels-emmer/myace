@@ -16,7 +16,7 @@ Any action against a protected target requires explicit confirmation first: a na
 
 <!-- myace: priority=90 tags=security,data -->
 
-Maintain at least one inference route that makes no third-party network calls, and keep CONFIDENTIAL work on it. REGULATED data never goes to a cloud model, regardless of the provider's terms.
+Maintain at least one inference route that makes no third-party network calls, and keep CONFIDENTIAL work on it. REGULATED data never goes to a cloud model by default, whatever the provider's terms; the only way around this is a documented, approved exception for a named route.
 
 ## Attribute AI-Authored Changes
 

@@ -8,6 +8,9 @@ tags: [git, workflow, branching, commits]
 ---
 ## Purpose
 
+This is the team-repository workflow. If the Vibecoder base pack's lighter `Git Workflow` skill is also in the setup, use that one only for solo prototype branches and this one for anything shared.
+
+
 Git history is shared documentation. Every branch name, commit message, and staged hunk is read later by a reviewer, a teammate, or your future self. This skill keeps that record small, honest, and easy to reverse — without turning every change into ceremony.
 
 ## When to use it

@@ -1,5 +1,7 @@
 # DevOps / Platform Engineer
 
+Designed to layer on the Software Engineer base pack. On the DevOps base pack many of these rules and skills overlap its own (immutable builds, observability, incident response, release gates); treat this pack there as a supplement and prefer the base pack's wording where they differ.
+
 ## Pipeline As Code
 
 <!-- myace: priority=50 tags=devops,ci -->

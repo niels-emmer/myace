@@ -462,3 +462,36 @@ Recorded 2026-11-28:
    `audit-by-claude-addon-audit` (this report) ->
    `audit-by-claude-addon-factual` (P1) -> `...-addon-conventions` ->
    `...-addon-currency` -> `...-addon-dedup`.
+
+## 8. Outcome (2026-11-28)
+
+Stacked local branches (none pushed, no PR; owner merges):
+
+| Branch | Content |
+|---|---|
+| `audit-by-claude-addon-audit` | this report + decisions |
+| `audit-by-claude-addon-factual` | P1 factual/safety fixes, dev-writing reframed, git-practices release via PR |
+| `audit-by-claude-addon-conventions` | rule tiers, `edit: deny`, no-subagent fallback, conditional dependencies, `test_addon_conventions.py` |
+| `audit-by-claude-addon-currency` | iOS Observation/screenshots, OWASP edition, GCP name, Scaleway, wording |
+| `audit-by-claude-addon-dedup` | trim-in-place overlaps, one AI-authorship marker, classification alignment |
+
+Backend `pytest` (738) and `ruff` pass on every branch tip. CLI/MCP/frontend
+suites were not run (no code in those components changed). Not run against a
+real framework binary.
+
+**Deliberately not done** (needs larger decisions or sources): rename of
+`GCP Architecture Framework Pillar Review` skill and `... (CAF)` rule headings
+(item names are identity); gap-fill skills (ai-engineering evals/RAG, java-spring
+security, iac-expert pinning/deletion protection, devops supply chain, frontend
+WCAG 2.2); de-templating the four cloud packs; java-spring `@Cacheable` and
+Swift Testing claims remain unsourced; compiled-output sampling via MCP.
+
+**Reconcile impact**: removed items (`dev-writing`: Write The Way A Person
+Types, No Dashes And No Forced Contrast, Stop At The Last Point, Name Things
+The Way People Do) are soft-deleted by `reconcile --apply`; all other changes
+are content updates needing `--update-content`. Rule order changes for every
+add-on (tiers). Counts for `dev-writing` drop from 7 to 3.
+
+Estimated grades after: factual packs (android, aws, azure, gcp, java-spring,
+git-practices, dev-writing, eu-ai-act) one step up (C->B, D->B); ios and
+auditor C->B; the rest unchanged apart from convention compliance.
