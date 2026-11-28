@@ -2,7 +2,7 @@
 description: Routes incoming work through the research-plan-build-verify-review-security-docs pipeline, delegating each stage to the right specialist agent instead of doing the work itself.
 version: "1.0.0"
 priority: 60
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: primary
 handoff_to: [architect, builder, verifier, security-auditor, code-reviewer, docs-writer]
 permissions: {edit: deny, execute: deny}

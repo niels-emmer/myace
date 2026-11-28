@@ -2,7 +2,7 @@
 description: Takes validated prototypes and refactors them into production-ready data pipelines, modules, and serving code with engineering rigor.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [model-reviewer, data-privacy-reviewer]
 ---

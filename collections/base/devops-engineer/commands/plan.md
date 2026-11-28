@@ -2,7 +2,7 @@
 description: Produce a short written plan before implementing anything nontrivial, so the approach is explicit before code starts — and get human approval before any state-changing apply.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 ---
 1. Restate the task in one or two sentences, in your own words — confirms you've understood what's actually being asked before designing around a misreading of it.
 2. Read the project's memory files (`docs/memory/core-principles.md`, `docs/memory/workflow.md`, and the tail of `docs/memory/decisions.md` for anything relevant) so the plan fits existing conventions and doesn't repeat a decision already made and logged.

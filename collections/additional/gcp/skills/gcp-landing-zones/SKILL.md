@@ -3,7 +3,7 @@ name: GCP Landing Zones
 description: Governance essentials — resource hierarchy, folder/project design, IAM scoping, VPC topology, and Organization-policy guardrails for GCP landing zones.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [gcp, iac, governance, landing-zones]
 ---
 ## Purpose

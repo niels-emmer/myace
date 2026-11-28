@@ -2,7 +2,7 @@
 description: Read-only reviewer for Go error handling, context use, goroutine lifecycle, untrusted input and test quality.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [go-builder]
 permissions: {edit: deny}

@@ -3,7 +3,7 @@ name: Python Testing Patterns
 description: pytest patterns for fast, deterministic tests. Use when writing or reviewing Python tests, fixtures or mocks.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [python, testing, pytest]
 ---
 ## Purpose

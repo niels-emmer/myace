@@ -2,7 +2,7 @@
 description: Read-only agent that evaluates model methodology — experiment tracking completeness, data leakage, evaluation rigor, failure mode documentation.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [data-explorer, data-privacy-reviewer]
 permissions: {edit: deny}

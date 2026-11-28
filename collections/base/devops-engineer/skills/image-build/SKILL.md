@@ -3,7 +3,7 @@ name: Image Build
 description: Multi-stage Docker builds, minimal base images, image scanning, and SBOMs — so container images are small, secure, and reproducible.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [docker, containers, images, security]
 ---
 ## Purpose

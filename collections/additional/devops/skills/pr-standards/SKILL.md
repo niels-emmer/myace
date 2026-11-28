@@ -3,7 +3,7 @@ name: PR Standards
 description: Pull request description, review depth, and merge standards so every PR carries enough context to review and merge safely.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [git, pull-request, review, collaboration]
 ---
 ## Purpose

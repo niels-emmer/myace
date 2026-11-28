@@ -3,7 +3,7 @@ name: IaC Patterns
 description: Authoring patterns for Terraform and Bicep — remote state, module structure, naming, tagging, and plan review — so infrastructure stays reviewable and reproducible.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [iac, terraform, bicep, infrastructure]
 ---
 ## Purpose

@@ -3,7 +3,7 @@ name: Design Grilling
 description: Interview the user through a design tree until a plan is fully understood before any code is written.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [design, planning, requirements, interview]
 ---
 ## Purpose

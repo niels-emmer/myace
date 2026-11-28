@@ -3,7 +3,7 @@ name: AWS Landing Zones
 description: Multi-account governance essentials — AWS Organizations OU hierarchy, account design, Service Control Policies, IAM scoping, and VPC topology for AWS landing zones.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [aws, iac, governance, landing-zones]
 ---
 ## Purpose

@@ -3,7 +3,7 @@ name: Schema Design
 description: Principles for designing database schemas that stay additive, constraint-driven, and safe to evolve as the application grows.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [database, schema, design]
 ---
 ## Purpose

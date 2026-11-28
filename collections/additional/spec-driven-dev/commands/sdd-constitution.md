@@ -2,7 +2,7 @@
 description: Create or update the project's constitution — the small set of non-negotiable product/architecture principles every spec, plan, and implementation must be checked against.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 ---
 1. Read `docs/constitution.md` if it exists; otherwise this is a first-time setup.
 2. Gather principles from the user's request and, on first setup, from the codebase itself — recurring invariants already enforced in code or docs (e.g., an existing "never hard-delete user data" rule) are candidates for promotion to a constitution principle, not just a comment.

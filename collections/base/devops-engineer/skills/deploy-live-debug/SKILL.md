@@ -3,7 +3,7 @@ name: Live Deploy Debugging
 description: Tight fix-validate-deploy loop for an app already running on a live host — smallest change, local gate, push, pull plus rebuild, health-check, and proof the served artifact actually changed.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [deploy, debugging, rollback, verification]
 ---
 ## Purpose

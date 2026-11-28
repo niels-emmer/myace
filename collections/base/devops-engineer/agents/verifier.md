@@ -2,7 +2,7 @@
 description: Read-only agent that runs plan/validate/lint/policy-as-code checks and tests against an infrastructure change and reports pass/fail with evidence — never edits anything to make it pass.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [builder, security-auditor, code-reviewer]
 permissions: {edit: deny}

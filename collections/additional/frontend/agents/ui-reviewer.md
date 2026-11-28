@@ -2,7 +2,7 @@
 description: Read-only review of a UI diff for accessibility, visual consistency, and responsive-behavior issues — flags problems, never edits.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [frontend-builder]
 permissions: {edit: deny}

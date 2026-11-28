@@ -3,7 +3,7 @@ name: AWS Identity Design
 description: IAM roles, policies, and identity federation design for AWS — when to use which, and how to avoid long-lived access keys.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [aws, iac, identity, security, iam]
 ---
 ## Purpose

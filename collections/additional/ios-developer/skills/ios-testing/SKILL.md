@@ -3,7 +3,7 @@ name: iOS Testing
 description: XCTest unit tests, XCUITest UI tests, snapshot testing, and performance baselines for iOS apps.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [ios, testing, xctest]
 ---
 ## Purpose

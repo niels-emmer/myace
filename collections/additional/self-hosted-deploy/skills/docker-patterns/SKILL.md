@@ -3,7 +3,7 @@ name: Docker Patterns
 description: Compose layering and runtime hardening for multi-service apps — dev/prod overrides, service dependencies, healthchecks, resource limits, and safe operation.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [docker, compose, containers, hardening, deployment]
 ---
 ## Purpose

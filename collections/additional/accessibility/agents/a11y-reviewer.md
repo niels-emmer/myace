@@ -2,7 +2,7 @@
 description: Read-only reviewer that checks UI changes against WCAG 2.2 AA for semantics, keyboard use, naming, contrast, target size and forms.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [a11y-builder]
 permissions: {edit: deny}

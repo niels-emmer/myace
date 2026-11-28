@@ -2,7 +2,7 @@
 description: Read-only cross-check of spec, plan, and tasks for consistency, duplication, gaps, and constitution violations before implementation starts.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 ---
 1. Read `spec.md`, `plan.md`, and `tasks.md` for the target feature, plus `docs/constitution.md` if it exists. This is a read-only pass — report findings, don't edit any of the three documents yourself.
 2. Check for: requirements with no corresponding task (gaps), tasks with no corresponding requirement (scope creep), the same requirement covered by contradictory tasks (duplication/conflict), vague or placeholder language left unresolved (`TBD`, `[NEEDS CLARIFICATION]` markers that survived past `sdd-clarify`), and terminology drift (the same concept named differently across the three documents).

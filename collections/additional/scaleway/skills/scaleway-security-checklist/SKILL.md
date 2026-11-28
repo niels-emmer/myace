@@ -3,7 +3,7 @@ name: Scaleway Security Checklist
 description: Scaleway-recommended security practices — identity, network, data, and monitoring — as a PASS/FAIL/N/A checklist run before any Scaleway change is proposed for apply.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [scaleway, iac, security, checklist]
 ---
 ## Purpose

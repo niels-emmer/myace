@@ -2,7 +2,7 @@
 description: Read-only agent that reviews changes against whichever compliance or governance framework the project declares, flagging gaps like missing threat models or missing data-classification notes rather than assuming a specific framework.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [security-compliance-auditor]
 permissions: {edit: deny}

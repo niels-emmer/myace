@@ -3,7 +3,7 @@ name: Agent Guardrails
 description: Declared protected targets, a soft-deny command list, blast-radius checks, and explicit confirmation before any outward-facing action.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [governance, safety, guardrails, production, approvals]
 ---
 ## Purpose

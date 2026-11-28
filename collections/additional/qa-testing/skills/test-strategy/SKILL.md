@@ -3,7 +3,7 @@ name: Test Strategy
 description: How to decide what to test at what level — the test pyramid, risk-based coverage, and matching test depth to change risk.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [testing, strategy, coverage]
 ---
 ## Purpose

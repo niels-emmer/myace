@@ -2,7 +2,7 @@
 description: Read-only reviewer for Jetpack Compose recomposition, ViewModel scope, permission handling, and Play Store guidelines.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [android-builder]
 permissions: {edit: deny}

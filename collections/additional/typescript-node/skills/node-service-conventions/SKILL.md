@@ -3,7 +3,7 @@ name: Node Service Conventions
 description: Conventions for Node.js services, workers and CLIs covering configuration, shutdown, logging and outbound calls. Use when building or reviewing a Node service.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [node, service, reliability]
 ---
 ## Purpose

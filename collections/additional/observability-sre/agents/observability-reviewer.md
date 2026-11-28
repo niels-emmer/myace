@@ -2,7 +2,7 @@
 description: Read-only reviewer for logging, metrics, tracing, SLO and alert definitions covering coverage, cardinality, sensitive data and runbooks.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [observability-builder]
 permissions: {edit: deny}

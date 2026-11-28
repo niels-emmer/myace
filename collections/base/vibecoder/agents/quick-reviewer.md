@@ -2,7 +2,7 @@
 description: Lightweight pre-ship sanity check — a fast pass for obvious problems, not a full code review.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [local-build]
 permissions: {edit: deny}

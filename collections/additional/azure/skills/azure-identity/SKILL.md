@@ -3,7 +3,7 @@ name: Azure Identity Design
 description: Entra ID, managed identity, and workload identity federation design for Azure — when to use which, and how to avoid long-lived service-principal secrets.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [azure, iac, identity, security, entra-id]
 ---
 ## Purpose

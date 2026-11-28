@@ -3,7 +3,7 @@ name: Spring Security Configuration
 description: Spring Security configuration checklist covering filter chains, authorization, method security, CSRF, CORS, password storage and tokens. Use when adding or reviewing authentication or authorization in a Spring Boot application.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [java, spring, security]
 ---
 ## Purpose

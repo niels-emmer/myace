@@ -3,7 +3,7 @@ name: DevSecOps Checklist
 description: A structured PASS / FAIL / N/A checklist for reviewing infrastructure changes for security issues before merge — identity, secrets, network, data, and supply chain.
 version: "1.0.0"
 priority: 55
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [security, devsecops, review, checklist]
 ---
 ## Purpose

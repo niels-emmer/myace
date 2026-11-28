@@ -2,7 +2,7 @@
 description: Produce a concise handoff with the work state, verification evidence, remaining risk, and the exact next step.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 ---
 Review the current workspace state and produce a concise handoff for the next
 person or session.

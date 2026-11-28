@@ -3,7 +3,7 @@ name: Azure Service Patterns
 description: Service-selection and configuration patterns for common Azure workloads covering compute, data, networking and identity defaults. Use when choosing or configuring Azure services in IaC.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [azure, architecture, services]
 ---
 ## Purpose

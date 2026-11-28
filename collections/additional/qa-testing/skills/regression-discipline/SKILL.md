@@ -3,7 +3,7 @@ name: Regression Discipline
 description: The rule that every bug fix ships with a test that fails on the old code and passes on the new — and how to write that test well.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [testing, regression, bug-fixes]
 ---
 ## Purpose

@@ -3,7 +3,7 @@ name: Audit Trail and Attribution
 description: Record what changed, why, and whether it was AI- or human-authored, with per-session records and explicit commit and PR conventions.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [governance, audit, attribution, provenance, commits]
 ---
 ## Purpose

@@ -6,6 +6,16 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Add-ons and base packs now list pi.dev under "Works with".** Every item's
+  `compatibility` list stopped at 11 adapters, so the pack page showed 11
+  frameworks while the product compiles to 12. All 229 lists now name `pi-dev`,
+  and a test keeps them in step with the adapter registry. Existing deployments
+  need `reconcile_seeded_collections --apply --update-content`.
+- The Google Cloud pack description says "Well-Architected" instead of the old
+  "Architecture Framework" name.
+
 ## [2.3.0] — 2026-11-28
 
 The add-on pack expansion release. Content only: no migration, no changed routes or

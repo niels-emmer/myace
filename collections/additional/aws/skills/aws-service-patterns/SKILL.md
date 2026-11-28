@@ -3,7 +3,7 @@ name: AWS Service Patterns
 description: Service-selection and configuration patterns for common AWS workloads covering compute, data, networking and storage defaults. Use when choosing or configuring AWS services in IaC.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [aws, architecture, services]
 ---
 ## Purpose

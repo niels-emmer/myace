@@ -3,7 +3,7 @@ name: GCP Guardrails
 description: Catalogue and rollout method for Organization Policy constraints, tags, dry-run mode and VPC Service Controls. Use when designing or changing organisation-wide controls on Google Cloud.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [gcp, governance, guardrails, org-policy]
 ---
 ## Purpose

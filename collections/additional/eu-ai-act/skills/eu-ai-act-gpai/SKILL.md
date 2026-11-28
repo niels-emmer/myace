@@ -3,7 +3,7 @@ name: EU AI Act General-Purpose AI
 description: Checklist for the general-purpose AI (GPAI) obligations under Articles 51-55 — technical documentation, copyright policy, training-data summary, and systemic-risk obligations (evaluation, adversarial testing, incident reporting, cybersecurity).
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [compliance, eu-ai-act, gpai, foundation-model]
 ---
 ## Purpose

@@ -2,7 +2,7 @@
 description: Turn a plan into an ordered, independently-checkable task list, with every task traceable back to a requirement and every requirement covered by at least one task.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 ---
 1. Read `docs/specs/<slug>/spec.md` and `docs/specs/<slug>/plan.md`.
 2. Group tasks by independently-shippable increment — usually one per user story from the spec — rather than by technical layer, so each group is a coherent, demoable slice rather than "all the backend work" followed by "all the frontend work."

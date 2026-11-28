@@ -3,7 +3,7 @@ name: Documentation Standards
 description: Structure, tone, and formatting conventions for writing technical docs that stay accurate and get actually read.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [documentation, writing, style]
 ---
 

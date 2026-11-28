@@ -3,7 +3,7 @@ name: Kubernetes Security Hardening
 description: Pod security, RBAC, NetworkPolicy and secrets hardening checklist. Use when onboarding a namespace, reviewing RBAC or tightening a workload.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [kubernetes, security, rbac]
 ---
 ## Purpose

@@ -3,7 +3,7 @@ name: Azure Guardrails
 description: Catalogue and rollout method for Azure Policy guardrails assigned at management-group scope. Use when designing or changing policy initiatives, effects, exemptions or resource locks.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [azure, governance, guardrails, policy]
 ---
 ## Purpose

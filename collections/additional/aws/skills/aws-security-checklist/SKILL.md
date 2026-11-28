@@ -3,7 +3,7 @@ name: AWS Security Checklist
 description: AWS-recommended security practices — identity, network, data, and monitoring — as a PASS/FAIL/N/A checklist run before any AWS change is proposed for apply.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [aws, iac, security, checklist]
 ---
 ## Purpose

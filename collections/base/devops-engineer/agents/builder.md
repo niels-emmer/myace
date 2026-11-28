@@ -2,7 +2,7 @@
 description: Implements the actual infrastructure change — IaC (Terraform/Bicep), CI/CD pipelines, container configs, deployment manifests — then hands off for independent verification. Never applies to real infrastructure without explicit human approval.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [verifier]
 ---

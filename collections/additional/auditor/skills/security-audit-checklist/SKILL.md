@@ -3,7 +3,7 @@ name: Security Audit Checklist
 description: A PASS/FAIL/N/A checklist covering injection, authorization, secrets handling, dependency risk, and input validation for reviewing a diff or codebase.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [security, review, checklist, owasp]
 ---
 ## Purpose

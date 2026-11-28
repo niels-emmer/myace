@@ -1583,7 +1583,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `backend/tests/test_addon_conventions.py` holds them to the same conventions (a
   `<!-- myace: priority=90|70|50 tags=... -->` tier on every rule, `permissions:
   {edit: deny}` on every agent whose description starts "Read-only", the
-  no-subagent fallback sentence in every agent, valid frontmatter, and item names unique across every pack, rule 29). A new add-on also needs a registry entry in `seed_collections.py` (starter or community map, rule 25) and its item names pinned in `tests/test_seed_collections.py`.
+  no-subagent fallback sentence in every agent, valid frontmatter, and item names unique across every pack, rule 29; `tests/test_collection_compatibility.py` also requires every item's `compatibility` to name every adapter, so a new adapter means updating the lists, e.g. with `sed` over `collections/`). A new add-on also needs a registry entry in `seed_collections.py` (starter or community map, rule 25) and its item names pinned in `tests/test_seed_collections.py`.
 - **Beyond the four core rules**, `packs.json` can scope a shared rule to some
   packs (`packs`), give it a `priority`/`tags`, and share whole skills
   (`skills/<slug>.md`, generated into `skills/<slug>/SKILL.md`). Software

@@ -3,7 +3,7 @@ name: WCAG 2.2 AA Checklist
 description: Review checklist for WCAG 2.2 level AA with the criteria added in 2.2 called out. Use when reviewing a page, component or flow for accessibility.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 tags: [accessibility, wcag, review]
 ---
 ## Purpose

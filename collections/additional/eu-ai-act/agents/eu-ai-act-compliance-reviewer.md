@@ -2,7 +2,7 @@
 description: Read-only agent that reviews code and design against the applicable EU AI Act obligations (Arts 8-15, 26, 50, 53-55), producing PASS/FAIL/N/A findings with article citations.
 version: "1.0.0"
 priority: 50
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: [eu-ai-act-documentation-writer, security-auditor]
 permissions: {edit: deny}

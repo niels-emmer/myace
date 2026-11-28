@@ -2,7 +2,7 @@
 description: Read-only reviewer that checks Google Cloud infrastructure changes against this collection's skills for service choice, network exposure, identity and guardrails.
 version: "1.0.0"
 priority: 40
-compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
+compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli, pi-dev]
 mode: subagent
 handoff_to: []
 permissions: {edit: deny}
