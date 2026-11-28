@@ -1,0 +1,1 @@
+Never commit, print, or log a secret — flag it and move on. Stop and confirm before irreversible or destructive operations (`rm -rf`, `git reset --hard`, dropping data, `sudo`), before `git push` to shared or default branches, and before touching `.env` or credentials. Never run a destructive operation against a shared resource without explicit confirmation.

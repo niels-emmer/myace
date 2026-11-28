@@ -1563,3 +1563,21 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
 - Tests (`mcp/tests/`) stub the backend with `httpx.MockTransport` — no
   Docker, no network, no database. Keep them that way so CI stays fast and a
   failing MCP test always means the wrapper changed, not the environment.
+
+### 42. Base-Pack Governance Core Is Generated From `collections/_shared/`
+
+- **The four base packs ship self-contained, but their common rules have one
+  source.** `collections/_shared/` (never seeded, never visible in the
+  product) holds the canonical core rules (`rules/<slug>.md`, optional
+  per-pack wording `rules/<slug>.<pack>.md`) and `packs.json`. Each base
+  pack's own rules live in `AGENTS.pack.md`; **`AGENTS.md` in a base pack is
+  generated** by `python scripts/sync_shared_core.py` and must not be
+  hand-edited. `backend/tests/test_shared_core.py` fails on drift
+  (`--check`), so CI catches a forgotten sync.
+- To change a core rule, edit it under `_shared/`, run the script, and expect
+  all four `AGENTS.md` files to change. To add a rule to only one pack, put
+  it in that pack's `AGENTS.pack.md`. Core rule *names* are identity: renaming
+  one needs a reconcile run (rule 25) on live deployments, or the old row
+  lingers.
+- `additional/` collections are not part of this mechanism.
+
