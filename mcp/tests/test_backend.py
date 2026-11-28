@@ -286,3 +286,31 @@ async def test_plain_text_rejection_is_surfaced() -> None:
 
     with pytest.raises(BackendError, match="Invalid host header"):
         await make_client(handler).search_packs()
+
+
+async def test_get_pack_passes_relations_and_updated_stamp_through() -> None:
+    relations = {
+        "layers_on": [{"id": "44444444-4444-4444-4444-444444444444", "name": "IaC", "slug": "iac-expert"}],
+        "pairs_with": [],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json=_pack(relations=relations, content_updated_at="2026-11-28T10:00:00Z"),
+        )
+
+    result = await make_client(handler).get_pack("11111111-1111-1111-1111-111111111111")
+
+    assert result["relations"] == relations
+    assert result["content_updated_at"] == "2026-11-28T10:00:00Z"
+
+
+async def test_get_pack_tolerates_a_backend_without_relations() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_pack())
+
+    result = await make_client(handler).get_pack("11111111-1111-1111-1111-111111111111")
+
+    assert result["relations"] is None
+    assert result["content_updated_at"] is None

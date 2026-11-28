@@ -40,6 +40,8 @@ from app.services.effective_settings import (
 )
 from app.services.email import EmailSendError, build_moderation_unpublished_email, send_email
 from app.services.github_export import slugify
+from app.services.pack_relations import PackRelationsRead, resolve_relations
+from app.services.pack_topics import derive_topics
 
 logger = logging.getLogger("myace")
 
@@ -188,11 +190,16 @@ class PublicCollectionRead(SQLModel):
     rating_count: int = 0
     moderation_status: Literal["draft", "submitted", "approved", "denied", "unpublished"] = "draft"
     last_verified_at: date | None = None
+    content_updated_at: datetime | None = None
+    # Resolved links to related packs; filled by the detail route only.
+    relations: PackRelationsRead | None = None
     created_at: datetime
     updated_at: datetime
 
 
-def _public_collection_read(collection: Collection) -> PublicCollectionRead:
+def _public_collection_read(
+    collection: Collection, relations: PackRelationsRead | None = None
+) -> PublicCollectionRead:
     return PublicCollectionRead(
         id=collection.id,
         owner_id=collection.owner_id,
@@ -209,6 +216,8 @@ def _public_collection_read(collection: Collection) -> PublicCollectionRead:
         rating_count=collection.rating_count,
         moderation_status=collection.moderation_status,  # type: ignore[arg-type]
         last_verified_at=collection.last_verified_at,
+        content_updated_at=collection.content_updated_at,
+        relations=relations,
         created_at=collection.created_at,
         updated_at=collection.updated_at,
     )
@@ -394,6 +403,48 @@ async def list_community_categories(
     return [row[0] for row in result.all() if row[0]]
 
 
+@router.get("/community/topics", response_model=dict[str, list[str]])
+@storefront_limiter.limit(settings.storefront_rate_limit)
+async def list_community_topics(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, list[str]]:
+    """Topics per published pack, derived from item tags (public read, ADR-0014).
+
+    Maps pack id to up to three topics (see `services/pack_topics.py`). Only
+    approved, published, active packs and their enabled, undeleted items are
+    considered, so it exposes nothing the listing does not. Registered above
+    `/community/{collection_id}` (rule 16).
+    """
+    rows = (
+        await session.execute(
+            select(Artifact.collection_id, Artifact.tags)
+            .join(Collection, Collection.id == Artifact.collection_id)
+            .where(
+                Collection.published == True,
+                Collection.is_active == True,
+                Collection.moderation_status == "approved",
+                Artifact.is_enabled == True,
+                Artifact.deleted_at == None,
+            )
+        )
+    ).all()
+    tags_by_pack: dict[uuid.UUID, list[list[str]]] = {}
+    for collection_id, raw_tags in rows:
+        try:
+            tags = json.loads(raw_tags) if raw_tags else []
+        except ValueError:
+            tags = []
+        if isinstance(tags, list):
+            tags_by_pack.setdefault(collection_id, []).append([str(t) for t in tags])
+    result: dict[str, list[str]] = {}
+    for collection_id, tag_lists in tags_by_pack.items():
+        topics = derive_topics(tag_lists)
+        if topics:
+            result[str(collection_id)] = topics
+    return result
+
+
 @router.get("/community/{collection_id}", response_model=PublicCollectionRead)
 @storefront_limiter.limit(settings.storefront_rate_limit)
 async def get_public_community_collection(
@@ -409,7 +460,7 @@ async def get_public_community_collection(
     an anonymous caller.
     """
     collection = await _get_public_collection_or_404(session, collection_id)
-    return _public_collection_read(collection)
+    return _public_collection_read(collection, await resolve_relations(session, collection))
 
 
 @router.get(
