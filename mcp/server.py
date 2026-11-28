@@ -181,13 +181,23 @@ async def get_pack(pack_id: str) -> str:
     )
 
 
+def _is_permission_policy(item: object) -> bool:
+    return (
+        isinstance(item, dict)
+        and item.get("artifact_type") == "model_config"
+        and str(item.get("name", "")).startswith("permissions:")
+    )
+
+
 async def _pack_with_items(pack_id: str) -> dict[str, object]:
     pack = await client().get_pack(pack_id)
     items = await client().list_items(pack_id)
     return {
         "pack": pack,
         "items": items,
-        "item_count": len(items),
+        # A pack's permission policy is listed but is not a pack "item"
+        # (matches the backend's artifact_count; ADR-0019).
+        "item_count": sum(1 for item in items if not _is_permission_policy(item)),
         "hint": "Call get_item(pack_id, item_name) for the full text of an item.",
     }
 

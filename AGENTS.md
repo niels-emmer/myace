@@ -1606,6 +1606,11 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   by `scripts/sync_shared_core.py` (rule 42): shared rules in
   `collections/_shared/permissions.json`, per-pack extras in
   `permissions.pack.json`.
+- **Item counts leave the policy out:** `Collection.artifact_count`, compile's
+  `artifact_count` and the MCP `item_count` exclude `permissions:*` model_configs
+  (`counts_toward_total()`); use it wherever the counter is written. The owner
+  page edits an agent's permissions inline (`AgentPermissionsEditor`: Inherit /
+  Ask / Block, never allow).
 - Vendor key names change; the evidence table in ADR-0019 says what was run
   against a real binary (only OpenCode 2.3.2) and what is docs-only. Codex CLI
   gets a real `.codex/rules/myace.rules` for global shell rules
@@ -1614,4 +1619,3 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   Cursor (`.cursor/agents/*.md`, `readonly`) and Copilot CLI
   (`.github/agents/*.agent.md`, `tools`) also emit a native agent file *next to*
   their old rule/instruction output; both scanners read `x.agent.md` as agent `x`.
-

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.config import settings
-from app.models.artifact import Artifact
+from app.models.artifact import Artifact, counts_toward_total
 from app.models.collection import Collection
 from app.models.user import User
 from app.services.seed_collections import (
@@ -70,7 +70,11 @@ async def test_seed_creates_expected_collections(db_session: AsyncSession, monke
                     select(Artifact).where(Artifact.collection_id == collection.id)
                 )
             ).scalars().all()
-            assert len(artifacts) == collection.artifact_count
+            # The count leaves out a pack's permission policy (ADR-0019).
+            assert (
+                sum(1 for a in artifacts if counts_toward_total(a.artifact_type, a.name))
+                == collection.artifact_count
+            )
 
 
 async def test_seed_creates_community_contributed_collections(

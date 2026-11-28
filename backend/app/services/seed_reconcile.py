@@ -41,7 +41,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.config import settings
-from app.models.artifact import Artifact
+from app.models.artifact import Artifact, counts_toward_total
 from app.models.collection import Collection
 from app.services.seed_collections import (
     COMMUNITY_CONTRIBUTED_COLLECTIONS,
@@ -261,7 +261,10 @@ async def reconcile_seeded_collections(
                         session.add(artifact_from_scanned(collection.id, item))
 
                 if apply:
-                    collection.artifact_count = len(on_disk)
+                    collection.artifact_count = sum(
+                        1 for item in on_disk.values()
+                        if counts_toward_total(item["artifact_type"], item["name"])
+                    )
                     session.add(collection)
 
                 report.packs.append(change)

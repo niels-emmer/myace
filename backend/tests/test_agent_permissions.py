@@ -297,3 +297,56 @@ def test_agent_dot_agent_md_scans_back_to_the_agent_name(tmp_path: Path) -> None
     f = tmp_path / "reviewer.agent.md"
     f.write_text("---\ndescription: d\n---\nBody\n")
     assert scanner._parse_agent_file(f)["name"] == "reviewer"  # type: ignore[index]
+
+
+# --- Item counts exclude the permission policy (invariant 20) ------------------
+
+
+def test_counts_toward_total_excludes_only_permission_policies() -> None:
+    from app.models.artifact import counts_toward_total
+
+    assert not counts_toward_total("model_config", "permissions:default")
+    assert counts_toward_total("model_config", "model:claude-sonnet")
+    assert counts_toward_total("model_config", "mcp:github")
+    assert counts_toward_total("rule", "permissions:default")  # only model_config policies
+
+
+def test_seeded_base_pack_counts_leave_out_the_policy() -> None:
+    scanned = _scan_seeded_collection(REPO / "collections/base/vibecoder")
+    assert any(a["name"] == "permissions:default" for a in scanned)
+    from app.models.artifact import counts_toward_total
+
+    assert sum(1 for a in scanned if counts_toward_total(a["artifact_type"], a["name"])) == len(
+        scanned
+    ) - 1
+
+
+class TestPolicyCountsViaApi:
+    @pytest.mark.asyncio
+    async def test_bulk_import_and_single_create_do_not_count_the_policy(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        await _create_user(db_session, "count-owner@test.com")
+        await _login(async_client, "count-owner@test.com")
+        policy = {
+            "artifact_type": "model_config", "name": "permissions:default",
+            "body": '{"rules": []}', "file_path": "permissions.json",
+        }
+        rule = {"artifact_type": "rule", "name": "r", "body": "b", "file_path": "AGENTS.md"}
+        res = await async_client.post(
+            "/api/v1/collections/import",
+            json={"collection_name": "counted", "artifacts": [rule, policy]},
+        )
+        assert res.status_code == 201
+        cid = res.json()["collection_id"] if "collection_id" in res.json() else res.json()["id"]
+        got = await async_client.get(f"/api/v1/collections/{cid}")
+        assert got.json()["artifact_count"] == 1  # two stored, one counted
+
+        extra = await async_client.post(
+            f"/api/v1/collections/{cid}/artifacts",
+            json={**policy, "name": "permissions:other"},
+        )
+        assert extra.status_code == 201
+        assert (await async_client.get(f"/api/v1/collections/{cid}")).json()["artifact_count"] == 1
+        listed = await async_client.get(f"/api/v1/collections/{cid}/artifacts")
+        assert len(listed.json()) == 3  # still stored and listed

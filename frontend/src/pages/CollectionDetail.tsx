@@ -24,7 +24,8 @@ import {
   Plus,
 } from 'lucide-react';
 import { PolicyRules } from '../components/PolicyRules';
-import { agentRestrictions, isPermissionPolicy } from '../lib/permissions';
+import AgentPermissionsEditor from '../components/AgentPermissionsEditor';
+import { isPermissionPolicy } from '../lib/permissions';
 import { collectionsApi } from '../lib/api';
 import { packKindLabel } from '../lib/packs';
 import TargetChecklist from '../components/TargetChecklist';
@@ -1381,19 +1382,12 @@ function ArtifactRow({
           {isPermissionPolicy(artifact) && editingField !== 'body' && (
             <PolicyRules body={artifact.body} />
           )}
-          {artifact.artifact_type === 'agent' &&
-            agentRestrictions(artifact.permissions).length > 0 && (
-              <ul aria-label="Permission restrictions" className="flex flex-wrap gap-2 text-xs">
-                {agentRestrictions(artifact.permissions).map((text) => (
-                  <li
-                    key={text}
-                    className="rounded bg-orange-50 px-2 py-1 font-medium text-orange-700"
-                  >
-                    {text}
-                  </li>
-                ))}
-              </ul>
-            )}
+          {artifact.artifact_type === 'agent' && (
+            <AgentPermissionsEditor
+              permissions={artifact.permissions}
+              onSave={(next) => onUpdateField({ permissions: next })}
+            />
+          )}
 
           {/* Body */}
           {editingField === 'body' ? (

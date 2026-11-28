@@ -6,6 +6,17 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Edit an agent's permissions on the owner page.** Five capabilities, each
+  Inherit / Ask first / Block (restrict-only; there is no allow).
+
+### Changed
+
+- **Pack item counts no longer include the permission policy** (`artifact_count`,
+  compile's count and the MCP `item_count`), so "Vibecoder: 12 items" is true
+  again. Run `reconcile_seeded_collections --apply` to repair stored counts.
+
 ## [2.2.0] — 2026-11-28
 
 The permissions and governance-core release. One additive migration

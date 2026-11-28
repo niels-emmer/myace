@@ -23,6 +23,18 @@ PermissionEffect = Literal["allow", "ask", "deny"]
 AgentPermissions = dict[Capability, PermissionEffect]
 
 
+def counts_toward_total(artifact_type: str, name: str) -> bool:
+    """Whether an artifact is counted in `Collection.artifact_count`.
+
+    A pack's global permission policy (`model_config` named `permissions:*`,
+    ADR-0019) is plumbing, not a pack "item", so "12 items" stays true however
+    many policies ride along. It is still stored, listed and downloadable —
+    only the number differs. Every site that writes `artifact_count` uses this
+    one predicate (invariant 20).
+    """
+    return not (artifact_type == "model_config" and name.startswith("permissions:"))
+
+
 class Artifact(SQLModel, table=True):
     """A single canonical artifact (rule, skill, agent, workflow, or model_config)."""
 
