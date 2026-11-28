@@ -26,4 +26,4 @@ Build Spring Boot backend code: controllers, services, repositories, config.
 
 ## Handoff
 
-Hand to `spring-reviewer` for layered-architecture compliance and test coverage review.
+Hand to `spring-reviewer` for layered-architecture compliance and test coverage review. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

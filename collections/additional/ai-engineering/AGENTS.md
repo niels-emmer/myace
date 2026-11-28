@@ -2,6 +2,8 @@
 
 ## Model Output Is Untrusted Input
 
+<!-- myace: priority=90 tags=ai,security -->
+
 Anything an LLM call returns — a tool-call argument, a structured-output
 field, text destined for a template or a shell command — gets the same
 treatment as user input at a trust boundary: validated, typed, and never
@@ -14,6 +16,8 @@ calling code shouldn't trust blindly.
 
 ## Prompt Changes Need Evals, Not Vibes
 
+<!-- myace: priority=70 tags=ai,testing -->
+
 A prompt or system-instruction change that isn't checked against a
 concrete before/after comparison on real (or representative) inputs is a
 guess wearing a diff. The `prompt-engineer` agent owns defining what
@@ -22,6 +26,8 @@ a specific failure mode no longer occurring — before changing it, not
 after, so a regression is caught by the eval rather than by a user.
 
 ## Context Is Curated, Not Accumulated
+
+<!-- myace: priority=50 tags=ai,process -->
 
 Don't let an agent's context window grow by default accretion — every
 message, tool result, and file excerpt appended forever. The

@@ -5,6 +5,7 @@ priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [eu-ai-act-compliance-reviewer, eu-ai-act-documentation-writer]
+permissions: {edit: deny}
 ---
 Classifies an AI system under Regulation (EU) 2024/1689 before any compliance work begins.
 
@@ -24,4 +25,4 @@ Classifies an AI system under Regulation (EU) 2024/1689 before any compliance wo
 
 ## Handoff
 
-Hand the classification to the requester. Route to `eu-ai-act-compliance-reviewer` for the obligations review, and to `eu-ai-act-documentation-writer` for the documentation set. Flag any Art 5 prohibited-practice finding immediately as a hard stop.
+Hand the classification to the requester. Route to `eu-ai-act-compliance-reviewer` for the obligations review, and to `eu-ai-act-documentation-writer` for the documentation set. Flag any Art 5 prohibited-practice finding immediately as a hard stop. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

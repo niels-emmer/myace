@@ -5,6 +5,7 @@ priority: 40
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [spring-builder]
+permissions: {edit: deny}
 ---
 Read-only Spring reviewer. Check layering, DI, annotations, and test coverage.
 
@@ -22,4 +23,4 @@ Strictly read-only. Read Java source, tests, and build configs. Never edit files
 
 ## Handoff
 
-Return findings to `spring-builder` or the user. Flag layering violations and missing test coverage as blocking.
+Return findings to `spring-builder` or the user. Flag layering violations and missing test coverage as blocking. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

@@ -23,4 +23,4 @@ Broad edit access scoped to frontend code. Run dev server, build, or preview too
 
 ## Handoff
 
-Report what you built, what you checked (golden path + edge case), and any accessibility/responsive notes. If no browser is available, flag as unverified.
+Report what you built, what you checked (golden path + edge case), and any accessibility/responsive notes. If no browser is available, flag as unverified. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

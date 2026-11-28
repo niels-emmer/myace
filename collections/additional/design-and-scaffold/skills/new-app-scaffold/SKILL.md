@@ -14,9 +14,8 @@ a working skeleton a new contributor — human or agent — can pick up immediat
 
 ## When to use it
 
-Creating a brand-new application repository. Pair it with the self-hosted-app
-conventions when the app fits the single-container shape, and with a
-repository-publication checklist when the repository will be open to the world.
+Creating a brand-new application repository. When the self-hosted-deploy add-on is composed and the app fits the
+single-container shape, pair it with the `self-hosted-app` skill.
 
 ## The baseline file set
 

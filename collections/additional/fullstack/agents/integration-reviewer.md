@@ -5,6 +5,7 @@ priority: 40
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [fullstack-builder]
+permissions: {edit: deny}
 ---
 Read-only integration reviewer. Check that frontend and backend actually work together.
 
@@ -22,4 +23,4 @@ Strictly read-only. Read diffs, source, and API specs. Run read-only checks. Nev
 
 ## Handoff
 
-Return findings to `fullstack-builder` or the user. If the integration is clean, flag as ready for merge.
+Return findings to `fullstack-builder` or the user. If the integration is clean, flag as ready for merge. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

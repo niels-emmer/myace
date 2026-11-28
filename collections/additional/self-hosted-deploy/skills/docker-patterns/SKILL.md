@@ -12,7 +12,8 @@ Get from "an image builds" to "a stack runs predictably in development and
 production." This skill covers how containers are **composed, run, and
 hardened** across environments. For how the image itself is constructed —
 multi-stage builds, minimal base images, SBOMs, and vulnerability scanning — use
-the container-build skill; this one deliberately does not repeat it.
+the `container-build` skill when the devops add-on is composed; this one
+deliberately does not repeat it.
 
 ## When to use it
 

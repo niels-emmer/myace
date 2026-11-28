@@ -26,4 +26,4 @@ Build and maintain CI/CD pipelines, container images, deployment configs, and mo
 
 ## Handoff
 
-Hand to `devops-reviewer` for pipeline safety and blast-radius review before any production-facing change is applied.
+Hand to `devops-reviewer` for pipeline safety and blast-radius review before any production-facing change is applied. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

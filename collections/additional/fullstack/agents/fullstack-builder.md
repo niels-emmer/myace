@@ -22,4 +22,4 @@ Broad edit access on both `frontend/` and `backend/`. Run dev servers, tests, an
 
 ## Handoff
 
-Hand to `integration-reviewer` for independent verification of the real HTTP path and error propagation.
+Hand to `integration-reviewer` for independent verification of the real HTTP path and error propagation. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

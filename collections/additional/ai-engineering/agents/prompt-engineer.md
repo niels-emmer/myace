@@ -24,4 +24,6 @@ Iterates on prompts, system instructions, and agent/skill/command content, backe
 
 ## Handoff
 
-For changes to a live LLM-integrated feature (not just standalone agent/skill content), hand off to `ai-engineer` to wire the updated prompt into the actual call site and its output-validation path. Otherwise hand off to `code-reviewer` for a normal review of the content change.
+For changes to a live LLM-integrated feature (not just standalone agent/skill content), hand off to `ai-engineer` to wire the updated prompt into the actual call site and its output-validation path. Otherwise hand off to `code-reviewer` for a normal review of the content change. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".
+
+The `verifier`, `security-auditor` and `code-reviewer` agents come from the Software Engineer or DevOps base pack. On a base without them, run that pass yourself before reporting done.

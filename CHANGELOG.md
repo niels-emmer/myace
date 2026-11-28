@@ -20,6 +20,15 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Add-on packs follow the base-pack conventions**: every add-on rule now
+  carries a priority tier (90 security/safety, 70 quality gate, 50 process),
+  read-only add-on agents declare `permissions: {edit: deny}`, every add-on agent
+  has the no-subagent fallback, and cross-pack references (cloud packs ->
+  `iac-expert`, `docker-patterns` -> `container-build`, base-agent handoffs) say
+  what to do when the companion pack is absent. This changes compiled rule order
+  for add-ons. A new test keeps them in line. Existing deployments need
+  `reconcile_seeded_collections --apply --update-content`.
+
 - **Add-on pack accuracy fixes** (audit `docs/plans/addon-pack-quality-audit.md`):
   Android (LiveData/Flow collection, modifier order, Play target API 36), AWS
   (OIDC trust policies must pin `aud` and `sub`, SCP/NACL/hub-spoke wording,

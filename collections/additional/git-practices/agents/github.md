@@ -83,3 +83,7 @@ For every operation, report:
 2. Verification evidence — output, link, or check status.
 3. Risks, caveats, or follow-up needed.
 4. If blocked, the exact blocker and the smallest step that would unblock it.
+
+## Handoff
+
+Report the outcome and what remains to the requester. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

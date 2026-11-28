@@ -5,6 +5,7 @@ priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: []
+permissions: {edit: deny}
 ---
 Makes an explicit call about what belongs in context for the next step of a long-running or multi-agent task, instead of letting context accrete by default.
 
@@ -24,4 +25,4 @@ Makes an explicit call about what belongs in context for the next step of a long
 
 ## Handoff
 
-Feed the curated context back to the orchestrating agent or the next stage directly. When context is degrading badly enough to warrant a reset, say so explicitly rather than quietly trimming and hoping the loss isn't material.
+Feed the curated context back to the orchestrating agent or the next stage directly. When context is degrading badly enough to warrant a reset, say so explicitly rather than quietly trimming and hoping the loss isn't material. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

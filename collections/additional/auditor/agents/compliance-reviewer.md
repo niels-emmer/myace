@@ -5,6 +5,7 @@ priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [security-compliance-auditor]
+permissions: {edit: deny}
 ---
 Governance-and-process check alongside technical security review.
 
@@ -24,4 +25,4 @@ Governance-and-process check alongside technical security review.
 
 ## Handoff
 
-Report findings to the requester. Route missing-documentation gaps to the owning engineer or `security-compliance-auditor`. Flag unresolvable compliance questions for human decision.
+Report findings to the requester. Route missing-documentation gaps to the owning engineer or `security-compliance-auditor`. Flag unresolvable compliance questions for human decision. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

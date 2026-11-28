@@ -26,4 +26,4 @@ Build iOS app code: SwiftUI views, view models, networking, local storage.
 
 ## Handoff
 
-Hand to `ios-reviewer` for SwiftUI correctness, state management review, and App Store readiness check.
+Hand to `ios-reviewer` for SwiftUI correctness, state management review, and App Store readiness check. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

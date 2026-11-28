@@ -5,6 +5,7 @@ priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [eu-ai-act-documentation-writer, security-auditor]
+permissions: {edit: deny}
 ---
 Reviews an AI system against the EU AI Act obligations that apply to its classified tier and role.
 
@@ -25,4 +26,6 @@ Reviews an AI system against the EU AI Act obligations that apply to its classif
 
 ## Handoff
 
-Deliver the findings report to the requester. Route FAILs back to the owning engineer. Flag missing documentation to `eu-ai-act-documentation-writer`. Route security-relevant findings (data exposure, injection, access control) to `security-auditor`.
+Deliver the findings report to the requester. Route FAILs back to the owning engineer. Flag missing documentation to `eu-ai-act-documentation-writer`. Route security-relevant findings (data exposure, injection, access control) to `security-auditor`. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".
+
+The `verifier`, `security-auditor` and `code-reviewer` agents come from the Software Engineer or DevOps base pack. On a base without them, run that pass yourself before reporting done.

@@ -26,4 +26,4 @@ Build Android app code: Compose UI, ViewModels, Room, WorkManager, Firebase.
 
 ## Handoff
 
-Hand to `android-reviewer` for Compose correctness, lifecycle review, and Play Store readiness check.
+Hand to `android-reviewer` for Compose correctness, lifecycle review, and Play Store readiness check. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".
