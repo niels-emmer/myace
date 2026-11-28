@@ -57,9 +57,9 @@ user-authored relationship editing in v1; per-pack changelogs.
 ## Prerequisite
 
 Reconcile must be able to update pack metadata (name, category, description,
-relations); see the "permanent fix" recommendation in the metadata-drift note
-in `docs/deployment.md` once written. Without it `relations` only reaches
-fresh installs.
+relations): today it rewrites items only (rule 25), so seeded pack descriptions
+drift from the registry. Build that first (an `--update-metadata` option with a
+dry-run diff). Without it `relations` only reaches fresh installs.
 
 ## Tests
 
