@@ -6,80 +6,70 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-11-28
+
+The permissions and governance release. One additive migration
+(`b7c8d9e0f1a2`, a nullable `artifacts.permissions` column); no removed routes
+and no changed response shapes. Existing deployments run `alembic upgrade head`,
+then `reconcile_seeded_collections --apply --update-content` (it also repairs
+stored item counts, see below), and rebuild the frontend and MCP images.
+
 ### Added
 
+- **Agent-level permissions** (ADR-0019). Agents can declare
+  `permissions: {edit: deny, ...}`; Claude Code gets `disallowedTools`, OpenCode
+  a `permission:` block, and Cursor (`readonly`) and Copilot CLI (`tools`) a
+  native agent file, each in the agent's own file. Restrict-only, and no adapter
+  writes a shared config file. The new `permissions_not_enforced` compile warning
+  names what a target can't express. Read-only starter-pack agents (reviewers,
+  auditor, verifier, orchestrator) are now restricted.
+- **Global permission rules.** Packs can ship ask/deny rules (`permissions.json`)
+  as a sidecar the tool never loads on its own, and `myace pull
+  --apply-permissions` merges them into your config with a diff — additively,
+  never overriding your own entries, reversible with `myace permissions-remove`.
+  OpenCode 2.x configs are merged in their v2 form; Codex CLI gets a real
+  `.codex/rules/myace.rules` for global shell rules.
+- **Edit an agent's permissions on the owner page:** five capabilities, each
+  Inherit / Ask first / Block (restrict-only; there is no allow).
+- **Install preview explains permission files.** A sidecar such as
+  `.claude/myace.permissions.json` is labelled "not active yet" with how to merge
+  it; Codex's rules file is labelled as live.
 - **Rules can carry a priority and tags** (`<!-- myace: priority=90 tags=security -->`
   under a rule's heading); both scanners read it and export writes it back. Base
   packs now use deliberate tiers (90 safety/security, 70 quality gates, 50
   process), which changes the order rules appear in compiled output.
 - **New pack content:** Vibecoder gets a light "Run What You Changed" testing
   rule; Software Engineer gets "Dependency Hygiene", "Observability Baseline"
-  and a read-only `architect` agent (wired into its orchestrator); Data
-  Scientist gets a read-only `data-privacy-reviewer` agent wired into its
-  handoffs.
+  and a read-only `architect` agent (wired into its orchestrator); Data Scientist
+  gets a read-only `data-privacy-reviewer` agent wired into its handoffs and a
+  "Handle Personal Data Deliberately" rule.
 
 ### Changed
-
-- **No-subagent fallback** is now spelled out in the Software Engineer and
-  DevOps orchestrators, every agent's Handoff and the `verify` workflow: do each
-  stage yourself as a separate pass instead of skipping it.
-- **More shared source:** the memory-system rule and skill, the plan-tracking
-  skill and Testing Discipline are generated from `collections/_shared/` for
-  Software Engineer and DevOps. Existing deployments need
-  `reconcile_seeded_collections --apply --update-content`.
-
-### Added
-
-- **Edit an agent's permissions on the owner page.** Five capabilities, each
-  Inherit / Ask first / Block (restrict-only; there is no allow).
-
-### Changed
-
-- **Pack item counts no longer include the permission policy** (`artifact_count`,
-  compile's count and the MCP `item_count`), so "Vibecoder: 12 items" is true
-  again. Run `reconcile_seeded_collections --apply` to repair stored counts.
-
-## [2.2.0] — 2026-11-28
-
-The permissions and governance-core release. One additive migration
-(`b7c8d9e0f1a2`, a nullable `artifacts.permissions` column); no removed routes
-and no changed response shapes. Existing deployments run `alembic upgrade head`
-and then `reconcile_seeded_collections --apply --update-content`.
-
-### Added
-
-- **Agent-level permissions** (ADR-0019). Agents can declare
-  `permissions: {edit: deny, ...}`; Claude Code gets `disallowedTools` and
-  OpenCode a `permission:` block in the agent's own file. Restrict-only, and no
-  adapter writes a shared config file. Packs can ship global ask/deny rules
-  (`permissions.json`) as a sidecar, and `myace pull --apply-permissions` merges
-  them into your config with a diff, additively and reversibly
-  (`myace permissions-remove`). New `permissions_not_enforced` compile warning
-  for targets that can't express them. Read-only starter-pack agents
-  (reviewers, auditor, verifier, orchestrator) are now restricted. Needs the
-  `b7c8d9e0f1a2` migration. OpenCode 2.x configs are merged in v2 form;
-  Codex CLI gets a real `.codex/rules/myace.rules` for global shell rules.
-- **Install preview explains permission files.** A sidecar such as
-  `.claude/myace.permissions.json` is labelled "not active yet" with how to merge
-  it; Codex's rules file is labelled as live.
-
-### Changed
-
-- **Cursor and Copilot CLI get native agent files** (`.cursor/agents/<name>.md`, `.github/agents/<name>.agent.md`) in addition to the existing rule/instruction files, so an agent's `edit`/`read`/`execute`/`network`/`delegate` denials can be enforced there (`readonly` / `tools`). Existing output is unchanged. Neither is verified against the real tool.
-
-- **Owner collection page** shows a pack's permission rules and agent restrictions the same readable way as the public pack page (shared `PolicyRules` component); the raw JSON stays editable.
-
-- **Pack page shows permissions properly.** A pack's global permission rules now appear under their own "Permission rules" filter as a readable list (what, command, ask-first/blocked) instead of a raw `model_config` JSON blob, and agents with restrictions show them as sentences ("Cannot edit files"). Frontend only.
 
 - **Base packs share one governance core.** Change Control, Secrets And
   Destructive Actions, Provenance And Attribution and Rule Of Least Power are
-  now written once in `collections/_shared/` and generated into each base
-  pack's `AGENTS.md` (`scripts/sync_shared_core.py`, drift-checked in tests).
-  Packs stay self-contained. Vibecoder's overlapping rules merged into these
-  and its opencode-only model config was removed. Data Scientist gains a
-  data-governance rule; Software Engineer and DevOps rules now say what to do
-  on tools without subagents. Existing deployments need
-  `reconcile_seeded_collections --apply --update-content`.
+  written once in `collections/_shared/` and generated into each base pack's
+  `AGENTS.md` (`scripts/sync_shared_core.py`, drift-checked in tests); the
+  memory-system rule and skill, the plan-tracking skill and Testing Discipline
+  are generated the same way for Software Engineer and DevOps. Packs stay
+  self-contained. Vibecoder's overlapping rules merged into the core and its
+  opencode-only model config was removed.
+- **No-subagent fallback** is spelled out in the Software Engineer and DevOps
+  orchestrators, every agent's Handoff and the `verify` workflow: do each stage
+  yourself as a separate pass instead of skipping it.
+- **Pack and owner pages show permissions properly.** A pack's global rules appear
+  under their own "Permission rules" filter as a readable list instead of a raw
+  `model_config` JSON blob, and agents with restrictions show them as sentences
+  ("Cannot edit files"). The owner page uses the same view; the raw JSON stays
+  editable.
+- **Pack item counts no longer include the permission policy** (`artifact_count`,
+  compile's count and the MCP `item_count`), so "Vibecoder: 12 items" is true
+  again.
+- **Cursor and Copilot CLI downloads gain native agent files**
+  (`.cursor/agents/<name>.md`, `.github/agents/<name>.agent.md`); the existing
+  rule and instruction files are unchanged. These, the Claude Code output and
+  Codex's rules file are checked against vendor docs and unit tests only; only
+  OpenCode 2.3.2 was run for real.
 
 ## [2.1.0] — 2026-11-25
 
