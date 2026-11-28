@@ -6,6 +6,14 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-11-28
+
+The add-on pack expansion release. Content only: no migration, no changed routes or
+response shapes, and no frontend or MCP code changes. New packs seed on the next
+backend restart; existing deployments then run
+`reconcile_seeded_collections --apply --update-content` for the new items in
+existing packs and the renames (dry run first; it soft-deletes the old rows).
+
 ### Added
 
 - **Eight new add-on packs.** Language packs for Python, TypeScript / Node, Go and
@@ -27,10 +35,16 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (SCP/RCP, Azure Policy, Organization Policy, and IAM design where no deny layer
   exists). Existing deployments need
   `reconcile_seeded_collections --apply --update-content` to receive them.
+- Cloud packs gain vendor-specific depth: a `<cloud>-service-patterns` skill, a
+  "Pick The Service For The Workload" rule, and a read-only `<cloud>-reviewer`
+  agent in each of AWS, Azure, GCP and Scaleway.
 - A convention test that add-on item names are unique across every pack (rule 29).
 
 ### Changed
 
+- **Frontend accessibility** now targets WCAG 2.2 AA: the rule and the Accessibility
+  Checklist skill add the 2.2 criteria and point to the new Accessibility pack
+  for the full review. No item renamed.
 - **Renamed items that carried the wrong framework label** (names are identity, so
   reconcile soft-deletes the old rows and adds the new ones): AWS rule "AWS
   Governance By Design (CAF)" is now "AWS Governance By Design" and skill "AWS CAF
