@@ -444,4 +444,17 @@ Verified against web sources (secondary where noted):
 
 ## 7. Owner decisions
 
-_Pending. Phase 2 questions are to be asked next and recorded here._
+Recorded 2026-11-28:
+
+1. **dev-writing**: reframe as a plain style guide; drop the "reads as typed by
+   a person / avoid words that read generated" framing; style rules become
+   skills; keep a single integrity rule (*Never Invent An Event*).
+2. **Duplication**: trim in place. Keep every pack and item name; remove
+   verbatim duplicate rules and point to the canonical pack. No merges/renames.
+3. **Conventions applied to all 24 add-ons**: `permissions: {edit: deny}` on
+   read-only agents, no-subagent fallback sentence, rule priority/tag tiers,
+   documented dependencies (conditional cross-pack references).
+4. **Structure**: stacked local branches by theme, each with tests green:
+   `audit-by-claude-addon-audit` (this report) ->
+   `audit-by-claude-addon-factual` (P1) -> `...-addon-conventions` ->
+   `...-addon-currency` -> `...-addon-dedup`.
