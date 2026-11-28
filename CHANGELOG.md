@@ -6,6 +6,11 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+
+- The unused `COMMUNITY_REPO` setting (default `nemmer/MyACE`, a stale handle that
+  nothing read). A leftover `COMMUNITY_REPO` in an existing `.env` is ignored.
+
 ## [2.4.0] — 2026-11-28
 
 The pack page and discovery release. One additive migration
