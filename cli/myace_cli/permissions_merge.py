@@ -90,7 +90,54 @@ def _merge_claude(sidecar: dict[str, Any], config: dict[str, Any], plan: MergePl
             perms[kind] = current
 
 
+# OpenCode v2 reads a file as v2 as soon as it uses any of these keys, and then
+# ignores v1 fields such as `permission` (opencode.ai/docs/migrate-v1/). Adding a
+# v1 `permission` key to such a file would be silently inert.
+_OPENCODE_V2_KEYS = ("permissions", "request", "system", "disabled")
+_V1_TO_V2_ACTION = {"bash": "shell", "task": "subagent"}
+
+
+def _v2_rules(sidecar: dict[str, Any]) -> list[dict[str, str]]:
+    rules: list[dict[str, str]] = []
+    for key, wanted in sidecar.get("permission", {}).items():
+        action = _V1_TO_V2_ACTION.get(key, key)
+        if isinstance(wanted, str):
+            rules.append({"action": action, "resource": "*", "effect": wanted})
+        elif isinstance(wanted, dict):
+            rules += [
+                {"action": action, "resource": pattern, "effect": effect}
+                for pattern, effect in wanted.items()
+            ]
+    return rules
+
+
+def _merge_opencode_v2(sidecar: dict[str, Any], config: dict[str, Any], plan: MergePlan) -> None:
+    current = config.get("permissions", [])
+    if not isinstance(current, list):
+        plan.skipped.append("permissions: existing value is not a list; left alone")
+        return
+    taken = {(r.get("action"), r.get("resource")): r for r in current if isinstance(r, dict)}
+    new: list[dict[str, str]] = []
+    for rule in _v2_rules(sidecar):
+        existing = taken.get((rule["action"], rule["resource"]))
+        if existing is None:
+            new.append(rule)
+        elif existing.get("effect") != rule["effect"]:
+            plan.skipped.append(
+                f"{rule['action']} '{rule['resource']}': you set "
+                f"{existing.get('effect')}; kept yours"
+            )
+    if new:
+        # Last matching rule wins in v2, so prepending makes ours the lowest
+        # priority: anything the user wrote still overrides it.
+        config["permissions"] = [*new, *current]
+        plan.added["permissions"] = new
+
+
 def _merge_opencode(sidecar: dict[str, Any], config: dict[str, Any], plan: MergePlan) -> None:
+    if any(key in config for key in _OPENCODE_V2_KEYS):
+        _merge_opencode_v2(sidecar, config, plan)
+        return
     permission = config.setdefault("permission", {})
     if not isinstance(permission, dict):
         plan.skipped.append("permission: existing value is a blanket setting; left alone")
@@ -190,6 +237,16 @@ def remove_applied(base: Path, framework: str) -> list[str]:
             else:
                 perms.pop(kind, None)
         if not perms:
+            config.pop("permissions", None)
+    elif "permissions" in added:
+        current = config.get("permissions", [])
+        for rule in added["permissions"]:
+            if rule in current:
+                current.remove(rule)
+                removed.append(f"{rule['action']} {rule['resource']}")
+        if current:
+            config["permissions"] = current
+        else:
             config.pop("permissions", None)
     else:
         permission = config.get("permission", {})

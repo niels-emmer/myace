@@ -69,6 +69,22 @@ declared.
   and again at compile.
 - The merge keeps a user's own entries and values, never writes `allow`, skips
   a rule the user explicitly allows, and refuses a config with comments.
-- Known limits: OpenCode v2's `permissions` array is not targeted; `ask` is
-  not expressible per agent in Claude Code; frameworks without a permission
-  config only get the warning.
+- Known limits: `ask` is not expressible per agent in Claude Code; frameworks
+  without a permission config only get the warning.
+
+## Per-framework status (2026-11-28)
+
+"Verified" means run against the real tool; "docs" means vendor documentation
+only. Re-check both before editing an adapter — these formats move.
+
+| Target | Per-agent restriction | Global rules | Evidence |
+|---|---|---|---|
+| Claude Code | `disallowedTools` (deny only) | sidecar + CLI merge | docs; **not run** (no usable auth in the test environment) |
+| OpenCode (v1 and 2.x) | `permission:` frontmatter | sidecar + CLI merge into v1 `permission` *or* v2 `permissions` | **verified** on OpenCode 2.3.2: it translates v1 frontmatter and config (deprecated but supported); a v2-style config gets v2 rules prepended so the user's own rules win |
+| Codex CLI | impossible — subagents inherit the parent's sandbox and approvals | real `.codex/rules/myace.rules` (a new file; Codex applies the most restrictive matching rule, so it can only tighten) | docs; **not run** (the locally installed binary is broken). Only shell rules with a trailing `*` map; the rest is warned |
+| Copilot CLI | not done — the adapter emits instruction files, not `.github/agents/*.agent.md`; the `tools` allow-list would need that format first | none (deny exists only as session flags) | docs |
+| Goose | not done | not done — per-tool permissions live in one user-level `permission.yaml`, not per agent, and an unofficial report says a corrupt file once meant allow-all | docs (partly unofficial) |
+| Amazon Q, Cursor, Windsurf, Cline, Continue, Aider, Pi | not done — these adapters emit rules/prompts, not agent definitions | not done | **not researched** beyond confirming the adapters' output shape |
+
+`permissions_not_enforced` names exactly what a target could not express, per
+agent and per global rule.

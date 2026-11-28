@@ -52,7 +52,10 @@ ADAPTER_EXPECTED_PATHS: dict[str, list[str]] = {
         ".opencode/skills/", ".opencode/agents/", ".opencode/commands/",
     ],
     "cursor": [".cursor/rules/"],
-    "codex-cli": ["AGENTS.md", ".agents/skills/", ".codex/agents/", ".codex/config.toml"],
+    "codex-cli": [
+        "AGENTS.md", ".agents/skills/", ".codex/agents/", ".codex/config.toml",
+        ".codex/rules/",
+    ],
     "copilot-cli": [".github/copilot-instructions.md", ".github/instructions/"],
     "cline": [".clinerules/"],
     "windsurf": [".windsurf/rules/"],

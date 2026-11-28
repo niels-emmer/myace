@@ -462,13 +462,18 @@ def _check_unenforced_permissions(
     """
     warnings: list[ValidationIssue] = []
     policies = [a for a in all_artifacts if is_permission_policy(a)]
-    if policies and policy_rules(policies) and not adapter.permission_policy_files(policies):
+    missed = adapter.unenforced_policy_rules(policy_rules(policies)) if policies else []
+    if missed:
+        listed = ", ".join(
+            f"{r['capability']}={r['effect']}" + (f" '{r['match']}'" if r["match"] else "")
+            for r in missed
+        )
         warnings.append(
             ValidationIssue(
                 code="permissions_not_enforced",
                 message=(
-                    f"The pack's global permission rules cannot be expressed for the "
-                    f"'{target}' target; only the written rules apply."
+                    f"The pack's global permission rules cannot be fully expressed for the "
+                    f"'{target}' target ({listed}); only the written rules apply."
                 ),
             )
         )

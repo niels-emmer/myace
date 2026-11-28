@@ -17,7 +17,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`myace permissions-remove`). New `permissions_not_enforced` compile warning
   for targets that can't express them. Read-only starter-pack agents
   (reviewers, auditor, verifier, orchestrator) are now restricted. Needs the
-  `b7c8d9e0f1a2` migration.
+  `b7c8d9e0f1a2` migration. OpenCode 2.x configs are merged in v2 form;
+  Codex CLI gets a real `.codex/rules/myace.rules` for global shell rules.
 
 ### Changed
 

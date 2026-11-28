@@ -397,8 +397,12 @@ def _apply_permissions(
         (name for name in files if name in SIDECARS and SIDECARS[name][0] == wanted), None
     )
     if sidecar is None:
-        rprint("\n[yellow]![/yellow] This pack has no permission rules for this target; "
-               "nothing to apply.")
+        if ".codex/rules/myace.rules" in files:
+            rprint("\n[green]✓[/green] Codex loads [bold].codex/rules/myace.rules[/bold] "
+                   "itself (restrict-only, next to your own rules) — nothing to merge.")
+        else:
+            rprint("\n[yellow]![/yellow] This pack has no permission rules for this "
+                   "target; nothing to apply.")
         return
     framework, project_config = SIDECARS[sidecar]
     config_path = USER_CONFIGS[framework] if scope == "user" else base / project_config
