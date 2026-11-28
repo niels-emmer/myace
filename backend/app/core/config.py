@@ -91,9 +91,6 @@ class Settings(BaseSettings):
     # collections/ directory instead.
     collections_root: str = "/app/collections"
 
-    # Community collections
-    community_repo: str = "nemmer/MyACE"
-
     # Doc Cache
     doc_cache_ttl_days: int = 7
     doc_cache_refresh_interval_hours: int = 168
