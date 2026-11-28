@@ -67,3 +67,30 @@ export function agentRestrictions(permissions: Artifact['permissions']): string[
     return [];
   });
 }
+
+/**
+ * Files a pack ships to carry its global permission rules (ADR-0019). The
+ * Claude Code and OpenCode sidecars are inert until merged; the Codex rules file
+ * is live. Returns a short status for the install preview, or null for any other
+ * file.
+ */
+export function permissionFileStatus(
+  filename: string,
+): { label: string; detail: string } | null {
+  if (filename.endsWith('/myace.permissions.json')) {
+    return {
+      label: 'permission rules — not active yet',
+      detail:
+        'Your tool ignores this file until it is merged into its config. ' +
+        'Run `myace pull --apply-permissions` (it shows a diff first) or merge it by hand.',
+    };
+  }
+  if (filename === '.codex/rules/myace.rules') {
+    return {
+      label: 'permission rules — active in Codex',
+      detail:
+        'Codex loads this file by itself, next to your own rules. It can only ask first or block, never allow.',
+    };
+  }
+  return null;
+}

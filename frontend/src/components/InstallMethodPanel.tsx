@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { profilesApi } from '../lib/api';
+import { permissionFileStatus } from '../lib/permissions';
 import {
   companionApi,
   fetchCompanionHealth,
@@ -434,6 +435,18 @@ export default function InstallMethodPanel({
           </div>
         )}
 
+        {preview &&
+          Object.keys(preview.files)
+            .filter((filename) => permissionFileStatus(filename))
+            .map((filename) => (
+              <p
+                key={filename}
+                className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800"
+              >
+                <span className="font-mono">{filename}</span> — {permissionFileStatus(filename)?.detail}
+              </p>
+            ))}
+
         {preview && (
           <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
             {Object.keys(preview.files)
@@ -448,6 +461,11 @@ export default function InstallMethodPanel({
                   <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">
                     {filename}
                   </span>
+                  {permissionFileStatus(filename) && (
+                    <span className="shrink-0 rounded bg-orange-50 px-1.5 py-0.5 text-xs font-medium text-orange-700">
+                      {permissionFileStatus(filename)?.label}
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => copyToClipboard(preview.files[filename], filename)}

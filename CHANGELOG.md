@@ -8,6 +8,46 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Rules can carry a priority and tags** (`<!-- myace: priority=90 tags=security -->`
+  under a rule's heading); both scanners read it and export writes it back. Base
+  packs now use deliberate tiers (90 safety/security, 70 quality gates, 50
+  process), which changes the order rules appear in compiled output.
+- **New pack content:** Vibecoder gets a light "Run What You Changed" testing
+  rule; Software Engineer gets "Dependency Hygiene", "Observability Baseline"
+  and a read-only `architect` agent (wired into its orchestrator); Data
+  Scientist gets a read-only `data-privacy-reviewer` agent wired into its
+  handoffs.
+
+### Changed
+
+- **No-subagent fallback** is now spelled out in the Software Engineer and
+  DevOps orchestrators, every agent's Handoff and the `verify` workflow: do each
+  stage yourself as a separate pass instead of skipping it.
+- **More shared source:** the memory-system rule and skill, the plan-tracking
+  skill and Testing Discipline are generated from `collections/_shared/` for
+  Software Engineer and DevOps. Existing deployments need
+  `reconcile_seeded_collections --apply --update-content`.
+
+### Added
+
+- **Edit an agent's permissions on the owner page.** Five capabilities, each
+  Inherit / Ask first / Block (restrict-only; there is no allow).
+
+### Changed
+
+- **Pack item counts no longer include the permission policy** (`artifact_count`,
+  compile's count and the MCP `item_count`), so "Vibecoder: 12 items" is true
+  again. Run `reconcile_seeded_collections --apply` to repair stored counts.
+
+## [2.2.0] — 2026-11-28
+
+The permissions and governance-core release. One additive migration
+(`b7c8d9e0f1a2`, a nullable `artifacts.permissions` column); no removed routes
+and no changed response shapes. Existing deployments run `alembic upgrade head`
+and then `reconcile_seeded_collections --apply --update-content`.
+
+### Added
+
 - **Agent-level permissions** (ADR-0019). Agents can declare
   `permissions: {edit: deny, ...}`; Claude Code gets `disallowedTools` and
   OpenCode a `permission:` block in the agent's own file. Restrict-only, and no
@@ -19,8 +59,15 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (reviewers, auditor, verifier, orchestrator) are now restricted. Needs the
   `b7c8d9e0f1a2` migration. OpenCode 2.x configs are merged in v2 form;
   Codex CLI gets a real `.codex/rules/myace.rules` for global shell rules.
+- **Install preview explains permission files.** A sidecar such as
+  `.claude/myace.permissions.json` is labelled "not active yet" with how to merge
+  it; Codex's rules file is labelled as live.
 
 ### Changed
+
+- **Cursor and Copilot CLI get native agent files** (`.cursor/agents/<name>.md`, `.github/agents/<name>.agent.md`) in addition to the existing rule/instruction files, so an agent's `edit`/`read`/`execute`/`network`/`delegate` denials can be enforced there (`readonly` / `tools`). Existing output is unchanged. Neither is verified against the real tool.
+
+- **Owner collection page** shows a pack's permission rules and agent restrictions the same readable way as the public pack page (shared `PolicyRules` component); the raw JSON stays editable.
 
 - **Pack page shows permissions properly.** A pack's global permission rules now appear under their own "Permission rules" filter as a readable list (what, command, ask-first/blocked) instead of a raw `model_config` JSON blob, and agents with restrictions show them as sentences ("Cannot edit files"). Frontend only.
 

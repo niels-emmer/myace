@@ -82,9 +82,25 @@ only. Re-check both before editing an adapter — these formats move.
 | Claude Code | `disallowedTools` (deny only) | sidecar + CLI merge | docs; **not run** (no usable auth in the test environment) |
 | OpenCode (v1 and 2.x) | `permission:` frontmatter | sidecar + CLI merge into v1 `permission` *or* v2 `permissions` | **verified** on OpenCode 2.3.2: it translates v1 frontmatter and config (deprecated but supported); a v2-style config gets v2 rules prepended so the user's own rules win |
 | Codex CLI | impossible — subagents inherit the parent's sandbox and approvals | real `.codex/rules/myace.rules` (a new file; Codex applies the most restrictive matching rule, so it can only tighten) | docs; **not run** (the locally installed binary is broken). Only shell rules with a trailing `*` map; the rest is warned |
-| Copilot CLI | not done — the adapter emits instruction files, not `.github/agents/*.agent.md`; the `tools` allow-list would need that format first | none (deny exists only as session flags) | docs |
-| Goose | not done | not done — per-tool permissions live in one user-level `permission.yaml`, not per agent, and an unofficial report says a corrupt file once meant allow-all | docs (partly unofficial) |
-| Amazon Q, Cursor, Windsurf, Cline, Continue, Aider, Pi | not done — these adapters emit rules/prompts, not agent definitions | not done | **not researched** beyond confirming the adapters' output shape |
+| Cursor | `readonly: true` on a native subagent (`.cursor/agents/*.md`: no edits, no state-changing shell) for `edit=deny`. The adapter now emits that file **in addition to** the unchanged `.mdc` rule; everything else (`ask`, network, ...) is warned. | `.cursor/cli.json` `permissions.deny` (`Shell(cmd)`) exists but is Cursor-CLI-only, user-owned, and forum reports disagree on whether a project file merges with or replaces the global one | docs + forum reports; **not run** |
+| Copilot CLI | A native agent (`.github/agents/<name>.agent.md`) with a `tools` allow-list of every alias minus the denied ones (omitted entirely when nothing is denied), emitted **in addition to** the unchanged instruction file. Listing `tools` also drops MCP tools for that agent — tighter than asked, never looser. `ask` is warned. | None possible as a file: persistent deny lives only in session flags (`--deny-tool`), admin managed settings, or `deniedUrls`; `permissions-config.json` stores approvals only | docs; not run |
+| Kiro / Amazon Q CLI | JSON agents in `.kiro/agents/`; the schema is versioned (2.x `allowedTools`/`toolsSettings` vs v3 `permissions`, which needs `/upgrade-agent`). **Our Amazon Q adapter targets IDE rules**, not CLI agents. | none | docs; not run |
+| Windsurf | none (rules only) | Allow/deny command lists are editor *user settings* (`windsurf.cascadeCommandsDenyList`), and a deny entry means "ask", not "block" | docs; not run |
+| Cline | none | Per-category auto-approve is UI state; `.clineignore` is enforced only via a hook; rules are instructions, not permissions | docs; not run |
+| Continue | none | Ask / Automatic / Excluded per tool is local UI state; no `config.yaml` key found | docs; not run |
+| Goose | none | One user-level `permission.yaml`, not per agent, with an unofficial report that a corrupt file once meant allow-all | docs (partly unofficial) |
+| Aider | none | Aider has no permission system (only `read:` read-only files, `yes-always`, `suggest-shell-commands`) | docs |
+| Pi | none | Core Pi has none; third-party extensions add allow/deny/ask with their own files (`.pi/permissions.json` etc.) | third-party docs |
+
+Two conclusions. First, **a file-based, restrict-only form exists for exactly the
+targets already built** (Claude Code, OpenCode, Codex rules). Everywhere else
+the control is user-level UI state, session flags or admin policy — a pack
+cannot ship it without writing a user's own settings, which this ADR rules out.
+Second, **Cursor and Copilot CLI gained a real per-agent restriction by
+emitting native agent files** (`readonly`, `tools`). That changes what those
+downloads contain, so it was a product decision (taken 2026-11-28): the files
+are added *alongside* the existing rule/instruction output, which is unchanged.
+Neither has been run against the real tool.
 
 `permissions_not_enforced` names exactly what a target could not express, per
 agent and per global rule.

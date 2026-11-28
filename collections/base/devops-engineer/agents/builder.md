@@ -27,4 +27,4 @@ Hands-on-keyboard agent that turns a plan into a validated, reviewable infrastru
 
 ## Handoff
 
-Hand off to `verifier` for independent plan/validate/lint/policy verification. Don't self-certify.
+Hand off to `verifier` for independent plan/validate/lint/policy verification. Don't self-certify. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

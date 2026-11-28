@@ -62,6 +62,17 @@ def _frontmatter(artifact: CanonicalArtifact) -> str:
     return str(yaml.safe_dump(fm, sort_keys=False)).strip()
 
 
+def _rule_metadata_line(artifact: CanonicalArtifact) -> str:
+    """`<!-- myace: priority=90 tags=a,b -->` when a rule differs from the
+    defaults, so priority and tags survive export -> scan (rule 8)."""
+    parts = []
+    if artifact.priority != 50:
+        parts.append(f"priority={artifact.priority}")
+    if artifact.tags:
+        parts.append("tags=" + ",".join(artifact.tags))
+    return f"<!-- myace: {' '.join(parts)} -->\n\n" if parts else ""
+
+
 def artifacts_to_files(artifacts: list[CanonicalArtifact]) -> dict[str, str]:
     """Convert canonical artifacts back into the source file-tree layout the
     scanner reads (skills/<name>/SKILL.md, agents/<name>.md, commands/<name>.md,
@@ -80,7 +91,9 @@ def artifacts_to_files(artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         elif artifact.artifact_type == "workflow":
             path = f"commands/{safe_name}.md"
         elif artifact.artifact_type == "rule":
-            rule_sections.append(f"## {artifact.name}\n\n{artifact.body}".strip())
+            rule_sections.append(
+                f"## {artifact.name}\n\n{_rule_metadata_line(artifact)}{artifact.body}".strip()
+            )
             continue
         elif artifact.artifact_type == "model_config" and artifact.name == "permissions:default":
             # Round-trips scanner._parse_permissions_json (ADR-0019).

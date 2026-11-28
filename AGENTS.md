@@ -1580,6 +1580,19 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   one needs a reconcile run (rule 25) on live deployments, or the old row
   lingers.
 - `additional/` collections are not part of this mechanism.
+- **Beyond the four core rules**, `packs.json` can scope a shared rule to some
+  packs (`packs`), give it a `priority`/`tags`, and share whole skills
+  (`skills/<slug>.md`, generated into `skills/<slug>/SKILL.md`). Software
+  Engineer and DevOps share the memory-system rule and skill, the plan-tracking
+  skill and Testing Discipline (with a DevOps variant). Their Security By
+  Design / DevSecOps By Default rules are deliberately *not* shared: different
+  names and content.
+- **Rules carry priority and tags** via an optional first line under the
+  heading, `<!-- myace: priority=90 tags=security,git -->`, parsed by both
+  scanners and written back by `github_export` (rule 8). Priority sorts compiled
+  output highest-first, so tiers are deliberate: 90 safety/security, 70 quality
+  gates (change control, testing, release), 50 process and style.
+  `tests/test_shared_core.py` fails if a base rule has neither a tier nor a tag.
 
 ### 43. Permissions Are Restrict-Only, Agent-Level, and Never Written to a Shared Config
 
@@ -1606,9 +1619,16 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   by `scripts/sync_shared_core.py` (rule 42): shared rules in
   `collections/_shared/permissions.json`, per-pack extras in
   `permissions.pack.json`.
+- **Item counts leave the policy out:** `Collection.artifact_count`, compile's
+  `artifact_count` and the MCP `item_count` exclude `permissions:*` model_configs
+  (`counts_toward_total()`); use it wherever the counter is written. The owner
+  page edits an agent's permissions inline (`AgentPermissionsEditor`: Inherit /
+  Ask / Block, never allow).
 - Vendor key names change; the evidence table in ADR-0019 says what was run
   against a real binary (only OpenCode 2.3.2) and what is docs-only. Codex CLI
   gets a real `.codex/rules/myace.rules` for global shell rules
   (`unenforced_policy_rules()` reports what a format can't carry). OpenCode v2
   configs get v2 `permissions` rules prepended so the user's own rules win.
-
+  Cursor (`.cursor/agents/*.md`, `readonly`) and Copilot CLI
+  (`.github/agents/*.agent.md`, `tools`) also emit a native agent file *next to*
+  their old rule/instruction output; both scanners read `x.agent.md` as agent `x`.

@@ -26,4 +26,4 @@ Hands-on-keyboard agent that turns a plan into a working, tested change.
 
 ## Handoff
 
-Hand off to `verifier` for independent test/build/lint suite. Don't self-certify.
+Hand off to `verifier` for independent test/build/lint suite. Don't self-certify. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

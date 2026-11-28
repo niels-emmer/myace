@@ -25,4 +25,4 @@ Read-only reviewer for correctness, simplicity, and consistency.
 
 ## Handoff
 
-Report findings as must-fix vs. suggestion. Must-fix findings route back to `builder`. Once clean, hand off to `docs-writer`.
+Report findings as must-fix vs. suggestion. Must-fix findings route back to `builder`. Once clean, hand off to `docs-writer`. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

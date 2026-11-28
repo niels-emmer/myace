@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.config import settings
-from app.models.artifact import Artifact
+from app.models.artifact import Artifact, counts_toward_total
 from app.models.collection import Collection
 from app.models.user import User
 from app.services.scanner import (
@@ -496,7 +496,10 @@ async def seed_starter_collections(session: AsyncSession) -> None:
                     moderation_status="approved",
                     category=meta["category"],
                     is_starter_pack=is_starter_pack,
-                    artifact_count=len(scanned),
+                    artifact_count=sum(
+                        1 for item in scanned
+                        if counts_toward_total(item["artifact_type"], item["name"])
+                    ),
                 )
                 session.add(collection)
                 await session.commit()

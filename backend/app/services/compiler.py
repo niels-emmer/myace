@@ -346,7 +346,7 @@ async def _compile_collections(
         profile_id=profile_id,
         profile_name=profile_name,
         target=target,
-        artifact_count=len(all_artifacts),
+        artifact_count=sum(1 for a in all_artifacts if not is_permission_policy(a)),
         files=files,
         warnings=warnings,
         compiled_hash=compute_compiled_hash(files),

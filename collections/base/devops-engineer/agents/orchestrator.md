@@ -27,3 +27,7 @@ Entry point for nontrivial infrastructure work. Break work into stages and route
 ## Handoff
 
 Delegate to `builder` first. After implementation, route to `verifier`. If security-relevant, route to `security-auditor` next; otherwise `code-reviewer`. After both clean, route to `docs-writer`. Only report complete once every applicable stage has passed and the human has approved any state-changing apply.
+
+## Without subagents
+
+Several tools (Cursor rules, Copilot instructions, Windsurf, Cline, Aider, and others) cannot spawn subagents. There, don't drop the pipeline — play each role yourself, in order, as a separate pass: build; then verify as if you hadn't written it (re-read the diff and the plan output, re-run the checks); then security review if relevant; then code review; then docs. Say which stage you are in, never fold two stages into one "looks good", and still stop for the human before any `apply`, `deploy` or `destroy`.

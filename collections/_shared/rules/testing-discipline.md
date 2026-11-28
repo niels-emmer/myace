@@ -1,0 +1,1 @@
+No change merges without tests covering it: new code paths need new tests, bug fixes need regression tests. Cover failure modes and edge cases (empty/null input, boundaries, concurrency, partial failures), not just the happy path. Tests must pass before merge.

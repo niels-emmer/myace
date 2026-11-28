@@ -16,7 +16,7 @@ target frameworks that only have one native artifact concept.
 
 import yaml
 
-from app.adapters.base import BaseAdapter, safe_path_component
+from app.adapters.base import BaseAdapter, restricting_permissions, safe_path_component
 from app.models.artifact import CanonicalArtifact
 
 
@@ -30,7 +30,16 @@ class CursorAdapter(BaseAdapter):
         return ["cursor", "cursor-editor"]
 
     def expected_paths(self) -> list[str]:
-        return [".cursor/rules/"]
+        return [".cursor/rules/", ".cursor/agents/"]
+
+    def unenforced_permissions(self, artifact: CanonicalArtifact) -> dict[str, str]:
+        # `readonly: true` is Cursor's only per-agent control: no edits and no
+        # state-changing shell. It covers `edit=deny`; nothing else maps.
+        return {
+            cap: eff
+            for cap, eff in restricting_permissions(artifact).items()
+            if not (cap == "edit" and eff == "deny")
+        }
 
     def translate(self, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         """
@@ -49,8 +58,23 @@ class CursorAdapter(BaseAdapter):
             slug = safe_path_component(artifact.name)
             if artifact.artifact_type in ("rule", "skill", "agent", "workflow"):
                 files[f".cursor/rules/{slug}.mdc"] = self._format_mdc(artifact)
+            if artifact.artifact_type == "agent":
+                # Additive: the rule file above is unchanged. This is Cursor's
+                # native subagent (cursor.com/docs/subagents), the only place a
+                # per-agent restriction can live (ADR-0019).
+                files[f".cursor/agents/{slug}.md"] = self._format_subagent(artifact)
 
         return files
+
+    def _format_subagent(self, artifact: CanonicalArtifact) -> str:
+        fields: dict[str, object] = {
+            "name": artifact.name,
+            "description": artifact.description,
+        }
+        if restricting_permissions(artifact).get("edit") == "deny":
+            fields["readonly"] = True  # restrict-only: never emitted as false
+        yaml_text = yaml.safe_dump(fields, sort_keys=False, default_flow_style=False).strip()
+        return f"---\n{yaml_text}\n---\n" + artifact.body.strip() + "\n"
 
     def _format_mdc(self, artifact: CanonicalArtifact) -> str:
         frontmatter: dict[str, object] = {

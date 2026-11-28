@@ -123,6 +123,28 @@ describe('TargetExporter install panel', () => {
     expect(installsApi.claim).not.toHaveBeenCalled();
   });
 
+  it('explains that a permission sidecar is inert until merged, and that Codex rules are live', async () => {
+    vi.mocked(profilesApi.compile).mockResolvedValue({
+      ...mockCompileResult,
+      files: {
+        'CLAUDE.md': '# Agents',
+        '.claude/myace.permissions.json': '{}',
+        '.codex/rules/myace.rules': 'prefix_rule()',
+      },
+    });
+    renderInstall();
+    await waitForProfile();
+
+    fireEvent.click(screen.getByRole('button', { name: /Preview files/i }));
+
+    expect(await screen.findByText('permission rules — not active yet')).toBeInTheDocument();
+    expect(screen.getByText(/ignores this file until it is merged/)).toBeInTheDocument();
+    expect(screen.getByText(/--apply-permissions/)).toBeInTheDocument();
+    expect(screen.getByText('permission rules — active in Codex')).toBeInTheDocument();
+    // Ordinary files carry no badge.
+    expect(screen.getAllByText(/permission rules —/)).toHaveLength(2);
+  });
+
   it('records a zip install claim on download, never a verification', async () => {
     const blob = new Blob(['fake zip bytes'], { type: 'application/zip' });
     globalThis.fetch = vi.fn().mockResolvedValue({

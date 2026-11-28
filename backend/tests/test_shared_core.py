@@ -22,8 +22,8 @@ def test_generated_agents_md_is_in_sync() -> None:
 
 
 def test_every_base_pack_ships_the_core_rules_self_contained() -> None:
-    wanted = {r["name"] for r in CONFIG["rules"]}
     for slug in CONFIG["title"]:
+        wanted = {r["name"] for r in CONFIG["rules"] if slug in r.get("packs", [slug])}
         rules = {
             a["name"]: a["body"]
             for a in _scan_seeded_collection(BASE / slug)
@@ -47,3 +47,34 @@ def test_shared_source_is_not_a_seeded_collection() -> None:
 
     seeded = {s for group in (STARTER_COLLECTIONS, COMMUNITY_CONTRIBUTED_COLLECTIONS) for t in group.values() for s in t}
     assert "_shared" not in seeded
+
+
+def test_shared_skills_and_scoped_rules_reach_exactly_their_packs() -> None:
+    for skill in CONFIG["skills"]:
+        for slug in CONFIG["title"]:
+            exists = (BASE / slug / "skills" / skill["slug"] / "SKILL.md").exists()
+            assert exists == (slug in skill.get("packs", [slug])), (slug, skill["slug"])
+    scoped = [r for r in CONFIG["rules"] if "packs" in r]
+    assert scoped, "expected at least one pack-scoped shared rule"
+    for rule in scoped:
+        for slug in CONFIG["title"]:
+            names = {a["name"] for a in _scan_seeded_collection(BASE / slug)}
+            assert (rule["name"] in names) == (slug in rule["packs"]), (slug, rule["name"])
+
+
+def test_every_base_rule_has_a_deliberate_tier() -> None:
+    """Priority sorts compiled output, so no base rule may silently sit at the
+    default with no tags: each carries a tier (90 safety/security, 70 quality
+    gates) or at least a tag saying what it is."""
+    for slug in CONFIG["title"]:
+        for a in _scan_seeded_collection(BASE / slug):
+            if a["artifact_type"] == "rule":
+                assert a["priority"] != 50 or a["tags"], (slug, a["name"])
+
+
+def test_safety_rules_outrank_process_rules_in_every_pack() -> None:
+    for slug in CONFIG["title"]:
+        rules = {a["name"]: a["priority"] for a in _scan_seeded_collection(BASE / slug)
+                 if a["artifact_type"] == "rule"}
+        assert rules["Secrets And Destructive Actions"] == 90, slug
+        assert rules["Rule Of Least Power"] <= rules["Change Control"], slug

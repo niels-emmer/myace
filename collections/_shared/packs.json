@@ -6,10 +6,81 @@
     "devops-engineer": "DevOps Engineer"
   },
   "rules": [
-    {"slug": "change-control", "name": "Change Control"},
-    {"slug": "secrets-and-destructive-actions", "name": "Secrets And Destructive Actions"},
-    {"slug": "provenance-and-attribution", "name": "Provenance And Attribution"},
-    {"slug": "rule-of-least-power", "name": "Rule Of Least Power"}
+    {
+      "slug": "change-control",
+      "name": "Change Control",
+      "priority": 70,
+      "tags": [
+        "quality",
+        "git"
+      ]
+    },
+    {
+      "slug": "secrets-and-destructive-actions",
+      "name": "Secrets And Destructive Actions",
+      "priority": 90,
+      "tags": [
+        "security",
+        "safety"
+      ]
+    },
+    {
+      "slug": "provenance-and-attribution",
+      "name": "Provenance And Attribution",
+      "priority": 70,
+      "tags": [
+        "quality"
+      ]
+    },
+    {
+      "slug": "rule-of-least-power",
+      "name": "Rule Of Least Power",
+      "priority": 50,
+      "tags": [
+        "process"
+      ]
+    },
+    {
+      "slug": "testing-discipline",
+      "name": "Testing Discipline",
+      "priority": 70,
+      "tags": [
+        "testing",
+        "quality"
+      ],
+      "packs": [
+        "software-engineer",
+        "devops-engineer"
+      ]
+    },
+    {
+      "slug": "maintain-a-file-based-memory-system",
+      "name": "Maintain A File-Based Memory System",
+      "priority": 50,
+      "tags": [
+        "process"
+      ],
+      "packs": [
+        "software-engineer",
+        "devops-engineer"
+      ]
+    }
   ],
-  "exclude": {}
+  "exclude": {},
+  "skills": [
+    {
+      "slug": "memory-system",
+      "packs": [
+        "software-engineer",
+        "devops-engineer"
+      ]
+    },
+    {
+      "slug": "plan-tracking",
+      "packs": [
+        "software-engineer",
+        "devops-engineer"
+      ]
+    }
+  ]
 }

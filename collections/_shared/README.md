@@ -8,8 +8,11 @@ in the product.
 - `rules/<slug>.md` — the canonical body of a core rule.
 - `rules/<slug>.<pack>.md` — an optional per-pack wording of the same rule
   (same name and intent, adapted to that pack).
-- `packs.json` — the rule list (slug → heading name), pack titles, and an
-  optional per-pack `exclude` list of slugs.
+- `packs.json` — the rule list (slug, heading name, `priority`, `tags`, and an
+  optional `packs` list limiting it to some packs), the shared `skills`, pack
+  titles, and an optional per-pack `exclude` list.
+- `skills/<slug>.md` (and `<slug>.<pack>.md`) — a whole SKILL.md generated into
+  each listed pack's `skills/<slug>/SKILL.md`.
 
 Each pack's own rules live in `collections/base/<pack>/AGENTS.pack.md`. The
 shipped `AGENTS.md` is **generated** from that file plus this core — don't edit

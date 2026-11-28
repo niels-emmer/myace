@@ -4,44 +4,66 @@
 
 ## Reproducibility Is The Baseline
 
+<!-- myace: priority=70 tags=ml -->
+
 Seed all random generators, pin dependency versions, log all parameters and environment. "It worked on my machine" is a blocker. Every experiment must be reproducible from its logged state alone.
 
 ## Explore In Notebooks, Ship As Modules
+
+<!-- myace: tags=ml,process -->
 
 Prototype and iterate in notebooks for fast visual feedback. Refactor into reusable Python modules before code becomes load-bearing. A notebook is not a deployment artifact.
 
 ## Validate Data Before Modeling
 
+<!-- myace: priority=70 tags=ml,quality -->
+
 Check distributions, missing values, type correctness, train/test leakage, and class balance before training. Most modeling problems are data problems — treat data quality as a gate, not a debugging step.
 
 ## Experiment Tracking Is Mandatory
+
+<!-- myace: priority=70 tags=ml -->
 
 Every training run logs parameters, metrics, artifacts, and environment to an experiment tracker. If you can't reproduce a past result, you didn't track it. "I remember the settings" is not experiment tracking.
 
 ## Evaluate Before Deploying
 
+<!-- myace: priority=70 tags=ml,quality -->
+
 Evaluate against multiple metrics, a holdout set, and a baseline. Document known failure modes. If you can't articulate where the model fails, you don't understand it well enough to deploy.
 
 ## Monitor What Matters In Production
+
+<!-- myace: tags=ml,operations -->
 
 Track data drift, prediction drift, latency, and business outcomes — not the holdout F1 score from three months ago. Production metrics differ from training metrics.
 
 ## Handle Personal Data Deliberately
 
+<!-- myace: priority=90 tags=security,privacy,ml -->
+
 Know where each dataset came from, what it may be used for, and whether it contains personal or sensitive data before using it. Minimise and de-identify early; keep raw personal data out of notebooks, logs, experiment trackers, and commits. Check that features and evaluation slices don't encode protected attributes or their proxies, and document any such use and why it is justified.
 
 ## Change Control
+
+<!-- myace: priority=70 tags=quality,git -->
 
 Keep diffs small and coherent — one change per diff. Every state-changing operation is reversible or has a tested rollback. Never force-push to shared branches or bypass required reviews.
 
 ## Secrets And Destructive Actions
 
+<!-- myace: priority=90 tags=security,safety -->
+
 Never commit, print, or log a secret — flag it and move on. Stop and confirm before irreversible or destructive operations (`rm -rf`, `git reset --hard`, dropping data, `sudo`), before `git push` to shared or default branches, and before touching `.env` or credentials. Never run a destructive operation against a shared resource without explicit confirmation.
 
 ## Provenance And Attribution
 
+<!-- myace: priority=70 tags=quality -->
+
 Verify AI-generated output and claims about behavior before treating them as fact. Cite actual sources (docs, library code, papers, changelogs) for claims about methods or results. A model result you have not run and logged is a claim, not a result. Flag uncertainty explicitly.
 
 ## Rule Of Least Power
+
+<!-- myace: tags=process -->
 
 Reach for the simplest mechanism that solves the problem. Don't add abstractions, dependencies, or extensibility points until a second concrete use case demands it.

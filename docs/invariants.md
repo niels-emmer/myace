@@ -184,7 +184,11 @@ names where it's enforced so you can verify it hasn't regressed.
     value. Every route that adds or removes artifacts from a collection
     (bulk import, bulk delete, bulk export's target, and the single-artifact
     `POST /{collection_id}/artifacts`) must update it, or it silently drifts
-    from the true count.
+    from the true count. It counts *pack items*, not every row: a pack's
+    permission policy (`model_config` named `permissions:*`, ADR-0019) is
+    stored and listed but excluded, via `counts_toward_total()` in
+    `app/models/artifact.py` — use that predicate at every site that writes
+    the counter, and `reconcile_seeded_collections` to repair stored counts.
 
 21. **Sync-status reporting is always self-scoped to `current_user.id`, both
     on write and on read.** `POST /sync/report` upserts on

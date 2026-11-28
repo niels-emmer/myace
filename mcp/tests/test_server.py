@@ -106,6 +106,28 @@ async def test_search_packs_returns_total_and_packs(monkeypatch: pytest.MonkeyPa
     assert payload["packs"][0]["url"] == f"{SITE}/packs/{PACK_ID}"
 
 
+async def test_get_pack_item_count_excludes_the_permission_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    policy = {**_item("permissions:default"), "artifact_type": "model_config"}
+    install_backend(
+        monkeypatch,
+        routable(
+            **{
+                f"/community/{PACK_ID}/artifacts": lambda: httpx.Response(
+                    200, json=[_item("alpha"), policy]
+                ),
+                f"/community/{PACK_ID}": lambda: httpx.Response(200, json=_pack()),
+            }
+        ),
+    )
+
+    payload = json.loads(await server.get_pack(PACK_ID))
+
+    assert payload["item_count"] == 1  # the policy is listed but is not an "item"
+    assert len(payload["items"]) == 2
+
+
 async def test_get_pack_lists_items_without_bodies(monkeypatch: pytest.MonkeyPatch) -> None:
     install_backend(
         monkeypatch,

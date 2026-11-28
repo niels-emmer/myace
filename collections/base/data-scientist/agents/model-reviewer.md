@@ -4,7 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
-handoff_to: [data-explorer]
+handoff_to: [data-explorer, data-privacy-reviewer]
 permissions: {edit: deny}
 ---
 Read-only model methodology reviewer. Evaluate whether a model is ready for the next stage.
@@ -25,4 +25,4 @@ Read-only model methodology reviewer. Evaluate whether a model is ready for the 
 
 ## Handoff
 
-Report findings to `data-explorer` or the user. On blocking findings (missing tracking, leakage, inadequate eval), hand back for remediation before proceeding.
+Report findings to `data-explorer` or the user. On blocking findings (missing tracking, leakage, inadequate eval), hand back for remediation before proceeding. Once the methodology is sound, hand to `data-privacy-reviewer` before anything is deployed.

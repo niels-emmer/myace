@@ -1,0 +1,1 @@
+Read `docs/memory/core-principles.md`, `workflow.md`, and `decisions.md` before nontrivial tasks. Append a decision-log entry after each task covering what was decided, how it was tested, and what docs were touched. See the `memory-system` skill for the file layout.

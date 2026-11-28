@@ -28,6 +28,7 @@ from app.models.artifact import (
     ArtifactRead,
     ArtifactUpdate,
     CanonicalArtifact,
+    counts_toward_total,
 )
 from app.models.collection import Collection, CollectionCreate, CollectionRead, CollectionUpdate
 from app.models.profile import PackCompileResponse, ProfileCompileResponse
@@ -819,7 +820,8 @@ async def create_artifact(
     )
     session.add(artifact)
 
-    collection.artifact_count += 1
+    if counts_toward_total(artifact.artifact_type, artifact.name):
+        collection.artifact_count += 1
 
     await session.commit()
     await session.refresh(artifact)
@@ -941,7 +943,9 @@ async def bulk_delete_artifacts(
             Artifact.collection_id == collection_id, Artifact.deleted_at == None
         )
     )
-    collection.artifact_count = len(count_result.scalars().all())
+    collection.artifact_count = sum(
+        1 for a in count_result.scalars().all() if counts_toward_total(a.artifact_type, a.name)
+    )
     await session.commit()
 
     return {"deleted": deleted}
@@ -1032,7 +1036,11 @@ async def bulk_export_artifacts(
             Artifact.collection_id == target_collection.id, Artifact.deleted_at == None
         )
     )
-    target_collection.artifact_count = len(count_result.scalars().all())
+    target_collection.artifact_count = sum(
+        1
+        for a in count_result.scalars().all()
+        if counts_toward_total(a.artifact_type, a.name)
+    )
     await session.commit()
 
     return {
@@ -1338,6 +1346,7 @@ async def import_community_collection(
 
     # Copy artifacts
     created = 0
+    counted = 0
     for src in source_artifacts:
         session.add(Artifact(
             collection_id=target.id,
@@ -1355,10 +1364,11 @@ async def import_community_collection(
             permissions=src.permissions,
         ))
         created += 1
+        counted += 1 if counts_toward_total(src.artifact_type, src.name) else 0
 
     # Counts land in the same commit as the artifacts they describe (invariant
     # 20) — a separate commit could leave the counter permanently stale.
-    target.artifact_count = created
+    target.artifact_count = counted
     source.download_count = (source.download_count or 0) + 1
     await session.commit()
 
@@ -1467,7 +1477,11 @@ async def scan_local_directory(
         return {
             "path": source_label,
             "framework": request.framework,
-            "artifact_count": len(artifacts),
+            "artifact_count": sum(
+                1
+                for a in artifacts
+                if counts_toward_total(a["artifact_type"], a["name"])
+            ),
             "artifacts": artifacts,
         }
     except FileNotFoundError:
@@ -1526,6 +1540,7 @@ async def bulk_import(
 
     # Create artifacts
     created = 0
+    counted = 0
     for item in request.artifacts:
         artifact = Artifact(
             collection_id=collection.id,
@@ -1543,9 +1558,10 @@ async def bulk_import(
         )
         session.add(artifact)
         created += 1
+        counted += 1 if counts_toward_total(item.artifact_type, item.name) else 0
 
     # Artifact count lands in the same commit as the artifacts it counts.
-    collection.artifact_count = created
+    collection.artifact_count = counted
     await session.commit()
 
     return {

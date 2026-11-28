@@ -26,4 +26,4 @@ Root-cause investigator. Turns "this is broken" into a specific, verified explan
 
 ## Handoff
 
-Hand the confirmed root cause and a minimal reproduction to `builder` for the fix. If the investigation surfaces a second, related bug beyond the one reported, flag it separately rather than silently expanding the current task's scope.
+Hand the confirmed root cause and a minimal reproduction to `builder` for the fix. If the investigation surfaces a second, related bug beyond the one reported, flag it separately rather than silently expanding the current task's scope. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

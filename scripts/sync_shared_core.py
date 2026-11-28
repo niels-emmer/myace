@@ -26,17 +26,48 @@ def _pack_sections(pack_file: Path) -> str:
     return "\n".join(lines[first:]).strip()
 
 
+def _meta_line(entry: dict) -> str:
+    """`<!-- myace: priority=90 tags=a,b -->` for a rule's tier (see the scanners)."""
+    parts = []
+    if entry.get("priority", 50) != 50:
+        parts.append(f"priority={entry['priority']}")
+    if entry.get("tags"):
+        parts.append("tags=" + ",".join(entry["tags"]))
+    return f"<!-- myace: {' '.join(parts)} -->\n\n" if parts else ""
+
+
+def _applies(entry: dict, slug: str, excluded: set[str]) -> bool:
+    """An entry with a `packs` list goes only to those packs; one without goes to all."""
+    return slug in entry.get("packs", [slug]) and entry["slug"] not in excluded
+
+
+def _source(kind: str, entry_slug: str, slug: str) -> Path:
+    """The pack's own variant if one exists, else the shared default."""
+    variant = SHARED / kind / f"{entry_slug}.{slug}.md"
+    return variant if variant.exists() else SHARED / kind / f"{entry_slug}.md"
+
+
 def render(slug: str, config: dict) -> str:
     excluded = set(config.get("exclude", {}).get(slug, []))
     parts = [_pack_sections(BASE / slug / "AGENTS.pack.md")]
     for rule in config["rules"]:
-        if rule["slug"] in excluded:
+        if not _applies(rule, slug, excluded):
             continue
-        variant = SHARED / "rules" / f"{rule['slug']}.{slug}.md"
-        source = variant if variant.exists() else SHARED / "rules" / f"{rule['slug']}.md"
-        body = source.read_text(encoding="utf-8").strip()
-        parts.append(f"## {rule['name']}\n\n{body}")
+        body = _source("rules", rule["slug"], slug).read_text(encoding="utf-8").strip()
+        parts.append(f"## {rule['name']}\n\n{_meta_line(rule)}{body}")
     return f"# {config['title'][slug]}\n\n{HEADER}\n" + "\n\n".join(p for p in parts if p) + "\n"
+
+
+def render_skills(slug: str, config: dict) -> dict[Path, str]:
+    """Shared skills generated into this pack: `_shared/skills/<slug>[.<pack>].md`
+    is a whole SKILL.md (frontmatter included)."""
+    excluded = set(config.get("exclude", {}).get(slug, []))
+    out: dict[Path, str] = {}
+    for skill in config.get("skills", []):
+        if _applies(skill, slug, excluded):
+            text = _source("skills", skill["slug"], slug).read_text(encoding="utf-8").strip()
+            out[BASE / slug / "skills" / skill["slug"] / "SKILL.md"] = text + "\n"
+    return out
 
 
 def render_permissions(slug: str) -> str:
@@ -60,12 +91,14 @@ def main() -> int:
         outputs = {
             BASE / slug / "AGENTS.md": render(slug, config),
             BASE / slug / "permissions.json": render_permissions(slug),
+            **render_skills(slug, config),
         }
         for target, expected in outputs.items():
             if target.exists() and target.read_text(encoding="utf-8") == expected:
                 continue
             stale.append(str(target.relative_to(ROOT.parent)))
             if not check:
+                target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(expected, encoding="utf-8")
     if stale and check:
         print("Out of date (run `python scripts/sync_shared_core.py`):", *stale, sep="\n  ")

@@ -328,6 +328,98 @@ describe('CollectionDetail — action buttons', () => {
     });
   });
 
+  describe('Permission rules and agent restrictions', () => {
+    it('shows a policy as readable rules, keeping the raw JSON editable', async () => {
+      const base = (mockMixedArtifacts as Record<string, unknown>[])[0];
+      (collectionsApi.getArtifacts as ReturnType<typeof vi.fn>).mockResolvedValue([
+        {
+          ...base,
+          id: 'policy-1',
+          artifact_type: 'model_config',
+          name: 'permissions:default',
+          body: JSON.stringify({
+            rules: [{ capability: 'execute', effect: 'ask', match: 'git push *' }],
+          }),
+        },
+        {
+          ...base,
+          id: 'agent-1',
+          artifact_type: 'agent',
+          name: 'code-reviewer',
+          permissions: { edit: 'deny' },
+        },
+      ]);
+      renderCollectionDetail();
+
+      fireEvent.click(await screen.findByRole('button', { name: /Expand permissions:default/i }));
+      expect(screen.getByText('Permission rules')).toBeInTheDocument();
+      expect(await screen.findByText('git push *')).toBeInTheDocument();
+      expect(screen.getByText('Ask first')).toBeInTheDocument();
+      // The owner can still edit the underlying JSON.
+      expect(screen.getByTitle('Click to edit the raw JSON')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /Expand code-reviewer/i }));
+      const editSelect = await screen.findByRole('combobox', { name: 'Edit files' });
+      expect(editSelect).toHaveValue('deny');
+      expect(screen.getByRole('combobox', { name: 'Run commands' })).toHaveValue('inherit');
+    });
+
+    describe('agent permissions editor', () => {
+      async function openReviewer(permissions: Record<string, string> | null) {
+        const base = (mockMixedArtifacts as Record<string, unknown>[])[0];
+        (collectionsApi.getArtifacts as ReturnType<typeof vi.fn>).mockResolvedValue([
+          { ...base, id: 'agent-1', artifact_type: 'agent', name: 'code-reviewer', permissions },
+        ]);
+        renderCollectionDetail();
+        fireEvent.click(await screen.findByRole('button', { name: /Expand code-reviewer/i }));
+        return screen.findByRole('combobox', { name: 'Edit files' });
+      }
+
+      it('only offers restrict choices — never allow', async () => {
+        const select = await openReviewer(null);
+        const values = Array.from(select.querySelectorAll('option')).map((o) => o.getAttribute('value'));
+        expect(values).toEqual(['inherit', 'ask', 'deny']);
+      });
+
+      it('saves only the restricted capabilities, and Inherit removes the key', async () => {
+        (collectionsApi.updateArtifact as ReturnType<typeof vi.fn>).mockResolvedValue({});
+        const select = await openReviewer({ execute: 'ask' });
+
+        fireEvent.change(select, { target: { value: 'deny' } });
+        await waitFor(() =>
+          expect(collectionsApi.updateArtifact).toHaveBeenLastCalledWith(
+            'test-collection-id',
+            'agent-1',
+            { permissions: { edit: 'deny', execute: 'ask' } },
+          ),
+        );
+
+        fireEvent.change(screen.getByRole('combobox', { name: 'Run commands' }), {
+          target: { value: 'inherit' },
+        });
+        await waitFor(() =>
+          expect(collectionsApi.updateArtifact).toHaveBeenLastCalledWith(
+            'test-collection-id',
+            'agent-1',
+            // The mocked list is static, so `edit` is still stored as inherit here;
+            // what matters is that Inherit removed `execute`, leaving {}.
+            { permissions: {} },
+          ),
+        );
+      });
+
+      it('shows a failed save inline and snaps back to what is stored', async () => {
+        (collectionsApi.updateArtifact as ReturnType<typeof vi.fn>).mockRejectedValue(
+          new Error('Not allowed'),
+        );
+        const select = await openReviewer(null);
+        fireEvent.change(select, { target: { value: 'deny' } });
+        expect(await screen.findByText('Not allowed')).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: 'Edit files' })).toHaveValue('inherit');
+      });
+    });
+  });
+
   describe('Add rule button', () => {
     it('navigates to the new-rule page when clicked', async () => {
       renderCollectionDetail();
