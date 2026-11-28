@@ -37,3 +37,9 @@ Every promotion between environments requires passing the previous stage's gates
 <!-- myace: priority=70 tags=devops,config -->
 
 Environment configuration, feature flags, and service settings are version-controlled and reviewed like code. Secrets are injected at deploy time from a secrets manager, never baked into artifacts or config files.
+
+## Pin And Verify What The Pipeline Runs
+
+<!-- myace: priority=90 tags=devops,supply-chain -->
+
+Pin third-party CI actions, base images and tools to an immutable reference (a full commit SHA or an image digest), give each pipeline job the minimum token permissions, and use short-lived OIDC credentials instead of stored cloud keys. Do not run untrusted pull-request code with write permissions or secrets. See the `supply-chain-security` skill.

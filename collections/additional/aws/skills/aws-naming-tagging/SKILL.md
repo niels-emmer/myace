@@ -72,7 +72,7 @@ key/value pairs; apply them consistently and confirm they're not overridden):
 
 Enable **cost-allocation tags** in the billing console so the mandatory tags
 actually roll up in Cost Explorer. Enforce the mandatory tags with a Config
-rule (or SCP where appropriate, see the `aws-caf-landing-zones` skill) so a
+rule (or SCP where appropriate, see the `aws-landing-zones` skill) so a
 missing tag is caught rather than silently drifting.
 
 ## Checklist before treating a resource as done

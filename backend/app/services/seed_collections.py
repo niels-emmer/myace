@@ -263,6 +263,63 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
                 "separates AI-authored from human-authored changes."
             ),
         },
+        "python-developer": {
+            "name": "Python Developer",
+            "category": "Backend",
+            "description": (
+                "For Python services, libraries and scripts. Typed public APIs, "
+                "boundary validation, locked dependencies, safe handling of "
+                "untrusted input, and pytest practice. Layers on a base pack."
+            ),
+        },
+        "typescript-node": {
+            "name": "TypeScript / Node Developer",
+            "category": "Backend",
+            "description": (
+                "For TypeScript and Node.js services, libraries and CLIs. Strict "
+                "compiler settings, runtime validation at boundaries, promise and "
+                "process safety, and npm supply-chain hygiene. Layers on a base "
+                "pack."
+            ),
+        },
+        "kubernetes": {
+            "name": "Kubernetes Engineer",
+            "category": "Infrastructure",
+            "description": (
+                "For Kubernetes manifests, Helm and Kustomize. Least-privilege "
+                "pods, resources and probes, RBAC and network policy, secrets "
+                "handling, and confirm-before-apply rollouts with a rollback plan."
+            ),
+        },
+        "accessibility": {
+            "name": "Accessibility",
+            "category": "Frontend",
+            "description": (
+                "For accessible web UI to WCAG 2.2 AA. Semantic HTML first, "
+                "keyboard and focus rules, labels and contrast, accessible forms "
+                "and authentication, and a tested-not-assumed review method."
+            ),
+        },
+        "observability-sre": {
+            "name": "Observability & Incident Review",
+            "category": "Infrastructure",
+            "description": (
+                "For telemetry, SLOs, alerting and incident review. Standard "
+                "logging, metrics and tracing conventions, symptom-based owned "
+                "alerts, no secrets in telemetry, and blameless postmortems with "
+                "tracked actions."
+            ),
+        },
+        "privacy-data-protection": {
+            "name": "Privacy & Data Protection",
+            "category": "Governance & Security",
+            "description": (
+                "For software that handles personal data, built around the EU GDPR. "
+                "Data inventory, minimisation and retention, no personal data in "
+                "logs or prompts, subject-request and breach runbooks, and DPIA "
+                "drafts. Drafts only, never legal advice."
+            ),
+        },
     },
 }
 
@@ -309,6 +366,24 @@ COMMUNITY_CONTRIBUTED_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
             "description": (
                 "For building Android apps. Jetpack Compose-first development, state "
                 "hoisting, lifecycle-aware architecture, and Play Store readiness."
+            ),
+        },
+        "go-developer": {
+            "name": "Go Developer",
+            "category": "Backend",
+            "description": (
+                "For Go services, libraries and CLIs. Explicit error handling, "
+                "context propagation, goroutine ownership, module hygiene with "
+                "vulnerability checks, and race-clean table-driven tests."
+            ),
+        },
+        "rust-developer": {
+            "name": "Rust Developer",
+            "category": "Backend",
+            "description": (
+                "For Rust services, libraries and CLIs. Typed errors, a strict "
+                "unsafe policy, clippy and format gates, async care, and Cargo "
+                "supply-chain checks."
             ),
         },
     },

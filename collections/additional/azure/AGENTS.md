@@ -11,7 +11,7 @@ Compose it with `iac-expert` (and a base collection) in a profile. Without `iac-
 
 <!-- myace: priority=70 tags=cloud,governance -->
 
-Follow Cloud Adoption Framework (CAF) governance essentials: a management-group
+Follow Cloud Adoption Framework (CAF) governance essentials (see `azure-guardrails` for the policy catalogue and rollout): a management-group
 hierarchy that separates platform from workloads, subscriptions scoped by
 environment/workload boundary, RBAC assigned at the narrowest effective scope,
 and Azure Policy guardrails that enforce the invariants below rather than
@@ -54,3 +54,9 @@ Before shipping nontrivial Azure changes, note which Azure Well-Architected
 Framework pillars are affected (reliability, security, cost optimization,
 operational excellence, performance efficiency) and how. See the
 `azure-waf-review` skill.
+
+## Azure Pick The Service For The Workload
+
+<!-- myace: priority=50 tags=azure,architecture -->
+
+Choose managed Azure services deliberately and say why, use managed identities and Private Endpoints with Private DNS rather than keys and public endpoints, and keep secrets in Key Vault with RBAC authorization. See the `azure-service-patterns` skill.

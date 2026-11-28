@@ -6,7 +6,53 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-11-28
+
+The add-on pack expansion release. Content only: no migration, no changed routes or
+response shapes, and no frontend or MCP code changes. New packs seed on the next
+backend restart; existing deployments then run
+`reconcile_seeded_collections --apply --update-content` for the new items in
+existing packs and the renames (dry run first; it soft-deletes the old rows).
+
+### Added
+
+- **Eight new add-on packs.** Language packs for Python, TypeScript / Node, Go and
+  Rust (typed errors, boundary validation, concurrency and async care, supply-chain
+  hygiene, test patterns); Kubernetes (least-privilege pods, RBAC and network
+  policy, confirm-before-apply rollouts, ingress-nginx retirement); Accessibility
+  (WCAG 2.2 AA); Observability & Incident Review (telemetry conventions, SLOs,
+  blameless postmortems); and Privacy & Data Protection (data inventory, DPIA,
+  subject requests and breach runbooks, drafts only). Each has a builder/reviewer
+  pair where applicable, read-only reviewers with `edit: deny`, tiered rules and
+  skills. Python, TypeScript / Node, Kubernetes, Accessibility, Observability and
+  Privacy seed as starters; Go and Rust seed on the community shelf. Fresh installs
+  get them on boot; existing deployments pick them up on the next restart (new
+  collections need no reconcile).
+- **Gap-filling items in existing packs:** `llm-evals` and `rag-design` skills
+  (ai-engineering), a Spring Security rule and skill (java-spring), a pinning and
+  deletion-protection rule and skill (iac-expert), a supply-chain rule and skill
+  (devops), and a guardrails skill for each of AWS, Azure, GCP and Scaleway
+  (SCP/RCP, Azure Policy, Organization Policy, and IAM design where no deny layer
+  exists). Existing deployments need
+  `reconcile_seeded_collections --apply --update-content` to receive them.
+- Cloud packs gain vendor-specific depth: a `<cloud>-service-patterns` skill, a
+  "Pick The Service For The Workload" rule, and a read-only `<cloud>-reviewer`
+  agent in each of AWS, Azure, GCP and Scaleway.
+- A convention test that add-on item names are unique across every pack (rule 29).
+
 ### Changed
+
+- **Frontend accessibility** now targets WCAG 2.2 AA: the rule and the Accessibility
+  Checklist skill add the 2.2 criteria and point to the new Accessibility pack
+  for the full review. No item renamed.
+- **Renamed items that carried the wrong framework label** (names are identity, so
+  reconcile soft-deletes the old rows and adds the new ones): AWS rule "AWS
+  Governance By Design (CAF)" is now "AWS Governance By Design" and skill "AWS CAF
+  Landing Zones" is "AWS Landing Zones"; GCP rule "Governance By Design (GCAF)" is
+  "GCP Governance By Design", rule "Map Changes To GCP Architecture Framework
+  Pillars" is "Map Changes To GCP Well-Architected Pillars", and skill "GCP
+  Architecture Framework Pillar Review" is "GCP Well-Architected Review". Azure's
+  CAF labels are correct and unchanged.
 
 - **Add-on pack overlaps trimmed in place** (no pack or item renamed): one
   AI-authorship marker (`[ai]` line in the body) across enterprise-ai-governance,

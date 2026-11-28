@@ -184,17 +184,19 @@ model.
   soft signal; it is not a ranking (the counter is user-incrementable).
 - **Packs out of the box** — every fresh install seeds itself with 4
   starting-point packs (Vibecoder, Software Engineer, Data Scientist, DevOps
-  Engineer) and 20 add-ons (Frontend, Backend, Database, QA/Test Engineer,
+  Engineer) and 26 add-ons (Frontend, Backend, Database, QA/Test Engineer,
   Infrastructure as Code Expert, Azure, AWS, Google Cloud, Security Auditor,
   Documentation Editor, Developer Writing, Full-Stack Developer,
   DevOps/Platform Engineer, Java/Spring Developer, Spec-Driven Development,
-  AI/LLM Engineering, Git
-  Practices, Design & Scaffold, Self-Hosted Deployment, Enterprise AI
-  Governance), so there's real, opinionated content to build a first setup
-  from on day one. Four highly-specialized add-ons (Scaleway Cloud Architect,
-  iOS Developer, Android Developer, EU AI Act Compliance) ship as
-  community-contributed packs instead of starters, so the community shelf
-  also starts with real content. The whole set is fixed and code-reviewed in
+  AI/LLM Engineering, Git Practices, Design & Scaffold, Self-Hosted
+  Deployment, Enterprise AI Governance, Python Developer, TypeScript / Node
+  Developer, Kubernetes Engineer, Accessibility, Observability & Incident
+  Review, Privacy & Data Protection), so there's real, opinionated content to
+  build a first setup from on day one. Six highly-specialized add-ons
+  (Scaleway Cloud Architect, iOS Developer, Android Developer, EU AI Act
+  Compliance, Go Developer, Rust Developer) ship as community-contributed
+  packs instead of starters, so the community shelf also starts with real
+  content. The whole set is fixed and code-reviewed in
   [`collections/`](collections/) — separate from user-published community
   packs, and not affected by them.
 

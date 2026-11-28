@@ -15,7 +15,7 @@ Follow Scaleway's governance essentials: an Organization → Project structure
 that separates platform from workloads, projects scoped by environment/workload
 boundary, IAM assigned at the narrowest effective scope (Organization vs.
 Project), and guardrails that enforce the invariants below rather than relying
-on convention. See the `scaleway-architecture` skill.
+on convention. See the `scaleway-architecture` skill, and `scaleway-guardrails` for how invariants are enforced without an organisation-level deny layer.
 
 ## Identity: IAM, Applications, And Federation
 
@@ -54,3 +54,9 @@ Before shipping nontrivial Scaleway changes, note how the change affects the
 architecture (org/project structure, IAM scoping, VPC/private-network
 topology, security groups) and the security posture, and how. See the
 `scaleway-architecture` and `scaleway-security-checklist` skills.
+
+## Scaleway Pick The Service For The Workload
+
+<!-- myace: priority=50 tags=scaleway,architecture -->
+
+Choose Scaleway products deliberately and say why, keep workloads on Private Networks with the public exposure limited to load balancers or gateways, and choose regions for data residency and product availability. See the `scaleway-service-patterns` skill.

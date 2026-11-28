@@ -52,3 +52,23 @@ def test_agent_conventions(agent: Path) -> None:
     assert FALLBACK in text, "missing the no-subagent fallback sentence"
     if str(fm.get("description", "")).lower().startswith("read-only"):
         assert fm.get("permissions") == {"edit": "deny"}, "read-only agent must deny edit"
+
+
+def test_addon_item_names_are_unique_across_every_pack() -> None:
+    """Rule 29: compile de-duplicates by name alone, so an add-on item that
+    reuses another pack's name silently vanishes from a composed setup."""
+    from app.services.seed_collections import _scan_seeded_collection
+
+    collections = ADDONS.parent
+    seen: dict[str, str] = {}
+    shared_base_names: set[str] = set()
+    for kind in ("base", "additional"):
+        for pack in sorted(p for p in (collections / kind).iterdir() if p.is_dir()):
+            for artifact in _scan_seeded_collection(pack):
+                name = artifact["name"]
+                if kind == "base":
+                    shared_base_names.add(name)  # base packs intentionally share names
+                    continue
+                assert name not in shared_base_names, f"{pack.name}: '{name}' collides with a base pack"
+                assert name not in seen, f"{pack.name}: '{name}' also in {seen[name]}"
+                seen[name] = pack.name
