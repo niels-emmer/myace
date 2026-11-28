@@ -183,7 +183,7 @@ files, so this branch then updated, on top of it:
   Home's claims-driven banner, and AddToSetup's `PUT /profiles/{id}` attach.
 - `README.md` — the install page is route-bound rather than a setup picker.
 - `docs/plans/v2.0-onboarding-revamp.md` — phases 1–5 implemented.
-- `frontend/src/pages/PackDetail.tsx` — mounts `AddToSetup` (menu only).
+- `frontend/src/pages/PackDetail.tsx` — mounts `AddToSetup` (menu only). It passes the pack's `layers_on` packs so a setup that lacks one gets a notice, and a new setup offers to include it (advisory, never blocking).
 
 ## Tests
 

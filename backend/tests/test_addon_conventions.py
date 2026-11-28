@@ -1,6 +1,6 @@
 """Convention guard for the hand-written add-on packs (collections/additional).
 
-Add-ons are not generated (rule 42), so nothing else stops them drifting from
+Add-ons are not generated (rule 44), so nothing else stops them drifting from
 the conventions the base packs follow. See docs/plans/addon-pack-quality-audit.md.
 """
 

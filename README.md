@@ -27,10 +27,10 @@ lock-in.
 A live instance runs at **[myace.macjuu.com](https://myace.macjuu.com)** —
 sign up and build your first setup in minutes, no setup required.
 
-MyACE ships with **24 starter packs** (4 starting points + 20 add-ons)
-plus **4 community-contributed add-ons**, holding **320 items** — 149 rules,
-101 skills, 51 agents, 18 workflows, and 1 model config — across
-**8 categories** and **173 tags**, and installs
+MyACE ships with **30 starter packs** (4 starting points + 26 add-ons)
+plus **6 community-contributed add-ons**, holding **439 items** — 212 rules,
+136 skills, 73 agents, and 18 workflows — across
+**9 categories** and **223 tags**, and installs
 to **12 target frameworks** (Claude Code, OpenCode, Cursor, Codex CLI,
 Copilot CLI, Cline, Windsurf, Aider, Continue, Goose, Amazon Q Developer,
 and pi.dev). You can start from scratch and build your own rules, import
@@ -152,9 +152,9 @@ model.
 
 - **Browse before you sign up** — `/welcome` features proven starter and
   community packs, and `/packs` is a read-only library for signed-out
-  visitors. The server exposes exactly seven anonymous read routes (community
-  list/top/categories, pack detail, pack contents, the pack install document,
-  and the framework list), each approved-only and rate-limited per IP; see
+  visitors. The server exposes exactly eight anonymous read routes (community
+  list/top/categories/topics, pack detail, pack contents, the pack install
+  document, and the framework list), each approved-only and rate-limited per IP; see
   [ADR-0014](docs/adr/0014-public-pack-browsing.md) and
   [ADR-0018](docs/adr/0018-public-read-only-mcp-server.md). Everything that
   writes — using, rating, commenting, installing, publishing — still needs an
@@ -162,11 +162,18 @@ model.
 - **One pack page for every pack** — `/packs/:id` renders owned, starter,
   and community packs with the same header, actions (**Use this pack**,
   **Add to a setup…**, **Customize a copy**, and owner **Publish**), and
-  Overview / Contents / Ratings & comments tabs. **Use this pack** creates a
+  Overview / Contents / Preview install / Ratings & comments tabs. The
+  Overview shows which other packs a pack layers on or pairs with and when its
+  items last changed; **Preview install** shows what the pack compiles to for
+  any framework (read-only, no account) with the install URL and MCP command for
+  coding agents. **Use this pack** creates a
   setup that references the pack (pairing an add-on with a starting point
   first when needed) and records the advisory use counter; **Add to a
   setup…** attaches the pack to one of your existing setups. Neither copies
   the pack — **Customize a copy** does.
+- **Find the right pack** — the library searches names, descriptions,
+  categories and topics (derived from item tags), filters by kind, category and
+  topic, and keeps every filter in the URL so a filtered view can be shared.
 - **Publish wizard** — `/packs/:id/publish` walks Select → Describe →
   Preview → Submit, writes metadata (including the optional SPDX `license`)
   and submits to the moderation queue. The pack page shows a
@@ -373,7 +380,8 @@ troubleshooting are in [docs/mcp.md](docs/mcp.md).
 │   ├── src/
 │   │   ├── components/           # Layout (four-area sidebar, 52px top bar, ⌘K palette), PublicLayout
 │   │   │                          #   (anonymous storefront shell), CommandPalette, SectionHub,
-│   │   │                          #   PublishStatusTracker, TargetChecklist, shared UI
+│   │   │                          #   PublishStatusTracker, TargetChecklist, PackRelations, PackPreviewPanel
+│   │   │                          #   (Preview install tab), AddToSetup, shared UI
 │   │   ├── contexts/              # AuthContext (current user/session), ThemeContext (light/dark/system)
 │   │   ├── pages/                 # Landing (public /welcome storefront), Login, ResetPassword, Home,
 │   │   │                          #   PacksLibrary (public browse for signed-out visitors), PackDetail (unified

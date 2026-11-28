@@ -896,3 +896,41 @@ back as `application/zip`.
 (`BackendClient.install()`, `mcp/backend.py`), and raise an error whose
 message *is* the guidance, so the agent gets the target list. Use an id from
 `list_targets()`, not an alias.
+
+## A pack card or page shows an old description, category or "Works with" row
+
+**Symptom:** after a release, a library card still shows last release's
+description or category, a pack's "Works with" row lists fewer frameworks than
+the product compiles to, or "Layers on / Pairs well with" is missing.
+
+**Cause:** those live in the database, and the boot-time seed never re-reads a
+pack it already imported (AGENTS.md rule 25). Item text is reconciled with
+`--update-content`; the pack's own `name`, `category`, `description` and
+`relations` need `--update-metadata`. The "Works with" row is derived from each
+item's `compatibility:` list, so an adapter missing from those lists (the
+`pi-dev` case) shows up as a framework missing from the row.
+
+**Fix:**
+
+```bash
+docker compose exec -T backend python -m app.scripts.reconcile_seeded_collections
+docker compose exec -T backend python -m app.scripts.reconcile_seeded_collections \
+  --apply --update-content --update-metadata
+```
+
+The dry run prints each metadata difference as `~ metadata: field: old -> new`.
+Take a dump first; metadata reconcile overwrites any in-app edit to those four
+fields and never touches ratings, verification, moderation or ownership.
+
+## The Preview install tab shows an error or no tab at all
+
+- **No tab:** it is only offered for published, approved packs. A draft or
+  unpublished pack, even your own, has no anonymous install route to call.
+- **"Too large to preview":** the install route caps its response
+  (`PACK_INSTALL_MAX_BYTES`, default 2 MiB). Use **Download zip** instead.
+- **"Too many requests":** the route shares the storefront rate limit
+  (`STOREFRONT_RATE_LIMIT`, per IP). Wait a minute.
+- **MCP command missing:** it appears only when `/mcp/health` answers, i.e.
+  the `mcp` compose profile is running (see
+  [mcp.md](mcp.md)).
+

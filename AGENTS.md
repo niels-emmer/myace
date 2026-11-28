@@ -1479,6 +1479,22 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   separate `storefront_limiter` (`settings.storefront_rate_limit`). Do not
   add a write route to that family, and do not reuse the public path for
   owner/moderator reads — signed-in users keep the authenticated routes.
+- **The pack page and library carry more than contents now.** `PackDetail.tsx`
+  shows `relations` (a "Works with other packs" card), "Updated <date>" and a
+  **Preview install** tab, and `PacksLibrary.tsx` keeps its filters in the URL
+  (`parseLibraryState`/`serializeLibraryState` in `lib/packs.ts`) and shows topic
+  chips. Four things to preserve: (1) `relations` come only from the *public*
+  detail route (`resolve_relations()` drops anything an anonymous visitor could
+  not open), so signed-in viewers fetch `['public-pack', id]` as well and a
+  private pack simply shows none; they are advisory like `handoff_to` (rule 34)
+  and `AddToSetup` may warn but must never block. (2) `PackPreviewPanel` calls
+  the anonymous `install.md?format=json` route, mounts only while its tab is
+  open, and renders compiled text only inside a `<pre>`: pack content is
+  untrusted (rule 43). (3) Topics are derived from item tags
+  (`services/pack_topics.py`), never stored; `GET /collections/community/topics`
+  is an anonymous read (rule 13). (4) The anonymous library pages through
+  `GET /community` (`packApi.listAllCommunity`) because one page is capped at 100;
+  do not go back to a single `limit: 100` call.
 - **`download_count` is shown, never ranked.** It is advisory and
   user-incrementable (invariant 25 / ADR-0015). The storefront/library must
   not offer "Most used" sorting or a "Top packs" ranking; "used N times" as
@@ -1567,7 +1583,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   Docker, no network, no database. Keep them that way so CI stays fast and a
   failing MCP test always means the wrapper changed, not the environment.
 
-### 42. Base-Pack Governance Core Is Generated From `collections/_shared/`
+### 44. Base-Pack Governance Core Is Generated From `collections/_shared/`
 
 - **The four base packs ship self-contained, but their common rules have one
   source.** `collections/_shared/` (never seeded, never visible in the
@@ -1601,7 +1617,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   gates (change control, testing, release), 50 process and style.
   `tests/test_shared_core.py` fails if a base rule has neither a tier nor a tag.
 
-### 43. Permissions Are Restrict-Only, Agent-Level, and Never Written to a Shared Config
+### 45. Permissions Are Restrict-Only, Agent-Level, and Never Written to a Shared Config
 
 - **`Artifact.permissions` (agents only) compiles into each agent's own
   frontmatter and nowhere else** — [ADR-0019](docs/adr/0019-agent-level-permissions-no-shared-config.md).
@@ -1623,7 +1639,7 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   `plan_merge()` pure.
 - Both scanners parse `permissions:` frontmatter and `permissions.json`
   (rule 8). Base packs' `permissions.json` is **generated** with `AGENTS.md`
-  by `scripts/sync_shared_core.py` (rule 42): shared rules in
+  by `scripts/sync_shared_core.py` (rule 44): shared rules in
   `collections/_shared/permissions.json`, per-pack extras in
   `permissions.pack.json`.
 - **Item counts leave the policy out:** `Collection.artifact_count`, compile's

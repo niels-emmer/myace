@@ -45,13 +45,47 @@ don't reuse one of the 12 already shipped in
    `TestClaudeCodeAdapter`, `TestCodexCliAdapter`, `TestWindsurfAdapter`,
    etc.) — at minimum, one test per artifact type your adapter handles
    specially.
-5. **Docs**: add the framework to the list in `README.md`, an entry with its
+5. **Pack compatibility lists**: every shipped item's `compatibility:` list in
+   `collections/` must name the new adapter (e.g. append `zed` to all of
+   them with `sed`), because the pack page's "Works with" row is derived from
+   it. `backend/tests/test_collection_compatibility.py` fails until you do.
+6. **Docs**: add the framework to the list in `README.md`, an entry with its
    confirmed file format to `adapters-research.md`, and the adapter name
    (e.g. `zed`) to `architecture.md`'s adapter list.
 
 Adapters must stay stateless and pure — see
 [invariants.md #12](invariants.md#canonical-ir). Don't reach into the
 database or filesystem from inside `translate()`.
+
+## Adding a pack to the shipped set
+
+Starter and community packs are files under `collections/` that the backend
+seeds on boot (AGENTS.md rule 25). To add one:
+
+1. **Files**: create `collections/additional/<slug>/` (or `base/<slug>/`) in
+   the scanner's layout: `AGENTS.md` (each `## Heading` is a rule, each with a
+   `<!-- myace: priority=90|70|50 tags=... -->` line under it), `agents/*.md`,
+   `skills/<name>/SKILL.md`, `commands/*.md`. Item names must be unique across
+   every pack (rule 29); read-only agents declare `permissions: {edit: deny}`
+   and every agent carries the no-subagent fallback sentence. Every item's
+   `compatibility:` lists all adapters, including `pi-dev`.
+2. **Registry**: add an entry to `STARTER_COLLECTIONS` or
+   `COMMUNITY_CONTRIBUTED_COLLECTIONS` in
+   `backend/app/services/seed_collections.py` (a `PackMeta`: `name`,
+   `category`, `description`, and optionally `layers_on` / `pairs_with` lists of
+   registry slugs; `layers_on` is for packs it genuinely assumes, like the cloud
+   add-ons on `iac-expert`). Never list a slug in both maps. No migration is
+   needed.
+3. **Tests**: pin the item names in `backend/tests/test_seed_collections.py`
+   (`NEW_ADDON_PACKS`, or `COMMUNITY_ADDON_PACKS`). `test_addon_conventions.py`
+   and `test_collection_compatibility.py` check the conventions above for you.
+4. **Docs**: the counts and add-on list in `README.md`, a `CHANGELOG.md` entry,
+   and, if you added a convention, a note in `AGENTS.md`.
+5. **Existing deployments**: a new pack seeds on the next backend restart.
+   Changes to an existing pack need
+   `reconcile_seeded_collections --apply --update-content`, and changes to its
+   name, category, description or relations need `--update-metadata` as well
+   (see [deployment.md](deployment.md#reconciling-seeded-packs-after-a-content-change)).
 
 ## Adding a new artifact type
 
