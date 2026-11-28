@@ -6,6 +6,13 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-11-28
+
+The permissions and governance-core release. One additive migration
+(`b7c8d9e0f1a2`, a nullable `artifacts.permissions` column); no removed routes
+and no changed response shapes. Existing deployments run `alembic upgrade head`
+and then `reconcile_seeded_collections --apply --update-content`.
+
 ### Added
 
 - **Agent-level permissions** (ADR-0019). Agents can declare
@@ -19,6 +26,9 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (reviewers, auditor, verifier, orchestrator) are now restricted. Needs the
   `b7c8d9e0f1a2` migration. OpenCode 2.x configs are merged in v2 form;
   Codex CLI gets a real `.codex/rules/myace.rules` for global shell rules.
+- **Install preview explains permission files.** A sidecar such as
+  `.claude/myace.permissions.json` is labelled "not active yet" with how to merge
+  it; Codex's rules file is labelled as live.
 
 ### Changed
 
