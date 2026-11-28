@@ -1,6 +1,6 @@
 ---
 name: GCP Architecture Framework Pillar Review
-description: Google Cloud Architecture Framework pillar checklists — operational excellence, security/privacy/compliance, reliability, cost optimization, performance optimization, sustainability — for reviewing GCP infrastructure changes.
+description: Google Cloud Well-Architected Framework (formerly the Architecture Framework) pillar checklists — operational excellence, security/privacy/compliance, reliability, cost optimization, performance optimization, sustainability — for reviewing GCP infrastructure changes.
 version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
@@ -8,7 +8,7 @@ tags: [gcp, iac, architecture, architecture-framework, governance]
 ---
 ## Purpose
 
-The Google Cloud Architecture Framework is Google Cloud's set of design
+The Google Cloud Well-Architected Framework (formerly the Architecture Framework) is Google Cloud's set of design
 principles for building reliable, secure, cost-optimized, operationally
 excellent, performant, and sustainable workloads on GCP. This skill is the
 GCP-specific companion to `iac-expert`'s generic `well-architected-review`

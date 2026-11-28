@@ -5,9 +5,11 @@ the vendor-agnostic `iac-expert` collection — it assumes the general IaC
 invariants (private-by-default, managed identity over secrets, naming/tagging,
 remote state with locking, approval-gated applies, documented exceptions,
 well-architected pillar review) and adds the Azure-specific layer on top.
-Compose it with `iac-expert` (and a base collection) in a profile.
+Compose it with `iac-expert` (and a base collection) in a profile. Without `iac-expert`, the skills below still apply, but record any exception in the PR description (rationale, compensating control, named approver, review date) and require explicit human approval before any apply.
 
 ## Azure Governance By Design (CAF)
+
+<!-- myace: priority=70 tags=cloud,governance -->
 
 Follow Cloud Adoption Framework (CAF) governance essentials: a management-group
 hierarchy that separates platform from workloads, subscriptions scoped by
@@ -17,6 +19,8 @@ relying on convention. See the `azure-caf-landing-zones` skill.
 
 ## Identity: Entra ID And Managed Identity
 
+<!-- myace: priority=90 tags=cloud,security -->
+
 Use Entra ID (Azure AD) as the identity plane. Prefer managed identity and
 workload identity federation over service principals with client secrets —
 never a long-lived secret where a federated credential works. Scope RBAC to
@@ -24,6 +28,8 @@ least privilege; enable MFA and conditional access for human access. See the
 `azure-identity` skill.
 
 ## Azure Security By Default
+
+<!-- myace: priority=90 tags=cloud,security -->
 
 Private endpoints and VNet isolation over public exposure. No public IP,
 `0.0.0.0/0` NSG rule, or public storage/blob access without a documented
@@ -33,12 +39,16 @@ baseline, not an afterthought. See the `azure-security-checklist` skill.
 
 ## Azure Cost Attribution
 
+<!-- myace: priority=50 tags=cloud,cost -->
+
 Every resource carries the mandatory tags (owner, cost-center, environment,
 workload) so spend rolls up correctly in Azure Cost Management. Size to actual
 load; use reserved instances/commitment discounts only where the workload's
 traffic pattern genuinely warrants them.
 
 ## Map Changes To Azure WAF Pillars
+
+<!-- myace: priority=50 tags=cloud,architecture -->
 
 Before shipping nontrivial Azure changes, note which Azure Well-Architected
 Framework pillars are affected (reliability, security, cost optimization,

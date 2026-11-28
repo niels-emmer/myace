@@ -59,7 +59,7 @@ one does.
 
 ## Forbidden
 
-- Sending REGULATED data to any cloud model, regardless of provider terms.
+- Sending REGULATED data to any cloud model, regardless of provider terms, without a documented and approved exception for a named route.
 - Pasting secrets, credentials, tokens, or private keys into any prompt.
 - Sending CONFIDENTIAL data to a third-party model without an explicit,
   documented exception.

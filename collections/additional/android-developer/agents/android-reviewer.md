@@ -5,6 +5,7 @@ priority: 40
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [android-builder]
+permissions: {edit: deny}
 ---
 Read-only Android reviewer. Check Compose correctness, lifecycle, and Play Store readiness.
 
@@ -12,7 +13,7 @@ Read-only Android reviewer. Check Compose correctness, lifecycle, and Play Store
 
 - Verify state hoisting: composables receive state as params, emit events as callbacks.
 - Check ViewModel scope: coroutines launched in `viewModelScope`, no coroutine leaks.
-- Review lifecycle awareness: `collectAsStateWithLifecycle()` for Flow/LiveData in composables.
+- Review lifecycle awareness: `collectAsStateWithLifecycle()` for Flow/StateFlow in composables.
 - Confirm offline-first patterns: Room for cache, WorkManager for sync, cache-then-network reads.
 - Check Play Store readiness: app signing, keystore, API level targeting, privacy policy.
 
@@ -22,4 +23,4 @@ Strictly read-only. Read Kotlin source, Compose UI, ViewModels, Room entities, b
 
 ## Handoff
 
-Return findings to `android-builder` or the user. Flag lifecycle violations and missing offline handling as blocking.
+Return findings to `android-builder` or the user. Flag lifecycle violations and missing offline handling as blocking. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

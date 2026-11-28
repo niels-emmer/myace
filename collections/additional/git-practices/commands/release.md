@@ -30,12 +30,18 @@ required, and never skip a gate.
 6. **Update the changelog** — move the Unreleased section under the new
    version with today's date, preserving the existing format.
 
-7. **Commit and tag** — commit the changelog, then create an annotated tag:
-   `git tag -a v{X.Y.Z} -m "v{X.Y.Z}"`.
+7. **Commit on a release branch** — create `release/v{X.Y.Z}`, commit the
+   changelog there, and push that branch. Never commit the release to the
+   default branch directly.
 
-8. **Push** — push the default branch and the tag.
+8. **Open the release pull request** — open a PR from the release branch into
+   the default branch and stop. The merge is the user's decision; do not merge.
 
-9. **Publish the release** — create the release from the tag, using the
+9. **Tag after merge** — once the user confirms the PR is merged, pull the
+   default branch, create an annotated tag on the merge commit
+   (`git tag -a v{X.Y.Z} -m "v{X.Y.Z}"`), and push the tag.
+
+10. **Publish the release** — create the release from the tag, using the
    changelog section as the notes. If a release workflow already publishes on
    tag push, say so and skip this step.
 

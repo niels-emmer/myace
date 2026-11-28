@@ -27,4 +27,4 @@ Hands-on-keyboard agent for database work. Own a change from schema to query pla
 
 ## Handoff
 
-Hand to `data-reviewer` with a summary: what the schema change is, the migration and rollback story, which queries were added/changed and how their plans were verified. Flag any breaking change or locking risk explicitly.
+Hand to `data-reviewer` with a summary: what the schema change is, the migration and rollback story, which queries were added/changed and how their plans were verified. Flag any breaking change or locking risk explicitly. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

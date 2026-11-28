@@ -6,6 +6,48 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Add-on pack overlaps trimmed in place** (no pack or item renamed): one
+  AI-authorship marker (`[ai]` line in the body) across enterprise-ai-governance,
+  auditor, git-practices, design-and-scaffold and self-hosted-deploy; the auditor
+  classification tiers map onto the four-class scheme and REGULATED routing allows
+  a documented exception; fullstack E2E no longer says to retry flaky tests;
+  the DevOps add-on says it supplements the DevOps base; backend's rollback rule
+  points at its skill. Existing deployments need
+  `reconcile_seeded_collections --apply --update-content`.
+
+- **Add-on pack currency**: iOS state management now leads with the Observation
+  framework (`@Observable`, iOS 17+) and the 6.9" screenshot baseline; the
+  security audit checklist names the OWASP Top 10 edition (2025 renumbered the
+  categories); Google Cloud's framework is called the Well-Architected Framework;
+  Scaleway tag and billing-unit wording corrected and WAF flagged as beta;
+  `devops` incident wording no longer calls rollback "fix forward";
+  `ai-engineering` credits 12-factor-agents' content licence. Existing
+  deployments need `reconcile_seeded_collections --apply --update-content`.
+
+- **Add-on packs follow the base-pack conventions**: every add-on rule now
+  carries a priority tier (90 security/safety, 70 quality gate, 50 process),
+  read-only add-on agents declare `permissions: {edit: deny}`, every add-on agent
+  has the no-subagent fallback, and cross-pack references (cloud packs ->
+  `iac-expert`, `docker-patterns` -> `container-build`, base-agent handoffs) say
+  what to do when the companion pack is absent. This changes compiled rule order
+  for add-ons. A new test keeps them in line. Existing deployments need
+  `reconcile_seeded_collections --apply --update-content`.
+
+- **Add-on pack accuracy fixes** (audit `docs/plans/addon-pack-quality-audit.md`):
+  Android (LiveData/Flow collection, modifier order, Play target API 36), AWS
+  (OIDC trust policies must pin `aud` and `sub`, SCP/NACL/hub-spoke wording,
+  federation for human access), Azure (tags do not inherit from the resource
+  group), GCP (correct org-policy constraint names), Java/Spring (`@Cacheable`
+  placement, Maven has no lockfile), EU AI Act (Art 49 and Art 50(2) dates),
+  `git-practices` release (via a release PR, never a direct push to the default
+  branch), and `dev-writing` reframed as a plain style guide (one integrity
+  rule; the style rules now live in its skills; it never changes AI-authorship
+  marking). Existing deployments need `reconcile_seeded_collections --apply
+  --update-content`; the four removed `dev-writing` rules are soft-deleted by
+  that run.
+
 ## [2.2.0] — 2026-11-28
 
 The permissions and governance release. One additive migration

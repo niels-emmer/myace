@@ -23,15 +23,15 @@ Classify data before sending it to any cloud-hosted model:
 | PUBLIC | Open-source code, public docs, no sensitive context | Any model |
 | INTERNAL | Proprietary business logic, internal APIs, non-public architecture | Zero-retention cloud models approved for internal data |
 | CONFIDENTIAL | PII, customer data, credentials, trade secrets, unreleased strategy | Local models only — never a cloud API |
-| REGULATED | HIPAA, GDPR, SOC2-scoped data, financial/health records | Local models only, no exceptions |
+| REGULATED | Data under a legal or contractual regime (for example health, financial, GDPR special-category) | Local or in-boundary models only, unless the project documents an approved exception (for example a contractually covered in-region endpoint) |
 
-When in doubt, treat as CONFIDENTIAL. Never paste customer PII, credentials, or production secrets into AI prompts.
+The `data-classification-guide` skill's three tiers map onto these: its Sensitive tier is CONFIDENTIAL or REGULATED here. When in doubt, treat as CONFIDENTIAL. If the enterprise-ai-governance pack is composed, its model-routing policy is the canonical version of this table. Never paste customer PII, credentials, or production secrets into AI prompts.
 
 ## Model selection by sensitivity
 
 - PUBLIC → any model.
 - INTERNAL → zero-retention cloud models only; avoid free-tier or third-party models that may retain data for improvement.
-- CONFIDENTIAL/REGULATED → local models only (Ollama, llama.cpp). If you can't keep it local, delegate the work to a local-only agent.
+- CONFIDENTIAL/REGULATED → local or in-boundary models only (for example a self-hosted model). If you can't keep it in-boundary, delegate the work to an in-boundary agent or escalate.
 
 ## Audit trail
 

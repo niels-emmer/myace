@@ -34,9 +34,7 @@ Adding a new component, deciding whether to split one, or deciding where state s
 
 ## State locality
 
-- Keep state in the component that owns it.
-- Lift only to the nearest common ancestor when multiple components genuinely share the value.
-- Use global state only for app-wide data (auth, theme).
+See the *Keep State As Local As Possible* rule. In short: local by default, lift to the nearest common ancestor, global only for app-wide data.
 
 ## Expected output
 

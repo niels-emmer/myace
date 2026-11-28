@@ -59,8 +59,7 @@ type's constraints before finalizing a name.
 ## Tagging convention
 
 Every Azure resource gets, at minimum, these tags (Azure tags are
-case-insensitive key/value pairs; apply them at the resource group level so
-they inherit, and confirm they're not overridden):
+case-insensitive key/value pairs; tags do not inherit from the resource group on their own; apply them on every resource or use the built-in Azure Policy "Inherit a tag from the resource group" (Modify effect, applies to new or updated resources until a remediation task runs)):
 
 | Tag key | Required | Meaning |
 |---|---|---|
@@ -71,8 +70,8 @@ they inherit, and confirm they're not overridden):
 | `managed-by` | Recommended | How this resource is managed (`terraform`, `bicep`, `manual`) — flags hand-created resources that IaC doesn't know about. |
 | `review-date` | Only if a documented exception | Ties into `iac-expert`'s `exception-documentation` skill — when this resource's exception status should be re-reviewed. |
 
-Enforce the mandatory tags with an Azure Policy `DeployIfNotExists`/`audit`
-effect (see the `azure-caf-landing-zones` skill) so a missing tag is caught
+Enforce the mandatory tags with an Azure Policy `audit`/`deny`
+(missing tag) or `Modify` (inherit) effect (see the `azure-caf-landing-zones` skill) so a missing tag is caught
 rather than silently drifting.
 
 ## Checklist before treating a resource as done

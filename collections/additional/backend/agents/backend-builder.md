@@ -27,4 +27,4 @@ Hands-on-keyboard agent for backend/API work. Own a change from request shape to
 
 ## Handoff
 
-Hand to API reviewer with summary: what the endpoint does, migration changes and rollback story, which edge cases tests cover. Flag breaking API changes or migration locking risks explicitly.
+Hand to API reviewer with summary: what the endpoint does, migration changes and rollback story, which edge cases tests cover. Flag breaking API changes or migration locking risks explicitly. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

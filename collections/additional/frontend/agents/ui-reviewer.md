@@ -5,6 +5,7 @@ priority: 40
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [frontend-builder]
+permissions: {edit: deny}
 ---
 Read-only UI reviewer for accessibility, consistency, and responsive issues.
 
@@ -22,4 +23,4 @@ Strictly read-only. Inspect diff, rendered UI, and existing patterns. Never edit
 
 ## Handoff
 
-Return findings grouped by severity (blockers vs. polish). If nothing significant, say so plainly.
+Return findings grouped by severity (blockers vs. polish). If nothing significant, say so plainly. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

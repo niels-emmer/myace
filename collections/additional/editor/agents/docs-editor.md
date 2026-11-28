@@ -21,4 +21,4 @@ Lean read-only. Read source code, config, and docs freely. Prefer proposing edit
 
 ## Handoff
 
-End with a scannable list: what's accurate, what's drifted, what's unclear, and a concrete suggested fix for each. If nothing is wrong, say so plainly.
+End with a scannable list: what's accurate, what's drifted, what's unclear, and a concrete suggested fix for each. If nothing is wrong, say so plainly. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

@@ -14,7 +14,7 @@ Keep builds reproducible and dependency management predictable.
 
 - **Standard layout**: Maven (`src/main/java`, `src/test/java`) or Gradle (`src/main/java`, `src/test/java`) conventions.
 - **Dependency pinning**: all dependency versions declared in a BOM (`dependencyManagement` in Maven, `platform` in Gradle) or pinned per-dependency.
-- **Lockfiles**: Maven Enforcer plugin or Gradle dependency locking to prevent unexpected transitive upgrades.
+- **Locking transitive versions**: Gradle dependency locking; on Maven there is no native lockfile, so use a BOM and the Enforcer `dependencyConvergence`/`requireUpperBoundDeps` rules (or a lockfile plugin) to prevent unexpected transitive upgrades.
 - **Plugin versions**: all build plugins pinned to specific versions, not latest.
 - **Reproducible builds**: `mvn clean verify` or `gradle clean build` produces the same output from the same source + lockfile.
 - **CI integration**: build runs in CI with the same lockfile; dependency cache is content-addressed.

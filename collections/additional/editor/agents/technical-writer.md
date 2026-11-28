@@ -22,4 +22,4 @@ Edit access scoped to documentation surfaces: README, docs/, AGENTS.md/CLAUDE.md
 
 ## Handoff
 
-Summarize what was written/changed and where. If both human and agent-facing docs were touched, confirm both were updated.
+Summarize what was written/changed and where. If both human and agent-facing docs were touched, confirm both were updated. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

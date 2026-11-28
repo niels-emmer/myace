@@ -8,7 +8,9 @@ tags: [aws, iac, governance, landing-zones, caf]
 ---
 ## Purpose
 
-The AWS Cloud Adoption Framework (CAF) is the set of practices for governing
+The AWS Cloud Adoption Framework (CAF) Governance and Security perspectives,
+together with AWS's multi-account guidance ("Organizing your AWS environment",
+the Security Reference Architecture, AWS Control Tower), describe how to govern
 AWS at scale. This skill covers the governance essentials you need to design a
 landing zone that is secure, auditable, and cost-attributable — AWS
 Organizations OU hierarchy, account design, Service Control Policies (SCPs),
@@ -52,7 +54,8 @@ confirm it fits the established pattern.
 ## Service Control Policies (SCPs)
 
 - Enforce the standing invariants with SCPs rather than convention: deny
-  public S3 buckets, deny leaving CloudTrail/Config disabled, deny
+  changes to S3 Block Public Access (and enable it organisation-wide, an SCP
+  cannot by itself make a bucket private), deny leaving CloudTrail/Config disabled, deny
   `iam:CreateAccessKey` where federation is the standard, restrict regions and
   instance types.
 - Use **deny** effects for hard security invariants and **audit** (via Config
@@ -76,13 +79,14 @@ confirm it fits the established pattern.
 ## VPC topology
 
 - Prefer a **hub-spoke** model: a central connectivity VPC (shared egress/ingress
-  path, transit gateway, NAT gateways, VPC endpoints) and workload VPCs that
-  peer to it.
+  path, transit gateway, NAT gateways, VPC endpoints) and workload VPCs attached
+  to it (a transit gateway, since VPC peering is not transitive).
 - Use **private subnets** for workloads and **VPC endpoints** (interface and
   gateway endpoints) for AWS services (S3, DynamoDB, Secrets Manager, etc.) so
   traffic stays on the AWS backbone, not the public internet.
-- Segment with security groups and NACLs and VPC isolation; default to deny and
-  open only what's needed, per `iac-expert`'s private-by-default rule. Use
+- Segment with security groups and NACLs and VPC isolation; security groups deny
+  inbound by default, and a default NACL allows all, so use custom NACLs where
+  you rely on them; open only what's needed, per `iac-expert`'s private-by-default rule. Use
   multi-AZ for anything that must survive an AZ failure.
 
 ## Expected output

@@ -25,4 +25,4 @@ Write and validate IaC changes. Your job ends at a validated, reviewable plan â€
 
 ## Handoff
 
-Hand off to `iac-reviewer` for independent review, or directly to the human. Only proceed toward apply after review + explicit human approval.
+Hand off to `iac-reviewer` for independent review, or directly to the human. Only proceed toward apply after review + explicit human approval. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh â€” never skip it because nothing was "delegated".

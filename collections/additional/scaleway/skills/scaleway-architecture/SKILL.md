@@ -26,7 +26,7 @@ to confirm it fits the established pattern.
 ## Organization and Project structure
 
 - Use the hierarchy **Organization → Projects → Resources**, with IAM, billing,
-  and support at the Organization level and IAM inherited down to Projects.
+  and support at the Organization level and IAM inherited down to Projects. A Project is also the unit Scaleway reports cost by, so unlike the other clouds, plan Project boundaries with cost attribution in mind.
 - Separate **platform** (bootstrap, networking, security, logging) from
   **workload** projects, so governance applied at the platform level inherits
   down without entangling workload-specific policy.

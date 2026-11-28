@@ -2,6 +2,8 @@
 
 ## When To Use The `sdd-*` Pipeline Instead Of The Base `plan` Command
 
+<!-- myace: priority=50 tags=process,spec -->
+
 The base `plan` command (from the Software Engineer collection, if composed
 alongside this one) is for a single task that's already scoped — write a
 short checklist, then build. The `sdd-*` commands are for the step before
@@ -16,6 +18,8 @@ real ambiguity, skip straight to `plan` — running the full pipeline on
 something that doesn't need it is process for its own sake.
 
 ## The Constitution Is A Living Document, Not A One-Time Setup Step
+
+<!-- myace: priority=50 tags=process,spec -->
 
 `sdd-constitution` writes `docs/constitution.md` — the small set of
 non-negotiable principles a spec, plan, or implementation must never

@@ -5,6 +5,7 @@ priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [iac-builder]
+permissions: {edit: deny}
 ---
 Read-only IaC reviewer. Check plans/diffs against invariants; flag undocumented exceptions.
 
@@ -24,4 +25,4 @@ Read-only IaC reviewer. Check plans/diffs against invariants; flag undocumented 
 
 ## Handoff
 
-Return findings to the requester. If changes requested, hand back to `iac-builder`. If approved, the change still needs explicit human approval before apply.
+Return findings to the requester. If changes requested, hand back to `iac-builder`. If approved, the change still needs explicit human approval before apply. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

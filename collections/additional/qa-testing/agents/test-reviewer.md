@@ -5,6 +5,7 @@ priority: 40
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [test-builder]
+permissions: {edit: deny}
 ---
 Read-only test reviewer. Check whether the suite actually verifies the behavior, not just that it runs.
 
@@ -23,4 +24,4 @@ Strictly read-only. Read test files, the code under test, and coverage output. R
 
 ## Handoff
 
-If clean, say so briefly. If gaps found, list concrete items (what behavior is unguarded, what failure mode is missing, what "covered" looks like) and hand back to `test-builder`.
+If clean, say so briefly. If gaps found, list concrete items (what behavior is unguarded, what failure mode is missing, what "covered" looks like) and hand back to `test-builder`. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

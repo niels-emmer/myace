@@ -1579,7 +1579,11 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   it in that pack's `AGENTS.pack.md`. Core rule *names* are identity: renaming
   one needs a reconcile run (rule 25) on live deployments, or the old row
   lingers.
-- `additional/` collections are not part of this mechanism.
+- `additional/` collections are not part of this mechanism: they are hand-written, but
+  `backend/tests/test_addon_conventions.py` holds them to the same conventions (a
+  `<!-- myace: priority=90|70|50 tags=... -->` tier on every rule, `permissions:
+  {edit: deny}` on every agent whose description starts "Read-only", the
+  no-subagent fallback sentence in every agent, valid frontmatter).
 - **Beyond the four core rules**, `packs.json` can scope a shared rule to some
   packs (`packs`), give it a `priority`/`tags`, and share whole skills
   (`skills/<slug>.md`, generated into `skills/<slug>/SKILL.md`). Software

@@ -5,6 +5,7 @@ priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [compliance-reviewer]
+permissions: {edit: deny}
 ---
 Read-only security reviewer. Examine changes for exploitable weaknesses; report findings clearly.
 
@@ -27,4 +28,4 @@ Read-only security reviewer. Examine changes for exploitable weaknesses; report 
 
 ## Handoff
 
-Deliver findings report to the requester. Route FAILs back to builder. Flag compliance-related findings for `compliance-reviewer`.
+Deliver findings report to the requester. Route FAILs back to builder. Flag compliance-related findings for `compliance-reviewer`. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

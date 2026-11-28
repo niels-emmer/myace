@@ -16,14 +16,17 @@ Any time you're reviewing a diff, a pull request, or a codebase specifically for
 
 ## Checklist
 
+Cite the OWASP Top 10 edition with the category (2021 or 2025): numbering changed in 2025 (Injection moved down, Software Supply Chain Failures is A03, SSRF folded into A01). Broken Access Control is A01 in both.
+
+
 For each item: record **PASS**, **FAIL**, or **N/A**. Every FAIL needs a concrete failure scenario (the specific input/state and the specific bad outcome) and, where it fits, a citation (CWE number, OWASP Top 10/ASVS category, or NIST SSDF practice).
 
 ### Injection
-- User-controlled input never reaches a SQL query, shell command, template engine, or log sink by string concatenation or interpolation — parameterized queries, prepared statements, or an equivalent safe API are used instead. (Maps to CWE-89, CWE-78, OWASP A03:2021 – Injection.)
+- User-controlled input never reaches a SQL query, shell command, template engine, or log sink by string concatenation or interpolation — parameterized queries, prepared statements, or an equivalent safe API are used instead. (Maps to CWE-89, CWE-78, OWASP Top 10 Injection.)
 - Any use of `eval`, dynamic code execution, or deserialization of untrusted data is either absent or explicitly justified and sandboxed.
 
 ### Authorization and authentication
-- Every endpoint or handler that touches non-public data checks both that the caller is authenticated *and* that they're authorized for the specific resource being accessed (object-level authorization, not just route-level). (OWASP A01:2021 – Broken Access Control.)
+- Every endpoint or handler that touches non-public data checks both that the caller is authenticated *and* that they're authorized for the specific resource being accessed (object-level authorization, not just route-level). (OWASP Top 10 A01 Broken Access Control.)
 - Session tokens, API keys, and password reset tokens are generated with a cryptographically secure random source, expire, and are invalidated on logout/rotation.
 - Privilege checks happen server-side; client-supplied role/permission fields are never trusted as-is.
 

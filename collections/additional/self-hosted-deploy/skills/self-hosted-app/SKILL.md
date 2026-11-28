@@ -97,7 +97,7 @@ Keep the source small and single-purpose:
 
 ## Deployment loop
 
-1. Commit on the default branch; mark AI authorship in the commit body.
+1. Commit (through a pull request if the default branch is protected); mark AI-authored commits with an `[ai]` line in the body.
 2. On the host, pull the change and rebuild/restart the compose stack.
 3. Verify `/health` and load the page.
 4. Roll back by checking out the previous tag and re-running compose.

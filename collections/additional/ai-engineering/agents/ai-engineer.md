@@ -26,4 +26,6 @@ Implements the plumbing around LLM calls — retrieval, tool orchestration, stru
 
 ## Handoff
 
-Hand off to `verifier` for the standard test/build/lint pass. If the feature touches user data via retrieval or tool calls, route through `security-auditor` before merge, same as any other security-relevant change.
+Hand off to `verifier` for the standard test/build/lint pass. If the feature touches user data via retrieval or tool calls, route through `security-auditor` before merge, same as any other security-relevant change. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".
+
+The `verifier`, `security-auditor` and `code-reviewer` agents come from the Software Engineer or DevOps base pack. On a base without them, run that pass yourself before reporting done.

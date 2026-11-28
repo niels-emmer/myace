@@ -59,8 +59,7 @@ type's constraints before finalizing a name.
 
 ## Tagging convention
 
-Every Scaleway resource gets, at minimum, these tags (Scaleway tags are
-key/value pairs; apply them consistently and confirm they're not overridden):
+Every Scaleway resource gets, at minimum, these tags (Scaleway resource tags are plain strings, so encode each as `key=value`, for example `owner=team-billing`; apply them consistently and confirm they're not overridden):
 
 | Tag key | Required | Meaning |
 |---|---|---|

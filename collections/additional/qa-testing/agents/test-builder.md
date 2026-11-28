@@ -26,4 +26,4 @@ Hands-on-keyboard agent for test work. Own the suite from strategy to individual
 
 ## Handoff
 
-Hand to `test-reviewer` with a summary: what was tested, which failure modes are covered, and how the suite was verified to be deterministic.
+Hand to `test-reviewer` with a summary: what was tested, which failure modes are covered, and how the suite was verified to be deterministic. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

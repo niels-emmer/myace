@@ -13,8 +13,7 @@ governing GCP at scale. This skill covers the governance essentials you need
 to design a landing zone that is secure, auditable, and cost-attributable —
 the resource hierarchy, folder/project design, IAM scoping, VPC topology, and
 Organization-policy guardrails. It deliberately does **not** reproduce the full
-landing-zone accelerator (Google Cloud's Enterprise Foundations blueprint /
-Cloud Foundation Toolkit); the accelerator is a reference for the complete,
+landing-zone accelerator (Google Cloud's Enterprise Foundations blueprint); the accelerator is a reference for the complete,
 opinionated implementation, while this skill is the decision layer you apply
 to any GCP environment.
 
@@ -57,8 +56,12 @@ existing landing zone, to confirm it fits the established pattern.
 ## Organization-policy guardrails
 
 - Enforce the standing invariants with Organization policies rather than
-  convention: deny public GCS buckets, deny disabling Cloud Audit Logs, deny
-  `iam.serviceAccountKeys.create` where federation is the standard, restrict
+  convention: enforce public access prevention on Cloud Storage
+  (`storage.publicAccessPrevention`), block service-account key creation
+  (`iam.disableServiceAccountKeyCreation`, or the managed
+  `iam.managed.disableServiceAccountKeyCreation`) where federation is the
+  standard, require Data Access audit logs through the organisation's IAM audit
+  config (Admin Activity logs cannot be turned off), restrict
   regions and machine types.
 - Use **deny** effects for hard security invariants and **audit** (via
   Cloud Asset Inventory / Security Command Center) for things that should be
