@@ -16,6 +16,11 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `--status`, `--plan-only` and `--check` (pack drift, exit 3) are read-only. See
   [docs/deployment.md](docs/deployment.md#deploying-updates).
 
+### Removed
+
+- The unused `COMMUNITY_REPO` setting (default `nemmer/MyACE`, a stale handle that
+  nothing read). A leftover `COMMUNITY_REPO` in an existing `.env` is ignored.
+
 ## [2.4.0] — 2026-11-28
 
 The pack page and discovery release. One additive migration
