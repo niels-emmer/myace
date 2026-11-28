@@ -17,7 +17,10 @@ its files and, when asked to apply:
 - collapses duplicate live names, keeping the row whose
   `artifact_type`/`file_path` matches what is on disk,
 - optionally rewrites the content of items that exist on both sides,
-- recomputes `Collection.artifact_count` from the live rows.
+- optionally rewrites the pack's own metadata (name, category, description,
+  relations) from the registry in `seed_collections.py`,
+- recomputes `Collection.artifact_count` from the live rows,
+- stamps `Collection.content_updated_at` when it changed a pack's items.
 
 Anything the seed has never seen (a pack that was never seeded, a user's own
 collection) is left alone. Run it with `--dry-run` (the default) first; see
@@ -46,8 +49,10 @@ from app.models.collection import Collection
 from app.services.seed_collections import (
     COMMUNITY_CONTRIBUTED_COLLECTIONS,
     STARTER_COLLECTIONS,
+    PackMeta,
     _scan_seeded_collection,
     artifact_from_scanned,
+    relations_json,
 )
 
 logger = logging.getLogger("myace")
@@ -69,6 +74,31 @@ CONTENT_FIELDS = (
 )
 
 
+# Pack-level fields the registry owns. Deliberately excludes everything that is
+# someone's decision rather than the registry's: ratings, verification dates,
+# moderation state, visibility, ownership and `is_starter_pack` (reclassified by
+# the seed itself).
+METADATA_FIELDS = ("name", "category", "description", "relations")
+
+
+@dataclass
+class MetadataDiff:
+    """One pack-level field whose database value differs from the registry."""
+
+    field: str
+    old: str | None
+    new: str | None
+
+
+def _registry_metadata(meta: PackMeta) -> dict[str, str | None]:
+    return {
+        "name": meta["name"],
+        "category": meta["category"],
+        "description": meta["description"],
+        "relations": relations_json(meta),
+    }
+
+
 @dataclass
 class PackChange:
     """What reconciling one seeded pack would do (or did)."""
@@ -80,6 +110,8 @@ class PackChange:
     duplicates_removed: list[str] = field(default_factory=list)
     content_updated: list[str] = field(default_factory=list)
     content_changed: list[str] = field(default_factory=list)
+    metadata_updated: list[MetadataDiff] = field(default_factory=list)
+    metadata_changed: list[MetadataDiff] = field(default_factory=list)
 
     @property
     def is_empty(self) -> bool:
@@ -89,17 +121,24 @@ class PackChange:
             or self.duplicates_removed
             or self.content_updated
             or self.content_changed
+            or self.metadata_updated
+            or self.metadata_changed
         )
 
     @property
     def has_structural_change(self) -> bool:
         """True when a run actually does something to this pack.
 
-        `content_changed` is excluded: it records text that differs but was
-        left alone because `--update-content` was not passed.
+        `content_changed` and `metadata_changed` are excluded: they record
+        differences that were left alone because `--update-content` or
+        `--update-metadata` was not passed.
         """
         return bool(
-            self.added or self.removed or self.duplicates_removed or self.content_updated
+            self.added
+            or self.removed
+            or self.duplicates_removed
+            or self.content_updated
+            or self.metadata_updated
         )
 
 
@@ -157,6 +196,7 @@ async def reconcile_seeded_collections(
     *,
     apply: bool = False,
     update_content: bool = False,
+    update_metadata: bool = False,
     only: str | None = None,
 ) -> ReconcileReport:
     """Diff every seeded pack against its files; write only when `apply`.
@@ -190,7 +230,7 @@ async def reconcile_seeded_collections(
 
     for registry in (STARTER_COLLECTIONS, COMMUNITY_CONTRIBUTED_COLLECTIONS):
         for collection_type, packs in registry.items():
-            for slug in packs:
+            for slug, meta in packs.items():
                 if only is not None and slug != only:
                     continue
 
@@ -260,11 +300,31 @@ async def reconcile_seeded_collections(
                     if apply:
                         session.add(artifact_from_scanned(collection.id, item))
 
+                wanted = _registry_metadata(meta)
+                for name_ in METADATA_FIELDS:
+                    current = getattr(collection, name_)
+                    if current == wanted[name_]:
+                        continue
+                    diff = MetadataDiff(name_, current, wanted[name_])
+                    if update_metadata:
+                        change.metadata_updated.append(diff)
+                        if apply:
+                            setattr(collection, name_, wanted[name_])
+                    else:
+                        change.metadata_changed.append(diff)
+
                 if apply:
                     collection.artifact_count = sum(
                         1 for item in on_disk.values()
                         if counts_toward_total(item["artifact_type"], item["name"])
                     )
+                    if (
+                        change.added
+                        or change.removed
+                        or change.duplicates_removed
+                        or change.content_updated
+                    ):
+                        collection.content_updated_at = datetime.now(UTC)
                     session.add(collection)
 
                 report.packs.append(change)

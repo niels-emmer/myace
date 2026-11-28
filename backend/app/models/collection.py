@@ -81,6 +81,16 @@ class Collection(SQLModel, table=True):
         default=None,
         sa_column=Column("last_digest_sent_at", DateTime(timezone=True)),
     )
+    # JSON text: {"layers_on": [slug, ...], "pairs_with": [slug, ...]}. Advisory
+    # metadata for seeded packs (like `handoff_to`, rule 34); NULL = none declared.
+    relations: str | None = Field(
+        default=None, sa_column=Column("relations", Text, nullable=True)
+    )
+    # When the pack's items last changed; stamped by seeding and reconcile.
+    content_updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column("content_updated_at", DateTime(timezone=True), nullable=True),
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=Column("created_at", DateTime(timezone=True), nullable=False),
@@ -143,5 +153,6 @@ class CollectionRead(SQLModel):
     last_synced_at: datetime | None = None
     last_verified_at: date | None = None
     verified_by: uuid.UUID | None = None
+    content_updated_at: datetime | None = None
     created_at: datetime
     updated_at: datetime

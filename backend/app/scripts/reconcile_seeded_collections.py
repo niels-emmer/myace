@@ -3,6 +3,7 @@
     python -m app.scripts.reconcile_seeded_collections                  # dry run
     python -m app.scripts.reconcile_seeded_collections --apply
     python -m app.scripts.reconcile_seeded_collections --apply --update-content
+    python -m app.scripts.reconcile_seeded_collections --apply --update-metadata
     python -m app.scripts.reconcile_seeded_collections --apply --only editor
 
 `seed_starter_collections()` never re-reads a pack it has already seeded, so a
@@ -45,7 +46,15 @@ def _known_slugs() -> set[str]:
     }
 
 
-def _print_report(report: ReconcileReport, *, show_content: bool) -> None:
+def _short(value: str | None, width: int = 70) -> str:
+    if value is None:
+        return "(none)"
+    return value if len(value) <= width else value[: width - 1] + "…"
+
+
+def _print_report(
+    report: ReconcileReport, *, show_content: bool, show_metadata: bool = True
+) -> None:
     if report.skipped:
         print("Skipped — no source directory (nothing deleted for these):")
         for ref in report.skipped:
@@ -86,10 +95,19 @@ def _print_report(report: ReconcileReport, *, show_content: bool) -> None:
             print(f"  ~ updated:   {', '.join(sorted(pack.content_updated))}")
         if show_content and pack.content_changed:
             print(f"  ~ differs:   {', '.join(sorted(pack.content_changed))} (not applied)")
+        for diff in pack.metadata_updated:
+            print(f"  ~ metadata:  {diff.field}: {_short(diff.old)} -> {_short(diff.new)}")
+        if show_metadata:
+            for diff in pack.metadata_changed:
+                print(
+                    f"  ~ metadata:  {diff.field}: {_short(diff.old)} -> {_short(diff.new)}"
+                    " (not applied)"
+                )
         print()
 
     structural = len(report.structural_packs)
-    content_only = len(report.content_only_packs)
+    content_pending = sum(1 for pack in report.packs if pack.content_changed)
+    metadata_pending = sum(1 for pack in report.packs if pack.metadata_changed)
     soft_deleted = sum(
         len(pack.removed) + len(pack.duplicates_removed) for pack in report.structural_packs
     )
@@ -99,21 +117,31 @@ def _print_report(report: ReconcileReport, *, show_content: bool) -> None:
             print(f"Applied changes to {structural} pack(s).")
             if soft_deleted:
                 print(f"{soft_deleted} stale item(s) were soft-deleted, not removed.")
-        if content_only:
+        if content_pending:
             print(
-                f"{content_only} pack(s) have text changes that were not applied. "
+                f"{content_pending} pack(s) have text changes that were not applied. "
                 "Re-run with --update-content to rewrite them."
             )
-        if not structural and not content_only:
+        if metadata_pending:
+            print(
+                f"{metadata_pending} pack(s) have metadata differences that were not applied. "
+                "Re-run with --update-metadata to rewrite them."
+            )
+        if not structural and not content_pending and not metadata_pending:
             print("Nothing to apply.")
     else:
         print(f"Dry run: {len(changed)} pack(s) need changes, nothing was written.")
         if structural:
             print("Re-run with --apply to write them.")
-        if content_only:
+        if content_pending:
             print(
-                f"{content_only} pack(s) only have text changes; "
+                f"{content_pending} pack(s) have text changes; "
                 "add --update-content (with --apply) to rewrite them."
+            )
+        if metadata_pending:
+            print(
+                f"{metadata_pending} pack(s) have metadata differences; "
+                "add --update-metadata (with --apply) to rewrite them."
             )
 
 
@@ -142,10 +170,22 @@ async def main() -> None:
         metavar="SLUG",
         help="limit the run to one registry slug, e.g. editor or software-engineer",
     )
+    parser.add_argument(
+        "--update-metadata",
+        action="store_true",
+        help=(
+            "also rewrite each pack's name, category, description and relations "
+            "from the registry (overwrites any in-app edit to a seeded pack's "
+            "metadata; never touches ratings, verification or moderation); "
+            "requires --apply"
+        ),
+    )
     args = parser.parse_args()
 
     if args.update_content and not args.apply:
         parser.error("--update-content requires --apply")
+    if args.update_metadata and not args.apply:
+        parser.error("--update-metadata requires --apply")
     if args.only is not None and args.only not in _known_slugs():
         parser.error(
             f"unknown pack slug {args.only!r}; known slugs: {', '.join(sorted(_known_slugs()))}"
@@ -157,6 +197,7 @@ async def main() -> None:
             session,
             apply=args.apply,
             update_content=args.update_content,
+            update_metadata=args.update_metadata,
             only=args.only,
         )
 
@@ -164,7 +205,11 @@ async def main() -> None:
         print(f"error: {report.root_error}", file=sys.stderr)
         sys.exit(1)
 
-    _print_report(report, show_content=not args.update_content)
+    _print_report(
+        report,
+        show_content=not args.update_content,
+        show_metadata=not args.update_metadata,
+    )
 
 
 if __name__ == "__main__":

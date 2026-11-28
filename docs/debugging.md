@@ -636,7 +636,9 @@ duplicate, content). With `--apply` it adds what the files have, soft-deletes
 what they dropped, collapses same-named duplicates and recomputes
 `artifact_count`. `--update-content` additionally rewrites items whose text
 changed on disk (overwriting any in-app edit to a seeded item), and
-`--only <slug>` restricts the run to one pack. Only `seed://` collections are
+`--update-metadata` also rewrites each pack's `name`, `category`, `description`
+and `relations` from the registry (the symptom: the library card still shows an
+old description or category), and `--only <slug>` restricts the run to one pack. Only `seed://` collections are
 considered, so a pack you built yourself is never touched. Details:
 [deployment.md](deployment.md#reconciling-seeded-packs-after-a-content-change).
 
