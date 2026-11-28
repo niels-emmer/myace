@@ -243,6 +243,11 @@ pack rules are `permissions:*` model_configs: do **not** handle them in
 `translate()` — `translate_artifacts()` filters them out first. Override
 `permission_policy_files()` to return a sidecar the framework never loads.
 Current targets: Claude Code (`disallowedTools`; `ask` is not expressible per
-agent) and OpenCode (v1 `permission:` frontmatter — v2's `permissions` array
-is not targeted). Check both against the vendors' current docs before
-changing them.
+agent), OpenCode (v1 `permission:` frontmatter, which OpenCode 2.x still
+translates) and, for global rules only, Codex CLI (a real
+`.codex/rules/myace.rules`; override `unenforced_policy_rules()` to report the
+rules a format can't carry). The per-framework evidence table is in
+[ADR-0019](adr/0019-agent-level-permissions-no-shared-config.md). Check
+against the vendors' current docs before changing them. A real-binary check
+lives in `backend/tests/test_opencode_integration.py` (skipped when
+`opencode` isn't installed).

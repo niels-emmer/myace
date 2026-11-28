@@ -1606,6 +1606,9 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   by `scripts/sync_shared_core.py` (rule 42): shared rules in
   `collections/_shared/permissions.json`, per-pack extras in
   `permissions.pack.json`.
-- Claude Code / OpenCode key names are from the vendors' docs as of
-  2026-11-28 and change; re-verify before editing the adapters.
+- Vendor key names change; the evidence table in ADR-0019 says what was run
+  against a real binary (only OpenCode 2.3.2) and what is docs-only. Codex CLI
+  gets a real `.codex/rules/myace.rules` for global shell rules
+  (`unenforced_policy_rules()` reports what a format can't carry). OpenCode v2
+  configs get v2 `permissions` rules prepended so the user's own rules win.
 

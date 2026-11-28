@@ -102,6 +102,16 @@ def policy_rules(policies: list[CanonicalArtifact]) -> list[dict[str, str]]:
 class BaseAdapter(ABC):
     """Abstract base class for all target adapters."""
 
+    def unenforced_policy_rules(self, rules: list[dict[str, str]]) -> list[dict[str, str]]:
+        """Global rules (from `policy_rules()`) this target cannot express.
+
+        Default: all of them — a target with no permission config only gets the
+        compile warning. Adapters that write a policy file override this to
+        return just the rules their format can't carry, so partial coverage is
+        reported instead of silent (ADR-0019).
+        """
+        return list(rules)
+
     def permission_policy_files(self, policies: list[CanonicalArtifact]) -> dict[str, str]:
         """Sidecar file(s) carrying a pack's global permission rules.
 

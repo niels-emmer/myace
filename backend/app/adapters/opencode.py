@@ -105,6 +105,9 @@ class OpenCodeAdapter(BaseAdapter):
         }
         return self._frontmatter_block(frontmatter) + artifact.body.strip() + "\n"
 
+    def unenforced_policy_rules(self, rules: list[dict[str, str]]) -> list[dict[str, str]]:
+        return []  # every portable capability has a form in this target
+
     def permission_policy_files(self, policies: list[CanonicalArtifact]) -> dict[str, str]:
         import json
 

@@ -106,6 +106,9 @@ class ClaudeCodeAdapter(BaseAdapter):
             {"name": artifact.name, "description": artifact.description}
         ) + artifact.body.strip() + "\n"
 
+    def unenforced_policy_rules(self, rules: list[dict[str, str]]) -> list[dict[str, str]]:
+        return []  # every portable capability has a form in this target
+
     def permission_policy_files(self, policies: list[CanonicalArtifact]) -> dict[str, str]:
         import json
 

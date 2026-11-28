@@ -85,3 +85,27 @@ def test_opencode_merge_respects_user_values(tmp_path: Path) -> None:
     assert bash == {"ls": "allow", "git push *": "ask"}
     remove_applied(tmp_path, "opencode")
     assert json.loads(path.read_text()) == {"permission": {"bash": {"ls": "allow"}}}
+
+
+def test_opencode_v2_config_gets_v2_rules_at_lowest_priority(tmp_path: Path) -> None:
+    path = tmp_path / "opencode.json"
+    mine = {"action": "shell", "resource": "sudo *", "effect": "allow"}
+    path.write_text(json.dumps({"permissions": [mine], "disabled": []}))
+    plan = plan_merge(OC_SIDECAR, "opencode", path)
+    assert "permission" not in (plan.merged or {}), "a v1 key would be ignored in a v2 file"
+    assert (plan.merged or {})["permissions"][-1] == mine  # user's rules stay last = win
+    resources = {(r["action"], r["resource"], r["effect"]) for r in plan.added["permissions"]}
+    assert resources == {("shell", "git push *", "ask"), ("webfetch", "*", "deny")}
+    apply_plan(plan, tmp_path)
+    removed = remove_applied(tmp_path, "opencode")
+    assert sorted(removed) == ["shell git push *", "webfetch *"]
+    assert json.loads(path.read_text()) == {"permissions": [mine], "disabled": []}
+
+
+def test_opencode_v2_never_overrides_a_user_rule_for_the_same_resource(tmp_path: Path) -> None:
+    path = tmp_path / "opencode.json"
+    path.write_text(json.dumps({"permissions": [
+        {"action": "shell", "resource": "git push *", "effect": "allow"}]}))
+    plan = plan_merge(OC_SIDECAR, "opencode", path)
+    assert [r["resource"] for r in plan.added["permissions"]] == ["*"]
+    assert any("kept yours" in s for s in plan.skipped)

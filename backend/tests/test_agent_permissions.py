@@ -223,3 +223,38 @@ def test_every_starter_pack_ships_the_shared_ask_rules() -> None:
     devops = next(a for a in _scan_seeded_collection(REPO / "collections/base/devops-engineer")
                   if a["name"] == "permissions:default")
     assert "terraform apply *" in devops["body"]
+
+
+# --- Codex: a real rules file (restrict-only by Codex's own semantics) --------
+
+
+def test_codex_gets_a_rules_file_for_expressible_shell_rules_only() -> None:
+    from app.adapters.base import translate_artifacts
+
+    files = translate_artifacts(get_adapter("codex-cli"), [_policy()])  # type: ignore[arg-type]
+    rules = files[".codex/rules/myace.rules"]
+    assert 'pattern=["git", "push"], decision="prompt"' in rules
+    assert "allow" not in rules.replace("never allow", "")
+    assert "webfetch" not in rules.lower()  # network=deny has no Codex form
+    # network=deny cannot be expressed: reported, not silently dropped.
+    warnings = _check_unenforced_permissions(get_adapter("codex-cli"), [_policy()], "codex-cli")  # type: ignore[arg-type]
+    assert [w.code for w in warnings] == ["permissions_not_enforced"]
+    assert "network=deny" in warnings[0].message and "git push" not in warnings[0].message
+
+
+def test_codex_patterns_only_trailing_wildcard_and_safe_tokens() -> None:
+    from app.adapters.codex_cli import _codex_pattern
+
+    assert _codex_pattern("rm -rf *") == ["rm", "-rf"]
+    assert _codex_pattern("sudo *") == ["sudo"]
+    assert _codex_pattern("az * delete") is None
+    assert _codex_pattern("echo $(whoami)") is None
+    assert _codex_pattern("*") is None
+    assert _codex_pattern("") is None
+
+
+def test_codex_agents_still_report_per_agent_permissions_unenforced() -> None:
+    warnings = _check_unenforced_permissions(
+        get_adapter("codex-cli"), [_agent({"edit": "deny"})], "codex-cli"  # type: ignore[arg-type]
+    )
+    assert "edit=deny" in warnings[0].message
