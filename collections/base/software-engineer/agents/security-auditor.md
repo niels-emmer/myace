@@ -5,6 +5,7 @@ priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [builder, code-reviewer]
+permissions: {edit: deny}
 ---
 Read-only security reviewer. Block merge on real findings; don't rubber-stamp.
 

@@ -384,6 +384,9 @@ def artifact_from_scanned(collection_id: UUID, item: dict) -> Artifact:
         handoff_to=(
             json.dumps(item["handoff_to"]) if item.get("handoff_to") is not None else None
         ),
+        permissions=(
+            json.dumps(item["permissions"]) if item.get("permissions") is not None else None
+        ),
     )
 
 

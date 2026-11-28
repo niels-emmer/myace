@@ -42,8 +42,29 @@ def yaml_scalar(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def restricting_permissions(artifact: CanonicalArtifact) -> dict[str, str]:
+    """The `ask`/`deny` entries an agent declares, in declaration order.
+
+    `allow` is accepted in the canonical IR for readability but is never
+    compiled: a per-agent `allow` could override a stricter setting the user
+    already has, and permissions here are restrict-only by design (ADR-0019).
+    """
+    if artifact.artifact_type != "agent" or not artifact.permissions:
+        return {}
+    return {cap: eff for cap, eff in artifact.permissions.items() if eff in ("ask", "deny")}
+
+
 class BaseAdapter(ABC):
     """Abstract base class for all target adapters."""
+
+    def unenforced_permissions(self, artifact: CanonicalArtifact) -> dict[str, str]:
+        """Declared restrictions this target cannot express (ADR-0019).
+
+        The default is "all of them": a target with no per-agent permission
+        system keeps the prose and the compiler warns. Adapters that do
+        enforce override this to return only what they cannot express.
+        """
+        return restricting_permissions(artifact)
 
     @abstractmethod
     def adapter_name(self) -> str:

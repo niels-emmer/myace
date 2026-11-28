@@ -56,6 +56,9 @@ def _frontmatter(artifact: CanonicalArtifact) -> str:
         # (app/services/scanner.py::_parse_agent_file) — only emitted when
         # present, since non-agent artifact types never carry it.
         fm["handoff_to"] = artifact.handoff_to
+    if artifact.permissions is not None:
+        # Same round-trip contract as handoff_to (ADR-0019).
+        fm["permissions"] = artifact.permissions
     return str(yaml.safe_dump(fm, sort_keys=False)).strip()
 
 

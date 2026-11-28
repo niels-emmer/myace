@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.adapters import get_adapter, list_adapters
+from app.adapters.base import BaseAdapter
 from app.models.artifact import Artifact, CanonicalArtifact
 from app.models.collection import Collection
 from app.models.profile import Profile, ProfileCompileResponse, ValidationIssue
@@ -332,6 +333,8 @@ async def _compile_collections(
         available = ", ".join(a.adapter_name() for a in list_adapters())
         raise UnknownAdapterError(f"No adapter found for target '{target}'. Available: {available}")
 
+    warnings.extend(_check_unenforced_permissions(adapter, all_artifacts, target))
+
     files = adapter.translate(all_artifacts)
 
     return ProfileCompileResponse(
@@ -441,6 +444,33 @@ async def capture_pack_snapshots(
             "captured_at": captured_at,
         }
     return snapshots
+
+
+def _check_unenforced_permissions(
+    adapter: BaseAdapter, all_artifacts: list[CanonicalArtifact], target: str
+) -> list[ValidationIssue]:
+    """Warn when an agent declares restrictions this target can't enforce.
+
+    The prose "Permission posture" still ships either way (ADR-0019); this
+    just stops the downgrade being silent. Advisory like every other
+    compile-time warning (rule 32).
+    """
+    warnings: list[ValidationIssue] = []
+    for artifact in all_artifacts:
+        missing = adapter.unenforced_permissions(artifact)
+        if missing:
+            declared = ", ".join(f"{cap}={eff}" for cap, eff in missing.items())
+            warnings.append(
+                ValidationIssue(
+                    code="permissions_not_enforced",
+                    message=(
+                        f"Agent '{artifact.name}' declares permissions the "
+                        f"'{target}' target cannot enforce ({declared}); "
+                        f"only its written permission posture applies."
+                    ),
+                )
+            )
+    return warnings
 
 
 def _check_dangling_handoffs(all_artifacts: list[CanonicalArtifact]) -> list[ValidationIssue]:
@@ -588,6 +618,7 @@ def _db_to_canonical_with_source(
         description=db_artifact.description or "",
         body=db_artifact.body,
         handoff_to=json.loads(db_artifact.handoff_to) if db_artifact.handoff_to else None,
+        permissions=json.loads(db_artifact.permissions) if db_artifact.permissions else None,
         source_collection_id=collection_id,
         source_collection_name=collection_name,
     )

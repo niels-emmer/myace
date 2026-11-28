@@ -5,6 +5,7 @@ priority: 40
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [local-build]
+permissions: {edit: deny}
 ---
 Read-only subagent for pre-ship sanity checks.
 

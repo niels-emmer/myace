@@ -306,6 +306,27 @@ def _parse_skill_file(path: Path) -> dict | None:
     }
 
 
+_PERMISSION_CAPABILITIES = ("read", "edit", "execute", "network", "delegate")
+_PERMISSION_EFFECTS = ("allow", "ask", "deny")
+
+
+def _parse_permissions(value: object) -> dict[str, str] | None:
+    """Optional agent `permissions:` frontmatter (ADR-0019).
+
+    Returns None when the key is absent (not declared) and a — possibly empty —
+    dict when present. Unknown capabilities or effects are dropped rather than
+    raised: a scanner reads other people's files and must not fail on them.
+    Mirrored in cli/myace_cli/scanner.py — keep the two in sync (rule 8).
+    """
+    if not isinstance(value, dict):
+        return None
+    return {
+        str(k): str(v)
+        for k, v in value.items()
+        if k in _PERMISSION_CAPABILITIES and v in _PERMISSION_EFFECTS
+    }
+
+
 def _parse_agent_file(path: Path) -> dict | None:
     content = path.read_text(encoding="utf-8")
     frontmatter, body = _parse_yaml_frontmatter(content)
@@ -340,6 +361,7 @@ def _parse_agent_file(path: Path) -> dict | None:
         "body": body,
         "file_path": str(path.relative_to(path.parent) if path.parent else path.name),
         "handoff_to": list(handoff_to) if handoff_to is not None else None,
+        "permissions": _parse_permissions(frontmatter.get("permissions")),
     }
 
 

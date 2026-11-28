@@ -10,8 +10,19 @@ import json
 
 import yaml
 
-from app.adapters.base import BaseAdapter, safe_path_component
+from app.adapters.base import BaseAdapter, restricting_permissions, safe_path_component
 from app.models.artifact import CanonicalArtifact
+
+# Portable capability -> OpenCode agent `permission:` key (v1 schema,
+# opencode.ai/docs/permissions). OpenCode v2 uses a different `permissions`
+# array; this adapter targets v1 and says so in docs/extending.md.
+_PERMISSION_KEYS: dict[str, str] = {
+    "read": "read",
+    "edit": "edit",
+    "execute": "bash",
+    "network": "webfetch",
+    "delegate": "task",
+}
 
 
 class OpenCodeAdapter(BaseAdapter):
@@ -86,6 +97,9 @@ class OpenCodeAdapter(BaseAdapter):
         }
         return self._frontmatter_block(frontmatter) + artifact.body.strip() + "\n"
 
+    def unenforced_permissions(self, artifact: CanonicalArtifact) -> dict[str, str]:
+        return {}  # every portable capability maps to a v1 permission key
+
     def _format_agent(self, artifact: CanonicalArtifact) -> str:
         # Canonical IR has no dedicated mode/model fields — the scanner
         # encodes them as "mode:<value>"/"model:<value>" tags on import, so
@@ -103,6 +117,12 @@ class OpenCodeAdapter(BaseAdapter):
             frontmatter["mode"] = mode
         if model:
             frontmatter["model"] = model
+        restricted = restricting_permissions(artifact)
+        if restricted:
+            # Restrict-only (ADR-0019): `allow` is never emitted.
+            frontmatter["permission"] = {
+                _PERMISSION_KEYS[cap]: eff for cap, eff in restricted.items()
+            }
         return self._frontmatter_block(frontmatter) + artifact.body.strip() + "\n"
 
     def _format_command(self, artifact: CanonicalArtifact) -> str:
