@@ -6,6 +6,16 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **`scripts/deploy.sh`**: a diff-driven deploy for a running install. It works out
+  from the changed files whether a change needs a backend restart or image
+  rebuild, a migration, a frontend or `mcp` rebuild, and a reconcile; backs up the
+  database first; gates the reconcile behind a person reading its dry run; and
+  checks that users, ratings, verifications, tokens and settings did not change.
+  `--status`, `--plan-only` and `--check` (pack drift, exit 3) are read-only. See
+  [docs/deployment.md](docs/deployment.md#deploying-updates).
+
 ### Removed
 
 - The unused `COMMUNITY_REPO` setting (default `nemmer/MyACE`, a stale handle that

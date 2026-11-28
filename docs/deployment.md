@@ -296,6 +296,59 @@ Two deployment-relevant points:
 Database backups (retention, restore procedure, offsite copy guidance) are
 covered separately in [backups.md](backups.md).
 
+## Deploying updates
+
+`scripts/deploy.sh` brings a running install to a newer commit and runs only
+the steps the change needs. Run it on the server, from the project checkout:
+
+```bash
+scripts/deploy.sh --status      # deployed commit, container health, protected counts
+scripts/deploy.sh --plan-only   # what would run for origin/main; changes nothing
+scripts/deploy.sh               # plan, confirm, deploy origin/main
+scripts/deploy.sh --check       # exit 3 if seeded packs differ from their files
+```
+
+It classifies the files that changed between the deployed commit and the
+target:
+
+| Changed | Step |
+|---|---|
+| `backend/Dockerfile`, `backend/pyproject.toml` | rebuild the backend image |
+| `backend/app/`, `backend/alembic/`, `collections/` | restart the backend (source and packs are bind-mounted; new packs seed on boot) |
+| any backend run | `alembic upgrade head`, a no-op when nothing is pending |
+| `frontend/` (not tests or docs) | rebuild the frontend image |
+| `mcp/` (not tests or docs) | rebuild the `mcp` image, when it is deployed here |
+| `collections/` or the seed registry | reconcile seeded packs |
+| `docker-compose*.yml` | `docker compose up -d` |
+| docs, tests, CI, scripts | nothing beyond the pull |
+
+A real run then: takes a `pg_dump` to `backups/pre-deploy/` (verified with
+`gzip -t`), fast-forwards, migrates with the new code before the backend serves
+it, rebuilds or restarts, waits for health, and runs the reconcile **dry run**.
+Applying it is a human decision: the script shows the dry run and asks. It
+applies `--update-content --update-metadata` (override with
+`--reconcile-flags`), re-runs the dry run to confirm it is clean, and finally
+checks that users, ratings, verifications, API tokens and settings counts, and
+the seeded packs' ratings, use counts and verifications, are exactly what they
+were before. A mismatch fails the deploy loudly and prints the backup path.
+
+Safety properties worth knowing:
+
+- It refuses a dirty working tree, a target that is not a fast-forward, and a
+  host with no running backend.
+- With `--yes` it still refuses to apply a reconcile that soft-deletes items
+  unless you also pass `--allow-removals`.
+- It never rolls back on its own. Recovery is manual: restore the printed
+  backup ([backups.md](backups.md#restore)), `git checkout` the previous commit
+  it prints, and rebuild.
+- It is deliberately not triggered by a merge. Reconcile soft-deletes renamed
+  or removed items and `--update-metadata` overwrites in-app edits to pack
+  names, categories and descriptions, so a person reads the dry run first.
+
+Set `COMPOSE_FILES` if you do not use the `docker-compose.prod.yml` layer, and
+`--site-url` (or `FRONTEND_BASE_URL` in `.env`) for the post-deploy smoke test
+of the public pack list and, when deployed, the MCP server.
+
 ## Reconciling seeded packs after a content change
 
 The boot-time seed never re-reads a pack it has already imported (AGENTS.md
