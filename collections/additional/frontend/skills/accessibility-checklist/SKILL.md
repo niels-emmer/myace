@@ -41,6 +41,14 @@ While building any new interactive UI, and as a review pass on any UI diff befor
 - When a toast/notification appears without user-initiated focus change, announce it to assistive tech (e.g. an `aria-live` region) rather than relying on a sighted user noticing it.
 - When content is inserted, removed, or replaced dynamically (e.g. a list filtering as you type), make sure the change is perceivable to a screen reader user, not just visually.
 
+**WCAG 2.2 additions (target level AA)**
+- Focus must not be hidden by sticky headers, cookie banners or overlays when an element receives keyboard focus (2.4.11 Focus Not Obscured).
+- Anything done by dragging needs a single-pointer alternative such as buttons or a menu (2.5.7 Dragging Movements).
+- Pointer targets are at least 24 by 24 CSS pixels, or have enough spacing (2.5.8 Target Size, Minimum).
+- Help links appear in a consistent place across pages (3.2.6), users are not asked to re-enter information already given in the same flow (3.3.7), and login does not depend on memorising or transcribing a code without an alternative; allow paste and password managers (3.3.8).
+- Also check reflow at 320 CSS pixels wide, 200% text zoom, and `prefers-reduced-motion`.
+- This list is a developer pass, not a conformance claim. Automated tools find only part of WCAG, so add a keyboard-only run and a screen-reader check on the changed flow. The `accessibility` collection, if present in the setup, has the full WCAG 2.2 AA review checklist and reviewer agent.
+
 ## Expected output
 
 A UI change that passes this checklist item by item — not just "looks accessible" on a glance. Where an item genuinely doesn't apply, that's fine; note it as not applicable rather than silently skipping it.

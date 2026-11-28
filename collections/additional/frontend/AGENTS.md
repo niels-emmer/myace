@@ -16,7 +16,7 @@ Prefer small components with clear responsibilities. Don't extract single-use co
 
 <!-- myace: priority=70 tags=frontend,accessibility -->
 
-Use semantic HTML before ARIA. Every interactive element must be keyboard-reachable with visible focus. Meet contrast minimums. Meaningful images need `alt` text; decorative images get `alt=""`. Modals, toasts, and dialogs must capture focus on open and restore it on close.
+Use semantic HTML before ARIA. Every interactive element must be keyboard-reachable with visible focus. Meet contrast minimums. Meaningful images need `alt` text; decorative images get `alt=""`. Modals, toasts, and dialogs must capture focus on open and restore it on close. Target WCAG 2.2 AA, and do not claim conformance from an automated scan alone; see the `accessibility-checklist` skill.
 
 ## Handle Loading, Empty, And Error States Explicitly
 
