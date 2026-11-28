@@ -16,7 +16,7 @@ Organizations organizational-unit (OU) hierarchy that separates platform from
 workloads, accounts scoped by environment/workload boundary, IAM assigned at
 the narrowest effective scope, and Service Control Policies (SCPs) that
 enforce the invariants below rather than relying on convention. See the
-`aws-landing-zones` skill.
+`aws-landing-zones` skill, and `aws-guardrails` for the control catalogue and rollout.
 
 ## Identity: IAM And Federation
 

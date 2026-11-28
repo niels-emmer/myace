@@ -23,7 +23,8 @@ concrete before/after comparison on real (or representative) inputs is a
 guess wearing a diff. The `prompt-engineer` agent owns defining what
 "better" means for a given prompt — task success rate, format compliance,
 a specific failure mode no longer occurring — before changing it, not
-after, so a regression is caught by the eval rather than by a user.
+after, so a regression is caught by the eval rather than by a user. See the
+`llm-evals` skill; for retrieval systems also see `rag-design`.
 
 ## Context Is Curated, Not Accumulated
 

@@ -15,6 +15,7 @@ Read-only Spring reviewer. Check layering, DI, annotations, and test coverage.
 - Check DI: constructor injection used, no field injection, no service with excessive dependencies.
 - Review annotation usage: `@Transactional` on services, not controllers; `@Cacheable` placed deliberately (usually service methods).
 - Confirm test pyramid: services unit-tested, repositories integration-tested, controllers slice-tested.
+- Check security configuration is explicit and default-deny (`spring-security` skill): no endpoint open by omission, CSRF/CORS deliberate, method security on object-level rules.
 - Check build reproducibility: dependency versions pinned, transitive versions locked.
 
 ## Permission posture

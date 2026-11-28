@@ -15,7 +15,7 @@ Follow Scaleway's governance essentials: an Organization → Project structure
 that separates platform from workloads, projects scoped by environment/workload
 boundary, IAM assigned at the narrowest effective scope (Organization vs.
 Project), and guardrails that enforce the invariants below rather than relying
-on convention. See the `scaleway-architecture` skill.
+on convention. See the `scaleway-architecture` skill, and `scaleway-guardrails` for how invariants are enforced without an organisation-level deny layer.
 
 ## Identity: IAM, Applications, And Federation
 

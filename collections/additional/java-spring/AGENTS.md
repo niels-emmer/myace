@@ -29,3 +29,9 @@ Unit test services with JUnit + Mockito (fast, isolated). Integration test repos
 <!-- myace: priority=70 tags=java,build -->
 
 Pin dependency versions in `pom.xml` or `build.gradle`. Prevent unexpected transitive upgrades with Gradle dependency locking, or on Maven a BOM plus Enforcer convergence rules (Maven has no native lockfile). Reproducible builds mean the same source + same deps = same binary, every time.
+
+## Spring Security Is Explicit And Default-Deny
+
+<!-- myace: priority=90 tags=java,security -->
+
+Declare security in a `SecurityFilterChain` bean using the lambda DSL, end the request rules with `anyRequest().authenticated()` (or `denyAll()`), and do not leave an endpoint open by omission. Keep CSRF protection on for browser sessions and disable it only for stateless token APIs, deliberately and with a comment. Never use `permitAll()` or `cors` with `*` plus credentials as a shortcut, never expose all Actuator endpoints, and keep secrets out of source. See the `spring-security` skill.

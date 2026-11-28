@@ -41,3 +41,9 @@ Document any deviation from these rules using the `exception-documentation` skil
 <!-- myace: priority=50 tags=iac,architecture -->
 
 Before shipping nontrivial infrastructure changes, note which pillars are affected (security, reliability, cost, operational excellence, performance) and how. See the `well-architected-review` skill.
+
+## Pin Versions And Protect Stateful Resources
+
+<!-- myace: priority=70 tags=iac,reliability -->
+
+Pin the IaC tool version and every provider and module to a version (commit the lock file), and upgrade them deliberately in their own change. Protect stateful and hard-to-recreate resources (databases, storage, keys, DNS zones) with deletion protection and lifecycle guards, and treat any plan that destroys or replaces one as needing explicit human approval of that line. See the `iac-pinning-and-deletion-protection` skill.

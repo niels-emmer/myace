@@ -16,7 +16,7 @@ resource hierarchy (Organization → Folders → Projects) that separates platfo
 from workloads, projects scoped by environment/workload boundary, IAM assigned
 at the narrowest effective scope, and Organization-policy guardrails that
 enforce the invariants below rather than relying on convention. See the
-`gcp-landing-zones` skill.
+`gcp-landing-zones` skill, and `gcp-guardrails` for the constraint catalogue and rollout.
 
 ## Identity: IAM, Service Accounts, And Federation
 
