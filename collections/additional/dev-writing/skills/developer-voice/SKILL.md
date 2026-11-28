@@ -1,6 +1,6 @@
 ---
 name: Developer Voice
-description: The register for text a developer publishes under their own name (review replies, PR descriptions, commit subjects, chat messages): plain, short, and specific. A style guide only: it never changes who is credited, and any project rule that marks AI-authored work still applies.
+description: The register for text a developer publishes under their own name (review replies, PR descriptions, commit subjects, chat messages), plain, short and specific. A style guide only, it never changes who is credited, and any project rule that marks AI-authored work still applies.
 version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
