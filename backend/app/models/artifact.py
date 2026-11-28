@@ -13,7 +13,14 @@ from sqlmodel import Boolean, Column, DateTime, Field, Integer, SQLModel, String
 SEMVER_PATTERN = r"^\d+\.\d+\.\d+$"
 # The only ArtifactUpdate fields whose explicit `null` is meaningful.
 SemverStr = Annotated[str, StringConstraints(pattern=SEMVER_PATTERN)]
-NULLABLE_UPDATE_FIELDS = frozenset({"description", "handoff_to"})
+NULLABLE_UPDATE_FIELDS = frozenset({"description", "handoff_to", "permissions"})
+
+# Portable agent capabilities and what may be declared for each (ADR-0019).
+# Restrict-only by design: there is no value that grants beyond a framework's
+# default, and an absent key means "inherit".
+Capability = Literal["read", "edit", "execute", "network", "delegate"]
+PermissionEffect = Literal["allow", "ask", "deny"]
+AgentPermissions = dict[Capability, PermissionEffect]
 
 
 class Artifact(SQLModel, table=True):
@@ -45,6 +52,12 @@ class Artifact(SQLModel, table=True):
     handoff_to: str | None = Field(
         default=None,
         sa_column=Column("handoff_to", Text, nullable=True),
+    )
+    # JSON-encoded AgentPermissions, agents only. NULL = not declared; "{}" =
+    # declared, nothing restricted (same convention as handoff_to, rule 34).
+    permissions: str | None = Field(
+        default=None,
+        sa_column=Column("permissions", Text, nullable=True),
     )
     is_enabled: bool = Field(default=True, sa_column=Column("is_enabled", Boolean, default=True))
     deleted_at: datetime | None = Field(
@@ -82,6 +95,7 @@ class ArtifactCreate(SQLModel):
     body: str
     file_path: str
     handoff_to: list[str] | None = None
+    permissions: AgentPermissions | None = None
 
 
 class ArtifactRead(SQLModel):
@@ -98,6 +112,7 @@ class ArtifactRead(SQLModel):
     body: str
     file_path: str
     handoff_to: list[str] | None = None
+    permissions: AgentPermissions | None = None
     is_enabled: bool
     created_at: datetime
     updated_at: datetime
@@ -122,6 +137,7 @@ class ArtifactUpdate(SQLModel):
     body: str | None = None
     file_path: str | None = None
     handoff_to: list[str] | None = None
+    permissions: AgentPermissions | None = None
     is_enabled: bool | None = None
 
     @model_validator(mode="after")
@@ -146,5 +162,6 @@ class CanonicalArtifact(SQLModel):
     description: str
     body: str  # Markdown content
     handoff_to: list[str] | None = None
+    permissions: AgentPermissions | None = None
     source_collection_id: uuid.UUID | None = None
     source_collection_name: str | None = None

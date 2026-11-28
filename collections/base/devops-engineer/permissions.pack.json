@@ -1,0 +1,10 @@
+{
+  "rules": [
+    {"capability": "execute", "effect": "ask", "match": "terraform apply *"},
+    {"capability": "execute", "effect": "ask", "match": "terraform destroy *"},
+    {"capability": "execute", "effect": "ask", "match": "tofu apply *"},
+    {"capability": "execute", "effect": "ask", "match": "tofu destroy *"},
+    {"capability": "execute", "effect": "ask", "match": "pulumi up *"},
+    {"capability": "execute", "effect": "ask", "match": "pulumi destroy *"}
+  ]
+}

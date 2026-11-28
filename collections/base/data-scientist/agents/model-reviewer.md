@@ -5,6 +5,7 @@ priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [data-explorer]
+permissions: {edit: deny}
 ---
 Read-only model methodology reviewer. Evaluate whether a model is ready for the next stage.
 

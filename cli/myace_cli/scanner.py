@@ -71,6 +71,11 @@ def scan_directory(path: str | Path) -> list[dict]:
         configs = _parse_opencode_json(opencode_json)
         artifacts.extend(configs)
 
+    # 6. Parse permissions.json for global ask/deny rules
+    permissions_json = base / "permissions.json"
+    if permissions_json.exists():
+        artifacts.extend(_parse_permissions_json(permissions_json))
+
     return artifacts
 
 
@@ -114,6 +119,67 @@ def _parse_skill_file(path: Path) -> dict | None:
     }
 
 
+_PERMISSION_CAPABILITIES = ("read", "edit", "execute", "network", "delegate")
+_PERMISSION_EFFECTS = ("allow", "ask", "deny")
+
+
+def _parse_permissions(value: object) -> dict[str, str] | None:
+    """Optional agent `permissions:` frontmatter (ADR-0019).
+
+    Returns None when the key is absent (not declared) and a — possibly empty —
+    dict when present. Unknown capabilities or effects are dropped rather than
+    raised: a scanner reads other people's files and must not fail on them.
+    Mirrored in cli/myace_cli/scanner.py — keep the two in sync (rule 8).
+    """
+    if not isinstance(value, dict):
+        return None
+    return {
+        str(k): str(v)
+        for k, v in value.items()
+        if k in _PERMISSION_CAPABILITIES and v in _PERMISSION_EFFECTS
+    }
+
+
+def _parse_permissions_json(path: Path) -> list[dict]:
+    """Optional pack-root `permissions.json` -> one `permissions:default`
+    model_config artifact (ADR-0019, phase 2).
+
+    Global, restrict-only rules: `{"rules": [{"capability", "effect"
+    (ask|deny), "match"?}]}`. `match` (a command pattern) is kept only for
+    `execute`. Malformed or `allow` entries are dropped, and a file with no
+    valid rule yields nothing. Mirrored in cli/myace_cli/scanner.py — keep the
+    two in sync (rule 8); `app.adapters.base.policy_rules` re-validates at
+    compile time because stored bodies are user-supplied too.
+    """
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8")).get("rules", [])
+    except (json.JSONDecodeError, OSError, AttributeError):
+        return []
+    rules: list[dict[str, str]] = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        cap, eff, match = item.get("capability"), item.get("effect"), item.get("match", "")
+        if cap not in _PERMISSION_CAPABILITIES or eff not in ("ask", "deny"):
+            continue
+        if not isinstance(match, str) or len(match) > 200 or (match and cap != "execute"):
+            continue
+        rules.append({"capability": cap, "effect": eff, "match": match})
+    if not rules:
+        return []
+    return [{
+        "artifact_type": "model_config",
+        "name": "permissions:default",
+        "version": "1.0.0",
+        "priority": 50,
+        "target_compatibility": ["claude-code", "opencode"],
+        "tags": ["permissions"],
+        "description": "Global permission rules (ask/deny only)",
+        "body": json.dumps({"rules": rules}, indent=2),
+        "file_path": "permissions.json",
+    }]
+
+
 def _parse_agent_file(path: Path) -> dict | None:
     """Parse an agent .md file into a canonical artifact."""
     content = path.read_text(encoding="utf-8")
@@ -152,6 +218,7 @@ def _parse_agent_file(path: Path) -> dict | None:
         "body": body,
         "file_path": str(path.relative_to(path.parent) if path.parent else path.name),
         "handoff_to": list(handoff_to) if handoff_to is not None else None,
+        "permissions": _parse_permissions(frontmatter.get("permissions")),
     }
 
 

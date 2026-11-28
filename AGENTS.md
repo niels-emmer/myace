@@ -1581,3 +1581,31 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   lingers.
 - `additional/` collections are not part of this mechanism.
 
+### 43. Permissions Are Restrict-Only, Agent-Level, and Never Written to a Shared Config
+
+- **`Artifact.permissions` (agents only) compiles into each agent's own
+  frontmatter and nowhere else** — [ADR-0019](docs/adr/0019-agent-level-permissions-no-shared-config.md).
+  No adapter may emit `settings.json`, the `opencode.json` permission block,
+  or any file a user's setup owns: a zip is unpacked into people's home and
+  project folders. `allow` is accepted in the IR but never compiled (it could
+  override a stricter user setting); use `restricting_permissions()`.
+- **A pack's global ask/deny rules are a `model_config` named
+  `permissions:default`** (scanned from `permissions.json`). It is split off
+  in `translate_artifacts()` (`adapters/base.py`) before any adapter runs —
+  call that, never `adapter.translate()` directly — and compiles to a sidecar
+  (`.claude/myace.permissions.json`, `.opencode/myace.permissions.json`) the
+  framework doesn't load. Targets with no such file get a
+  `permissions_not_enforced` warning (rule 32), never a silent downgrade.
+- **Only the CLI's `myace pull --apply-permissions`
+  (`cli/myace_cli/permissions_merge.py`) writes user config:** diffed,
+  confirmed, additive, refuses non-strict JSON, never overrides a user value,
+  tracked in `.myace/<target>.permissions.json` and reversible. Keep
+  `plan_merge()` pure.
+- Both scanners parse `permissions:` frontmatter and `permissions.json`
+  (rule 8). Base packs' `permissions.json` is **generated** with `AGENTS.md`
+  by `scripts/sync_shared_core.py` (rule 42): shared rules in
+  `collections/_shared/permissions.json`, per-pack extras in
+  `permissions.pack.json`.
+- Claude Code / OpenCode key names are from the vendors' docs as of
+  2026-11-28 and change; re-verify before editing the adapters.
+

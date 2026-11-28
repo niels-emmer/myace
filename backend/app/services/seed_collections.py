@@ -31,6 +31,7 @@ from app.services.scanner import (
     _parse_agents_md,
     _parse_command_file,
     _parse_opencode_json,
+    _parse_permissions_json,
     _parse_skill_file,
 )
 
@@ -359,6 +360,10 @@ def _scan_seeded_collection(collection_dir: Path) -> list[dict]:
     if opencode_json.exists():
         artifacts.extend(_parse_opencode_json(opencode_json))
 
+    permissions_json = collection_dir / "permissions.json"
+    if permissions_json.exists():
+        artifacts.extend(_parse_permissions_json(permissions_json))
+
     return artifacts
 
 
@@ -383,6 +388,9 @@ def artifact_from_scanned(collection_id: UUID, item: dict) -> Artifact:
         file_path=item.get("file_path", ""),
         handoff_to=(
             json.dumps(item["handoff_to"]) if item.get("handoff_to") is not None else None
+        ),
+        permissions=(
+            json.dumps(item["permissions"]) if item.get("permissions") is not None else None
         ),
     )
 

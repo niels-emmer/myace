@@ -101,6 +101,8 @@ created token.
 | `myace logout` | Remove stored credentials |
 | `myace status` | Show auth status |
 | `myace pull --profile <name> --target <fw> [--path <dir>]` | Fetch and write compiled profile; also writes a `.myace/<target>.manifest.json` sync manifest |
+| `myace pull ... --apply-permissions [--permissions-scope project\|user]` | After pulling, show a diff and (on confirm) merge the pack's ask/deny rules into your Claude Code / OpenCode config — additive, never removes or overrides your own entries |
+| `myace permissions-remove --target <fw> [--path <dir>]` | Undo exactly what `--apply-permissions` added |
 | `myace list-profiles` | List profiles from server |
 | `myace import --path <dir> --name <name> [--push]` | Scan local config dir and convert to canonical artifacts |
 | `myace check [--target <fw> \| --all] [--json] [--report]` | Check a pulled target for local hand-edits or server-side staleness |
@@ -259,3 +261,17 @@ Safety properties worth knowing:
   directory is the recovery path and a retention policy is a documented
   follow-up. See [ADR-0016](adr/0016-companion-direct-apply.md) for the
   full rationale and known limits.
+
+## Applying a pack's permission rules
+
+A compiled download never edits your `settings.json` / `opencode.json`. If the
+pack ships global rules (e.g. "ask before `git push`"), they arrive as a
+sidecar — `.claude/myace.permissions.json` or `.opencode/myace.permissions.json`
+— which your framework ignores. `myace pull --apply-permissions` is the one
+way to merge them for you: it prints a diff, asks first, only **adds** `ask`
+and `deny` entries (never `allow`), keeps every entry and value you already
+set, refuses a config file that isn't strict JSON (e.g. one with comments),
+keeps a one-time `<file>.myace-bak`, and records what it added in
+`.myace/<target>.permissions.json` so `myace permissions-remove` takes back
+only that. `--permissions-scope user` targets your home config instead of the
+output directory. See [ADR-0019](adr/0019-agent-level-permissions-no-shared-config.md).

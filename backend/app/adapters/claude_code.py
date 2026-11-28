@@ -20,8 +20,35 @@ artifact type.
 
 import yaml
 
-from app.adapters.base import BaseAdapter, safe_path_component
+from app.adapters.base import (
+    BaseAdapter,
+    policy_rules,
+    restricting_permissions,
+    safe_path_component,
+)
 from app.models.artifact import CanonicalArtifact
+
+# `deny` on a portable capability removes these Claude Code tools from the
+# agent (ADR-0019). Names per code.claude.com/docs/en/sub-agents — re-verify
+# when Claude Code renames a tool.
+_DENIED_TOOLS: dict[str, list[str]] = {
+    "read": ["Read", "Grep", "Glob"],
+    "edit": ["Edit", "Write", "NotebookEdit"],
+    "execute": ["Bash"],
+    "network": ["WebFetch", "WebSearch"],
+    "delegate": ["Agent"],
+}
+
+
+_POLICY_TOOLS: dict[str, str] = {
+    "read": "Read",
+    "edit": "Edit",
+    "execute": "Bash",
+    "network": "WebFetch",
+    "delegate": "Agent",
+}
+
+PERMISSIONS_SIDECAR = ".claude/myace.permissions.json"
 
 
 class ClaudeCodeAdapter(BaseAdapter):
@@ -79,16 +106,51 @@ class ClaudeCodeAdapter(BaseAdapter):
             {"name": artifact.name, "description": artifact.description}
         ) + artifact.body.strip() + "\n"
 
+    def permission_policy_files(self, policies: list[CanonicalArtifact]) -> dict[str, str]:
+        import json
+
+        buckets: dict[str, list[str]] = {"ask": [], "deny": []}
+        for rule in policy_rules(policies):
+            tool = _POLICY_TOOLS[rule["capability"]]
+            entry = f"{tool}({rule['match']})" if rule["match"] else tool
+            buckets[rule["effect"]].append(entry)
+        permissions = {k: v for k, v in buckets.items() if v}
+        if not permissions:
+            return {}
+        # Same shape as settings.json's `permissions` key so a merge is key-wise.
+        return {PERMISSIONS_SIDECAR: json.dumps({"permissions": permissions}, indent=2) + "\n"}
+
+    def unenforced_permissions(self, artifact: CanonicalArtifact) -> dict[str, str]:
+        # Only `deny` is expressible per agent; `ask` falls back to the user's
+        # own permission mode.
+        return {
+            cap: eff
+            for cap, eff in restricting_permissions(artifact).items()
+            if eff != "deny"
+        }
+
     def _format_agent(self, artifact: CanonicalArtifact) -> str:
-        return self._frontmatter_block(
-            {"name": artifact.name, "description": artifact.description}
-        ) + artifact.body.strip() + "\n"
+        fields: dict[str, object] = {
+            "name": artifact.name,
+            "description": artifact.description,
+        }
+        # Restrict-only: list tools to remove, never an allow-list, so an
+        # unrestricted agent keeps inheriting everything (ADR-0019).
+        denied = [
+            tool
+            for cap, eff in restricting_permissions(artifact).items()
+            if eff == "deny"
+            for tool in _DENIED_TOOLS[cap]
+        ]
+        if denied:
+            fields["disallowedTools"] = denied
+        return self._frontmatter_block(fields) + artifact.body.strip() + "\n"
 
     def _format_command(self, artifact: CanonicalArtifact) -> str:
         return self._frontmatter_block(
             {"description": artifact.description}
         ) + artifact.body.strip() + "\n"
 
-    def _frontmatter_block(self, fields: dict[str, str]) -> str:
+    def _frontmatter_block(self, fields: dict[str, object]) -> str:
         yaml_text = yaml.safe_dump(fields, sort_keys=False, default_flow_style=False).strip()
         return f"---\n{yaml_text}\n---\n"

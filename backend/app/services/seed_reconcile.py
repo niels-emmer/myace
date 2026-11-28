@@ -65,6 +65,7 @@ CONTENT_FIELDS = (
     "target_compatibility",
     "tags",
     "handoff_to",
+    "permissions",
 )
 
 

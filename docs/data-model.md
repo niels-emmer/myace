@@ -241,6 +241,16 @@ for how `compile_profile()`'s `dangling_handoff` validation pass (reusing
 the compile-time warnings plumbing introduced for `name_collision`)
 surfaces a `handoff_to` entry naming an agent absent from the compiled
 artifact set, rather than silently accepting it.
+`permissions` (nullable `Text`, JSON-encoded `{capability: allow|ask|deny}`)
+is the sibling field for per-agent restrictions, with the same `NULL` vs
+`{}` distinction. Capabilities are `read`, `edit`, `execute`, `network`,
+`delegate`. It is restrict-only: adapters compile only `ask`/`deny`, and only
+into the agent's own frontmatter (Claude Code `disallowedTools`, OpenCode
+`permission`). A pack's *global* ask/deny rules (`permissions.json` at the
+pack root) are stored as a `model_config` artifact named
+`permissions:default` and never reach an adapter's normal output — they
+compile to a sidecar file the framework doesn't load. See
+[ADR-0019](adr/0019-agent-level-permissions-no-shared-config.md).
 `POST /collections/{collection_id}/artifacts` (added alongside this
 field) is the only way to create a single artifact directly — every
 other creation path is bulk (import/scan-derived).

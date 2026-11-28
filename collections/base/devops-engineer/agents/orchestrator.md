@@ -5,6 +5,7 @@ priority: 60
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: primary
 handoff_to: [builder, verifier, security-auditor, code-reviewer, docs-writer]
+permissions: {edit: deny, execute: deny}
 ---
 Entry point for nontrivial infrastructure work. Break work into stages and route each to the matching specialist agent — don't write IaC, run pipelines, or apply changes yourself.
 

@@ -16,6 +16,7 @@ export interface CanonicalArtifact {
   // undefined/absent means "not declared"; distinct from an empty array
   // ("declared, but terminal — never hands off").
   handoff_to?: string[] | null;
+  permissions?: Record<string, 'allow' | 'ask' | 'deny'> | null;
   source_collection_id?: string;
   source_collection_name?: string;
 }
@@ -112,6 +113,7 @@ export interface Artifact {
   body: string;
   file_path: string;
   handoff_to?: string[] | null;
+  permissions?: Record<string, 'allow' | 'ask' | 'deny'> | null;
   is_enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -272,6 +274,7 @@ export interface ArtifactUpdate {
   body?: string;
   file_path?: string;
   handoff_to?: string[] | null;
+  permissions?: Record<string, 'allow' | 'ask' | 'deny'> | null;
   is_enabled?: boolean;
 }
 
@@ -288,6 +291,7 @@ export interface ArtifactCreate {
   body: string;
   file_path: string;
   handoff_to?: string[] | null;
+  permissions?: Record<string, 'allow' | 'ask' | 'deny'> | null;
 }
 
 // ─── Auth Types ──────────────────────────────────────────────

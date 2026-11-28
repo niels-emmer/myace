@@ -19,3 +19,7 @@ it by hand:
 python scripts/sync_shared_core.py          # regenerate all four AGENTS.md
 python scripts/sync_shared_core.py --check  # CI: fail if any is out of date
 ```
+
+`permissions.json` here holds the shared global ask/deny rules (ADR-0019,
+phase 2); a pack adds its own in `permissions.pack.json`. Both are merged into
+each pack's generated `permissions.json`.

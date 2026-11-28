@@ -22,6 +22,7 @@ from app.core.database import get_session
 from app.core.deps import get_current_user, require_moderator_or_admin
 from app.core.ratelimit import storefront_limiter
 from app.models.artifact import (
+    AgentPermissions,
     Artifact,
     ArtifactCreate,
     ArtifactRead,
@@ -59,6 +60,7 @@ def _artifact_to_read(artifact: Artifact) -> ArtifactRead:
         body=artifact.body,
         file_path=artifact.file_path,
         handoff_to=json.loads(artifact.handoff_to) if artifact.handoff_to else None,
+        permissions=json.loads(artifact.permissions) if artifact.permissions else None,
         is_enabled=artifact.is_enabled,
         created_at=artifact.created_at,
         updated_at=artifact.updated_at,
@@ -77,6 +79,7 @@ def _artifact_to_canonical(artifact: Artifact) -> CanonicalArtifact:
         description=artifact.description or "",
         body=artifact.body,
         handoff_to=json.loads(artifact.handoff_to) if artifact.handoff_to else None,
+        permissions=json.loads(artifact.permissions) if artifact.permissions else None,
     )
 
 
@@ -808,6 +811,11 @@ async def create_artifact(
         handoff_to=(
             json.dumps(artifact_data.handoff_to) if artifact_data.handoff_to is not None else None
         ),
+        permissions=(
+            json.dumps(artifact_data.permissions)
+            if artifact_data.permissions is not None
+            else None
+        ),
     )
     session.add(artifact)
 
@@ -881,6 +889,9 @@ async def update_artifact(
     if "handoff_to" in update_dict:
         value = update_dict["handoff_to"]
         update_dict["handoff_to"] = json.dumps(value) if value is not None else None
+    if "permissions" in update_dict:
+        value = update_dict["permissions"]
+        update_dict["permissions"] = json.dumps(value) if value is not None else None
 
     for field, value in update_dict.items():
         setattr(artifact, field, value)
@@ -1009,6 +1020,7 @@ async def bulk_export_artifacts(
             file_path=src.file_path,
             is_enabled=src.is_enabled,
             handoff_to=src.handoff_to,
+            permissions=src.permissions,
         ))
         exported += 1
 
@@ -1340,6 +1352,7 @@ async def import_community_collection(
             file_path=src.file_path,
             is_enabled=src.is_enabled,
             handoff_to=src.handoff_to,
+            permissions=src.permissions,
         ))
         created += 1
 
@@ -1479,6 +1492,7 @@ class BulkImportItem(BaseModel):
     body: str = ""
     file_path: str = ""
     handoff_to: list[str] | None = None
+    permissions: AgentPermissions | None = None
 
 
 class BulkImportRequest(BaseModel):
@@ -1525,6 +1539,7 @@ async def bulk_import(
             body=item.body,
             file_path=item.file_path,
             handoff_to=json.dumps(item.handoff_to) if item.handoff_to is not None else None,
+            permissions=json.dumps(item.permissions) if item.permissions is not None else None,
         )
         session.add(artifact)
         created += 1

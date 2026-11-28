@@ -5,6 +5,7 @@ priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
 handoff_to: [builder, docs-writer]
+permissions: {edit: deny}
 ---
 Read-only reviewer for correctness, simplicity, and consistency.
 

@@ -56,6 +56,9 @@ def _frontmatter(artifact: CanonicalArtifact) -> str:
         # (app/services/scanner.py::_parse_agent_file) — only emitted when
         # present, since non-agent artifact types never carry it.
         fm["handoff_to"] = artifact.handoff_to
+    if artifact.permissions is not None:
+        # Same round-trip contract as handoff_to (ADR-0019).
+        fm["permissions"] = artifact.permissions
     return str(yaml.safe_dump(fm, sort_keys=False)).strip()
 
 
@@ -78,6 +81,10 @@ def artifacts_to_files(artifacts: list[CanonicalArtifact]) -> dict[str, str]:
             path = f"commands/{safe_name}.md"
         elif artifact.artifact_type == "rule":
             rule_sections.append(f"## {artifact.name}\n\n{artifact.body}".strip())
+            continue
+        elif artifact.artifact_type == "model_config" and artifact.name == "permissions:default":
+            # Round-trips scanner._parse_permissions_json (ADR-0019).
+            files["permissions.json"] = artifact.body.rstrip() + "\n"
             continue
         else:
             continue  # model_config — skipped, not a single-file round trip
