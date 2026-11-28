@@ -26,10 +26,13 @@ import { collectionsApi, commentsApi, moderationApi, ratingsApi } from '../lib/a
 import { packApi } from '../lib/packApi';
 import { FreshnessBadge } from '../components/FreshnessBadge';
 import AddToSetup from '../components/AddToSetup';
+import { PackRelationsCard } from '../components/PackRelations';
+import PackPreviewPanel from '../components/PackPreviewPanel';
 import { PublishStatusTracker } from '../components/PublishStatusTracker';
 import { useAuth } from '../contexts/AuthContext';
 import {
   FRAMEWORK_LABELS,
+  formatUpdated,
   formatUses,
   packFrameworks,
   packKindLabel,
@@ -120,6 +123,15 @@ export default function PackDetail() {
     queryFn: async () =>
       loggedIn ? collectionsApi.get(id!) : packApi.getPublicPack(id!),
     enabled: !!id && !authLoading,
+  });
+
+  // Relations are resolved by the public detail route only, so signed-in
+  // viewers fetch it too. A private pack 404s there and simply shows none.
+  const { data: publicPack } = useQuery<Pack>({
+    queryKey: ['public-pack', id],
+    queryFn: () => packApi.getPublicPack(id!),
+    enabled: !!id && !authLoading && (!loggedIn || !!pack?.published),
+    retry: false,
   });
 
   const { data: artifacts, isLoading: loadingArtifacts } = useQuery({
@@ -266,6 +278,9 @@ export default function PackDetail() {
   const kind = packKindLabel(pack.collection_type);
   const frameworks = packFrameworks(artifacts ?? []);
   const useCount = pack.download_count;
+  // The preview calls the anonymous install route, which 404s for anything not
+  // published and approved, so the tab is only offered for those.
+  const canPreview = pack.published && pack.moderation_status === 'approved';
   const signupHref = '/login?mode=register';
 
   const commentCanDelete = (commentUserId: string) =>
@@ -324,6 +339,9 @@ export default function PackDetail() {
               </span>
               <span>{pack.artifact_count} items</span>
               {pack.license && <span>{pack.license}</span>}
+              {formatUpdated(pack.content_updated_at ?? publicPack?.content_updated_at) && (
+                <span>{formatUpdated(pack.content_updated_at ?? publicPack?.content_updated_at)}</span>
+              )}
             </div>
           </div>
 
@@ -339,9 +357,12 @@ export default function PackDetail() {
               [
                 ['overview', 'Overview'],
                 ['contents', 'Contents'],
+                ['preview', 'Preview install'],
                 ['ratings', 'Ratings & comments'],
               ] as [PackTab, string][]
-            ).map(([value, label]) => (
+            )
+              .filter(([value]) => value !== 'preview' || canPreview)
+              .map(([value, label]) => (
               <button
                 key={value}
                 role="tab"
@@ -357,6 +378,8 @@ export default function PackDetail() {
               </button>
             ))}
           </div>
+
+          {tab === 'preview' && canPreview && id && <PackPreviewPanel packId={id} />}
 
           {tab === 'overview' && (
             <div className="space-y-6">
@@ -377,6 +400,8 @@ export default function PackDetail() {
                   </div>
                 ))}
               </div>
+
+              <PackRelationsCard relations={publicPack?.relations} />
 
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Works with</h2>
@@ -645,6 +670,7 @@ export default function PackDetail() {
                 {pack && (
                   <AddToSetup
                     collection={pack}
+                    layersOn={publicPack?.relations?.layers_on ?? []}
                     frameworksReady={!loadingArtifacts}
                     frameworks={[
                       ...new Set(

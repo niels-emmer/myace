@@ -44,6 +44,8 @@ vi.mock('../lib/packApi', () => ({
     getPublicPack: vi.fn(),
     getPublicArtifacts: vi.fn(),
     listCommunity: vi.fn(),
+    getFrameworks: vi.fn(),
+    previewInstall: vi.fn(),
   },
 }));
 
@@ -351,5 +353,75 @@ describe('PackDetail', () => {
         }),
       ),
     );
+  });
+});
+
+describe('PackDetail — relations, updated stamp and preview', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUser = null;
+    vi.mocked(packApi.getPublicArtifacts).mockResolvedValue(artifacts);
+    vi.mocked(packApi.getFrameworks).mockResolvedValue(['claude-code']);
+    vi.mocked(packApi.previewInstall).mockResolvedValue({
+      subject: 'pack',
+      pack_id: 'pack-1',
+      target: 'claude-code',
+      artifact_count: 2,
+      compiled_hash: 'h',
+      warnings: [],
+      files: { 'CLAUDE.md': 'compiled output' },
+    });
+  });
+
+  it('shows related packs and when the pack was last updated', async () => {
+    vi.mocked(packApi.getPublicPack).mockResolvedValue({
+      ...basePack,
+      content_updated_at: '2026-11-28T10:00:00Z',
+      relations: {
+        layers_on: [{ id: 'iac-id', name: 'Infrastructure as Code Expert', slug: 'iac-expert' }],
+        pairs_with: [],
+      },
+    } as never);
+
+    renderDetail();
+
+    expect(await screen.findByRole('link', { name: 'Infrastructure as Code Expert' })).toHaveAttribute(
+      'href',
+      '/packs/iac-id',
+    );
+    expect(screen.getByText('Updated 28 Nov 2026')).toBeInTheDocument();
+  });
+
+  it('omits both when the pack declares neither', async () => {
+    vi.mocked(packApi.getPublicPack).mockResolvedValue(basePack as never);
+
+    renderDetail();
+    await screen.findByRole('heading', { name: 'Security & Compliance' });
+
+    expect(screen.queryByText('Works with other packs')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Updated /)).not.toBeInTheDocument();
+  });
+
+  it('previews the compiled output on a public pack without an account', async () => {
+    vi.mocked(packApi.getPublicPack).mockResolvedValue(basePack as never);
+
+    renderDetail();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Preview install' }));
+
+    expect(await screen.findByRole('button', { name: 'CLAUDE.md' })).toBeInTheDocument();
+    expect(packApi.previewInstall).toHaveBeenCalledWith('pack-1', 'claude-code');
+  });
+
+  it('does not offer a preview for a pack that is not public', async () => {
+    vi.mocked(packApi.getPublicPack).mockResolvedValue({
+      ...basePack,
+      published: false,
+      moderation_status: 'draft',
+    } as never);
+
+    renderDetail();
+    await screen.findByRole('heading', { name: 'Security & Compliance' });
+
+    expect(screen.queryByRole('tab', { name: 'Preview install' })).not.toBeInTheDocument();
   });
 });

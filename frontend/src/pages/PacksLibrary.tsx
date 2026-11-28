@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FolderGit2, Plus, Search, Sparkles, Star, Upload } from 'lucide-react';
 import { collectionsApi } from '../lib/api';
@@ -9,15 +9,22 @@ import {
   formatUses,
   packHref,
   packKindLabel,
+  packMatchesQuery,
   packSource,
   packSourceLabel,
+  parseLibraryState,
+  serializeLibraryState,
+  topicFacets,
+  type LibraryFacet,
+  type LibrarySort,
+  type LibraryState,
   type PackSource,
 } from '../lib/packs';
 import { useAuth } from '../contexts/AuthContext';
 import type { Pack } from '../types/packs';
 
-type Facet = 'all' | 'base' | 'additional' | 'mine' | 'community';
-type Sort = 'recommended' | 'rated' | 'recent';
+type Facet = LibraryFacet;
+type Sort = LibrarySort;
 
 const FACETS: { id: Facet; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -73,17 +80,20 @@ function emptyMessage(facet: Facet, anonymous: boolean): string {
 export default function PacksLibrary() {
   const { user, isLoading: authLoading } = useAuth();
   const anonymous = !authLoading && !user;
-  const [search, setSearch] = useState('');
-  const [facet, setFacet] = useState<Facet>('all');
-  const [category, setCategory] = useState<string | null>(null);
-  const [sort, setSort] = useState<Sort>('recommended');
+  // Filters live in the URL so a filtered view can be shared and survives Back.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const state = useMemo(() => parseLibraryState(searchParams), [searchParams]);
+  const update = (patch: Partial<LibraryState>) =>
+    setSearchParams(serializeLibraryState({ ...state, ...patch }), { replace: true });
+  const { search, category, topic, sort } = state;
+  // A signed-out visitor has no "Mine"; treat a pasted link to it as "All".
+  const facet: Facet = anonymous && state.facet === 'mine' ? 'all' : state.facet;
 
   const { data: collections, isLoading } = useQuery({
     queryKey: anonymous ? ['public-packs'] : ['collections'],
     queryFn: async () => {
       if (anonymous) {
-        const response = await packApi.listCommunity({ limit: 100, sort: 'alpha' });
-        return response.items;
+        return packApi.listAllCommunity({ sort: 'alpha' });
       }
       return collectionsApi.list();
     },
@@ -97,8 +107,22 @@ export default function PacksLibrary() {
     enabled: !authLoading,
   });
 
+  const { data: topicsById } = useQuery({
+    queryKey: ['pack-topics'],
+    queryFn: () => packApi.communityTopics(),
+    staleTime: 5 * 60 * 1000,
+    // Topics are an enhancement; the library works without them.
+    retry: false,
+  });
+  const topics = topicsById ?? {};
+
+  const topicChips = useMemo(
+    () => topicFacets((collections ?? []).map((collection) => collection.id), topics),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [collections, topicsById],
+  );
+
   const packs = useMemo(() => {
-    const query = search.trim().toLowerCase();
     const filtered = (collections ?? []).filter((collection) => {
       const source = packSource(collection, user?.id);
       if (anonymous && source !== 'community' && source !== 'starter') return false;
@@ -107,13 +131,12 @@ export default function PacksLibrary() {
       if (facet === 'base' && collection.collection_type !== 'base') return false;
       if (facet === 'additional' && collection.collection_type !== 'additional') return false;
       if (category && collection.category !== category) return false;
-      if (!query) return true;
-      return `${collection.name} ${collection.description ?? ''} ${collection.category ?? ''}`
-        .toLowerCase()
-        .includes(query);
+      if (topic && !(topics[collection.id] ?? []).includes(topic)) return false;
+      return packMatchesQuery(collection, topics[collection.id] ?? [], search);
     });
     return sortPacks(filtered, sort);
-  }, [collections, facet, category, search, sort, user?.id, anonymous]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collections, facet, category, topic, search, sort, user?.id, anonymous, topicsById]);
 
   const bundlePacks = BUNDLES.map((bundle) => ({
     bundle,
@@ -170,9 +193,9 @@ export default function PacksLibrary() {
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => update({ search: event.target.value })}
               aria-label="Search packs"
-              placeholder="Search packs, tags, categories…"
+              placeholder="Search packs, topics, categories…"
               className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground focus:border-brand-500 focus:outline-hidden focus:ring-2 focus:ring-brand-500"
             />
           </div>
@@ -180,7 +203,7 @@ export default function PacksLibrary() {
             {facets.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setFacet(item.id)}
+                onClick={() => update({ facet: item.id })}
                 aria-pressed={facet === item.id}
                 className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                   facet === item.id
@@ -194,7 +217,7 @@ export default function PacksLibrary() {
           </div>
           <select
             value={sort}
-            onChange={(event) => setSort(event.target.value as Sort)}
+            onChange={(event) => update({ sort: event.target.value as Sort })}
             aria-label="Sort packs"
             className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground lg:ml-auto"
           >
@@ -210,7 +233,7 @@ export default function PacksLibrary() {
               Category
             </span>
             <button
-              onClick={() => setCategory(null)}
+              onClick={() => update({ category: null })}
               aria-pressed={category === null}
               className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
                 category === null
@@ -223,7 +246,7 @@ export default function PacksLibrary() {
             {(categories ?? []).map((name) => (
               <button
                 key={name}
-                onClick={() => setCategory(name === category ? null : name)}
+                onClick={() => update({ category: name === category ? null : name })}
                 aria-pressed={category === name}
                 className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
                   category === name
@@ -237,6 +260,40 @@ export default function PacksLibrary() {
           </div>
         )}
       </div>
+
+      {topicChips.length > 0 && (
+        <div
+          data-testid="topic-chips"
+          className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-4 py-3"
+        >
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Topic
+          </span>
+          {topicChips.map(({ topic: name, count }) => (
+            <button
+              key={name}
+              onClick={() => update({ topic: name === topic ? null : name })}
+              aria-pressed={topic === name}
+              className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
+                topic === name
+                  ? 'bg-foreground text-background'
+                  : 'bg-muted text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {name} <span className="opacity-60">{count}</span>
+            </button>
+          ))}
+          {topic && !topicChips.some((chip) => chip.topic === topic) && (
+            <button
+              onClick={() => update({ topic: null })}
+              aria-pressed
+              className="rounded-full bg-foreground px-2.5 py-1 text-xs text-background"
+            >
+              {topic} ✕
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Featured "Start here" strip */}
       <div data-testid="start-here" className="rounded-xl border border-border bg-card p-4">

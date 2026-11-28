@@ -243,3 +243,91 @@ describe('AddToSetup', () => {
     );
   });
 });
+
+describe('AddToSetup — layered-on packs', () => {
+  const iac = { id: 'pack-iac', name: 'Infrastructure as Code Expert' };
+
+  function renderWithLayers(collection: Collection) {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/packs/pack-qa']}>
+          <Routes>
+            <Route
+              path="/packs/:id"
+              element={<AddToSetup collection={collection} layersOn={[iac]} />}
+            />
+            <Route path="*" element={<LocationProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(collectionsApi.list).mockResolvedValue([baseA, baseB, addOn]);
+    vi.mocked(adaptersApi.list).mockResolvedValue([
+      { name: 'claude-code', description: '', targets: [], enabled: true },
+    ]);
+    vi.mocked(profilesApi.list).mockResolvedValue([setup]);
+    vi.mocked(setupProfilesApi.create).mockResolvedValue(created);
+    vi.mocked(setupProfilesApi.update).mockResolvedValue(setup);
+    vi.mocked(packUsageApi.use).mockResolvedValue({});
+  });
+
+  it('adds the layered-on pack to a new setup by default, before the pack itself', async () => {
+    renderWithLayers(addOn);
+
+    const useButton = screen.getByRole('button', { name: 'Use this pack' });
+    await waitFor(() => expect(useButton).toBeEnabled());
+    fireEvent.click(useButton);
+
+    expect(await screen.findByRole('checkbox', { name: /Also add Infrastructure/ })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: /Create setup with this pack/ }));
+
+    await waitFor(() =>
+      expect(setupProfilesApi.create).toHaveBeenCalledWith(
+        expect.objectContaining({ additional_collection_ids: ['pack-iac', 'pack-qa'] }),
+      ),
+    );
+  });
+
+  it('lets the user opt out of the layered-on pack', async () => {
+    renderWithLayers(addOn);
+
+    const useButton = screen.getByRole('button', { name: 'Use this pack' });
+    await waitFor(() => expect(useButton).toBeEnabled());
+    fireEvent.click(useButton);
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Also add Infrastructure/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Create setup with this pack/ }));
+
+    await waitFor(() =>
+      expect(setupProfilesApi.create).toHaveBeenCalledWith(
+        expect.objectContaining({ additional_collection_ids: ['pack-qa'] }),
+      ),
+    );
+  });
+
+  it('warns that an existing setup lacks the layered-on pack but still attaches', async () => {
+    renderWithLayers(addOn);
+
+    fireEvent.click(screen.getByRole('button', { name: /Add to a setup/ }));
+    expect(await screen.findByText(/layers on Infrastructure as Code Expert/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /My setup/ }));
+    await waitFor(() => expect(setupProfilesApi.update).toHaveBeenCalled());
+  });
+
+  it('shows no warning once the setup already contains the layered-on pack', async () => {
+    vi.mocked(profilesApi.list).mockResolvedValue([
+      { ...setup, additional_collection_ids: ['pack-iac'] },
+    ]);
+    renderWithLayers(addOn);
+
+    fireEvent.click(screen.getByRole('button', { name: /Add to a setup/ }));
+    await screen.findByRole('button', { name: /My setup/ });
+
+    expect(screen.queryByText(/layers on/)).not.toBeInTheDocument();
+  });
+});

@@ -18,7 +18,12 @@ vi.mock('../lib/api', () => ({
 }));
 
 vi.mock('../lib/packApi', () => ({
-  packApi: { listCommunity: vi.fn(), communityCategories: vi.fn() },
+  packApi: {
+    listCommunity: vi.fn(),
+    listAllCommunity: vi.fn(),
+    communityCategories: vi.fn(),
+    communityTopics: vi.fn(),
+  },
 }));
 
 const minePack: Collection = {
@@ -88,11 +93,11 @@ const communityBase: Collection = {
   download_count: 120,
 };
 
-function renderLibrary() {
+function renderLibrary(initialEntry = '/packs') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <PacksLibrary />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -119,6 +124,7 @@ describe('PacksLibrary', () => {
       'Governance & Security',
       'AI/LLM Engineering',
     ]);
+    vi.mocked(packApi.communityTopics).mockResolvedValue({});
   });
 
   it('shows every visible pack with kind and source badges', async () => {
@@ -249,14 +255,16 @@ describe('PacksLibrary — anonymous storefront', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUser = null;
-    vi.mocked(packApi.listCommunity).mockResolvedValue({
-      items: [starterPack, communityAddon, communityBase],
-      total: 3,
-    });
+    vi.mocked(packApi.listAllCommunity).mockResolvedValue([
+      starterPack,
+      communityAddon,
+      communityBase,
+    ]);
     vi.mocked(packApi.communityCategories).mockResolvedValue([
       'Base Profiles',
       'Governance & Security',
     ]);
+    vi.mocked(packApi.communityTopics).mockResolvedValue({});
   });
 
   it('browses published packs without an account', async () => {
@@ -265,7 +273,7 @@ describe('PacksLibrary — anonymous storefront', () => {
 
     expect(grid.getByText('Software Engineer')).toBeInTheDocument();
     expect(grid.getByText('Security & Compliance')).toBeInTheDocument();
-    expect(packApi.listCommunity).toHaveBeenCalled();
+    expect(packApi.listAllCommunity).toHaveBeenCalled();
     expect(collectionsApi.list).not.toHaveBeenCalled();
   });
 
@@ -277,5 +285,76 @@ describe('PacksLibrary — anonymous storefront', () => {
     expect(screen.queryByRole('link', { name: /New pack/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Import packs/i })).not.toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Sign up free/i }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('PacksLibrary — discovery', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUser = null;
+    vi.mocked(packApi.listAllCommunity).mockResolvedValue([
+      starterPack,
+      communityAddon,
+      communityBase,
+    ]);
+    vi.mocked(packApi.communityCategories).mockResolvedValue(['Base Profiles']);
+    vi.mocked(packApi.communityTopics).mockResolvedValue({
+      'starter-pack': ['testing', 'security'],
+      'community-addon': ['security', 'compliance'],
+      'community-base': ['evals'],
+    });
+  });
+
+  it('offers topics shared by at least two packs and filters by one', async () => {
+    renderLibrary();
+    const grid = await results();
+    const chips = within(await screen.findByTestId('topic-chips'));
+
+    // `security` is on two packs; `testing`, `compliance` and `evals` are on one each.
+    expect(chips.getByRole('button', { name: /security/ })).toBeInTheDocument();
+    expect(chips.queryByRole('button', { name: /evals/ })).not.toBeInTheDocument();
+
+    fireEvent.click(chips.getByRole('button', { name: /security/ }));
+
+    expect(grid.getByText('Software Engineer')).toBeInTheDocument();
+    expect(grid.getByText('Security & Compliance')).toBeInTheDocument();
+    expect(grid.queryByText('ML Research Assistant')).not.toBeInTheDocument();
+  });
+
+  it('matches the search box against topics', async () => {
+    renderLibrary();
+    const grid = await results();
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search packs' }), {
+      target: { value: 'evals' },
+    });
+
+    expect(grid.getByText('ML Research Assistant')).toBeInTheDocument();
+    expect(grid.queryByText('Software Engineer')).not.toBeInTheDocument();
+  });
+
+  it('restores filters from the URL', async () => {
+    renderLibrary('/packs?facet=additional&topic=security');
+    const grid = await results();
+
+    expect(grid.getByText('Security & Compliance')).toBeInTheDocument();
+    expect(grid.queryByText('Software Engineer')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add-ons' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('treats a pasted link to "Mine" as "All" for a signed-out visitor', async () => {
+    renderLibrary('/packs?facet=mine');
+    const grid = await results();
+
+    expect(grid.getByText('Software Engineer')).toBeInTheDocument();
+  });
+
+  it('still lists packs when topics fail to load', async () => {
+    vi.mocked(packApi.communityTopics).mockRejectedValue(new Error('boom'));
+    renderLibrary();
+    const grid = await results();
+
+    expect(grid.getByText('Software Engineer')).toBeInTheDocument();
+    expect(screen.queryByTestId('topic-chips')).not.toBeInTheDocument();
   });
 });
