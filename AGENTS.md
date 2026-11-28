@@ -214,6 +214,15 @@ Three compose files with layered overrides:
 | `docker-compose.dev.yml` | Dev — adds `:8000` for backend, mounts `~/` to `/host-home/`, CORS for Vite |
 | `docker-compose.prod.yml` | VPS — removes host ports, attaches external proxy network via `PROXY_NETWORK` |
 
+- **Deploy with `scripts/deploy.sh`, not by hand.** It classifies the diff into
+  the steps a change needs (backend restart vs image rebuild, migration,
+  frontend/mcp rebuild, reconcile), backs up first, gates reconcile behind a
+  human reading the dry run, and verifies that users, ratings, verifications,
+  tokens and settings are unchanged. Its classification is the part tests cover
+  (`tests/test_deploy_script.py`, via `--plan-only`): if you add a path that
+  needs a deploy step (a new bind mount, a new image), teach `classify()` and add
+  a test. Never auto-run it on merge; see
+  [deployment.md](docs/deployment.md#deploying-updates).
 - **The `mcp` service is opt-in** (`profiles: ["mcp"]` in
   `docker-compose.yml`), so a self-hoster who does not want a public MCP
   surface never runs it. It has no `env_file` and no database — only
