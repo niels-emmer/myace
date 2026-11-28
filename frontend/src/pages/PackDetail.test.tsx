@@ -179,6 +179,62 @@ describe('PackDetail', () => {
     expect(await screen.findByText('Check injection, authz, and secrets.')).toBeInTheDocument();
   });
 
+  it('presents a pack permission policy as readable rules, not a model config', async () => {
+    mockUser = null;
+    const policy = {
+      ...(artifacts as unknown as Record<string, unknown>[])[0],
+      id: 'art-policy',
+      artifact_type: 'model_config',
+      name: 'permissions:default',
+      description: 'Global permission rules (ask/deny only)',
+      body: JSON.stringify({
+        rules: [
+          { capability: 'execute', effect: 'ask', match: 'git push *' },
+          { capability: 'network', effect: 'deny', match: '' },
+        ],
+      }),
+      file_path: 'permissions.json',
+    };
+    const reviewer = {
+      ...(artifacts as unknown as Record<string, unknown>[])[0],
+      id: 'art-agent',
+      artifact_type: 'agent',
+      name: 'code-reviewer',
+      body: 'Review only.',
+      permissions: { edit: 'deny', execute: 'ask', read: 'allow' },
+    };
+    vi.mocked(packApi.getPublicPack).mockResolvedValue(basePack as never);
+    vi.mocked(packApi.getPublicArtifacts).mockResolvedValue([
+      ...(artifacts as unknown as unknown[]),
+      policy,
+      reviewer,
+    ] as never);
+
+    renderDetail();
+    await screen.findByRole('heading', { name: 'Security & Compliance' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Contents' }));
+
+    // Its own filter, and it is not counted as (or listed under) a model config.
+    expect(await screen.findByRole('button', { name: /^Permission rules \(1\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Model configs \(0\)/ })).toBeInTheDocument();
+    expect(screen.queryByText('permissions:default')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Permission rules' }));
+    expect(await screen.findByText('git push *')).toBeInTheDocument();
+    expect(screen.getByText('Run commands')).toBeInTheDocument();
+    expect(screen.getByText('Ask first')).toBeInTheDocument();
+    expect(screen.getByText('Blocked')).toBeInTheDocument();
+    expect(screen.getByText(/never grant access/)).toBeInTheDocument();
+    expect(screen.queryByText(/"capability"/)).not.toBeInTheDocument(); // no raw JSON
+
+    // An agent's own restrictions read as sentences; `allow` shows nothing.
+    fireEvent.click(screen.getByRole('button', { name: 'Expand code-reviewer' }));
+    const list = await screen.findByRole('list', { name: 'Permission restrictions' });
+    expect(list).toHaveTextContent('Cannot edit files');
+    expect(list).toHaveTextContent('Asks before it can run commands');
+    expect(list).not.toHaveTextContent('read');
+  });
+
   it('shows the rating and comment surface to a signed-in non-owner', async () => {
     mockUser = { id: 'user-2', role: 'user' };
     vi.mocked(collectionsApi.get).mockResolvedValue(basePack as never);

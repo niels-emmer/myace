@@ -20,6 +20,13 @@ import {
   Trash2,
   Wrench,
 } from 'lucide-react';
+import {
+  EFFECT_LABELS,
+  agentRestrictions,
+  capabilityLabel,
+  isPermissionPolicy,
+  parsePolicyRules,
+} from '../lib/permissions';
 import { collectionsApi, commentsApi, moderationApi, ratingsApi } from '../lib/api';
 import { packApi } from '../lib/packApi';
 import { FreshnessBadge } from '../components/FreshnessBadge';
@@ -37,12 +44,21 @@ import {
 import type { Artifact, ArtifactType } from '../types';
 import type { Pack, PackTab } from '../types/packs';
 
-const ARTIFACT_TYPES: { value: ArtifactType | 'all'; label: string }[] = [
+// 'permissions' is a display category, not an ArtifactType: a pack's global
+// permission rules are stored as a `model_config` (ADR-0019) but read as a
+// permissions list, not a model setting.
+type ContentFilter = ArtifactType | 'all' | 'permissions';
+
+const displayType = (artifact: Artifact): ArtifactType | 'permissions' =>
+  isPermissionPolicy(artifact) ? 'permissions' : artifact.artifact_type;
+
+const ARTIFACT_TYPES: { value: ContentFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'rule', label: 'Rules' },
   { value: 'skill', label: 'Skills' },
   { value: 'agent', label: 'Agents' },
   { value: 'workflow', label: 'Workflows' },
+  { value: 'permissions', label: 'Permission rules' },
   { value: 'model_config', label: 'Model configs' },
 ];
 
@@ -52,10 +68,18 @@ const typeColors: Record<string, string> = {
   agent: 'bg-purple-50 text-purple-700',
   workflow: 'bg-amber-50 text-amber-700',
   model_config: 'bg-rose-50 text-rose-700',
+  permissions: 'bg-orange-50 text-orange-700',
 };
 
-const TYPE_ORDER: ArtifactType[] = ['rule', 'workflow', 'agent', 'skill', 'model_config'];
-const typeRank = (type: ArtifactType): number => {
+const TYPE_ORDER: (ArtifactType | 'permissions')[] = [
+  'rule',
+  'workflow',
+  'agent',
+  'skill',
+  'permissions',
+  'model_config',
+];
+const typeRank = (type: ArtifactType | 'permissions'): number => {
   const index = TYPE_ORDER.indexOf(type);
   return index === -1 ? TYPE_ORDER.length : index;
 };
@@ -89,7 +113,7 @@ export default function PackDetail() {
   const loggedIn = !!user;
 
   const [tab, setTab] = useState<PackTab>('overview');
-  const [typeFilter, setTypeFilter] = useState<ArtifactType | 'all'>('all');
+  const [typeFilter, setTypeFilter] = useState<ContentFilter>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState('');
   const [confirmUnpublish, setConfirmUnpublish] = useState(false);
@@ -212,16 +236,17 @@ export default function PackDetail() {
     const filtered =
       typeFilter === 'all'
         ? (artifacts ?? [])
-        : (artifacts ?? []).filter((artifact) => artifact.artifact_type === typeFilter);
+        : (artifacts ?? []).filter((artifact) => displayType(artifact) === typeFilter);
     return [...filtered].sort(
-      (a, b) => typeRank(a.artifact_type) - typeRank(b.artifact_type) || a.name.localeCompare(b.name),
+      (a, b) => typeRank(displayType(a)) - typeRank(displayType(b)) || a.name.localeCompare(b.name),
     );
   }, [artifacts, typeFilter]);
 
   const typeCounts = useMemo(() => {
-    const counts: Partial<Record<ArtifactType, number>> = {};
+    const counts: Partial<Record<ContentFilter, number>> = {};
     for (const artifact of artifacts ?? []) {
-      counts[artifact.artifact_type] = (counts[artifact.artifact_type] ?? 0) + 1;
+      const type = displayType(artifact);
+      counts[type] = (counts[type] ?? 0) + 1;
     }
     return counts;
   }, [artifacts]);
@@ -432,7 +457,10 @@ export default function PackDetail() {
                   <p className="text-sm text-muted-foreground">
                     {typeFilter === 'all'
                       ? 'This pack has no items.'
-                      : `No ${typeFilter} items in this pack.`}
+                      : `No ${
+                          ARTIFACT_TYPES.find((item) => item.value === typeFilter)?.label.toLowerCase() ??
+                          typeFilter
+                        } in this pack.`}
                   </p>
                 </div>
               )}
@@ -881,12 +909,15 @@ function ArtifactRow({
   isExpanded: boolean;
   onToggleExpand: () => void;
 }) {
+  const isPolicy = isPermissionPolicy(artifact);
+  const label = isPolicy ? 'Permission rules' : artifact.name;
+  const restrictions = artifact.artifact_type === 'agent' ? agentRestrictions(artifact.permissions) : [];
   return (
     <div>
       <button
         onClick={onToggleExpand}
         aria-expanded={isExpanded}
-        aria-label={isExpanded ? `Collapse ${artifact.name}` : `Expand ${artifact.name}`}
+        aria-label={isExpanded ? `Collapse ${label}` : `Expand ${label}`}
         className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/40"
       >
         {isExpanded ? (
@@ -895,14 +926,20 @@ function ArtifactRow({
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
         <span className="min-w-0 flex-1 truncate text-sm font-medium text-card-foreground">
-          {artifact.name}
+          {label}
         </span>
+        {restrictions.length > 0 && (
+          <ShieldCheck
+            className="h-4 w-4 shrink-0 text-orange-600"
+            aria-label="Has permission restrictions"
+          />
+        )}
         <span
           className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-            typeColors[artifact.artifact_type] ?? 'bg-muted text-muted-foreground'
+            typeColors[displayType(artifact)] ?? 'bg-muted text-muted-foreground'
           }`}
         >
-          {artifact.artifact_type}
+          {isPolicy ? 'permission rules' : artifact.artifact_type}
         </span>
         <span className="shrink-0 text-xs text-muted-foreground">p{artifact.priority}</span>
       </button>
@@ -911,11 +948,31 @@ function ArtifactRow({
           {artifact.description && (
             <p className="text-sm text-muted-foreground">{artifact.description}</p>
           )}
-          <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-lg bg-muted p-3">
-            <pre className="whitespace-pre-wrap font-mono text-xs text-foreground">
-              {artifact.body}
-            </pre>
-          </div>
+          {isPolicy ? (
+            <PolicyRules body={artifact.body} />
+          ) : (
+            <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-lg bg-muted p-3">
+              <pre className="whitespace-pre-wrap font-mono text-xs text-foreground">
+                {artifact.body}
+              </pre>
+            </div>
+          )}
+          {restrictions.length > 0 && (
+            <ul
+              aria-label="Permission restrictions"
+              className="flex flex-wrap gap-2 text-xs"
+            >
+              {restrictions.map((text) => (
+                <li
+                  key={text}
+                  className="flex items-center gap-1 rounded bg-orange-50 px-2 py-1 font-medium text-orange-700"
+                >
+                  <ShieldCheck className="h-3 w-3" />
+                  {text}
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <FileText className="h-3 w-3" />
@@ -933,6 +990,58 @@ function ArtifactRow({
             )}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A pack's global permission rules as a readable list instead of raw JSON.
+ * Restrict-only: a rule can ask first or block, never grant (ADR-0019).
+ */
+function PolicyRules({ body }: { body: string }) {
+  const rules = parsePolicyRules(body);
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        These rules only ever restrict — they ask first or block, and never grant access. They
+        apply where the tool supports them: Claude Code and OpenCode (merged into your config
+        with <code>myace pull --apply-permissions</code>) and, for shell commands, Codex CLI.
+        Other tools get a compile warning and the written rules.
+      </p>
+      {rules.length > 0 ? (
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="text-xs text-muted-foreground">
+              <th className="pb-1 pr-4 font-medium">What</th>
+              <th className="pb-1 pr-4 font-medium">Command</th>
+              <th className="pb-1 font-medium">Rule</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rules.map((rule) => (
+              <tr key={`${rule.capability}|${rule.match}|${rule.effect}`} className="border-t border-border">
+                <td className="py-1.5 pr-4 text-card-foreground">{capabilityLabel(rule.capability)}</td>
+                <td className="py-1.5 pr-4 font-mono text-xs text-foreground">
+                  {rule.match || 'any'}
+                </td>
+                <td className="py-1.5">
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                      rule.effect === 'deny'
+                        ? 'bg-red-50 text-red-700'
+                        : 'bg-orange-50 text-orange-700'
+                    }`}
+                  >
+                    {EFFECT_LABELS[rule.effect]}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="text-sm text-muted-foreground">No valid rules in this item.</p>
       )}
     </div>
   );
