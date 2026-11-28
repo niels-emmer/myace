@@ -16,6 +16,13 @@ from rich.table import Table
 
 from myace_cli import __version__
 from myace_cli.auth import AuthManager
+from myace_cli.permissions_merge import (
+    SIDECARS,
+    USER_CONFIGS,
+    apply_plan,
+    plan_merge,
+    remove_applied,
+)
 from myace_cli.scanner import export_to_collection, scan_directory
 from myace_cli.sync import (
     SyncEngine,
@@ -210,6 +217,18 @@ def pull(
         False, "--strict",
         help="Exit with code 1 if the server reports any compile-time warnings",
     ),
+    apply_permissions: bool = typer.Option(
+        False, "--apply-permissions",
+        help=(
+            "Also merge the pack's ask/deny permission rules into your "
+            "framework config (diff shown first; additive, never removes or "
+            "overrides your own entries; undo with `myace permissions-remove`)"
+        ),
+    ),
+    permissions_scope: str = typer.Option(
+        "project", "--permissions-scope",
+        help="Where --apply-permissions writes: 'project' (output dir) or 'user' (home config)",
+    ),
 ):
     """Fetch a compiled profile from the server and write files locally."""
     creds = auth_manager.load_credentials()
@@ -271,8 +290,15 @@ def pull(
             # markup language.
             rprint(f"  [yellow]![/yellow] ({rich_escape(code)}) {rich_escape(message)}")
 
+    if apply_permissions and permissions_scope not in ("project", "user"):
+        rprint("[red]✗[/red] --permissions-scope must be 'project' or 'user'.")
+        raise typer.Exit(1)
+
     if dry_run:
         rprint("\n[yellow]Dry run complete. No files were written.[/yellow]")
+        if apply_permissions:
+            _apply_permissions(files, target, path or _default_target_path(target),
+                               permissions_scope, dry_run=True, force=force)
     else:
         # Determine output path
         output_path = path or _default_target_path(target)
@@ -349,6 +375,10 @@ def pull(
                 "skipping sync manifest (drift detection needs a newer server)."
             )
 
+    if apply_permissions and not dry_run:
+        _apply_permissions(files, target, output_path, permissions_scope,
+                           dry_run=False, force=force)
+
     # --strict flags a pull that succeeded but has warnings worth a look —
     # it never *prevents* the pull. In the real-write path above, files are
     # already on disk by the time this check runs; in --dry-run, nothing was
@@ -356,6 +386,62 @@ def pull(
     if strict and warnings:
         rprint(f"\n[red]✗[/red] --strict: {len(warnings)} warning(s) reported by the server.")
         raise typer.Exit(1)
+
+
+def _apply_permissions(
+    files: dict[str, str], target: str, base: Path, scope: str, *, dry_run: bool, force: bool
+) -> None:
+    """`pull --apply-permissions`: show the diff, confirm, then merge (ADR-0019)."""
+    wanted = {"claude": "claude-code", "open-code": "opencode"}.get(target, target)
+    sidecar = next(
+        (name for name in files if name in SIDECARS and SIDECARS[name][0] == wanted), None
+    )
+    if sidecar is None:
+        rprint("\n[yellow]![/yellow] This pack has no permission rules for this target; "
+               "nothing to apply.")
+        return
+    framework, project_config = SIDECARS[sidecar]
+    config_path = USER_CONFIGS[framework] if scope == "user" else base / project_config
+    plan = plan_merge(files[sidecar], framework, config_path)
+    rprint(f"\n[bold]Permissions → {rich_escape(str(config_path))}[/bold]")
+    if plan.error:
+        rprint(f"  [red]✗[/red] {rich_escape(plan.error)}")
+        return
+    for key, value in plan.added.items():
+        rprint(f"  [green]+[/green] {rich_escape(key)}: {rich_escape(json_module.dumps(value))}")
+    for note in plan.skipped:
+        rprint(f"  [yellow]![/yellow] skipped — {rich_escape(note)}")
+    if not plan.has_changes:
+        rprint("  Nothing to add; your config already covers these rules.")
+        return
+    if dry_run:
+        rprint("  [yellow]Dry run: nothing written.[/yellow]")
+        return
+    if not force and not typer.confirm("  Apply these additions?", default=False):
+        rprint("  Skipped. The sidecar file is still in place if you want to merge by hand.")
+        return
+    apply_plan(plan, base)
+    rprint("  [green]✓[/green] Applied. Undo with "
+           f"[bold]myace permissions-remove --target {target}[/bold].")
+
+
+@app.command("permissions-remove")
+def permissions_remove(
+    target: str = typer.Option(..., "--target", "-t", help="Target framework to undo"),
+    path: Path | None = typer.Option(
+        None, "--path", "-o", help="Output directory used for the pull"
+    ),
+) -> None:
+    """Remove exactly the permission entries `pull --apply-permissions` added."""
+    base = path or _default_target_path(target)
+    framework = "claude-code" if target in ("claude", "claude-code") else target
+    removed = remove_applied(base, framework)
+    if not removed:
+        rprint("Nothing recorded to remove.")
+        return
+    for item in removed:
+        rprint(f"  [red]-[/red] {rich_escape(item)}")
+    rprint("[green]✓[/green] Removed. Your own entries were left untouched.")
 
 
 def _report_results(creds: dict[str, str], results: list[dict[str, Any]]) -> None:

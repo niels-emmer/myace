@@ -71,6 +71,11 @@ def scan_directory(path: str | Path) -> list[dict]:
         configs = _parse_opencode_json(opencode_json)
         artifacts.extend(configs)
 
+    # 6. Parse permissions.json for global ask/deny rules
+    permissions_json = base / "permissions.json"
+    if permissions_json.exists():
+        artifacts.extend(_parse_permissions_json(permissions_json))
+
     return artifacts
 
 
@@ -133,6 +138,46 @@ def _parse_permissions(value: object) -> dict[str, str] | None:
         for k, v in value.items()
         if k in _PERMISSION_CAPABILITIES and v in _PERMISSION_EFFECTS
     }
+
+
+def _parse_permissions_json(path: Path) -> list[dict]:
+    """Optional pack-root `permissions.json` -> one `permissions:default`
+    model_config artifact (ADR-0019, phase 2).
+
+    Global, restrict-only rules: `{"rules": [{"capability", "effect"
+    (ask|deny), "match"?}]}`. `match` (a command pattern) is kept only for
+    `execute`. Malformed or `allow` entries are dropped, and a file with no
+    valid rule yields nothing. Mirrored in cli/myace_cli/scanner.py — keep the
+    two in sync (rule 8); `app.adapters.base.policy_rules` re-validates at
+    compile time because stored bodies are user-supplied too.
+    """
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8")).get("rules", [])
+    except (json.JSONDecodeError, OSError, AttributeError):
+        return []
+    rules: list[dict[str, str]] = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        cap, eff, match = item.get("capability"), item.get("effect"), item.get("match", "")
+        if cap not in _PERMISSION_CAPABILITIES or eff not in ("ask", "deny"):
+            continue
+        if not isinstance(match, str) or len(match) > 200 or (match and cap != "execute"):
+            continue
+        rules.append({"capability": cap, "effect": eff, "match": match})
+    if not rules:
+        return []
+    return [{
+        "artifact_type": "model_config",
+        "name": "permissions:default",
+        "version": "1.0.0",
+        "priority": 50,
+        "target_compatibility": ["claude-code", "opencode"],
+        "tags": ["permissions"],
+        "description": "Global permission rules (ask/deny only)",
+        "body": json.dumps({"rules": rules}, indent=2),
+        "file_path": "permissions.json",
+    }]
 
 
 def _parse_agent_file(path: Path) -> dict | None:

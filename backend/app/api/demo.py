@@ -46,6 +46,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.adapters import get_adapter
+from app.adapters.base import translate_artifacts
 from app.models.artifact import CanonicalArtifact
 from app.services.scanner import _parse_agents_md_content
 
@@ -125,6 +126,6 @@ async def demo_compile(request: Request, body: DemoCompileRequest) -> DemoCompil
     for target_name in DEMO_TARGETS:
         adapter = get_adapter(target_name)
         if adapter is not None:
-            targets[target_name] = adapter.translate(artifacts)
+            targets[target_name] = translate_artifacts(adapter, artifacts)
 
     return DemoCompileResponse(artifact_count=len(artifacts), targets=targets)

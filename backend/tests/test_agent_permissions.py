@@ -141,3 +141,85 @@ class TestPermissionsApi:
         aid = ok.json()["id"]
         cleared = await async_client.patch(f"{url}/{aid}", json={"permissions": None})
         assert cleared.status_code == 200 and cleared.json()["permissions"] is None
+
+
+# --- Phase 2: global policy rules as sidecar files only ----------------------
+
+POLICY_BODY = (
+    '{"rules": [{"capability": "execute", "effect": "ask", "match": "git push *"},'
+    ' {"capability": "network", "effect": "deny"},'
+    ' {"capability": "execute", "effect": "allow", "match": "ls"},'
+    ' {"capability": "edit", "effect": "ask", "match": "x"}]}'
+)
+
+
+def _policy() -> CanonicalArtifact:
+    return CanonicalArtifact(
+        artifact_type="model_config", name="permissions:default", version="1.0.0",
+        target_compatibility=[], priority=50, tags=["permissions"], description="p",
+        body=POLICY_BODY,
+    )
+
+
+def test_policy_never_reaches_any_adapters_normal_output() -> None:
+    from app.adapters.base import translate_artifacts
+
+    for adapter in list_adapters():
+        files = translate_artifacts(adapter, [_policy()])
+        text = "\n".join(files.values())
+        assert "permissions:default" not in text, adapter.adapter_name()
+        assert ".claude/settings.json" not in files and "opencode.json" not in files
+
+
+def test_policy_sidecars_are_restrict_only_and_never_a_config_file() -> None:
+    from app.adapters.base import translate_artifacts
+
+    claude = translate_artifacts(get_adapter("claude-code"), [_policy()])  # type: ignore[arg-type]
+    assert list(claude) == [".claude/myace.permissions.json"]
+    import json
+
+    perms = json.loads(claude[".claude/myace.permissions.json"])["permissions"]
+    assert perms == {"ask": ["Bash(git push *)"], "deny": ["WebFetch"]}  # allow + bad edit-match dropped
+    oc = translate_artifacts(get_adapter("opencode"), [_policy()])  # type: ignore[arg-type]
+    assert list(oc) == [".opencode/myace.permissions.json"]
+    assert json.loads(oc[".opencode/myace.permissions.json"]) == {
+        "permission": {"bash": {"git push *": "ask"}, "webfetch": "deny"}
+    }
+    assert translate_artifacts(get_adapter("cursor"), [_policy()]) == {}  # type: ignore[arg-type]
+
+
+def test_policy_on_unsupported_target_warns() -> None:
+    cursor = _check_unenforced_permissions(get_adapter("cursor"), [_policy()], "cursor")  # type: ignore[arg-type]
+    assert [w.code for w in cursor] == ["permissions_not_enforced"]
+    assert _check_unenforced_permissions(get_adapter("claude-code"), [_policy()], "claude-code") == []  # type: ignore[arg-type]
+
+
+def test_permissions_json_round_trips_through_export_and_scan(tmp_path: Path) -> None:
+    scanned_policy = scanner._parse_permissions_json(_write(tmp_path / "permissions.json", POLICY_BODY))
+    assert [a["name"] for a in scanned_policy] == ["permissions:default"]
+    art = CanonicalArtifact(**{**{k: scanned_policy[0][k] for k in (
+        "artifact_type", "name", "version", "priority", "tags", "description", "body")},
+        "target_compatibility": []})
+    exported = artifacts_to_files([art])
+    assert "permissions.json" in exported
+    again = scanner._parse_permissions_json(_write(tmp_path / "again.json", exported["permissions.json"]))
+    assert again[0]["body"] == scanned_policy[0]["body"]
+    assert scanner._parse_permissions_json(_write(tmp_path / "bad.json", "not json")) == []
+
+
+def _write(path: Path, text: str) -> Path:
+    path.write_text(text)
+    return path
+
+
+def test_every_starter_pack_ships_the_shared_ask_rules() -> None:
+    import json
+
+    for slug in ("software-engineer", "vibecoder", "data-scientist", "devops-engineer"):
+        arts = _scan_seeded_collection(REPO / "collections/base" / slug)
+        policy = next(a for a in arts if a["name"] == "permissions:default")
+        matches = {r["match"] for r in json.loads(policy["body"])["rules"]}
+        assert {"git push *", "rm -rf *", "sudo *"} <= matches, slug
+    devops = next(a for a in _scan_seeded_collection(REPO / "collections/base/devops-engineer")
+                  if a["name"] == "permissions:default")
+    assert "terraform apply *" in devops["body"]

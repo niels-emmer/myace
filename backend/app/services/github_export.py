@@ -82,6 +82,10 @@ def artifacts_to_files(artifacts: list[CanonicalArtifact]) -> dict[str, str]:
         elif artifact.artifact_type == "rule":
             rule_sections.append(f"## {artifact.name}\n\n{artifact.body}".strip())
             continue
+        elif artifact.artifact_type == "model_config" and artifact.name == "permissions:default":
+            # Round-trips scanner._parse_permissions_json (ADR-0019).
+            files["permissions.json"] = artifact.body.rstrip() + "\n"
+            continue
         else:
             continue  # model_config — skipped, not a single-file round trip
 

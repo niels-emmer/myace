@@ -1,6 +1,6 @@
 """add_permissions_to_artifacts
 
-Revision ID: a9b8c7d6e5f4
+Revision ID: b7c8d9e0f1a2
 Revises: e3f4a5b6c7d8
 Create Date: 2026-11-28 10:00:00.000000
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = 'a9b8c7d6e5f4'
+revision: str = 'b7c8d9e0f1a2'
 down_revision: str | None = 'e3f4a5b6c7d8'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

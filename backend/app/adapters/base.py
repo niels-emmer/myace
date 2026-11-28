@@ -54,8 +54,63 @@ def restricting_permissions(artifact: CanonicalArtifact) -> dict[str, str]:
     return {cap: eff for cap, eff in artifact.permissions.items() if eff in ("ask", "deny")}
 
 
+PERMISSION_POLICY_PREFIX = "permissions:"
+_POLICY_CAPABILITIES = ("read", "edit", "execute", "network", "delegate")
+
+
+def is_permission_policy(artifact: CanonicalArtifact) -> bool:
+    """A `model_config` named `permissions:<x>` holds a pack's global
+    permission rules (ADR-0019, phase 2). It is filtered out before any
+    adapter's `translate()` runs — see `translate_artifacts()` — so no adapter
+    has to know to skip it, unlike `mcp:<name>`."""
+    return artifact.artifact_type == "model_config" and artifact.name.startswith(
+        PERMISSION_POLICY_PREFIX
+    )
+
+
+def policy_rules(policies: list[CanonicalArtifact]) -> list[dict[str, str]]:
+    """Validated, de-duplicated `ask`/`deny` rules from policy artifacts.
+
+    Body shape: `{"rules": [{"capability", "effect", "match"?}]}`. Restrict-only
+    like agent permissions: `allow` is dropped, `match` is honoured only for
+    `execute`, and anything malformed is ignored (the body is user-supplied).
+    """
+    import json
+
+    seen: set[tuple[str, str, str]] = set()
+    rules: list[dict[str, str]] = []
+    for policy in policies:
+        try:
+            raw = json.loads(policy.body).get("rules", [])
+        except (ValueError, AttributeError):
+            continue
+        for item in raw if isinstance(raw, list) else []:
+            if not isinstance(item, dict):
+                continue
+            cap, eff, match = item.get("capability"), item.get("effect"), item.get("match", "")
+            if cap not in _POLICY_CAPABILITIES or eff not in ("ask", "deny"):
+                continue
+            if not isinstance(match, str) or len(match) > 200 or (match and cap != "execute"):
+                continue
+            key = (cap, eff, match)
+            if key not in seen:
+                seen.add(key)
+                rules.append({"capability": cap, "effect": eff, "match": match})
+    return rules
+
+
 class BaseAdapter(ABC):
     """Abstract base class for all target adapters."""
+
+    def permission_policy_files(self, policies: list[CanonicalArtifact]) -> dict[str, str]:
+        """Sidecar file(s) carrying a pack's global permission rules.
+
+        Default: none. Only adapters whose framework has a permissions config
+        override this, and they must write a file the framework never loads on
+        its own (never `settings.json` / `opencode.json`) — the user, or the
+        CLI's tracked merge, applies it (ADR-0019).
+        """
+        return {}
 
     def unenforced_permissions(self, artifact: CanonicalArtifact) -> dict[str, str]:
         """Declared restrictions this target cannot express (ADR-0019).
@@ -106,3 +161,17 @@ class BaseAdapter(ABC):
             Dict mapping filenames to file contents for the target framework.
         """
         ...
+
+
+def translate_artifacts(adapter: BaseAdapter, artifacts: list[CanonicalArtifact]) -> dict[str, str]:
+    """`adapter.translate()` plus permission-policy sidecars.
+
+    The one place policies are split off, so no adapter sees a
+    `permissions:*` model_config and none can mis-render it. Both compile
+    routes and the public demo go through here.
+    """
+    policies = [a for a in artifacts if is_permission_policy(a)]
+    files = adapter.translate([a for a in artifacts if not is_permission_policy(a)])
+    if policies:
+        files.update(adapter.permission_policy_files(policies))
+    return files

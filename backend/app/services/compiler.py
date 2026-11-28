@@ -10,7 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.adapters import get_adapter, list_adapters
-from app.adapters.base import BaseAdapter
+from app.adapters.base import (
+    BaseAdapter,
+    is_permission_policy,
+    policy_rules,
+    translate_artifacts,
+)
 from app.models.artifact import Artifact, CanonicalArtifact
 from app.models.collection import Collection
 from app.models.profile import Profile, ProfileCompileResponse, ValidationIssue
@@ -335,7 +340,7 @@ async def _compile_collections(
 
     warnings.extend(_check_unenforced_permissions(adapter, all_artifacts, target))
 
-    files = adapter.translate(all_artifacts)
+    files = translate_artifacts(adapter, all_artifacts)
 
     return ProfileCompileResponse(
         profile_id=profile_id,
@@ -456,6 +461,17 @@ def _check_unenforced_permissions(
     compile-time warning (rule 32).
     """
     warnings: list[ValidationIssue] = []
+    policies = [a for a in all_artifacts if is_permission_policy(a)]
+    if policies and policy_rules(policies) and not adapter.permission_policy_files(policies):
+        warnings.append(
+            ValidationIssue(
+                code="permissions_not_enforced",
+                message=(
+                    f"The pack's global permission rules cannot be expressed for the "
+                    f"'{target}' target; only the written rules apply."
+                ),
+            )
+        )
     for artifact in all_artifacts:
         missing = adapter.unenforced_permissions(artifact)
         if missing:

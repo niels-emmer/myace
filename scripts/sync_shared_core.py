@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate each base pack's AGENTS.md from its own rules plus the shared core.
+"""Generate each base pack's AGENTS.md and permissions.json from its own rules plus the shared core.
 
 See collections/_shared/README.md. `--check` exits 1 when a generated file is
 missing or differs from what this script would write (used by CI).
@@ -39,6 +39,17 @@ def render(slug: str, config: dict) -> str:
     return f"# {config['title'][slug]}\n\n{HEADER}\n" + "\n\n".join(p for p in parts if p) + "\n"
 
 
+def render_permissions(slug: str) -> str:
+    """The pack's global ask/deny rules: shared core + optional pack extras."""
+    rules: list[dict] = []
+    for source in (SHARED / "permissions.json", BASE / slug / "permissions.pack.json"):
+        if source.exists():
+            for rule in json.loads(source.read_text(encoding="utf-8"))["rules"]:
+                if rule not in rules:
+                    rules.append(rule)
+    return json.dumps({"rules": rules}, indent=2) + "\n"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="fail if a file is out of date")
@@ -46,13 +57,16 @@ def main() -> int:
     config = json.loads((SHARED / "packs.json").read_text(encoding="utf-8"))
     stale: list[str] = []
     for slug in config["title"]:
-        target = BASE / slug / "AGENTS.md"
-        expected = render(slug, config)
-        if target.exists() and target.read_text(encoding="utf-8") == expected:
-            continue
-        stale.append(str(target.relative_to(ROOT.parent)))
-        if not check:
-            target.write_text(expected, encoding="utf-8")
+        outputs = {
+            BASE / slug / "AGENTS.md": render(slug, config),
+            BASE / slug / "permissions.json": render_permissions(slug),
+        }
+        for target, expected in outputs.items():
+            if target.exists() and target.read_text(encoding="utf-8") == expected:
+                continue
+            stale.append(str(target.relative_to(ROOT.parent)))
+            if not check:
+                target.write_text(expected, encoding="utf-8")
     if stale and check:
         print("Out of date (run `python scripts/sync_shared_core.py`):", *stale, sep="\n  ")
         return 1

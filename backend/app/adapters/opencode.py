@@ -10,7 +10,12 @@ import json
 
 import yaml
 
-from app.adapters.base import BaseAdapter, restricting_permissions, safe_path_component
+from app.adapters.base import (
+    BaseAdapter,
+    policy_rules,
+    restricting_permissions,
+    safe_path_component,
+)
 from app.models.artifact import CanonicalArtifact
 
 # Portable capability -> OpenCode agent `permission:` key (v1 schema,
@@ -23,6 +28,9 @@ _PERMISSION_KEYS: dict[str, str] = {
     "network": "webfetch",
     "delegate": "task",
 }
+
+
+PERMISSIONS_SIDECAR = ".opencode/myace.permissions.json"
 
 
 class OpenCodeAdapter(BaseAdapter):
@@ -96,6 +104,27 @@ class OpenCodeAdapter(BaseAdapter):
             "tags": artifact.tags,
         }
         return self._frontmatter_block(frontmatter) + artifact.body.strip() + "\n"
+
+    def permission_policy_files(self, policies: list[CanonicalArtifact]) -> dict[str, str]:
+        import json
+
+        permission: dict[str, object] = {}
+        for rule in policy_rules(policies):
+            key = _PERMISSION_KEYS[rule["capability"]]
+            if rule["match"]:
+                current = permission.get(key)
+                patterns = current if isinstance(current, dict) else (
+                    {"*": current} if isinstance(current, str) else {}
+                )
+                patterns[rule["match"]] = rule["effect"]
+                permission[key] = patterns
+            elif isinstance(permission.get(key), dict):
+                permission[key]["*"] = rule["effect"]  # type: ignore[index]
+            else:
+                permission[key] = rule["effect"]
+        if not permission:
+            return {}
+        return {PERMISSIONS_SIDECAR: json.dumps({"permission": permission}, indent=2) + "\n"}
 
     def unenforced_permissions(self, artifact: CanonicalArtifact) -> dict[str, str]:
         return {}  # every portable capability maps to a v1 permission key

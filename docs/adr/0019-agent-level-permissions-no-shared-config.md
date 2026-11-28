@@ -1,6 +1,6 @@
 # ADR-0019: Agent-level permissions, compiled into agent files only
 
-**Status:** Proposed
+**Status:** Accepted (phase 1 and phase 2 implemented)
 
 ## Context
 
@@ -37,11 +37,12 @@ declared.
   user config, breaks "unzip and go", and lets a pack widen someone's
   permissions.
 - **Opt-in sidecar file (`myace.permissions.json`) the user merges by hand.**
-  Deferred, not rejected: safe but manual; revisit if agent-level scoping
-  proves too coarse.
+  Adopted as phase 2: global pack rules ship as a sidecar the framework never
+  loads.
 - **CLI-only tracked additive merge (`myace pull --apply-permissions`).**
-  Deferred: safe if diffed and recorded in the `.myace/` manifest (ADR-0009),
-  but a separate feature with its own trust model.
+  Adopted as phase 2, the only code path that writes user config: diffed,
+  confirmed, additive, restrict-only, strict-JSON-only, recorded under
+  `.myace/` and reversible (`myace permissions-remove`).
 - **Leave permissions as prose.** Rejected as the end state: it is the status
   quo this ADR exists to improve.
 
@@ -57,3 +58,17 @@ declared.
 - `ask` has no per-agent form in Claude Code: it compiles to "tool available"
   and the user's own permission mode still prompts. Documented, not hidden.
 - A new nullable column and a scanner/export/adapter change (see the plan).
+
+## Phase 2 (implemented)
+
+- Global rules live in a pack's `permissions.json` -> `model_config`
+  `permissions:default`; `translate_artifacts()` splits it off before any
+  adapter runs and the adapter writes only a sidecar.
+- Rules are `ask`/`deny` only; a `match` pattern is allowed for `execute`
+  alone (e.g. `git push *`). `allow` and malformed entries are dropped at scan
+  and again at compile.
+- The merge keeps a user's own entries and values, never writes `allow`, skips
+  a rule the user explicitly allows, and refuses a config with comments.
+- Known limits: OpenCode v2's `permissions` array is not targeted; `ask` is
+  not expressible per agent in Claude Code; frameworks without a permission
+  config only get the warning.

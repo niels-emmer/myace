@@ -20,7 +20,12 @@ artifact type.
 
 import yaml
 
-from app.adapters.base import BaseAdapter, restricting_permissions, safe_path_component
+from app.adapters.base import (
+    BaseAdapter,
+    policy_rules,
+    restricting_permissions,
+    safe_path_component,
+)
 from app.models.artifact import CanonicalArtifact
 
 # `deny` on a portable capability removes these Claude Code tools from the
@@ -33,6 +38,17 @@ _DENIED_TOOLS: dict[str, list[str]] = {
     "network": ["WebFetch", "WebSearch"],
     "delegate": ["Agent"],
 }
+
+
+_POLICY_TOOLS: dict[str, str] = {
+    "read": "Read",
+    "edit": "Edit",
+    "execute": "Bash",
+    "network": "WebFetch",
+    "delegate": "Agent",
+}
+
+PERMISSIONS_SIDECAR = ".claude/myace.permissions.json"
 
 
 class ClaudeCodeAdapter(BaseAdapter):
@@ -89,6 +105,20 @@ class ClaudeCodeAdapter(BaseAdapter):
         return self._frontmatter_block(
             {"name": artifact.name, "description": artifact.description}
         ) + artifact.body.strip() + "\n"
+
+    def permission_policy_files(self, policies: list[CanonicalArtifact]) -> dict[str, str]:
+        import json
+
+        buckets: dict[str, list[str]] = {"ask": [], "deny": []}
+        for rule in policy_rules(policies):
+            tool = _POLICY_TOOLS[rule["capability"]]
+            entry = f"{tool}({rule['match']})" if rule["match"] else tool
+            buckets[rule["effect"]].append(entry)
+        permissions = {k: v for k, v in buckets.items() if v}
+        if not permissions:
+            return {}
+        # Same shape as settings.json's `permissions` key so a merge is key-wise.
+        return {PERMISSIONS_SIDECAR: json.dumps({"permissions": permissions}, indent=2) + "\n"}
 
     def unenforced_permissions(self, artifact: CanonicalArtifact) -> dict[str, str]:
         # Only `deny` is expressible per agent; `ask` falls back to the user's

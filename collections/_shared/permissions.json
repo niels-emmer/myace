@@ -1,0 +1,8 @@
+{
+  "rules": [
+    {"capability": "execute", "effect": "ask", "match": "git push *"},
+    {"capability": "execute", "effect": "ask", "match": "git reset --hard *"},
+    {"capability": "execute", "effect": "ask", "match": "rm -rf *"},
+    {"capability": "execute", "effect": "ask", "match": "sudo *"}
+  ]
+}

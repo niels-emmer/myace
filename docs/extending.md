@@ -229,3 +229,20 @@ open a PR.
   scroll at 375px — an `overflow-x-auto` wrapper (see `SystemSettings.tsx`'s
   tables) or a `grid-cols-1 sm:grid-cols-2` pattern are the two used
   elsewhere in this codebase.
+
+## Agent permissions in an adapter
+
+Per-agent restrictions (`CanonicalArtifact.permissions`, ADR-0019) compile
+into the agent's own frontmatter only. To support a framework: read
+`restricting_permissions(artifact)` (it already drops `allow`), emit the
+framework's *deny/ask* form, and override
+`unenforced_permissions()` to return whatever you cannot express (the
+default is everything, which yields a `permissions_not_enforced` warning).
+Never write a shared config file (`settings.json`, `opencode.json`). Global
+pack rules are `permissions:*` model_configs: do **not** handle them in
+`translate()` — `translate_artifacts()` filters them out first. Override
+`permission_policy_files()` to return a sidecar the framework never loads.
+Current targets: Claude Code (`disallowedTools`; `ask` is not expressible per
+agent) and OpenCode (v1 `permission:` frontmatter — v2's `permissions` array
+is not targeted). Check both against the vendors' current docs before
+changing them.

@@ -6,6 +6,19 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Agent-level permissions** (ADR-0019). Agents can declare
+  `permissions: {edit: deny, ...}`; Claude Code gets `disallowedTools` and
+  OpenCode a `permission:` block in the agent's own file. Restrict-only, and no
+  adapter writes a shared config file. Packs can ship global ask/deny rules
+  (`permissions.json`) as a sidecar, and `myace pull --apply-permissions` merges
+  them into your config with a diff, additively and reversibly
+  (`myace permissions-remove`). New `permissions_not_enforced` compile warning
+  for targets that can't express them. Read-only starter-pack agents
+  (reviewers, auditor, verifier, orchestrator) are now restricted. Needs the
+  `b7c8d9e0f1a2` migration.
+
 ### Changed
 
 - **Base packs share one governance core.** Change Control, Secrets And

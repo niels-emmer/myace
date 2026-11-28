@@ -1,3 +1,5 @@
+> **Status: implemented** (phase 1 and phase 2) — see ADR-0019 and AGENTS.md rule 43. Kept as the design record.
+
 # Plan: agent-level permissions (ADR-0019)
 
 ## Vocabulary
