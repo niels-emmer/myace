@@ -428,6 +428,28 @@ def _parse_command_file(path: Path) -> dict | None:
     }
 
 
+_RULE_META = re.compile(r"\A<!--\s*myace:\s*(.*?)\s*-->[ \t]*\n?", re.DOTALL)
+
+
+def _split_rule_metadata(body: str) -> tuple[dict[str, object], str]:
+    """Pull an optional `<!-- myace: priority=90 tags=a,b -->` line off the top of
+    a rule body (items 10; ADR-0019's sibling for rules, which have no
+    frontmatter). Unknown keys and a priority outside 0-100 are ignored, and the
+    comment never stays in the body. Mirrored in cli/myace_cli/scanner.py — keep
+    the two in sync (rule 8)."""
+    match = _RULE_META.match(body)
+    if not match:
+        return {}, body
+    meta: dict[str, object] = {}
+    for token in match.group(1).split():
+        key, _, value = token.partition("=")
+        if key == "priority" and value.isdigit() and 0 <= int(value) <= 100:
+            meta["priority"] = int(value)
+        elif key == "tags" and value:
+            meta["tags"] = [tag for tag in value.split(",") if tag]
+    return meta, body[match.end():].strip()
+
+
 def _parse_agents_md(path: Path) -> list[dict]:
     content = path.read_text(encoding="utf-8")
     return _parse_agents_md_content(content)
@@ -454,13 +476,14 @@ def _parse_agents_md_content(content: str) -> list[dict]:
             continue
         name = header_match.group(1).strip()
         body = section[len(header_match.group(0)):].strip()
+        meta, body = _split_rule_metadata(body)
         artifacts.append({
             "artifact_type": "rule",
             "name": name,
             "version": "1.0.0",
-            "priority": 50,
+            "priority": meta.get("priority", 50),
             "target_compatibility": ["opencode"],
-            "tags": [],
+            "tags": meta.get("tags", []),
             "description": f"Rule: {name}",
             "body": body,
             "file_path": "AGENTS.md",

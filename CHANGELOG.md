@@ -8,6 +8,28 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Rules can carry a priority and tags** (`<!-- myace: priority=90 tags=security -->`
+  under a rule's heading); both scanners read it and export writes it back. Base
+  packs now use deliberate tiers (90 safety/security, 70 quality gates, 50
+  process), which changes the order rules appear in compiled output.
+- **New pack content:** Vibecoder gets a light "Run What You Changed" testing
+  rule; Software Engineer gets "Dependency Hygiene", "Observability Baseline"
+  and a read-only `architect` agent (wired into its orchestrator); Data
+  Scientist gets a read-only `data-privacy-reviewer` agent wired into its
+  handoffs.
+
+### Changed
+
+- **No-subagent fallback** is now spelled out in the Software Engineer and
+  DevOps orchestrators, every agent's Handoff and the `verify` workflow: do each
+  stage yourself as a separate pass instead of skipping it.
+- **More shared source:** the memory-system rule and skill, the plan-tracking
+  skill and Testing Discipline are generated from `collections/_shared/` for
+  Software Engineer and DevOps. Existing deployments need
+  `reconcile_seeded_collections --apply --update-content`.
+
+### Added
+
 - **Edit an agent's permissions on the owner page.** Five capabilities, each
   Inherit / Ask first / Block (restrict-only; there is no allow).
 

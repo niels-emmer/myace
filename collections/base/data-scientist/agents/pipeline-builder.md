@@ -4,7 +4,7 @@ version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
 mode: subagent
-handoff_to: [model-reviewer]
+handoff_to: [model-reviewer, data-privacy-reviewer]
 ---
 Refactor validated prototypes into production-ready pipelines and modules.
 
@@ -26,4 +26,4 @@ Refactor validated prototypes into production-ready pipelines and modules.
 
 ## Handoff
 
-Hand back to `model-reviewer` for re-validation after refactoring. Once clean, flag as ready for deployment review.
+Hand back to `model-reviewer` for re-validation after refactoring, then to `data-privacy-reviewer` for a data and dependency review. Once both are clean, flag as ready for deployment review.

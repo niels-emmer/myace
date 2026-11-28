@@ -24,4 +24,4 @@ Independent verification agent. Run tests, build, and linters against a change a
 
 ## Handoff
 
-On failure, hand to `builder` with specific failing tests/output. On clean pass for security-relevant changes, next stage is `security-auditor`; otherwise `code-reviewer`.
+On failure, hand to `builder` with specific failing tests/output. On clean pass for security-relevant changes, next stage is `security-auditor`; otherwise `code-reviewer`. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

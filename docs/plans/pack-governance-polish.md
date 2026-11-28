@@ -1,5 +1,16 @@
 # Plan: pack governance polish (items 7, 8, 10, 11, 12, 13)
 
+> **Status: implemented** on branches B and C. Decisions taken while running it
+> (ambiguity rule: safest default, logged):
+> - **Item 11:** Security By Design (Software Engineer) and DevSecOps By Default
+>   (DevOps) are different rules, not copies, so only Testing Discipline (with a
+>   DevOps variant), the memory rule and skill, and the plan-tracking skill were
+>   shared. The memory/plan skills were byte-identical, so they need no variants.
+> - **Item 10:** the compile-count change also applies to compile's own
+>   `artifact_count` and the MCP `item_count`.
+> - The new agents are not given elevated tools: `architect` and
+>   `data-privacy-reviewer` can edit nothing.
+
 Written to run unattended, start to finish; every open question was settled
 with the owner on 2026-11-28 and is recorded here. Each branch ends as a local
 commit; the owner presses Create PR and merges. On any ambiguity: take the

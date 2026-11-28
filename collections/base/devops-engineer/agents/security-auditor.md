@@ -24,4 +24,4 @@ Read-only security reviewer for infrastructure. Block merge on real findings; do
 
 ## Handoff
 
-Report findings tagged blocking/non-blocking with grounding standards. On blocking findings, hand back to `builder` with enough detail to fix. On clean pass, hand off to `code-reviewer`.
+Report findings tagged blocking/non-blocking with grounding standards. On blocking findings, hand back to `builder` with enough detail to fix. On clean pass, hand off to `code-reviewer`. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

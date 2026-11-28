@@ -25,4 +25,4 @@ Keep documentation and runbooks accurate to the infrastructure as it exists righ
 
 ## Handoff
 
-Report back once docs and memory log are updated. If updating docs surfaces that the change is incomplete, route back to `builder`.
+Report back once docs and memory log are updated. If updating docs surfaces that the change is incomplete, route back to `builder`. Where the tool has no subagents, treat the next stage as your own next pass: say the current stage is finished, then do the next one fresh — never skip it because nothing was "delegated".

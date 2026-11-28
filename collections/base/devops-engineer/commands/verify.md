@@ -13,3 +13,5 @@ compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline
 7. Confirm documentation and runbooks — README, AGENTS.md-style rule files, inline comments describing now-stale behavior — have been updated to match the change, in this same change set.
 8. Append the decision-log entry per the `memory-system` skill: what was decided, how it was tested (point at the specific runs from steps 1-4), and which docs were touched.
 9. Only report the change as done once every applicable step above is actually true — not once the code compiles, and not once "most of it" is finished.
+
+If you made the change yourself and the tool has no verifier subagent, run this as a fresh pass anyway: re-read the diff and re-run the commands now — don't answer from your memory of what you did.

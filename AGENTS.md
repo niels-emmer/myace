@@ -1580,6 +1580,19 @@ If you're an AI agent and you're not sure whether a change is "documentation-wor
   one needs a reconcile run (rule 25) on live deployments, or the old row
   lingers.
 - `additional/` collections are not part of this mechanism.
+- **Beyond the four core rules**, `packs.json` can scope a shared rule to some
+  packs (`packs`), give it a `priority`/`tags`, and share whole skills
+  (`skills/<slug>.md`, generated into `skills/<slug>/SKILL.md`). Software
+  Engineer and DevOps share the memory-system rule and skill, the plan-tracking
+  skill and Testing Discipline (with a DevOps variant). Their Security By
+  Design / DevSecOps By Default rules are deliberately *not* shared: different
+  names and content.
+- **Rules carry priority and tags** via an optional first line under the
+  heading, `<!-- myace: priority=90 tags=security,git -->`, parsed by both
+  scanners and written back by `github_export` (rule 8). Priority sorts compiled
+  output highest-first, so tiers are deliberate: 90 safety/security, 70 quality
+  gates (change control, testing, release), 50 process and style.
+  `tests/test_shared_core.py` fails if a base rule has neither a tier nor a tag.
 
 ### 43. Permissions Are Restrict-Only, Agent-Level, and Never Written to a Shared Config
 

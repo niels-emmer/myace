@@ -84,8 +84,10 @@ def test_agent_handoff_survives_the_round_trip(tmp_path) -> None:
 
 
 def test_rule_artifacts_round_trip_name_and_body_only(tmp_path) -> None:
-    """A rule becomes a `##` section in AGENTS.md with no frontmatter, so only
-    its name and body can survive — pinned so the limitation is explicit."""
+    """A rule becomes a `##` section in AGENTS.md with no frontmatter, so its
+    name, body, priority and tags (via the `<!-- myace: -->` line) survive, but
+    its version, description and compatibility cannot — pinned so the
+    limitation is explicit."""
     rules = [CanonicalArtifact(
         artifact_type="rule", name="a-rule", version="3.0.0",
         target_compatibility=["claude-code"], priority=90, tags=["t"],
@@ -100,6 +102,35 @@ def test_rule_artifacts_round_trip_name_and_body_only(tmp_path) -> None:
     scanned = {a["name"]: a for a in scanner._scan_tree(root, confine_to=root)}
     back = scanned["a-rule"]
     assert back["body"].strip() == "Rule body."
+    assert back["priority"] == 90 and back["tags"] == ["t"]
     # Not round-trippable through the `##`-section format:
     assert back["version"] == "1.0.0"
-    assert back["tags"] == []
+
+
+def test_rule_priority_and_tags_survive_the_round_trip(tmp_path) -> None:
+    rules = [
+        CanonicalArtifact(
+            artifact_type="rule", name="Safety", version="1.0.0", target_compatibility=[],
+            priority=90, tags=["security", "git"], description="d", body="Never do X.",
+        ),
+        CanonicalArtifact(
+            artifact_type="rule", name="Plain", version="1.0.0", target_compatibility=[],
+            priority=50, tags=[], description="d", body="Just a rule.",
+        ),
+    ]
+    files = artifacts_to_files(rules)
+    assert "<!-- myace: priority=90 tags=security,git -->" in files["AGENTS.md"]
+    assert files["AGENTS.md"].count("<!-- myace:") == 1  # defaults add no noise
+    root = tmp_path.resolve()
+    (root / "AGENTS.md").write_text(files["AGENTS.md"], encoding="utf-8")
+    back = {a["name"]: a for a in scanner._scan_tree(root, confine_to=root)}
+    assert back["Safety"]["priority"] == 90 and back["Safety"]["tags"] == ["security", "git"]
+    assert back["Safety"]["body"] == "Never do X."  # the comment never stays in the body
+    assert back["Plain"]["priority"] == 50 and back["Plain"]["tags"] == []
+
+
+def test_rule_metadata_ignores_unknown_keys_and_bad_priority() -> None:
+    parsed = scanner._parse_agents_md_content(
+        "## R\n\n<!-- myace: priority=999 colour=red tags=a,,b -->\n\nBody."
+    )[0]
+    assert parsed["priority"] == 50 and parsed["tags"] == ["a", "b"] and parsed["body"] == "Body."

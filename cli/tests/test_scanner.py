@@ -46,3 +46,13 @@ def test_parse_agent_file_handoff_to_empty_list_is_not_none(tmp_path: Path) -> N
     result = _parse_agent_file(path)
     assert result is not None
     assert result["handoff_to"] == []
+
+
+def test_rule_metadata_line_sets_priority_and_tags_and_leaves_the_body_clean() -> None:
+    from myace_cli.scanner import _parse_agents_md_content
+
+    rule = _parse_agents_md_content(
+        "## Safety\n\n<!-- myace: priority=90 tags=security,git -->\n\nNever do X.\n"
+    )[0]
+    assert rule["priority"] == 90 and rule["tags"] == ["security", "git"]
+    assert rule["body"] == "Never do X."

@@ -1,0 +1,1 @@
+No change merges without verification: plan/validate/lint/policy checks for IaC, unit tests for pipeline logic, and integration/smoke tests for deployments. Cover failure modes (partial apply, state drift, rollback) not just the happy path.

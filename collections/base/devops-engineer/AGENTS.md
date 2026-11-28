@@ -4,52 +4,78 @@
 
 ## Infrastructure As Code
 
+<!-- myace: priority=70 tags=infra -->
+
 All infrastructure is defined as code (Terraform, Bicep, CloudFormation, Pulumi) and version-controlled alongside the application. No click-ops, no drift between environments. Every infrastructure change goes through the same review pipeline as application code.
 
 ## Immutable And Reproducible
+
+<!-- myace: priority=70 tags=infra -->
 
 Builds produce versioned, immutable artifacts (container images, binaries, packages) that are promoted through environments without rebuilding. Infrastructure state is reproducible from code — a destroyed environment can be rebuilt identically. Never hand-patch a running environment; fix the code and redeploy.
 
 ## Plan Before Apply
 
+<!-- myace: priority=90 tags=safety,infra -->
+
 Never run `apply`, `deploy`, or `destroy` without explicit human approval in the current conversation. Show the plan/diff and ask — don't run it and explain afterward. Every promotion between environments passes the previous stage's gates.
 
 ## Least Privilege And Secrets
+
+<!-- myace: priority=90 tags=security -->
 
 Use managed identity (Azure Managed Identity, AWS IAM roles, GCP Workload Identity Federation) over long-lived credentials. Secrets come from a secrets manager at deploy time, are rotated on a schedule, and are never baked into artifacts, config files, or logs.
 
 ## DevSecOps By Default
 
+<!-- myace: priority=90 tags=security -->
+
 Security is a gate in the pipeline, not a phase at the end. Threat-model infrastructure changes (network exposure, IAM blast radius, data at rest/in transit) before writing them. Scan images and dependencies for CVEs, run policy-as-code checks, and ground findings in OWASP, CIS Benchmarks, or NIST. Security-relevant changes must pass the security-auditor stage before merge (where the tool has no subagents, a dedicated security review pass before merge).
 
 ## Observability By Default
+
+<!-- myace: tags=operations -->
 
 Every service exposes structured logs, metrics, and traces from day one. Logs are structured (JSON), metrics follow RED (Rate/Errors/Duration) for services and USE (Utilization/Saturation/Errors) for resources. Alert on symptoms, not causes — page on user-facing impact, not infrastructure noise.
 
 ## Incident Response Rigor
 
+<!-- myace: priority=70 tags=operations -->
+
 Incidents have a severity classification, a documented runbook, and a blameless postmortem. Fix forward, then fix backward: restore service first, investigate root cause after. Every incident produces a follow-up action item.
 
-## Testing Discipline
-
-No change merges without verification: plan/validate/lint/policy checks for IaC, unit tests for pipeline logic, and integration/smoke tests for deployments. Cover failure modes (partial apply, state drift, rollback) not just the happy path.
-
-## Maintain A File-Based Memory System
-
-Read `docs/memory/core-principles.md`, `workflow.md`, and `decisions.md` before nontrivial tasks. Append a decision-log entry after each task covering what was decided, how it was tested, and what docs were touched. See the `memory-system` skill for the file layout.
-
 ## Change Control
+
+<!-- myace: priority=70 tags=quality,git -->
 
 Keep diffs small and coherent — one change per diff. Every state-changing operation is reversible or has a tested rollback. Never force-push to shared branches or bypass required reviews.
 
 ## Secrets And Destructive Actions
 
+<!-- myace: priority=90 tags=security,safety -->
+
 Never commit, print, or log a secret — flag it and move on. Stop and confirm before irreversible or destructive operations (`rm -rf`, `git reset --hard`, dropping data, `sudo`), before `git push` to shared or default branches, and before touching `.env` or credentials. Never run a destructive operation against a shared resource without explicit confirmation.
 
 ## Provenance And Attribution
+
+<!-- myace: priority=70 tags=quality -->
 
 Verify AI-generated output and claims about infrastructure behavior before treating them as fact: check provider docs, changelogs, and plan output. Cite actual sources for claims about behavior or security properties. Flag uncertainty explicitly. Don't trust a `plan` you haven't read.
 
 ## Rule Of Least Power
 
+<!-- myace: tags=process -->
+
 Reach for the simplest infrastructure that solves the problem. Don't add services, modules, or abstractions until a second concrete use case demands it.
+
+## Testing Discipline
+
+<!-- myace: priority=70 tags=testing,quality -->
+
+No change merges without verification: plan/validate/lint/policy checks for IaC, unit tests for pipeline logic, and integration/smoke tests for deployments. Cover failure modes (partial apply, state drift, rollback) not just the happy path.
+
+## Maintain A File-Based Memory System
+
+<!-- myace: tags=process -->
+
+Read `docs/memory/core-principles.md`, `workflow.md`, and `decisions.md` before nontrivial tasks. Append a decision-log entry after each task covering what was decided, how it was tested, and what docs were touched. See the `memory-system` skill for the file layout.
