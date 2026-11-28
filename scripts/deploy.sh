@@ -23,7 +23,9 @@ set -Eeuo pipefail
 
 ROOT="${DEPLOY_REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 COMPOSE_FILES="${COMPOSE_FILES:--f docker-compose.yml -f docker-compose.prod.yml}"
-BACKUP_DIR="${BACKUP_DIR:-$ROOT/backups/pre-deploy}"
+# Not under $ROOT/backups: the postgres-backup sidecar writes that directory as
+# root, so the deploying user usually cannot create anything in it.
+BACKUP_DIR="${BACKUP_DIR:-${HOME:-$ROOT}/backups/myace-pre-deploy}"
 RECONCILE_FLAGS="${RECONCILE_FLAGS:---update-content --update-metadata}"
 SITE_URL="${SITE_URL:-}"
 
@@ -296,7 +298,7 @@ trap on_exit EXIT
 
 STARTED=1
 if [ "$NO_BACKUP" -eq 0 ]; then
-  mkdir -p "$BACKUP_DIR"
+  mkdir -p "$BACKUP_DIR" || die "cannot create BACKUP_DIR ($BACKUP_DIR); set BACKUP_DIR to a directory you can write"
   BACKUP_FILE="$BACKUP_DIR/$(date +%Y%m%d-%H%M%S)-from-$(git rev-parse --short "$FROM_SHA").sql.gz"
   say "Backing up the database to $BACKUP_FILE"
   dc exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "$BACKUP_FILE"

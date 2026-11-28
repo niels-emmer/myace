@@ -6,6 +6,13 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- `scripts/deploy.sh` wrote its pre-deploy backup under the repo's `backups/`,
+  which the backup sidecar owns as root, so the first real run stopped at
+  `mkdir: Permission denied` (before changing anything). The default is now
+  `~/backups/myace-pre-deploy`, and `BACKUP_DIR` still overrides it.
+
 ### Added
 
 - **`scripts/deploy.sh`**: a diff-driven deploy for a running install. It works out
