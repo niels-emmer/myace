@@ -12,7 +12,7 @@ Read-only Android reviewer. Check Compose correctness, lifecycle, and Play Store
 
 - Verify state hoisting: composables receive state as params, emit events as callbacks.
 - Check ViewModel scope: coroutines launched in `viewModelScope`, no coroutine leaks.
-- Review lifecycle awareness: `collectAsStateWithLifecycle()` for Flow/LiveData in composables.
+- Review lifecycle awareness: `collectAsStateWithLifecycle()` for Flow/StateFlow in composables.
 - Confirm offline-first patterns: Room for cache, WorkManager for sync, cache-then-network reads.
 - Check Play Store readiness: app signing, keystore, API level targeting, privacy policy.
 

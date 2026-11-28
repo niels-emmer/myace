@@ -47,7 +47,7 @@ Providers must implement a documented QMS covering: regulatory-compliance strate
 Before placing on the market, the provider must carry out the applicable conformity assessment (internal control for most Annex III systems; third-party assessment for Annex I products and certain biometric systems), draw up the EU declaration of conformity, and affix the CE marking.
 
 ### Art 49 — Registration in the EU database
-High-risk systems must be registered in the EU database before placing on the market or putting into service (applies from 2 Aug 2026).
+High-risk systems must be registered in the EU database before placing on the market or putting into service (for Annex III systems this applies from 2 Dec 2027, with the deferred high-risk obligations).
 
 ### Art 72 — Post-market monitoring
 Providers must establish and document a post-market monitoring system that actively and systematically collects and analyses data on the system's performance across its lifetime, feeding back into the risk-management system.

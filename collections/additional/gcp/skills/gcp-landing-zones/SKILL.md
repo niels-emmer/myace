@@ -57,8 +57,12 @@ existing landing zone, to confirm it fits the established pattern.
 ## Organization-policy guardrails
 
 - Enforce the standing invariants with Organization policies rather than
-  convention: deny public GCS buckets, deny disabling Cloud Audit Logs, deny
-  `iam.serviceAccountKeys.create` where federation is the standard, restrict
+  convention: enforce public access prevention on Cloud Storage
+  (`storage.publicAccessPrevention`), block service-account key creation
+  (`iam.disableServiceAccountKeyCreation`, or the managed
+  `iam.managed.disableServiceAccountKeyCreation`) where federation is the
+  standard, require Data Access audit logs through the organisation's IAM audit
+  config (Admin Activity logs cannot be turned off), restrict
   regions and machine types.
 - Use **deny** effects for hard security invariants and **audit** (via
   Cloud Asset Inventory / Security Command Center) for things that should be

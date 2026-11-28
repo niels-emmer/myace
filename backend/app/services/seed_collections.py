@@ -160,8 +160,8 @@ STARTER_COLLECTIONS: dict[str, dict[str, dict[str, str]]] = {
             "description": (
                 "For the text developers publish under their own name. Review "
                 "comments and replies, PR descriptions, code comments, commit "
-                "subjects, and status messages, written in a plain conversational "
-                "voice without the tells that make text read as generated."
+                "subjects, and status messages, written in a plain, short, specific "
+                "voice. A style guide only; it never changes AI-authorship marking."
             ),
         },
         "fullstack": {

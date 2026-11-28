@@ -41,8 +41,10 @@ problems are systemic rather than per-pack:
    pack these are dangling prose references.
 
 Mechanical facts (script-verified): no name collisions between any two add-ons;
-the only add-on/base collision is skill `git-workflow` (git-practices vs
-vibecoder, different content, see 4.17). All agent `handoff_to` names that point
+no add-on/base artifact-name collision exists either (skill names come from
+frontmatter: git-practices "Git Workflow Discipline" vs vibecoder "Git Workflow";
+a first draft that compared directory names reported a false collision). The
+only same-name artifacts are the base-pack generated pairs. All agent `handoff_to` names that point
 inside the pack resolve. All 122 add-on files list the same 11-framework
 `compatibility` (no `pi`; identical to base, so not add-on specific).
 
@@ -128,9 +130,10 @@ Testing Discipline in SE/DevOps repeats the rest.
   `enterprise-ai-governance` uses the 4. The auditor rule says sensitive data
   "must never reach LLM prompts"; the guide says "no, unless the tool is
   approved".
-- **C4 (med) git workflow.** git-practices `git-workflow` ("never directly on
-  the default branch") vs vibecoder `git-workflow` ("fine to push directly");
-  same skill name, last collection wins. `git-practices/release` itself commits
+- **C4 (med) git workflow.** git-practices `Git Workflow Discipline` ("never
+  directly on the default branch") vs vibecoder `Git Workflow` ("fine to push
+  directly"): different names so both ship, with contradictory advice when
+  composed. `git-practices/release` itself commits
   the changelog and pushes the default branch directly, contradicting its own
   rule and any protected-branch policy (this repo's rule 7).
 - **C5 (low) agent sprawl.** frontend+backend+fullstack(+database) composed give
@@ -330,7 +333,7 @@ omitted where the finding is a whole-file property; rule/skill names are exact.
   Boot/Java baseline, Actuator/Micrometer, Flyway/Liquibase.
 
 ### 4.17 git-practices — C
-- M C4 (name collision with vibecoder; release command pushes default branch).
+- M C4 (contradicts vibecoder advice when composed; release command pushes default branch).
 - L rule *Never Commit Secrets* duplicates base *Secrets And Destructive Actions*.
 - Good: `github` agent confirms repo/auth first, merges only when authorised.
 
@@ -373,9 +376,10 @@ omitted where the finding is a whole-file property; rule/skill names are exact.
   registration "applies from 2 Aug 2026", while classification skill and
   classifier agent say Annex III high-risk obligations apply from **2 Dec 2027**
   (Omnibus). Registration of Annex III systems follows the deferred date.
-- M missing: Art 50(2) machine-readable marking has a grace period to
-  **2 Dec 2026** for generative systems already on the market before 2026-08-02;
-  the pack says "enforceable from 2 Aug 2026" without it. Verified from law-firm
+- L Art 50(2) machine-readable marking has a grace period to **2 Dec 2026**
+  for generative systems already on the market before 2026-08-02. The
+  transparency skill already says so; the `AGENTS.md` rule and the timeline
+  line did not (corrected in the factual branch). Verified from law-firm
   commentary only; confirm against the Official Journal text (sources cite
   Regulation (EU) 2026/1744, in force 2026-07-27, unverified).
 - L cite regulation number of the Omnibus once confirmed; FRIA is Art 27, not 26.
@@ -391,7 +395,7 @@ omitted where the finding is a whole-file property; rule/skill names are exact.
 2. Resolve C1 (dev-writing vs attribution) per owner decision.
 3. Add `permissions: {edit: deny}` to all read-only reviewers; add the
    no-subagent fallback sentence (X2, X3).
-4. Fix git-practices `release` (PR flow) and the `git-workflow` collision.
+4. Fix git-practices `release` (PR flow); note the vibecoder contradiction.
 
 **P2 - currency**
 5. Update OWASP refs, ios Observation/Swift Testing/screenshot sizes, Play

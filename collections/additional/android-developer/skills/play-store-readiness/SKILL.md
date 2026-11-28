@@ -13,7 +13,7 @@ Avoid Play Store rejections by checking every submission requirement before ship
 ## Checklist
 
 - **App signing**: Play App Signing or upload key configured. Keystore backed up securely, not in the repo.
-- **API level targeting**: `targetSdkVersion` and `compileSdkVersion` match current Play Store requirements (target latest API level within one year of release).
+- **API level targeting**: `targetSdk` and `compileSdk` (the legacy Gradle names are `targetSdkVersion`/`compileSdkVersion`) meet the current Google Play target API requirement. As of 2026-08-31 new apps and updates must target Android 16 (API 36); Wear OS and Android Automotive need API 35, Android TV and XR API 34. Re-check the Play Console target API page, the requirement moves every year.
 - **Privacy policy**: published and linked in the Play Store listing and within the app. Covers all data collection declared in the manifest.
 - **Content rating**: completed Play Console content rating questionnaire for the current feature set.
 - **Permissions**: only requested permissions are used. No overbroad permission declarations. Runtime permission requests are handled gracefully.

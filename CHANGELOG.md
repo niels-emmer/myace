@@ -20,6 +20,19 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Add-on pack accuracy fixes** (audit `docs/plans/addon-pack-quality-audit.md`):
+  Android (LiveData/Flow collection, modifier order, Play target API 36), AWS
+  (OIDC trust policies must pin `aud` and `sub`, SCP/NACL/hub-spoke wording,
+  federation for human access), Azure (tags do not inherit from the resource
+  group), GCP (correct org-policy constraint names), Java/Spring (`@Cacheable`
+  placement, Maven has no lockfile), EU AI Act (Art 49 and Art 50(2) dates),
+  `git-practices` release (via a release PR, never a direct push to the default
+  branch), and `dev-writing` reframed as a plain style guide (one integrity
+  rule; the style rules now live in its skills; it never changes AI-authorship
+  marking). Existing deployments need `reconcile_seeded_collections --apply
+  --update-content`; the four removed `dev-writing` rules are soft-deleted by
+  that run.
+
 - **No-subagent fallback** is now spelled out in the Software Engineer and
   DevOps orchestrators, every agent's Handoff and the `verify` workflow: do each
   stage yourself as a separate pass instead of skipping it.

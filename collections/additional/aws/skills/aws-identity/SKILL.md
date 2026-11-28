@@ -32,7 +32,10 @@ policy over a shared role with broad permissions.
 workflow, a Kubernetes cluster outside AWS, a third-party SaaS) that need to
 act as an AWS identity. Use **OIDC federation** (e.g. GitHub Actions OIDC) so
 the external workload's OIDC token is trusted directly — no access key
-exchanged. Use **IAM Roles Anywhere** for workloads outside AWS that can't do
+exchanged. Constrain the role's trust policy: set `aud` (for GitHub Actions,
+`sts.amazonaws.com`) and an exact or tightly scoped `sub` condition (a specific
+repository and branch or environment). A trust policy with no `sub` condition
+lets any repository using that identity provider assume the role. Use **IAM Roles Anywhere** for workloads outside AWS that can't do
 OIDC but still need temporary credentials. This is the modern replacement for
 long-lived access keys in CI/CD.
 
@@ -43,8 +46,9 @@ privilege, and rotate it on a short, documented cadence. Treat any new access
 key as a documented exception per `iac-expert`'s `exception-documentation`
 skill.
 
-**Human access** — IAM users with MFA, or (better) identity federation to a
-corporate IdP (SSO). No shared accounts, no standing root credentials in code
+**Human access** — federation to a corporate IdP through IAM Identity Center
+(SSO); avoid IAM users for people, and where one is unavoidable require MFA. No
+shared accounts, no standing root credentials in code
 or config. Use IAM Identity Center (SSO) for just-in-time access to roles
 rather than permanent standing credentials.
 

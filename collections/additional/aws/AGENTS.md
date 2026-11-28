@@ -20,7 +20,8 @@ enforce the invariants below rather than relying on convention. See the
 
 Use IAM as the identity plane. Prefer IAM roles and identity federation (IAM
 Roles Anywhere, OIDC federation for GitHub Actions) over long-lived access
-keys — never a long-lived secret where a federated credential works. Scope IAM
+keys — never a long-lived secret where a federated credential works. An OIDC
+trust policy must pin `aud` and a specific `sub`. Scope IAM
 policies to least privilege; enable MFA for human access. See the
 `aws-identity` skill.
 

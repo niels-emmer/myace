@@ -45,7 +45,7 @@ Whenever a compliance review needs to answer "which EU AI Act obligations apply 
 
 - **2 Feb 2025** — Art 5 prohibitions in force.
 - **2 Aug 2025** — GPAI obligations (Arts 53, 55) and governance infrastructure in force.
-- **2 Aug 2026** — general application; Art 50 transparency enforceable; Art 49 registration applies.
+- **2 Aug 2026** — general application; Art 50 transparency enforceable (the Art 50(2) machine-readable marking duty has until 2 Dec 2026 for generative systems already on the market); Art 49 registration applies to the systems whose obligations already apply (not Annex III high-risk, which follows the deferred date below).
 - **2 Dec 2027** — high-risk Annex III stand-alone obligations (deferred from Aug 2026 by the 2026 Omnibus).
 - **2 Aug 2028** — high-risk Annex I product obligations (deferred from Aug 2027).
 

@@ -395,10 +395,6 @@ NEW_ADDON_PACKS: dict[str, set[str]] = {
     "Developer Writing": {
         "Developer Voice",
         "Review And Commit Wording",
-        "Write The Way A Person Types",
-        "No Dashes And No Forced Contrast",
-        "Stop At The Last Point",
-        "Name Things The Way People Do",
         "Never Invent An Event",
     },
 }

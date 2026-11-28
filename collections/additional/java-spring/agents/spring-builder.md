@@ -14,7 +14,7 @@ Build Spring Boot backend code: controllers, services, repositories, config.
 - Use constructor injection; keep class responsibilities focused.
 - Write unit tests with JUnit + Mockito for services, integration tests for repositories.
 - Configure beans explicitly in `@Configuration` classes where wiring is non-trivial.
-- Pin dependency versions and use lockfiles for reproducible builds.
+- Pin dependency versions and lock transitive versions (Gradle locking, or BOM plus Enforcer on Maven).
 
 ## Permission posture
 

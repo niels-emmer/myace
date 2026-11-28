@@ -6,11 +6,11 @@ Maintain strict controller → service → repository layering. Controllers hand
 
 ## Dependency Injection Discipline
 
-Prefer constructor injection over field injection. Keep classes focused — if a service needs more than 5-6 dependencies, it's doing too much. Use `@Configuration` classes for complex bean wiring; avoid component scanning for production-critical beans.
+Prefer constructor injection over field injection. Keep classes focused — if a service needs more than 5-6 dependencies, it's doing too much. Use `@Configuration` classes for complex bean wiring.
 
 ## Annotations Over Magic
 
-Use Spring annotations deliberately and explicitly. `@Transactional` belongs on service-layer methods, not controllers. `@Cacheable` on repository methods, not services. Every annotation should have a clear, documented purpose — avoid "convention over configuration" when it hides behavior.
+Use Spring annotations deliberately and explicitly. `@Transactional` belongs on service-layer methods, not controllers. Put `@Cacheable` where the cached result is meaningful to the business operation (usually a service method), and keep cache keys and eviction explicit. Every annotation should have a clear, documented purpose — avoid "convention over configuration" when it hides behavior.
 
 ## Test Pyramid
 
@@ -18,4 +18,4 @@ Unit test services with JUnit + Mockito (fast, isolated). Integration test repos
 
 ## Build Reproducibility
 
-Pin dependency versions in `pom.xml` or `build.gradle`. Use lockfiles (Maven Enforcer, Gradle dependency locking) to prevent unexpected transitive upgrades. Reproducible builds mean the same source + same deps = same binary, every time.
+Pin dependency versions in `pom.xml` or `build.gradle`. Prevent unexpected transitive upgrades with Gradle dependency locking, or on Maven a BOM plus Enforcer convergence rules (Maven has no native lockfile). Reproducible builds mean the same source + same deps = same binary, every time.

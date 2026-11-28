@@ -12,9 +12,9 @@ Read-only Spring reviewer. Check layering, DI, annotations, and test coverage.
 
 - Verify layered architecture: no controller→repository calls, no service returning JPA entities to controllers.
 - Check DI: constructor injection used, no field injection, no service with excessive dependencies.
-- Review annotation usage: `@Transactional` on services, not controllers; `@Cacheable` on repositories.
+- Review annotation usage: `@Transactional` on services, not controllers; `@Cacheable` placed deliberately (usually service methods).
 - Confirm test pyramid: services unit-tested, repositories integration-tested, controllers slice-tested.
-- Check build reproducibility: dependency versions pinned, lockfiles present.
+- Check build reproducibility: dependency versions pinned, transitive versions locked.
 
 ## Permission posture
 

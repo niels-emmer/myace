@@ -33,6 +33,8 @@ before the change moves forward.
 
 - [ ] Service-to-service and CI/CD auth uses IAM roles and identity federation
       (IAM Roles Anywhere, OIDC federation), not long-lived access keys.
+- [ ] Any role that trusts an OIDC provider (for example GitHub Actions) has `aud`
+      and a specific `sub` condition in its trust policy.
 - [ ] Any IAM policy is scoped to least privilege (specific actions/resources,
       not `AdministratorAccess`/`*`) and uses AWS-managed policies where
       possible.

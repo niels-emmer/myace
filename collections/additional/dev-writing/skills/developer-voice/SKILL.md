@@ -1,6 +1,6 @@
 ---
 name: Developer Voice
-description: The register for text a developer publishes under their own name (review replies, PR descriptions, commit subjects, chat messages), so it reads as typed by a person rather than generated.
+description: The register for text a developer publishes under their own name (review replies, PR descriptions, commit subjects, chat messages): plain, short, and specific. A style guide only: it never changes who is credited, and any project rule that marks AI-authored work still applies.
 version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
@@ -9,7 +9,7 @@ tags: [writing, tone, review, commits, communication]
 
 ## Purpose
 
-Most text an agent writes for a developer is read by another developer in a channel that is already informal: a review thread, a PR description, a commit subject, a chat message. That register is short, plain, and uneven. Generated text tends to the opposite: evenly weighted sentences, decorative structure, a closing line nobody needed. Readers notice it even when they cannot name why. This skill covers the voice itself. The shape of each genre is in the review-and-commit-wording skill.
+Most text an agent writes for a developer is read by another developer in a channel that is already informal: a review thread, a PR description, a commit subject, a chat message. That register is short, plain, and uneven. Padded text tends to the opposite: evenly weighted sentences, decorative structure, a closing line nobody needed. This skill covers the voice itself. It is about clarity and brevity, not about hiding how a text was produced: when the project requires an authorship marker (for example an AI-authored commit marker), add it as the project says. The shape of each genre is in the review-and-commit-wording skill.
 
 ## When to use it
 
@@ -25,7 +25,7 @@ Hard rules, not preferences:
 
 - No em or en dashes. Rewrite with a comma, a period, or a break.
 - No exclamation marks and no emoji.
-- No stock AI vocabulary: crucial, robust, leverage, seamless, comprehensive, streamline, enhance, additionally, ensure, and "key" as an adjective.
+- No stock filler vocabulary: crucial, robust, leverage, seamless, comprehensive, streamline, enhance, additionally, ensure, and "key" as an adjective.
 - No "not X but Y" framing when nobody proposed X.
 - No closer that only rounds the text off. A last line that carries the ask or the verdict stays.
 - No invented events, meetings, or discussions.
@@ -39,10 +39,9 @@ These are tips, not bans; cut them when they add nothing.
 - **Arguing with nobody.** Answering an objection that was never raised. Cut it, or state the claim it was hiding.
 - **Threes by reflex.** Three adjectives, three examples, three facts and a lesson. Keep three only when there are three.
 - **Stacked qualifiers.** "could potentially", "might arguably": one hedge at most, and only for real doubt.
-- **Over-precision.** Naming every path, value and timestamp to prove you looked reads generated. Keep the precision the point needs; let the rest stay plain ("the lock timeout", not "`lockTimeoutMs: 30000`").
+- **Over-precision.** Naming every path, value and timestamp to prove you looked is noise. Keep the precision the point needs; let the rest stay plain ("the lock timeout", not "`lockTimeoutMs: 30000`").
 - **Dense blocks.** Past a couple of sentences, one idea per short paragraph.
 - **Decoration by rule.** A bold label and colon on every bullet, title-case headings, decorative arrows. Bold only what needs it.
-- **Uniform polish.** Every sentence complete and evenly weighted reads generated. A casual surface with flawless, uncontracted mechanics reads as costume, so use contractions throughout rather than one formal clause in an otherwise casual text.
 
 ## Before sending
 

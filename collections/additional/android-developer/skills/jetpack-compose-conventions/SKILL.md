@@ -15,7 +15,7 @@ Consistent Compose patterns — predictable state flow and composable structure.
 - **State hoisting**: composables accept state as parameters and emit events as callbacks. No mutable state owned by a composable that affects siblings.
 - **remember**: for derived state that shouldn't recompute on every recomposition. Use `remember { mutableStateOf(...) }` for local UI state.
 - **derivedStateOf**: for state derived from other state that should only recompute when inputs change.
-- **Modifier ordering**: size/position modifiers first, then padding, then visual (background, border), then clickable/input. Consistent ordering across the codebase.
+- **Modifier ordering**: order is semantic, each modifier wraps what follows it. Put `clickable` before `padding` when the padding should be part of the touch target; put `background`/`border` before or after `padding` depending on whether the padded area should be painted. Pick a consistent ordering per intent and keep it across the codebase.
 - **Preview annotations**: every composable has `@Preview` annotations showing default, empty, and error states. Use `@Preview(showBackground = true)` for readability.
 - **LazyColumn/LazyRow keys**: stable and unique keys for item composition — prevents unnecessary recomposition and animation glitches.
 

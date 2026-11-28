@@ -33,7 +33,7 @@ once" is incomplete.
 Article 50 — chatbot AI-disclosure (50(1)), machine-readable marking of
 synthetic content (50(2)), emotion-recognition/biometric-categorisation notice
 (50(3)), and deepfake/public-interest-text labelling (50(4)) — is enforceable
-from 2 August 2026. Treat it as in force, not future work. It applies to
+from 2 August 2026 (the Art 50(2) marking duty has a grace period to 2 December 2026 for generative systems already on the market before that date). Treat it as in force, not future work. It applies to
 limited-risk systems too, not just high-risk ones. See the
 `eu-ai-act-transparency` skill.
 
