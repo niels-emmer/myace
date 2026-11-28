@@ -10,7 +10,7 @@ tags: [ai, agents, prompt-engineering, principles]
 
 Agent/prompt quality tends to erode the same way code quality does when there's no checklist forcing a second look: an agent persona quietly grows to cover more than it should, context accumulates instead of getting curated, and failures get retried with the same full error dump instead of a compacted summary. This skill exists to catch that drift when authoring or revising an agent, skill, or command — for this repo's own artifacts, or for a target repo an `ai-engineer`/`prompt-engineer` is working in.
 
-It draws specific, named ideas from [12-factor-agents](https://github.com/humanlayer/12-factor-agents) (humanlayer, Apache-2.0) — cited individually below, not reproduced wholesale; read the source for the full essays behind each one.
+It draws specific, named ideas from [12-factor-agents](https://github.com/humanlayer/12-factor-agents) (humanlayer; code Apache-2.0, written content CC BY-SA 4.0 per its README, so ideas are paraphrased and cited, not copied) — cited individually below, not reproduced wholesale; read the source for the full essays behind each one.
 
 ## When to use it
 

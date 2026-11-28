@@ -13,8 +13,7 @@ governing GCP at scale. This skill covers the governance essentials you need
 to design a landing zone that is secure, auditable, and cost-attributable —
 the resource hierarchy, folder/project design, IAM scoping, VPC topology, and
 Organization-policy guardrails. It deliberately does **not** reproduce the full
-landing-zone accelerator (Google Cloud's Enterprise Foundations blueprint /
-Cloud Foundation Toolkit); the accelerator is a reference for the complete,
+landing-zone accelerator (Google Cloud's Enterprise Foundations blueprint); the accelerator is a reference for the complete,
 opinionated implementation, while this skill is the decision layer you apply
 to any GCP environment.
 

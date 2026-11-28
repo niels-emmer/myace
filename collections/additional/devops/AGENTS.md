@@ -22,7 +22,7 @@ Every service exposes structured logs, metrics, and traces from day one. Logs ar
 
 <!-- myace: priority=50 tags=devops,incident -->
 
-Incidents have a severity classification, a documented runbook, and a blameless postmortem. Fix forward, then fix backward: restore service first, investigate root cause after. Every incident produces a follow-up action item.
+Incidents have a severity classification, a documented runbook, and a blameless postmortem. Restore service first (roll back, flip a flag, shift traffic), then investigate the root cause and fix it forward. Every incident produces a follow-up action item.
 
 ## Release Gates
 

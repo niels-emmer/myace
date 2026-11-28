@@ -8,7 +8,7 @@ tags: [iac, architecture, well-architected, governance]
 ---
 ## Purpose
 
-Every major cloud provider publishes a "well-architected" style framework — Azure's Well-Architected Framework, AWS's Well-Architected Framework, Google Cloud's architecture framework — and they converge on essentially the same handful of pillars, phrased slightly differently. The value isn't in citing a specific provider's document; it's in the habit of checking a change against all of them instead of only the one pillar that happened to motivate the change. This skill is a short walk-through of what to check per pillar, provider-agnostic.
+Every major cloud provider publishes a "well-architected" style framework — Azure's Well-Architected Framework, AWS's Well-Architected Framework, Google Cloud's Well-Architected Framework — and they converge on essentially the same handful of pillars, phrased slightly differently. The value isn't in citing a specific provider's document; it's in the habit of checking a change against all of them instead of only the one pillar that happened to motivate the change. This skill is a short walk-through of what to check per pillar, provider-agnostic.
 
 ## When to use it
 

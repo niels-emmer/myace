@@ -12,7 +12,7 @@ Test iOS apps at the right level — fast unit tests for logic, UI tests for cri
 
 ## Checklist
 
-- **Unit tests (XCTest)**: test view models, networking layer, data transformation logic. Fast — no UI dependency.
+- **Unit tests (Swift Testing or XCTest)**: prefer Swift Testing for new tests where the toolchain supports it, XCTest for UI tests and existing suites. Test view models, networking layer, data transformation logic. Fast — no UI dependency.
 - **UI tests (XCUITest)**: test critical user journeys (login, purchase, settings navigation). Slow — use sparingly.
 - **Snapshot tests**: use `swift-snapshot-testing` or equivalent for view rendering. Cover default, empty, and error states.
 - **Performance baselines**: set `measure()` blocks for critical code paths (data parsing, image processing, database queries).

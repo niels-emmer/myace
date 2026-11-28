@@ -10,7 +10,7 @@ Build UI with SwiftUI by default. Use UIKit only when SwiftUI doesn't support th
 
 <!-- myace: priority=50 tags=ios,state -->
 
-Use `@State` for local view state, `@Binding` for child-to-parent communication, `@ObservedObject`/`@StateObject` for reference-type model data, and `@EnvironmentObject` for app-wide dependencies. Never put business logic in views — extract into `ObservableObject` view models.
+Use `@State` for local view state and `@Binding` for child-to-parent communication. For reference-type model data, prefer the Observation framework (`@Observable` classes, iOS 17+) held with `@State`/`@Bindable` and shared via `@Environment`; on an older deployment target use `ObservableObject` with `@StateObject`/`@ObservedObject`/`@EnvironmentObject`. Never put business logic in views — extract it into a view model.
 
 ## App Store Readiness Gate
 

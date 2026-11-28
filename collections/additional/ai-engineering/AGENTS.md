@@ -40,6 +40,6 @@ failed attempt, not its full stack trace on every retry.
 ---
 
 Grounded in [12-factor-agents](https://github.com/humanlayer/12-factor-agents)
-(humanlayer, Apache-2.0) — see the `agent-design-principles` skill for the
+(humanlayer; code Apache-2.0, written content CC BY-SA 4.0 per its README) — see the `agent-design-principles` skill for the
 specific factors this collection draws on, cited individually rather than
 reproduced wholesale.

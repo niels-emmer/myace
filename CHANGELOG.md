@@ -20,6 +20,15 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Add-on pack currency**: iOS state management now leads with the Observation
+  framework (`@Observable`, iOS 17+) and the 6.9" screenshot baseline; the
+  security audit checklist names the OWASP Top 10 edition (2025 renumbered the
+  categories); Google Cloud's framework is called the Well-Architected Framework;
+  Scaleway tag and billing-unit wording corrected and WAF flagged as beta;
+  `devops` incident wording no longer calls rollback "fix forward";
+  `ai-engineering` credits 12-factor-agents' content licence. Existing
+  deployments need `reconcile_seeded_collections --apply --update-content`.
+
 - **Add-on packs follow the base-pack conventions**: every add-on rule now
   carries a priority tier (90 security/safety, 70 quality gate, 50 process),
   read-only add-on agents declare `permissions: {edit: deny}`, every add-on agent

@@ -15,7 +15,7 @@ Avoid App Store rejections by checking every submission requirement before shipp
 - **Privacy manifest**: `PrivacyInfo.xcprivacy` complete with all collected data types and reasons declared.
 - **Code signing**: valid distribution certificate and provisioning profile for the target environment.
 - **Capabilities**: all required capabilities declared in the app's entitlements file and Apple Developer portal.
-- **Screenshot automation**: XCUITest snapshots for all required device sizes (6.7", 6.5", 5.5" display).
+- **Screenshot automation**: screenshots for the sizes App Store Connect currently requires. The 6.9" iPhone set (1320 x 2868) is the baseline that scales down to smaller iPhones; a 6.5" set is only needed when no 6.9" set is supplied. Check Apple's Screenshot Specifications page before exporting, the list changes with each iPhone generation.
 - **Review credentials**: no hardcoded test accounts or review-mode flags in the production build.
 - **Guideline check**: review current App Store Review Guidelines for any changes affecting the app's category or features.
 - **Metadata**: app description, keywords, and privacy URL updated to match the current release.

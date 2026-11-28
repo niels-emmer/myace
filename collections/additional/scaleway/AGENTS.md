@@ -34,7 +34,7 @@ Private networking and VPC isolation over public exposure. No public IP,
 `0.0.0.0/0` security-group rule, or public object-storage bucket without a
 documented exception. Secrets live in Secret Manager, referenced by ID — never
 embedded. Security groups (virtual firewalls on the public interface), private
-networks, and WAF edge protection are part of the baseline, not an
+networks, and, where the workload is public and the feature fits, Edge Services WAF (a public-beta feature, so confirm its current status) are part of the baseline, not an
 afterthought. See the `scaleway-security-checklist` skill.
 
 ## Scaleway Cost Attribution
