@@ -1,15 +1,15 @@
 ---
 name: GCP Landing Zones
-description: Google Cloud Adoption Framework governance essentials — resource hierarchy, folder/project design, IAM scoping, VPC topology, and Organization-policy guardrails for GCP landing zones.
+description: Governance essentials — resource hierarchy, folder/project design, IAM scoping, VPC topology, and Organization-policy guardrails for GCP landing zones.
 version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
-tags: [gcp, iac, governance, landing-zones, gcaf]
+tags: [gcp, iac, governance, landing-zones]
 ---
 ## Purpose
 
-The Google Cloud Adoption Framework (GCAF) is the set of practices for
-governing GCP at scale. This skill covers the governance essentials you need
+Google Cloud's resource hierarchy and Enterprise Foundations blueprint describe
+how to govern GCP at scale. This skill covers the governance essentials you need
 to design a landing zone that is secure, auditable, and cost-attributable —
 the resource hierarchy, folder/project design, IAM scoping, VPC topology, and
 Organization-policy guardrails. It deliberately does **not** reproduce the full

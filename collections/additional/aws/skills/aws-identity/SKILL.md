@@ -59,7 +59,7 @@ rather than permanent standing credentials.
 - **Federate external workloads.** CI/CD and external systems use OIDC
   federation or IAM Roles Anywhere, not a stored access key.
 - **Scope IAM to least privilege.** The role gets only the actions/resources
-  the workload actually needs (see the `aws-caf-landing-zones` skill).
+  the workload actually needs (see the `aws-landing-zones` skill).
 - **Never embed secrets.** No access key, secret, or API key as a literal in
   `.tf`, a tfvars file, or a module default. Reference Secrets Manager by ID.
 - **Document the exception.** Any long-lived secret is a documented exception

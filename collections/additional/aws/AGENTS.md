@@ -7,16 +7,16 @@ remote state with locking, approval-gated applies, documented exceptions,
 well-architected pillar review) and adds the AWS-specific layer on top.
 Compose it with `iac-expert` (and a base collection) in a profile. Without `iac-expert`, the skills below still apply, but record any exception in the PR description (rationale, compensating control, named approver, review date) and require explicit human approval before any apply.
 
-## AWS Governance By Design (CAF)
+## AWS Governance By Design
 
 <!-- myace: priority=70 tags=cloud,governance -->
 
-Follow Cloud Adoption Framework (CAF) governance essentials: an AWS
+Follow AWS multi-account governance essentials: an AWS
 Organizations organizational-unit (OU) hierarchy that separates platform from
 workloads, accounts scoped by environment/workload boundary, IAM assigned at
 the narrowest effective scope, and Service Control Policies (SCPs) that
 enforce the invariants below rather than relying on convention. See the
-`aws-caf-landing-zones` skill.
+`aws-landing-zones` skill.
 
 ## Identity: IAM And Federation
 

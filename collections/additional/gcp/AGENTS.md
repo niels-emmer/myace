@@ -7,11 +7,11 @@ remote state with locking, approval-gated applies, documented exceptions,
 well-architected pillar review) and adds the GCP-specific layer on top.
 Compose it with `iac-expert` (and a base collection) in a profile. Without `iac-expert`, the skills below still apply, but record any exception in the PR description (rationale, compensating control, named approver, review date) and require explicit human approval before any apply.
 
-## Governance By Design (GCAF)
+## GCP Governance By Design
 
 <!-- myace: priority=70 tags=cloud,governance -->
 
-Follow the Google Cloud Adoption Framework (GCAF) governance essentials: a
+Follow Google Cloud resource-hierarchy governance essentials: a
 resource hierarchy (Organization → Folders → Projects) that separates platform
 from workloads, projects scoped by environment/workload boundary, IAM assigned
 at the narrowest effective scope, and Organization-policy guardrails that
@@ -46,11 +46,11 @@ workload) so spend rolls up correctly in Cloud Billing. Size to actual load;
 use committed-use discounts only where the workload's traffic pattern genuinely
 warrants them.
 
-## Map Changes To GCP Architecture Framework Pillars
+## Map Changes To GCP Well-Architected Pillars
 
 <!-- myace: priority=50 tags=cloud,architecture -->
 
-Before shipping nontrivial GCP changes, note which Google Cloud Architecture
+Before shipping nontrivial GCP changes, note which Google Cloud Well-Architected
 Framework pillars are affected (operational excellence, security/privacy/
 compliance, reliability, cost optimization, performance optimization,
 sustainability) and how. See the `gcp-waf-review` skill.

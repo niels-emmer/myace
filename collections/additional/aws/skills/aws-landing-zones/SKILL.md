@@ -1,16 +1,15 @@
 ---
-name: AWS CAF Landing Zones
-description: Cloud Adoption Framework governance essentials — AWS Organizations OU hierarchy, account design, Service Control Policies, IAM scoping, and VPC topology for AWS landing zones.
+name: AWS Landing Zones
+description: Multi-account governance essentials — AWS Organizations OU hierarchy, account design, Service Control Policies, IAM scoping, and VPC topology for AWS landing zones.
 version: "1.0.0"
 priority: 50
 compatibility: [opencode, claude-code, cursor, codex-cli, windsurf, aider, cline, continue-dev, goose, amazon-q, copilot-cli]
-tags: [aws, iac, governance, landing-zones, caf]
+tags: [aws, iac, governance, landing-zones]
 ---
 ## Purpose
 
-The AWS Cloud Adoption Framework (CAF) Governance and Security perspectives,
-together with AWS's multi-account guidance ("Organizing your AWS environment",
-the Security Reference Architecture, AWS Control Tower), describe how to govern
+AWS's multi-account guidance ("Organizing your AWS environment",
+the Security Reference Architecture, AWS Control Tower) describes how to govern
 AWS at scale. This skill covers the governance essentials you need to design a
 landing zone that is secure, auditable, and cost-attributable — AWS
 Organizations OU hierarchy, account design, Service Control Policies (SCPs),
